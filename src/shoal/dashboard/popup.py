@@ -45,7 +45,7 @@ def run_popup() -> None:
 
     sessions_dir = state_dir() / "sessions"
 
-    header = "SHOAL DASHBOARD — Enter: attach | ctrl-k: kill | esc: close"
+    header = "SHOAL DASHBOARD — Enter: attach | ctrl-x: kill | esc: close"
 
     fzf_args = [
         "fzf",
@@ -54,7 +54,7 @@ def run_popup() -> None:
         f"--header={header}",
         f"--preview=cat {sessions_dir}/{{1}}.json 2>/dev/null",
         "--preview-window=right:50%:wrap",
-        "--bind=ctrl-k:execute-silent(shoal kill {1})+reload(shoal _popup-list)",
+        "--bind=ctrl-x:execute-silent(shoal kill {1})+reload(shoal _popup-list)",
         "--ansi",
         "--no-sort",
         "--layout=reverse",
