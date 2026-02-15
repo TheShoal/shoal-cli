@@ -98,24 +98,35 @@ log_file = "task-log.md"
 def tmp_state(tmp_path: Path) -> Path:
     """Create a temporary state directory."""
     state = tmp_path / "state" / "shoal"
-    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "conductor", "logs"):
+    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "conductor"):
         (state / subdir).mkdir(parents=True)
     return state
 
 
 @pytest.fixture
-def mock_dirs(tmp_config: Path, tmp_state: Path):
-    """Patch config_dir() and state_dir() to use temp directories."""
+def tmp_runtime(tmp_path: Path) -> Path:
+    """Create a temporary runtime directory."""
+    runtime = tmp_path / "runtime" / "shoal"
+    for subdir in ("logs",):
+        (runtime / subdir).mkdir(parents=True)
+    return runtime
+
+
+@pytest.fixture
+def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
+    """Patch config_dir(), state_dir(), and runtime_dir() to use temp directories."""
     from shoal.core.config import load_config
 
     load_config.cache_clear()
 
     config_patch = patch("shoal.core.config.config_dir", return_value=tmp_config)
     state_dir_patch = patch("shoal.core.config.state_dir", return_value=tmp_state)
+    runtime_dir_patch = patch("shoal.core.config.runtime_dir", return_value=tmp_runtime)
 
     with (
         config_patch,
         state_dir_patch,
+        runtime_dir_patch,
         # Patch imported references in all modules that import these
         patch("shoal.core.state.state_dir", return_value=tmp_state),
         patch("shoal.core.state.ensure_dirs"),
@@ -127,7 +138,7 @@ def mock_dirs(tmp_config: Path, tmp_state: Path):
         patch("shoal.cli.conductor.config_dir", return_value=tmp_config),
         patch("shoal.cli.conductor.state_dir", return_value=tmp_state),
         patch("shoal.cli.conductor.ensure_dirs"),
-        patch("shoal.cli.watcher.state_dir", return_value=tmp_state),
+        patch("shoal.cli.watcher.runtime_dir", return_value=tmp_runtime),
         patch("shoal.cli.watcher.ensure_dirs"),
         patch("shoal.cli.nvim.ensure_dirs"),
         patch("shoal.services.status_bar.state_dir", return_value=tmp_state),
