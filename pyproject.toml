@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shoal"
-version = "0.2.0"
+version = "0.3.0"
 description = "AI agent orchestration for terminal-first workflows"
 readme = "README.md"
 license = "MIT"
@@ -13,6 +13,8 @@ dependencies = [
     "typer>=0.15.0",
     "pydantic>=2.10.0",
     "rich>=13.0.0",
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
 ]
 
 [project.scripts]
@@ -26,6 +28,7 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
+    "httpx>=0.28.0",
 ]
 
 [tool.hatch.build.targets.wheel]

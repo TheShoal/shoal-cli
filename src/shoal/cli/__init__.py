@@ -76,3 +76,16 @@ def popup_list() -> None:
     from shoal.dashboard.popup import print_popup_list
 
     print_popup_list()
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0", "--host"),
+    port: int = typer.Option(8080, "--port"),
+) -> None:
+    """Start FastAPI server for HTTP API access."""
+    from shoal.api.server import app as fastapi_app
+    import uvicorn
+
+    typer.echo(f"Starting Shoal API server at http://{host}:{port}")
+    uvicorn.run(fastapi_app, host=host, port=port)
