@@ -18,6 +18,14 @@ def generate_id(length: int = 8) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
+def _sanitize_tmux_name(name: str) -> str:
+    """Sanitize a name for use in a tmux session name.
+
+    Tmux does not allow '.' or ':' in session names.
+    """
+    return name.replace(".", "-").replace(":", "-").replace("/", "-")
+
+
 def session_file(session_id: str) -> Path:
     """Return path to session JSON file."""
     return state_dir() / "sessions" / f"{session_id}.json"
@@ -33,7 +41,7 @@ def create_session(
     """Create a new session state file and return the session."""
     ensure_dirs()
     session_id = generate_id()
-    tmux_session = f"shoal_{session_id}"
+    tmux_session = f"shoal_{_sanitize_tmux_name(name)}"
     now = datetime.now(UTC)
 
     session = SessionState(
