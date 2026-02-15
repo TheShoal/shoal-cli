@@ -33,9 +33,7 @@ def add(
         str | None, typer.Option("-w", "--worktree", help="Create a git worktree")
     ] = None,
     branch: Annotated[bool, typer.Option("-b", "--branch", help="Create a new branch")] = False,
-    name: Annotated[
-        str | None, typer.Option("-n", "--name", help="Session name")
-    ] = None,
+    name: Annotated[str | None, typer.Option("-n", "--name", help="Session name")] = None,
 ) -> None:
     """Create a new session."""
     ensure_dirs()
@@ -137,10 +135,27 @@ def add(
     console.print(f"Attach with: shoal attach {session_name}")
 
 
-def ls() -> None:
+def ls(
+    format: Annotated[
+        str | None,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format: default (rich table) or plain (names only for completions)",
+        ),
+    ] = None,
+) -> None:
     """List all sessions."""
     ensure_dirs()
     sessions = list_sessions()
+
+    if format == "plain":
+        for sid in sessions:
+            session = get_session(sid)
+            if session:
+                console.print(session.name)
+        return
+
     if not sessions:
         console.print("No sessions")
         return
@@ -284,9 +299,7 @@ def fork(
 
     update_session(new_session.id, status=SessionStatus.running)
 
-    console.print(
-        f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})"
-    )
+    console.print(f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})")
     if wt_path:
         console.print(f"  Worktree: {wt_path}")
         console.print(f"  Branch: {new_branch} (from {source.branch})")

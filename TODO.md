@@ -18,6 +18,8 @@
 
 - Completions get messed up when tab completing after the command (shoal add) has been inputted:
 
+**FIXED in v0.3.1** - Added `--format plain` option to `shoal ls` command. The fish shell completion script was calling `shoal ls --format plain` expecting simple session names, but the `ls` command only outputted a Rich table. Now completions work correctly by returning session names one per line when `--format plain` is used.
+
 ```
 ╭─  ~/dev/laboratory                                                                               ↓60%
  │ (8m28s)
