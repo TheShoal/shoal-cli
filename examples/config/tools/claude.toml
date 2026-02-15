@@ -1,0 +1,18 @@
+# Shoal — Claude Code tool definition
+
+[tool]
+name = "claude"
+command = "claude"
+icon = "🤖"
+
+[detection]
+busy_patterns = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "thinking"]
+waiting_patterns = ["❯", "Yes/No", "Allow", "Deny"]
+error_patterns = ["Error:", "error:", "ERROR"]
+idle_patterns = ["\\$", "❯"]
+
+[mcp]
+# How to configure MCP servers for this tool
+config_cmd = "claude mcp add"
+config_file = ""  # Claude uses CLI-based MCP config
+socket_env = ""   # Environment variable for socket path

@@ -1,0 +1,17 @@
+# Shoal — default conductor profile
+
+[conductor]
+name = "default"
+tool = "opencode"
+auto_approve = false
+
+[monitoring]
+poll_interval = 10  # seconds
+waiting_timeout = 300  # seconds before escalation
+
+[escalation]
+notify = true  # macOS notification
+auto_respond = false  # auto-respond to permission prompts
+
+[tasks]
+log_file = "task-log.md"

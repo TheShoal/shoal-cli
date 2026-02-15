@@ -1,0 +1,17 @@
+# Shoal — Gemini CLI tool definition
+
+[tool]
+name = "gemini"
+command = "gemini"
+icon = "💎"
+
+[detection]
+busy_patterns = ["thinking", "generating"]
+waiting_patterns = [">", "confirm"]
+error_patterns = ["Error:", "error:"]
+idle_patterns = [">"]
+
+[mcp]
+config_cmd = ""
+config_file = ""
+socket_env = ""

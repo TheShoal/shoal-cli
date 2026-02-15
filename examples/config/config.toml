@@ -1,0 +1,27 @@
+# Shoal — global configuration
+# Copy to ~/.config/shoal/config.toml
+
+[general]
+default_tool = "claude"
+state_dir = "~/.local/share/shoal"
+worktree_dir = ".worktrees"  # relative to project root
+
+[tmux]
+session_prefix = "shoal"
+popup_width = "90%"
+popup_height = "90%"
+popup_key = "S"  # Prefix + S
+
+[status_bar]
+max_display = 5
+separator = "  "
+flash_waiting = true
+
+[notifications]
+enabled = true
+# macOS osascript notifications for waiting sessions
+timeout_seconds = 300
+
+[conductor]
+default_tool = "opencode"
+default_profile = "default"

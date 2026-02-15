@@ -1,0 +1,17 @@
+# Shoal — OpenCode tool definition
+
+[tool]
+name = "opencode"
+command = "opencode"
+icon = "🌐"
+
+[detection]
+busy_patterns = ["working", "generating", "thinking"]
+waiting_patterns = ["│ >", "permission"]
+error_patterns = ["error", "Error"]
+idle_patterns = ["│ >"]
+
+[mcp]
+config_cmd = ""
+config_file = ".opencode.json"  # OpenCode uses JSON config for MCP
+socket_env = ""
