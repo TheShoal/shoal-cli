@@ -12,41 +12,21 @@ def generate_status() -> str:
     if not sessions_dir.exists():
         return ""
 
-    segments: list[str] = []
-    active = 0
+    counts = {"running": 0, "idle": 0, "error": 0, "waiting": 0}
 
     for sid in list_sessions():
         session = get_session(sid)
         if not session:
             continue
 
-        if session.status.value == "stopped":
-            continue
+        if session.status.value in counts:
+            counts[session.status.value] += 1
 
-        active += 1
-
-        try:
-            icon = load_tool_config(session.tool).icon
-        except FileNotFoundError:
-            icon = "●"
-
-        # Tmux color codes
-        color_map = {
-            "running": "#[fg=green]",
-            "waiting": "#[fg=yellow,bold]",
-            "error": "#[fg=red,bold]",
-            "idle": "#[fg=white]",
-        }
-        color = color_map.get(session.status.value, "")
-        reset = "#[default]"
-
-        segments.append(f"{color}{icon} {session.name}:{session.status.value}{reset}")
-
-    if active == 0:
+    total = sum(counts.values())
+    if total == 0:
         return ""
 
-    output = "  ".join(segments)
-    return f"{output}  #[fg=cyan]⚡ {active} active#[default]"
+    return f"#[fg=green]● {counts['running']} #[fg=white]○ {counts['idle']} #[fg=red]● {counts['error']} #[fg=yellow]◉ {counts['waiting']}#[default]"
 
 
 def main() -> None:
