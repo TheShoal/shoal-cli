@@ -18,6 +18,7 @@ from shoal.core.state import (
     resolve_session_interactive,
     update_session,
 )
+from shoal.models.state import SessionStatus
 
 console = Console()
 
@@ -167,7 +168,7 @@ def wt_cleanup() -> None:
             s = get_session(sid)
             if s:
                 console.print(f"  {s.name} ({sid}) — marking as stopped")
-                update_session(sid, status="stopped")
+                update_session(sid, status=SessionStatus.stopped)
         console.print()
 
     # Find orphaned worktrees

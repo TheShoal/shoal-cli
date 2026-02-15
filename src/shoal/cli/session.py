@@ -21,6 +21,7 @@ from shoal.core.state import (
     touch_session,
     update_session,
 )
+from shoal.models.state import SessionStatus
 
 console = Console()
 
@@ -85,7 +86,12 @@ def add(
     # Session name
     session_name = name
     if not session_name:
-        session_name = worktree.replace("/", "-") if worktree else resolved_path.name
+        project_name = Path(root).name
+        if worktree:
+            wt_label = worktree.replace("/", "-")
+            session_name = f"{project_name}/{wt_label}"
+        else:
+            session_name = project_name
 
     # Check name collision
     if find_by_name(session_name):
@@ -114,7 +120,7 @@ def add(
     tmux.send_keys(tmux_session, tool_cfg.command)
 
     # Update state
-    update_session(session.id, status="running")
+    update_session(session.id, status=SessionStatus.running)
 
     pane = tmux.pane_pid(tmux_session)
     if pane:
@@ -199,7 +205,7 @@ def attach(
         console.print(
             f"[red]Tmux session '{s.tmux_session}' not found (session may have died)[/red]"
         )
-        update_session(sid, status="stopped")
+        update_session(sid, status=SessionStatus.stopped)
         raise typer.Exit(1)
 
     touch_session(sid)
@@ -227,8 +233,11 @@ def detach() -> None:
 def fork(
     session: Annotated[str | None, typer.Argument(help="Session to fork")] = None,
     name: Annotated[str | None, typer.Option("--name", "-n", help="New session name")] = None,
+    no_worktree: Annotated[
+        bool, typer.Option("--no-worktree", help="Fork without creating a worktree")
+    ] = False,
 ) -> None:
-    """Fork a session with a new worktree."""
+    """Fork a session into a new worktree (or standalone session with --no-worktree)."""
     ensure_dirs()
     source_id = resolve_session_interactive(session)
     source = get_session(source_id)
@@ -241,36 +250,48 @@ def fork(
         console.print(f"[red]Session with name '{new_name}' already exists[/red]")
         raise typer.Exit(1)
 
-    # Create new worktree
-    wt_dir_name = new_name.replace("/", "-")
-    wt_path = str(Path(source.path) / ".worktrees" / wt_dir_name)
-    new_branch = f"feat/{new_name}"
+    tool_cfg = load_tool_config(source.tool)
+    work_dir = source.worktree or source.path
+    wt_path = ""
+    new_branch = source.branch
 
-    Path(source.path, ".worktrees").mkdir(parents=True, exist_ok=True)
-    try:
-        git.worktree_add(source.path, wt_path, branch=new_branch, start_point=source.branch)
-    except Exception:
-        console.print("[red]Failed to create worktree for fork[/red]")
-        raise typer.Exit(1) from None
+    if no_worktree:
+        # Fork as a standalone session in the same directory
+        pass
+    else:
+        # Create new worktree
+        wt_dir_name = new_name.replace("/", "-")
+        wt_path = str(Path(source.path) / ".worktrees" / wt_dir_name)
+        new_branch = f"feat/{new_name.replace('/', '-')}"
+
+        Path(source.path, ".worktrees").mkdir(parents=True, exist_ok=True)
+        try:
+            git.worktree_add(source.path, wt_path, branch=new_branch, start_point=source.branch)
+        except Exception:
+            console.print("[red]Failed to create worktree for fork[/red]")
+            raise typer.Exit(1) from None
+        work_dir = wt_path
 
     # Create new session
     new_session = create_session(new_name, source.tool, source.path, wt_path, new_branch)
 
-    tool_cfg = load_tool_config(source.tool)
     tmux_session = new_session.tmux_session
 
-    tmux.new_session(tmux_session, cwd=wt_path)
+    tmux.new_session(tmux_session, cwd=work_dir)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", new_session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", new_name)
     tmux.send_keys(tmux_session, tool_cfg.command)
 
-    update_session(new_session.id, status="running")
+    update_session(new_session.id, status=SessionStatus.running)
 
     console.print(
         f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})"
     )
-    console.print(f"  Worktree: {wt_path}")
-    console.print(f"  Branch: {new_branch} (from {source.branch})")
+    if wt_path:
+        console.print(f"  Worktree: {wt_path}")
+        console.print(f"  Branch: {new_branch} (from {source.branch})")
+    else:
+        console.print(f"  Directory: {work_dir}")
     console.print()
     console.print(f"Attach with: shoal attach {new_name}")
 

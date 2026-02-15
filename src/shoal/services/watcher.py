@@ -9,10 +9,11 @@ import signal
 from datetime import UTC, datetime
 
 from shoal.core import tmux
-from shoal.core.config import ensure_dirs, load_tool_config, state_dir
+from shoal.core.config import ensure_dirs, load_tool_config, runtime_dir
 from shoal.core.detection import detect_status
 from shoal.core.notify import notify
 from shoal.core.state import get_session, list_sessions, update_session
+from shoal.models.state import SessionStatus
 
 logger = logging.getLogger("shoal.watcher")
 
@@ -26,7 +27,7 @@ class Watcher:
         """Main loop with signal handling + PID file."""
         ensure_dirs()
 
-        log_file = state_dir() / "logs" / "watcher.log"
+        log_file = runtime_dir() / "logs" / "watcher.log"
         logging.basicConfig(
             filename=str(log_file),
             level=logging.INFO,
@@ -34,7 +35,7 @@ class Watcher:
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-        pid_file = state_dir() / "watcher.pid"
+        pid_file = runtime_dir() / "watcher.pid"
         pid_file.write_text(str(os.getpid()))
 
         logger.info("Watcher started (pid: %d)", os.getpid())
@@ -64,7 +65,9 @@ class Watcher:
             # Check if tmux session still exists
             if not tmux.has_session(session.tmux_session):
                 if session.status.value != "stopped":
-                    update_session(sid, status="stopped", last_activity=datetime.now(UTC))
+                    update_session(
+                        sid, status=SessionStatus.stopped, last_activity=datetime.now(UTC)
+                    )
                     logger.info("Session %s: marked stopped (tmux gone)", sid)
                 continue
 
@@ -85,7 +88,7 @@ class Watcher:
             if new_status.value != session.status.value:
                 update_session(
                     sid,
-                    status=new_status.value,
+                    status=new_status,
                     last_activity=datetime.now(UTC),
                 )
                 logger.info("Session %s: %s → %s", sid, session.status.value, new_status.value)
