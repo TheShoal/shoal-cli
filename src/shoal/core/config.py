@@ -21,15 +21,23 @@ def config_dir() -> Path:
 
 
 def state_dir() -> Path:
-    """Return ~/.local/share/shoal."""
+    """Return ~/.local/share/shoal (persistent data: sessions, conductor state)."""
     return Path.home() / ".local" / "share" / "shoal"
 
 
+def runtime_dir() -> Path:
+    """Return ~/.local/state/shoal (transient runtime: PIDs, logs)."""
+    return Path.home() / ".local" / "state" / "shoal"
+
+
 def ensure_dirs() -> None:
-    """Create all required state directories."""
+    """Create all required state and runtime directories."""
     base = state_dir()
-    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "conductor", "logs"):
+    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "conductor"):
         (base / subdir).mkdir(parents=True, exist_ok=True)
+    rt = runtime_dir()
+    for subdir in ("logs",):
+        (rt / subdir).mkdir(parents=True, exist_ok=True)
 
 
 @lru_cache(maxsize=1)
