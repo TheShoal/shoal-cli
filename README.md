@@ -80,9 +80,17 @@ idle_patterns = ["$", "❯"]
 config_cmd = "claude mcp add"
 ```
 
-### Runtime state
+### Data directories
 
-Session state is stored as JSON files in `~/.local/share/shoal/sessions/`. These are managed automatically — you don't need to edit them.
+Shoal follows the XDG Base Directory Specification:
+
+| Path | Contents |
+|------|----------|
+| `~/.config/shoal/` | Configuration (TOML files) |
+| `~/.local/share/shoal/` | Persistent state (session JSON, conductor state, MCP pool) |
+| `~/.local/state/shoal/` | Transient runtime (watcher PID, logs) |
+
+Session state is stored as JSON files in `~/.local/share/shoal/sessions/`. These are managed automatically.
 
 ## Quick Start
 
@@ -112,6 +120,16 @@ shoal status
 shoal popup
 ```
 
+### Session naming
+
+Session names are derived automatically:
+
+- **No worktree**: Uses the project directory name (e.g., `shoal`)
+- **With worktree**: Uses `{project}/{worktree}` (e.g., `shoal/my-feature`)
+- **Override**: Use `-n NAME` to set any name explicitly
+
+Tmux sessions are prefixed with `shoal_` and use the session name (e.g., `shoal_shoal-my-feature`).
+
 ## Command Reference
 
 ### Session Management
@@ -123,6 +141,7 @@ shoal popup
 | `shoal attach [SESSION]` | Attach to a session (fzf picker if no arg) |
 | `shoal detach` | Detach from current shoal session |
 | `shoal fork [SESSION] --name NAME` | Fork a session into a new worktree |
+| `shoal fork [SESSION] --no-worktree` | Fork as standalone session (same directory) |
 | `shoal kill [SESSION] --worktree` | Kill a session, optionally remove worktree |
 | `shoal status` | Summary of all session statuses |
 | `shoal popup` | Interactive fzf dashboard in tmux popup |
@@ -178,6 +197,8 @@ A conductor is a supervisory AI agent that monitors other sessions.
 
 **Alias:** `cond`=conductor
 
+The conductor runs an AI tool (e.g., OpenCode, Claude) in a tmux session with an `AGENTS.md` prompt that instructs it to monitor other sessions via `shoal status`, respond to waiting agents, and escalate issues.
+
 ### Neovim Integration (`shoal nvim`)
 
 Requires [neovim-remote](https://github.com/mhinz/neovim-remote) (`nvr`).
@@ -197,6 +218,8 @@ Polls tmux panes to detect agent status changes and sends macOS notifications wh
 | `shoal watcher stop` | Stop the watcher |
 | `shoal watcher status` | Check if the watcher is running |
 
+The watcher daemon stores its PID and logs in `~/.local/state/shoal/`.
+
 ### Tmux Status Bar
 
 Add to your `tmux.conf`:
@@ -206,6 +229,22 @@ set -g status-right "#(shoal-status)"
 ```
 
 This shows active sessions with tool icons, color-coded status, and an active count.
+
+To also bind the popup dashboard to a key:
+
+```tmux
+bind-key S run-shell "shoal popup"
+```
+
+### Dashboard Popup
+
+The popup dashboard (`shoal popup`) opens an fzf-based session picker inside a tmux popup window. Key bindings:
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Attach to selected session |
+| `ctrl-x` | Kill selected session |
+| `Esc` | Close dashboard |
 
 ## Architecture
 
@@ -233,7 +272,7 @@ Key design decisions:
 - **Pydantic for all I/O** — config (TOML) and state (JSON) go through typed models. No `jq` dependency.
 - **Pure detection function** — `detect_status(pane_text, tool_config) -> SessionStatus` has no side effects, making it trivially testable.
 - **Subprocess wrappers** — `core/tmux.py` and `core/git.py` isolate all subprocess calls, keeping CLI handlers focused on orchestration logic.
-- **XDG layout** — config in `~/.config/shoal/`, state in `~/.local/share/shoal/`.
+- **XDG layout** — config in `~/.config/shoal/`, persistent state in `~/.local/share/shoal/`, runtime state in `~/.local/state/shoal/`.
 
 ## Development
 
