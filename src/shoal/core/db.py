@@ -62,6 +62,10 @@ class ShoalDB:
                 data TEXT NOT NULL
             )
         """)
+        # Add index on name for faster lookups
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sessions_name ON sessions(name)
+        """)
         await self._conn.execute("""
             CREATE TABLE IF NOT EXISTS conductors (
                 name TEXT PRIMARY KEY,
@@ -111,6 +115,15 @@ class ShoalDB:
             async with conn.execute("SELECT data FROM sessions") as cursor:
                 rows = await cursor.fetchall()
                 return [SessionState.model_validate_json(row[0]) for row in rows]
+
+    async def find_session_by_name(self, name: str) -> SessionState | None:
+        """Find a session by name (indexed lookup)."""
+        async with self._connection() as conn:
+            async with conn.execute("SELECT data FROM sessions WHERE name = ?", (name,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return SessionState.model_validate_json(row[0])
+        return None
 
     async def update_session(self, session_id: str, **fields: Any) -> SessionState | None:
         """Update specific fields of a session."""

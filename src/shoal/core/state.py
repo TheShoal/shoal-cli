@@ -95,11 +95,8 @@ async def list_sessions() -> list[SessionState]:
 async def find_by_name(name: str) -> str | None:
     """Find a session ID by name."""
     db = await get_db()
-    sessions = await db.list_sessions()
-    for session in sessions:
-        if session.name == name:
-            return session.id
-    return None
+    session = await db.find_session_by_name(name)
+    return session.id if session else None
 
 
 async def touch_session(session_id: str) -> None:
