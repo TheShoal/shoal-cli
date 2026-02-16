@@ -3,12 +3,12 @@
 from datetime import UTC, datetime
 
 from shoal.models.config import (
-    ConductorProfileConfig,
+    RoboProfileConfig,
     DetectionPatterns,
     ShoalConfig,
     ToolConfig,
 )
-from shoal.models.state import ConductorState, SessionState, SessionStatus
+from shoal.models.state import RoboState, SessionState, SessionStatus
 
 
 class TestShoalConfig:
@@ -17,7 +17,7 @@ class TestShoalConfig:
         assert cfg.general.default_tool == "claude"
         assert cfg.tmux.session_prefix == "shoal"
         assert cfg.notifications.enabled is True
-        assert cfg.conductor.default_tool == "opencode"
+        assert cfg.robo.default_tool == "opencode"
 
     def test_override(self):
         cfg = ShoalConfig(general={"default_tool": "opencode"})
@@ -44,9 +44,9 @@ class TestToolConfig:
         assert cfg.detection.error_patterns == ["Error:"]
 
 
-class TestConductorProfileConfig:
+class TestRoboProfileConfig:
     def test_defaults(self):
-        cfg = ConductorProfileConfig()
+        cfg = RoboProfileConfig()
         assert cfg.name == "default"
         assert cfg.tool == "opencode"
         assert cfg.monitoring.poll_interval == 10
@@ -92,28 +92,24 @@ class TestSessionState:
         assert restored.status == state.status
 
     def test_mcp_servers_default(self):
-        state = SessionState(
-            id="x", name="x", tool="claude", path="/tmp", tmux_session="shoal_x"
-        )
+        state = SessionState(id="x", name="x", tool="claude", path="/tmp", tmux_session="shoal_x")
         assert state.mcp_servers == []
 
     def test_model_copy(self):
-        state = SessionState(
-            id="x", name="x", tool="claude", path="/tmp", tmux_session="shoal_x"
-        )
+        state = SessionState(id="x", name="x", tool="claude", path="/tmp", tmux_session="shoal_x")
         updated = state.model_copy(update={"status": SessionStatus.waiting})
         assert updated.status == SessionStatus.waiting
         assert state.status == SessionStatus.idle  # original unchanged
 
 
-class TestConductorState:
+class TestRoboState:
     def test_create(self):
-        state = ConductorState(
+        state = RoboState(
             name="default",
             tool="opencode",
-            tmux_session="shoal_conductor_default",
+            tmux_session="shoal_robo_default",
         )
         assert state.status == "running"
         json_str = state.model_dump_json()
-        restored = ConductorState.model_validate_json(json_str)
+        restored = RoboState.model_validate_json(json_str)
         assert restored.name == "default"

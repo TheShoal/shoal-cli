@@ -26,13 +26,14 @@ class TestLs:
 
     def test_grouping(self, mock_dirs):
         from shoal.core.state import create_session
+
         asyncio.run(create_session("proj1-a", "claude", "/tmp/proj1"))
         asyncio.run(create_session("proj1-b", "claude", "/tmp/proj1"))
         asyncio.run(create_session("proj2-a", "claude", "/tmp/proj2"))
 
         with patch("shoal.core.tmux.has_session", return_value=True):
             result = runner.invoke(app, ["ls"])
-        
+
         assert result.exit_code == 0
         assert "proj1" in result.output
         assert "proj2" in result.output
@@ -40,13 +41,14 @@ class TestLs:
     def test_ghost_detection(self, mock_dirs):
         from shoal.core.state import create_session, update_session
         from shoal.models.state import SessionStatus
+
         s = asyncio.run(create_session("ghost-session", "claude", "/tmp/repo"))
         asyncio.run(update_session(s.id, status=SessionStatus.running))
 
         # Mock tmux.has_session to return False so it becomes a ghost
         with patch("shoal.core.tmux.has_session", return_value=False):
             result = runner.invoke(app, ["ls"])
-        
+
         assert result.exit_code == 0
         assert "ghost" in result.output
         assert "(running)" in result.output
@@ -56,9 +58,10 @@ class TestPrune:
     def test_prune_command(self, mock_dirs):
         from shoal.core.state import create_session, update_session
         from shoal.models.state import SessionStatus
+
         s1 = asyncio.run(create_session("active", "claude", "/tmp/repo"))
         asyncio.run(update_session(s1.id, status=SessionStatus.running))
-        
+
         s2 = asyncio.run(create_session("stopped", "claude", "/tmp/repo"))
         asyncio.run(update_session(s2.id, status=SessionStatus.stopped))
 
@@ -66,8 +69,9 @@ class TestPrune:
         result = runner.invoke(app, ["prune", "--force"])
         assert result.exit_code == 0
         assert "Removed session 'stopped'" in result.output
-        
+
         from shoal.core.state import get_session
+
         assert asyncio.run(get_session(s1.id)) is not None
         assert asyncio.run(get_session(s2.id)) is None
 
@@ -89,16 +93,22 @@ class TestStatus:
         assert "No active sessions" in result.output
 
 
-class TestAdd:
+class TestNew:
     def test_missing_git_repo(self, mock_dirs, tmp_path):
-        result = runner.invoke(app, ["add", str(tmp_path)])
+        result = runner.invoke(app, ["new", str(tmp_path)])
         assert result.exit_code == 1
         assert "Not a git repository" in result.output
 
     def test_unknown_tool(self, mock_dirs, tmp_path):
-        result = runner.invoke(app, ["add", str(tmp_path), "-t", "nonexistent"])
+        result = runner.invoke(app, ["new", str(tmp_path), "-t", "nonexistent"])
         assert result.exit_code == 1
         assert "Unknown tool" in result.output
+
+    def test_add_alias(self, mock_dirs, tmp_path):
+        """Test that 'add' still works as a hidden alias for backward compatibility."""
+        result = runner.invoke(app, ["add", str(tmp_path)])
+        assert result.exit_code == 1
+        assert "Not a git repository" in result.output
 
 
 class TestDetach:
@@ -136,41 +146,49 @@ class TestMcp:
         assert "(0 total)" in result.output
 
 
-class TestConductor:
+class TestRobo:
     def test_ls_empty(self, mock_dirs):
         _, tmp_state = mock_dirs
-        # Conductor ls reads profiles from config dir, which has default.toml
+        # Robo ls reads profiles from config dir, which has default.toml
+        result = runner.invoke(app, ["robo", "ls"])
+        assert result.exit_code == 0
+
+    def test_conductor_alias(self, mock_dirs):
+        """Test that 'conductor' still works as a hidden alias for backward compatibility."""
         result = runner.invoke(app, ["conductor", "ls"])
         assert result.exit_code == 0
 
     def test_cond_alias(self, mock_dirs):
+        """Test that 'cond' still works as a hidden alias for backward compatibility."""
         result = runner.invoke(app, ["cond", "ls"])
         assert result.exit_code == 0
 
     def test_send(self, mock_dirs):
         from shoal.core.state import create_session
+
         s = asyncio.run(create_session("test-session", "claude", "/tmp/repo"))
-        
+
         with (
             patch("shoal.core.tmux.has_session", return_value=True),
-            patch("shoal.core.tmux.send_keys") as mock_send
+            patch("shoal.core.tmux.send_keys") as mock_send,
         ):
-            result = runner.invoke(app, ["conductor", "send", "test-session", "ls -la"])
-            
+            result = runner.invoke(app, ["robo", "send", "test-session", "ls -la"])
+
             assert result.exit_code == 0
             assert "Sent keys to 'test-session'" in result.output
             mock_send.assert_called_once_with(s.tmux_session, "ls -la")
 
     def test_approve(self, mock_dirs):
         from shoal.core.state import create_session
+
         s = asyncio.run(create_session("test-session", "claude", "/tmp/repo"))
-        
+
         with (
             patch("shoal.core.tmux.has_session", return_value=True),
-            patch("shoal.core.tmux.send_keys") as mock_send
+            patch("shoal.core.tmux.send_keys") as mock_send,
         ):
-            result = runner.invoke(app, ["conductor", "approve", "test-session"])
-            
+            result = runner.invoke(app, ["robo", "approve", "test-session"])
+
             assert result.exit_code == 0
             assert "Sent keys to 'test-session'" in result.output
             mock_send.assert_called_once_with(s.tmux_session, "")
@@ -195,6 +213,7 @@ class TestInfo:
 
     def test_info_success(self, mock_dirs):
         from shoal.core.state import create_session
+
         asyncio.run(create_session("test-session", "claude", "/tmp/repo"))
 
         result = runner.invoke(app, ["info", "test-session"])
@@ -206,6 +225,7 @@ class TestInfo:
 class TestRename:
     def test_rename_success(self, mock_dirs):
         from shoal.core.state import create_session, find_by_name
+
         asyncio.run(create_session("old-name", "claude", "/tmp/repo"))
 
         with patch("shoal.core.tmux.has_session", return_value=False):

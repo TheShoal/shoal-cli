@@ -27,7 +27,7 @@ session_prefix = "shoal"
 [notifications]
 enabled = false
 
-[conductor]
+[robo]
 default_tool = "opencode"
 """
     )
@@ -69,12 +69,12 @@ idle_patterns = ["│ >"]
 """
     )
 
-    # Conductor profile
-    conductor = config / "conductor"
-    conductor.mkdir()
-    (conductor / "default.toml").write_text(
+    # Robo profile
+    robo = config / "robo"
+    robo.mkdir()
+    (robo / "default.toml").write_text(
         """
-[conductor]
+[robo]
 name = "default"
 tool = "opencode"
 auto_approve = false
@@ -99,7 +99,7 @@ log_file = "task-log.md"
 def tmp_state(tmp_path: Path) -> Path:
     """Create a temporary state directory."""
     state = tmp_path / "state" / "shoal"
-    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "conductor"):
+    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "robo"):
         (state / subdir).mkdir(parents=True)
     return state
 
@@ -139,8 +139,8 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
         # Removed patch("shoal.core.state.ensure_dirs") to allow DB initialization
         patch("shoal.cli.session.config_dir", return_value=tmp_config),
         patch("shoal.cli.mcp.state_dir", return_value=tmp_state),
-        patch("shoal.cli.conductor.config_dir", return_value=tmp_config),
-        patch("shoal.cli.conductor.state_dir", return_value=tmp_state),
+        patch("shoal.cli.robo.config_dir", return_value=tmp_config),
+        patch("shoal.cli.robo.state_dir", return_value=tmp_state),
         patch("shoal.cli.watcher.runtime_dir", return_value=tmp_runtime),
     ):
         yield tmp_config, tmp_state

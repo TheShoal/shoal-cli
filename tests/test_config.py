@@ -1,9 +1,8 @@
 """Tests for core/config.py — TOML loading and path helpers."""
 
-
 from shoal.core.config import (
     available_tools,
-    load_conductor_profile,
+    load_robo_profile,
     load_config,
     load_tool_config,
 )
@@ -46,9 +45,9 @@ class TestLoadToolConfig:
             load_tool_config("nonexistent")
 
 
-class TestLoadConductorProfile:
+class TestLoadRoboProfile:
     def test_loads_default(self, mock_dirs):
-        profile = load_conductor_profile("default")
+        profile = load_robo_profile("default")
         assert profile.name == "default"
         assert profile.tool == "opencode"
         assert profile.monitoring.poll_interval == 10
@@ -58,7 +57,7 @@ class TestLoadConductorProfile:
         import pytest
 
         with pytest.raises(FileNotFoundError):
-            load_conductor_profile("nonexistent")
+            load_robo_profile("nonexistent")
 
 
 class TestAvailableTools:

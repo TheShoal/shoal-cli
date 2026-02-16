@@ -8,6 +8,7 @@ from shoal.models.config import ShoalConfig
 
 runner = CliRunner()
 
+
 @pytest.fixture
 def mock_git_repo(tmp_path):
     repo_dir = tmp_path / "repo"
@@ -15,9 +16,10 @@ def mock_git_repo(tmp_path):
     (repo_dir / ".git").mkdir()
     return repo_dir
 
+
 def test_add_session_executes_startup_commands(mock_dirs, mock_git_repo):
     config_dir, _ = mock_dirs
-    
+
     # Create a dummy tool config
     tools_dir = config_dir / "tools"
     tools_dir.mkdir(parents=True, exist_ok=True)
@@ -27,7 +29,7 @@ def test_add_session_executes_startup_commands(mock_dirs, mock_git_repo):
     custom_config = ShoalConfig()
     custom_config.tmux.startup_commands = [
         "send-keys -t {tmux_session} 'echo {session_name}' Enter",
-        "new-window -t {tmux_session} -n test '{tool_command}'"
+        "new-window -t {tmux_session} -n test '{tool_command}'",
     ]
 
     with (
@@ -40,29 +42,30 @@ def test_add_session_executes_startup_commands(mock_dirs, mock_git_repo):
         patch("shoal.core.tmux.run_command") as mock_run_command,
         patch("shoal.core.tmux.pane_pid", return_value=123),
     ):
-        result = runner.invoke(app, ["add", str(mock_git_repo), "--name", "test-session"])
-        
+        result = runner.invoke(app, ["new", str(mock_git_repo), "--name", "test-session"])
+
         assert result.exit_code == 0
-        
+
         # Verify tmux.new_session was called
         mock_new_session.assert_called_once()
-        
+
         # Verify startup commands were run with correct interpolation
-        expected_tmux_session = "shoal_test-session" 
-        
+        expected_tmux_session = "shoal_test-session"
+
         assert mock_run_command.call_count == 2
-        
+
         # Check first command
         call1 = mock_run_command.call_args_list[0]
         assert f"send-keys -t {expected_tmux_session} 'echo test-session' Enter" == call1[0][0]
-        
+
         # Check second command
         call2 = mock_run_command.call_args_list[1]
         assert f"new-window -t {expected_tmux_session} -n test 'claude-cmd'" == call2[0][0]
 
+
 def test_fork_session_executes_startup_commands(mock_dirs, mock_git_repo):
     config_dir, _ = mock_dirs
-    
+
     # Create a dummy tool config
     tools_dir = config_dir / "tools"
     tools_dir.mkdir(parents=True, exist_ok=True)
@@ -71,6 +74,7 @@ def test_fork_session_executes_startup_commands(mock_dirs, mock_git_repo):
     # Create a source session in DB
     from shoal.core.state import create_session
     import asyncio
+
     source_session = asyncio.run(create_session("source", "claude", str(mock_git_repo)))
 
     # Custom tmux config
@@ -88,9 +92,9 @@ def test_fork_session_executes_startup_commands(mock_dirs, mock_git_repo):
         patch("shoal.core.tmux.pane_pid", return_value=123),
     ):
         result = runner.invoke(app, ["fork", "source", "--name", "forked-session", "--no-worktree"])
-        
+
         assert result.exit_code == 0
-        
+
         # Verify startup commands
         expected_tmux_session = "shoal_forked-session"
         mock_run_command.assert_called_once_with(
