@@ -8,7 +8,18 @@ from shoal.models.state import SessionState, RoboState, ConductorState
 
 
 class ShoalDB:
-    """Database manager with persistent singleton connection."""
+    """Database manager with persistent singleton connection.
+
+    Uses a single aiosqlite connection (not a pool) with WAL mode enabled
+    for concurrent read access. The connection is managed as a singleton
+    via get_instance() and can be reset for testing with reset_instance().
+
+    The connection lifecycle:
+    - get_instance(): Returns or creates the singleton
+    - connect(): Establishes connection and initializes schema with WAL mode
+    - close(): Closes the connection
+    - reset_instance(): Closes and clears the singleton (tests only)
+    """
 
     _instance: "ShoalDB | None" = None
     _initialized: bool = False

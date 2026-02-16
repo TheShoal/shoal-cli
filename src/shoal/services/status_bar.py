@@ -30,6 +30,9 @@ async def generate_status() -> str:
             return f"#[fg={color}]  "
         return f"#[fg={color}]{icon} {count}"
 
+    # Only display active statuses (running, idle, waiting, error).
+    # Stopped and unknown sessions are intentionally excluded from the status bar
+    # because they represent inactive sessions and would add noise to the display.
     res = (
         fmt(counts["running"], " ", "green")
         + " "

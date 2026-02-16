@@ -2,6 +2,16 @@
 
 Note: All functions in this module are synchronous subprocess calls.
 For async tmux operations, use the async wrapper functions in state.py.
+
+Sync-in-async tradeoff:
+These blocking subprocess.run() calls are invoked directly from async contexts
+(FastAPI routes, watcher service, CLI commands) without asyncio.to_thread() or
+run_in_executor(). This is an accepted tradeoff for v0.4.x because:
+- Tmux operations are fast (typically <50ms)
+- The calls are infrequent relative to I/O-bound operations
+- Complexity of thread pool management outweighs benefit at current scale
+
+This will be revisited in a future version if profiling shows event loop blocking.
 """
 
 from __future__ import annotations
