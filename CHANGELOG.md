@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Demo Command**: New `shoal demo start/stop` for interactive onboarding with example sessions.
+- **Robo Supervisor**: Renamed "conductor" to "robo" (inspired by robo-fish research). Backward-compatible aliases maintained.
+
+### Changed
+- **Command Rename**: `shoal new` is now the primary command (was `add`). `add` remains as a hidden alias.
+- **Configuration**: Config sections renamed from `[conductor]` to `[robo]`. Both names supported for backward compatibility.
+- **File Paths**: Robo profiles now stored in `~/.config/shoal/robo/` (falls back to `conductor/` for existing configs).
+- **Table Consistency**: All `ls` commands now use consistent Panel styling with Nerd Font icons.
+
 ## [0.4.0] - 2026-02-16
 
 ### Added
@@ -16,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `shoal logs <name>`: tail the logs of a session tool.
   - `shoal info <name>`: detailed session summary.
 - **Session Groups**: Group sessions for the same repo/project in `shoal ls` (e.g., group by git root).
-- **Conductor Interactions**: Way for the conductor to interact with child sessions (send keys, approve actions).
+- **Robo Interactions**: Way for the robo supervisor to interact with child sessions (send keys, approve actions).
 
 ### Changed
 - **API Update**: Refactored `server.py` to use async DB calls.

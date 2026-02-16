@@ -2,7 +2,7 @@
 
 Terminal-first orchestration for parallel AI coding agents.
 
-Shoal manages multiple AI coding agents (Claude Code, OpenCode, Gemini) in persistent, branch-aware tmux sessions. It provides a unified control plane with shared MCP servers, automated status detection, and a supervisor "conductor" workflow.
+Shoal manages multiple AI coding agents (Claude Code, OpenCode, Gemini) in persistent, branch-aware tmux sessions. It provides a unified control plane with shared MCP servers, automated status detection, and a supervisor "robo-fish" workflow.
 
 ![Status: Beta](https://img.shields.io/badge/status-beta-yellow)
 ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey)
@@ -11,9 +11,11 @@ Shoal manages multiple AI coding agents (Claude Code, OpenCode, Gemini) in persi
 
 ## The Analogy: A Robo-Fish in the Shoal
 
-In nature, a shoal of fish moves as a single, self-directing unit. In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a group of independent agent sessions.
+In nature, a shoal of fish moves as a single, self-directing unit. Researchers have demonstrated that biomimetic robot fish can integrate into and even lead schools of real fish by alternating between following and leading behaviors ([Marras & Porfiri 2012](https://royalsocietypublishing.org/doi/10.1098/rsif.2012.0084), [Papaspyros et al. 2019](https://doi.org/10.1371/journal.pone.0220559)).
 
-- **The Conductor**: A supervisory agent that monitors the group, approves actions, and ensures the "shoal" stays on track.
+In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a group of independent agent sessions.
+
+- **The Robo**: A supervisory agent that monitors the group, approves actions, and ensures the "shoal" stays on track. Just like the robot fish in research labs that guide real fish schools.
 - **The Sessions**: Parallel agents (the fish) working in dedicated git worktrees, synchronized by a shared state and MCP pool.
 
 ---
@@ -25,8 +27,9 @@ In nature, a shoal of fish moves as a single, self-directing unit. In your termi
 - 🔌 **MCP Pooling**: Shared MCP servers (Memory, Filesystem, GitHub) via a socket proxy—no more duplicate server overhead.
 - 🕵️ **Status Detection**: Real-time monitoring of agent states (Thinking, Waiting, Error, Idle) from tmux pane output.
 - 🔔 **macOS Notifications**: Get notified the second an agent needs your approval.
-- 🎮 **Conductor Mode**: A supervisor agent that can "send keys" and "approve" tasks across your entire fleet of agents.
+- 🤖 **Robo Mode**: A supervisor agent that can "send keys" and "approve" tasks across your entire fleet of agents.
 - 🏠 **Environment-First**: Built for tmux. SSH in from your phone, attach to a session inside VS Code, or live in the terminal.
+- 🎓 **Interactive Demo**: Try `shoal demo start` to spin up a full environment and learn Shoal hands-on.
 
 ## Demo
 
@@ -86,16 +89,19 @@ A **Session** is a tmux session tied to a specific tool and directory. If a **Wo
 ### MCP Pooling
 Instead of every agent starting its own instance of an MCP server, Shoal runs them in a **Pool**. Agents connect via `shoal-mcp-proxy`, allowing them to share state (like a shared Memory server) and reduce resource usage.
 
-### Conductor Mode
-The **Conductor** is a "super-session." It runs an agent with a specialized prompt (`AGENTS.md`) and access to the Shoal CLI. It can monitor the status of all other agents and interact with them directly.
+### Robo Mode
+The **Robo** is a supervisory "super-session." It runs an agent with a specialized prompt (`AGENTS.md`) and access to the Shoal CLI. It can monitor the status of all other agents and interact with them directly—like a robo-fish leading the shoal.
 
 ---
 
 ## Quick Start
 
 ```bash
+# Try the interactive demo to learn Shoal hands-on
+shoal demo start
+
 # Start a new agent session in a dedicated worktree
-shoal add -t claude -w feature-api -b
+shoal new -t claude -w feature-api -b
 
 # Open the interactive dashboard (tmux popup)
 shoal popup
@@ -114,7 +120,7 @@ shoal wt finish feature-api --pr
 ### Session Management
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `shoal add` | `new` | Create a new session (optionally with a worktree) |
+| `shoal new` | `add` | Create a new session (optionally with a worktree) |
 | `shoal ls` | | List sessions grouped by project |
 | `shoal attach` | `a` | Attach to a session (fzf picker if no name) |
 | `shoal kill` | `rm` | Stop a session and clean up worktrees |
@@ -129,7 +135,11 @@ shoal wt finish feature-api --pr
 - `start/stop`: Manage pooled servers.
 - `attach`: Connect a session to a pooled server.
 
-### Conductor (`shoal conductor`)
+### Demo (`shoal demo`)
+- `start`: Spin up a full demo environment with example sessions.
+- `stop`: Tear down the demo environment.
+
+### Robo Supervisor (`shoal robo`)
 - `start`: Launch the supervisor agent.
 - `approve`: Send "Enter" to a waiting agent.
 - `send`: Send arbitrary keys to a child session.
