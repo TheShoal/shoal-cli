@@ -101,8 +101,11 @@ shoal add -t claude
 # Create a session with a dedicated worktree and branch
 shoal add -t claude -w my-feature -b
 
-# List sessions
+# List sessions (grouped by project)
 shoal ls
+
+# Prune stopped sessions
+shoal prune
 
 # Attach to a session (switches tmux client)
 shoal attach my-feature
@@ -120,13 +123,15 @@ shoal status
 shoal popup
 ```
 
-### Session naming
+### Session naming & Grouping
 
-Session names are derived automatically:
+Session names are derived automatically, and `shoal ls` groups sessions by their project (git root):
 
 - **No worktree**: Uses the project directory name (e.g., `shoal`)
 - **With worktree**: Uses `{project}/{worktree}` (e.g., `shoal/my-feature`)
 - **Override**: Use `-n NAME` to set any name explicitly
+
+Shoal detects **ghost sessions**—sessions that are still in the database but whose tmux session has died. These are highlighted in `shoal ls`.
 
 Tmux sessions are prefixed with `shoal_` and use the session name (e.g., `shoal_shoal-my-feature`).
 
@@ -137,7 +142,8 @@ Tmux sessions are prefixed with `shoal_` and use the session name (e.g., `shoal_
 | Command | Description |
 |---------|-------------|
 | `shoal add [PATH] -t TOOL -w NAME -b -n NAME` | Create a new session |
-| `shoal ls` | List all sessions |
+| `shoal ls` | List sessions (grouped by project) |
+| `shoal prune [--force]` | Remove all stopped sessions from DB |
 | `shoal attach [SESSION]` | Attach to a session (fzf picker if no arg) |
 | `shoal detach` | Detach from current shoal session |
 | `shoal fork [SESSION] --name NAME` | Fork a session into a new worktree |
@@ -192,6 +198,8 @@ A conductor is a supervisory AI agent that monitors other sessions.
 | `shoal conductor setup [NAME] -t TOOL` | Create a conductor profile + AGENTS.md |
 | `shoal conductor start [NAME]` | Start a conductor session |
 | `shoal conductor stop [NAME]` | Stop a conductor |
+| `shoal conductor send SESSION KEYS` | Send keys to a child session |
+| `shoal conductor approve SESSION` | Approve a waiting child session (Enter) |
 | `shoal conductor status` | Conductor health check |
 | `shoal conductor ls` | List conductor profiles |
 

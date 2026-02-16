@@ -188,7 +188,11 @@ async def _ls_impl(format):
     for s in sessions:
         groups[s.path].append(s)
 
-    for path, group_sessions in groups.items():
+    # Sort paths alphabetically
+    sorted_paths = sorted(groups.keys())
+
+    for path in sorted_paths:
+        group_sessions = groups[path]
         display_project = path.replace(str(Path.home()), "~")
         
         table = Table(
@@ -201,15 +205,21 @@ async def _ls_impl(format):
         table.add_column("ID", style="dim", width=8)
         table.add_column("NAME", width=25)
         table.add_column("TOOL", width=12)
-        table.add_column("STATUS", width=10)
+        table.add_column("STATUS", width=20)
         table.add_column("BRANCH", width=30)
         table.add_column("WORKTREE")
 
-        for s in group_sessions:
+        # Sort sessions within group by name
+        for s in sorted(group_sessions, key=lambda x: x.name):
             try:
                 icon = load_tool_config(s.tool).icon
             except FileNotFoundError:
                 icon = "●"
+
+            # Check if it's a ghost session
+            is_ghost = False
+            if s.status.value != "stopped" and not tmux.has_session(s.tmux_session):
+                is_ghost = True
 
             status_style = {
                 "running": "green",
@@ -223,6 +233,9 @@ async def _ls_impl(format):
                 if status_style
                 else s.status.value
             )
+            
+            if is_ghost:
+                status_text = f"[bold red]󱄽 ghost[/bold red] [dim]({s.status.value})[/dim]"
 
             wt_display = ""
             if s.worktree:
@@ -242,9 +255,9 @@ async def _ls_impl(format):
         from rich.panel import Panel
         console.print(Panel(
             table,
-            title=f"[bold blue]󰚝 Project: {display_project}[/bold blue]",
+            title=f"[bold blue]󰚝 {Path(path).name}[/bold blue] [dim]({display_project})[/dim]",
             title_align="left",
-            border_style="dim",
+            border_style="blue",
             padding=(0, 1)
         ))
 
@@ -409,6 +422,38 @@ async def _kill_impl(session, worktree):
 
     await delete_session(sid)
     console.print(f"Session '{s.name}' ({sid}) removed")
+
+
+def prune(
+    force: Annotated[bool, typer.Option("--force", "-f", help="Do not ask for confirmation")] = False,
+) -> None:
+    """Remove all sessions marked as stopped."""
+    asyncio.run(_prune_impl(force))
+
+
+async def _prune_impl(force):
+    ensure_dirs()
+    session_ids = await list_sessions()
+    stopped = []
+    for sid in session_ids:
+        s = await get_session(sid)
+        if s and s.status.value == "stopped":
+            stopped.append(s)
+
+    if not stopped:
+        console.print("No stopped sessions to prune")
+        return
+
+    if not force:
+        console.print(f"Found {len(stopped)} stopped sessions:")
+        for s in stopped:
+            console.print(f"  - {s.name} ({s.id})")
+        if not typer.confirm("Are you sure you want to remove these?"):
+            raise typer.Abort()
+
+    for s in stopped:
+        await delete_session(s.id)
+        console.print(f"Removed session '{s.name}' ({s.id})")
 
 
 def status() -> None:

@@ -63,7 +63,7 @@ class Watcher:
             if not session or session.status.value == "stopped":
                 continue
 
-            # Check if tmux session still exists
+            # 1. Check if tmux session still exists
             if not tmux.has_session(session.tmux_session):
                 if session.status.value != "stopped":
                     await update_session(
@@ -72,7 +72,17 @@ class Watcher:
                     logger.info("Session %s: marked stopped (tmux gone)", sid)
                 continue
 
-            # Capture pane content
+            # 2. Verify PID if we have one
+            current_pane_pid = tmux.pane_pid(session.tmux_session)
+            if session.pid and session.pid != current_pane_pid:
+                # PID changed (e.g. process restarted in same pane)
+                logger.info("Session %s: PID changed %s → %s", sid, session.pid, current_pane_pid)
+                await update_session(sid, pid=current_pane_pid)
+            elif not session.pid and current_pane_pid:
+                # PID found for first time
+                await update_session(sid, pid=current_pane_pid)
+
+            # 3. Capture pane content
             pane_content = tmux.capture_pane(session.tmux_session, lines=20)
             if not pane_content:
                 continue

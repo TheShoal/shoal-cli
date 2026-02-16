@@ -95,6 +95,8 @@ You are a conductor — a supervisory AI agent that monitors and coordinates oth
 - `shoal ls` — List all sessions with details
 - `shoal attach <name>` — View a specific session
 - `shoal nvim diagnostics <name>` — Check LSP errors in a session's editor
+- `shoal conductor approve <name>` — Approve a waiting session (sends Enter)
+- `shoal conductor send <name> <keys>` — Send specific keys to a session
 
 ## Workflow
 
@@ -229,6 +231,43 @@ async def _conductor_stop_impl(name):
         await db.save_conductor(updated)
 
     console.print(f"Conductor '{name}' stopped")
+
+
+@app.command("send")
+def conductor_send(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    keys: Annotated[str, typer.Argument(help="Keys to send")],
+) -> None:
+    """Send keys to a session's tmux pane."""
+    asyncio.run(_conductor_send_impl(session, keys))
+
+
+async def _conductor_send_impl(session_name_or_id: str, keys: str):
+    ensure_dirs()
+    from shoal.core.state import get_session, resolve_session
+    sid = await resolve_session(session_name_or_id)
+    if not sid:
+        console.print(f"[red]Session not found: {session_name_or_id}[/red]")
+        raise typer.Exit(1)
+
+    s = await get_session(sid)
+    if not s:
+        raise typer.Exit(1)
+
+    if not tmux.has_session(s.tmux_session):
+        console.print(f"[red]Tmux session '{s.tmux_session}' not found[/red]")
+        raise typer.Exit(1)
+
+    tmux.send_keys(s.tmux_session, keys)
+    console.print(f"Sent keys to '{s.name}'")
+
+
+@app.command("approve")
+def conductor_approve(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+) -> None:
+    """Approve a waiting session (sends Enter)."""
+    asyncio.run(_conductor_send_impl(session, ""))
 
 
 @app.command("status")

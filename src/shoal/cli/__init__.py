@@ -18,6 +18,7 @@ from shoal.cli.session import (
     logs,
     ls,
     popup,
+    prune,
     rename,
     status,
 )
@@ -41,6 +42,7 @@ app.command()(attach)
 app.command()(detach)
 app.command()(fork)
 app.command()(kill)
+app.command()(prune)
 app.command()(status)
 app.command()(popup)
 

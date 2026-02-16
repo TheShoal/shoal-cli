@@ -24,6 +24,58 @@ class TestLs:
         assert result.exit_code == 0
         assert "No sessions" in result.output
 
+    def test_grouping(self, mock_dirs):
+        from shoal.core.state import create_session
+        asyncio.run(create_session("proj1-a", "claude", "/tmp/proj1"))
+        asyncio.run(create_session("proj1-b", "claude", "/tmp/proj1"))
+        asyncio.run(create_session("proj2-a", "claude", "/tmp/proj2"))
+
+        with patch("shoal.core.tmux.has_session", return_value=True):
+            result = runner.invoke(app, ["ls"])
+        
+        assert result.exit_code == 0
+        assert "proj1" in result.output
+        assert "proj2" in result.output
+
+    def test_ghost_detection(self, mock_dirs):
+        from shoal.core.state import create_session, update_session
+        from shoal.models.state import SessionStatus
+        s = asyncio.run(create_session("ghost-session", "claude", "/tmp/repo"))
+        asyncio.run(update_session(s.id, status=SessionStatus.running))
+
+        # Mock tmux.has_session to return False so it becomes a ghost
+        with patch("shoal.core.tmux.has_session", return_value=False):
+            result = runner.invoke(app, ["ls"])
+        
+        assert result.exit_code == 0
+        assert "ghost" in result.output
+        assert "(running)" in result.output
+
+
+class TestPrune:
+    def test_prune_command(self, mock_dirs):
+        from shoal.core.state import create_session, update_session
+        from shoal.models.state import SessionStatus
+        s1 = asyncio.run(create_session("active", "claude", "/tmp/repo"))
+        asyncio.run(update_session(s1.id, status=SessionStatus.running))
+        
+        s2 = asyncio.run(create_session("stopped", "claude", "/tmp/repo"))
+        asyncio.run(update_session(s2.id, status=SessionStatus.stopped))
+
+        # Run prune
+        result = runner.invoke(app, ["prune", "--force"])
+        assert result.exit_code == 0
+        assert "Removed session 'stopped'" in result.output
+        
+        from shoal.core.state import get_session
+        assert asyncio.run(get_session(s1.id)) is not None
+        assert asyncio.run(get_session(s2.id)) is None
+
+    def test_prune_empty(self, mock_dirs):
+        result = runner.invoke(app, ["prune", "--force"])
+        assert result.exit_code == 0
+        assert "No stopped sessions to prune" in result.output
+
 
 class TestStatus:
     def test_empty(self, mock_dirs):
@@ -94,6 +146,34 @@ class TestConductor:
     def test_cond_alias(self, mock_dirs):
         result = runner.invoke(app, ["cond", "ls"])
         assert result.exit_code == 0
+
+    def test_send(self, mock_dirs):
+        from shoal.core.state import create_session
+        s = asyncio.run(create_session("test-session", "claude", "/tmp/repo"))
+        
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch("shoal.core.tmux.send_keys") as mock_send
+        ):
+            result = runner.invoke(app, ["conductor", "send", "test-session", "ls -la"])
+            
+            assert result.exit_code == 0
+            assert "Sent keys to 'test-session'" in result.output
+            mock_send.assert_called_once_with(s.tmux_session, "ls -la")
+
+    def test_approve(self, mock_dirs):
+        from shoal.core.state import create_session
+        s = asyncio.run(create_session("test-session", "claude", "/tmp/repo"))
+        
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch("shoal.core.tmux.send_keys") as mock_send
+        ):
+            result = runner.invoke(app, ["conductor", "approve", "test-session"])
+            
+            assert result.exit_code == 0
+            assert "Sent keys to 'test-session'" in result.output
+            mock_send.assert_called_once_with(s.tmux_session, "")
 
 
 class TestWorktree:
