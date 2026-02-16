@@ -1,15 +1,27 @@
-![](assets/banner.jpeg)
+<p align="center">
+  <img src="assets/banner.jpeg" width="600" style="border-radius: 12px;">
+</p>
 
-# Shoal
+# <p align="center">Shoal</p>
 
-Terminal-first orchestration for parallel AI coding agents.
+<p align="center">
+  <a href="https://github.com/usmobile/shoal"><img src="https://img.shields.io/badge/status-beta-yellow" alt="Status: Beta"></a>
+  <a href="https://github.com/usmobile/shoal"><img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="Platform: macOS"></a>
+  <a href="https://github.com/usmobile/shoal"><img src="https://img.shields.io/badge/license-Proprietary-red" alt="License: Proprietary"></a>
+  <a href="https://github.com/usmobile/shoal"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python: 3.12+"></a>
+</p>
+
+<p align="center">
+  <strong>Terminal-first orchestration for parallel AI coding agents.</strong>
+</p>
+
+---
+
+## Why Shoal?
+
+Shoal was originally designed for the **Fish Shell** environment (hence the name). The concept of a "shoal" of "robo-fish" came from the idea that multiple independent AI agents (the fish) can be coordinated by a single supervisor (the robo-fish) to move as a unified, self-directing unit.
 
 Shoal manages multiple AI coding agents (Claude Code, OpenCode, Gemini) in persistent, branch-aware tmux sessions. It provides a unified control plane with shared MCP servers, automated status detection, and a supervisor "robo-fish" workflow.
-
-![Status: Beta](https://img.shields.io/badge/status-beta-yellow)
-![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey)
-![License: Proprietary](https://img.shields.io/badge/license-Proprietary-red)
-![Python: 3.12+](https://img.shields.io/badge/python-3.12+-blue)
 
 ## The Analogy: A Robo-Fish in the Shoal
 
@@ -28,7 +40,7 @@ In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a g
 - 🌿 **Worktree-Native**: Automatically manages git worktrees for every session—keep your main branch clean.
 - 🔌 **MCP Pooling**: Shared MCP servers (Memory, Filesystem, GitHub) via a socket proxy—no more duplicate server overhead.
 - 🕵️ **Status Detection**: Real-time monitoring of agent states (Thinking, Waiting, Error, Idle) from tmux pane output.
-- 🔔 **macOS Notifications**: Get notified the second an agent needs your approval.
+- 🔔 **macOS Notifications**: Native `osascript` notifications tell you the second an agent needs your approval.
 - 🤖 **Robo Mode**: A supervisor agent that can "send keys" and "approve" tasks across your entire fleet of agents.
 - 🏠 **Environment-First**: Built for tmux. SSH in from your phone, attach to a session inside VS Code, or live in the terminal.
 - 🎓 **Interactive Demo**: Try `shoal demo start` to spin up a full environment and learn Shoal hands-on.
@@ -36,7 +48,7 @@ In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a g
 ## Demo
 
 > [!TIP]
-> **Insert VHS/Screenshot here**: Showing `shoal popup` and the tmux status bar in action.
+> **Coming Soon**: An interactive VHS/Video showing `shoal popup` and the tmux status bar in action.
 
 ---
 
@@ -121,6 +133,7 @@ shoal demo stop
 
 ```bash
 # 1. Create a new agent session in a dedicated worktree
+# Use -w to create a worktree, add -b to create a new branch
 shoal new -t claude -w feature-auth -b
 
 # 2. Open the interactive dashboard to see all sessions
@@ -137,6 +150,12 @@ shoal attach feature-auth
 shoal wt finish feature-auth --pr
 ```
 
+### Flags Explained: `-w` vs `-b`
+
+- **`-w <name>` (Worktree)**: Creates a dedicated git worktree in `.worktrees/<name>`. This keeps your main directory clean and allows parallel agents to work on different files without conflicts.
+- **`-b` (Branch)**: When used with `-w`, it explicitly creates a new branch (e.g., `feat/<name>`). Without `-b`, Shoal will use the current branch or default behavior of `git worktree add`.
+- **Using Both**: `shoal new -w fix-bug -b` creates a new directory AND a new branch, which is the recommended workflow for parallel tasks.
+
 ### Robo Supervisor Workflow
 
 ```bash
@@ -152,6 +171,9 @@ shoal robo start default
 # The robo monitors all sessions and can approve actions
 shoal robo approve feature-ui
 ```
+
+See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for advanced robo patterns.
+
 
 See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for advanced robo patterns.
 
