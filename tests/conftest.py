@@ -135,7 +135,6 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
         patch("shoal.cli.conductor.config_dir", return_value=tmp_config),
         patch("shoal.cli.conductor.state_dir", return_value=tmp_state),
         patch("shoal.cli.watcher.runtime_dir", return_value=tmp_runtime),
-        patch("shoal.services.status_bar.state_dir", return_value=tmp_state),
     ):
         yield tmp_config, tmp_state
         load_config.cache_clear()

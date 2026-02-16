@@ -33,6 +33,10 @@ def kill_session(name: str) -> None:
     _run(["kill-session", "-t", name], check=False)
 
 
+def rename_session(old_name: str, new_name: str) -> None:
+    _run(["rename-session", "-t", old_name, new_name])
+
+
 def set_environment(session: str, key: str, value: str) -> None:
     _run(["set-environment", "-t", session, key, value])
 

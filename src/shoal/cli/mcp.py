@@ -47,18 +47,23 @@ async def _mcp_ls_impl():
     ensure_dirs()
     socket_dir = state_dir() / "mcp-pool" / "sockets"
     if not socket_dir.exists():
-        console.print("No MCP servers in pool")
+        console.print("[yellow]No MCP servers in pool[/yellow]")
         return
 
     sockets = list(socket_dir.glob("*.sock"))
     if not sockets:
-        console.print("No MCP servers in pool")
+        console.print("[yellow]No MCP servers in pool[/yellow]")
         return
 
-    table = Table(show_edge=False, pad_edge=False)
+    table = Table(
+        show_header=True,
+        header_style="bold magenta",
+        box=None,
+        padding=(0, 2)
+    )
     table.add_column("NAME", width=20)
-    table.add_column("PID", width=8)
-    table.add_column("STATUS", width=10)
+    table.add_column("PID", width=10, style="dim")
+    table.add_column("STATUS", width=12)
     table.add_column("SESSIONS")
 
     ids = await list_sessions()
@@ -68,23 +73,30 @@ async def _mcp_ls_impl():
         pid_str = str(pid) if pid else "-"
 
         if pid is not None:
-            mcp_status = (
-                "[green]running[/green]" if is_mcp_running(name) else "[red]dead[/red]"
-            )
+            if is_mcp_running(name):
+                mcp_status = "[green]● running[/green]"
+            else:
+                mcp_status = "[red]✗ dead[/red]"
         else:
-            mcp_status = "[yellow]orphaned[/yellow]"
+            mcp_status = "[yellow]? orphaned[/yellow]"
 
         # Find sessions using this MCP
         using: list[str] = []
         for sid in ids:
             s = await get_session(sid)
             if s and name in s.mcp_servers:
-                using.append(s.name)
+                using.append(f"[bold cyan]{s.name}[/bold cyan]")
 
-        sessions_str = ", ".join(using) if using else "-"
-        table.add_row(name, pid_str, mcp_status, sessions_str)
+        sessions_str = ", ".join(using) if using else "[dim]-(none)-[/dim]"
+        table.add_row(f"[bold]{name}[/bold]", pid_str, mcp_status, sessions_str)
 
-    console.print(table)
+    from rich.panel import Panel
+    console.print(Panel(
+        table,
+        title="[bold blue]󰒓 MCP Server Pool[/bold blue]",
+        title_align="left",
+        border_style="dim"
+    ))
 
 
 @app.command("start")
@@ -202,22 +214,31 @@ def mcp_status() -> None:
             else:
                 orphaned += 1
 
-    console.print(f"MCP Pool: {total} servers")
-    console.print()
+    from rich.panel import Panel
+    from rich.text import Text
+    
+    parts = []
+    if healthy: parts.append(f"[green]● {healthy} healthy[/green]")
+    if dead: parts.append(f"[red]✗ {dead} dead[/red]")
+    if orphaned: parts.append(f"[yellow]? {orphaned} orphaned[/yellow]")
+    
+    if not parts:
+        summary = Text("No MCP servers in pool", style="yellow")
+    else:
+        summary = Text.from_markup("  |  ".join(parts))
 
-    if healthy:
-        console.print(f"  [green]● Healthy:   {healthy}[/green]")
-    if dead:
-        console.print(f"  [red]✗ Dead:      {dead}[/red]")
-    if orphaned:
-        console.print(f"  [yellow]? Orphaned:  {orphaned}[/yellow]")
+    console.print(Panel(
+        summary,
+        title=f"[bold blue]󰒓 MCP Pool Status ({total} total)[/bold blue]",
+        title_align="left",
+        border_style="dim",
+        expand=False
+    ))
 
     if total == 0:
-        console.print("  No MCP servers running")
-        console.print()
-        console.print("Start one with: shoal mcp start <name>")
-        console.print("Known servers: memory, filesystem, github, fetch")
+        console.print("\n[dim]Start one with: [bold]shoal mcp start <name>[/bold][/dim]")
+        console.print("[dim]Known servers: memory, filesystem, github, fetch[/dim]")
 
     if dead or orphaned:
-        console.print()
-        console.print("Run 'shoal mcp stop <name>' to clean up stale entries")
+        console.print("\n[yellow]󰀦 Stale entries detected.[/yellow]")
+        console.print("[dim]Run 'shoal mcp stop <name>' to clean up.[/dim]")

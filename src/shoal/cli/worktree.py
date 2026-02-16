@@ -43,11 +43,16 @@ async def _wt_ls_impl():
     ensure_dirs()
     ids = await list_sessions()
 
-    table = Table(show_edge=False, pad_edge=False)
+    table = Table(
+        show_header=True,
+        header_style="bold magenta",
+        box=None,
+        padding=(0, 2)
+    )
     table.add_column("SESSION", width=20)
     table.add_column("ID", style="dim", width=8)
     table.add_column("BRANCH", width=30)
-    table.add_column("WORKTREE", width=30)
+    table.add_column("WORKTREE", width=40)
     table.add_column("STATUS")
 
     found = 0
@@ -57,19 +62,41 @@ async def _wt_ls_impl():
             continue
 
         found += 1
-        wt_exists = "✓"
+        wt_exists = "[green]✔[/green]"
         status_val = s.status.value
+        
+        status_style = {
+            "running": "green",
+            "waiting": "bold yellow",
+            "error": "bold red",
+            "stopped": "dim",
+        }.get(status_val, "")
+
         if not Path(s.worktree).is_dir():
-            wt_exists = "✗"
-            status_val = "missing"
+            wt_exists = "[red]✘[/red]"
+            status_text = "[red]missing[/red]"
+        else:
+            status_text = f"[{status_style}]{status_val}[/{status_style}]" if status_style else status_val
 
         short_wt = s.worktree.replace(str(Path.home()), "~")
-        table.add_row(s.name, sid, s.branch, short_wt, f"{wt_exists} {status_val}")
+        table.add_row(
+            f"[bold]{s.name}[/bold]", 
+            sid, 
+            f"[magenta]{s.branch}[/magenta]", 
+            short_wt, 
+            f"{wt_exists} {status_text}"
+        )
 
     if found:
-        console.print(table)
+        from rich.panel import Panel
+        console.print(Panel(
+            table,
+            title="[bold blue]󱉭 Managed Worktrees[/bold blue]",
+            title_align="left",
+            border_style="dim"
+        ))
     else:
-        console.print("No worktrees managed by shoal")
+        console.print("[yellow]No worktrees managed by shoal[/yellow]")
 
 
 @app.command("finish")

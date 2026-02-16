@@ -13,7 +13,7 @@ class TestVersion:
     def test_version_command(self):
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "shoal 0.3.0" in result.output
+        assert "shoal 0.4.0" in result.output
 
 
 class TestLs:
@@ -79,7 +79,7 @@ class TestMcp:
     def test_status_empty(self, mock_dirs):
         result = runner.invoke(app, ["mcp", "status"])
         assert result.exit_code == 0
-        assert "0 servers" in result.output
+        assert "(0 total)" in result.output
 
 
 class TestConductor:
