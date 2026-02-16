@@ -31,6 +31,7 @@ class TestGenerateId:
         ids = {generate_id() for _ in range(100)}
         assert len(ids) == 100
 
+
 @pytest.mark.asyncio
 class TestSessionCRUD:
     async def test_create_and_get(self, mock_dirs):
@@ -73,8 +74,9 @@ class TestSessionCRUD:
         s1 = await create_session("a", "claude", "/tmp")
         s2 = await create_session("b", "opencode", "/tmp")
         sessions = await list_sessions()
-        assert s1.id in sessions
-        assert s2.id in sessions
+        session_ids = [s.id for s in sessions]
+        assert s1.id in session_ids
+        assert s2.id in session_ids
 
     async def test_find_by_name(self, mock_dirs):
         session = await create_session("unique-name", "claude", "/tmp")
@@ -88,6 +90,7 @@ class TestSessionCRUD:
         loaded = await get_session(session.id)
         assert loaded is not None
         assert loaded.last_activity >= original_time
+
 
 @pytest.mark.asyncio
 class TestMCPTracking:
@@ -113,6 +116,7 @@ class TestMCPTracking:
         assert loaded is not None
         assert "memory" not in loaded.mcp_servers
         assert "filesystem" in loaded.mcp_servers
+
 
 @pytest.mark.asyncio
 class TestResolveSession:

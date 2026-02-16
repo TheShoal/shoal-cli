@@ -41,30 +41,20 @@ def wt_ls() -> None:
 
 async def _wt_ls_impl():
     ensure_dirs()
-    ids = await list_sessions()
+    sessions = await list_sessions()
 
-    table = Table(
-        show_header=True,
-        header_style="bold magenta",
-        box=None,
-        padding=(0, 2)
-    )
+    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
     table.add_column("SESSION", width=20)
     table.add_column("ID", style="dim", width=8)
     table.add_column("BRANCH", width=30)
     table.add_column("WORKTREE", width=40)
     table.add_column("STATUS")
 
-    found = 0
-    for sid in ids:
-        s = await get_session(sid)
-        if not s or not s.worktree:
-            continue
-
-        found += 1
+    worktree_sessions = [s for s in sessions if s.worktree]
+    for s in worktree_sessions:
         wt_exists = "[green]✔[/green]"
         status_val = s.status.value
-        
+
         status_style = {
             "running": "green",
             "waiting": "bold yellow",
@@ -76,25 +66,30 @@ async def _wt_ls_impl():
             wt_exists = "[red]✘[/red]"
             status_text = "[red]missing[/red]"
         else:
-            status_text = f"[{status_style}]{status_val}[/{status_style}]" if status_style else status_val
+            status_text = (
+                f"[{status_style}]{status_val}[/{status_style}]" if status_style else status_val
+            )
 
         short_wt = s.worktree.replace(str(Path.home()), "~")
         table.add_row(
-            f"[bold]{s.name}[/bold]", 
-            sid, 
-            f"[magenta]{s.branch}[/magenta]", 
-            short_wt, 
-            f"{wt_exists} {status_text}"
+            f"[bold]{s.name}[/bold]",
+            s.id,
+            f"[magenta]{s.branch}[/magenta]",
+            short_wt,
+            f"{wt_exists} {status_text}",
         )
 
-    if found:
+    if worktree_sessions:
         from rich.panel import Panel
-        console.print(Panel(
-            table,
-            title="[bold blue]󱉭 Managed Worktrees[/bold blue]",
-            title_align="left",
-            border_style="dim"
-        ))
+
+        console.print(
+            Panel(
+                table,
+                title="[bold blue]󱉭 Managed Worktrees[/bold blue]",
+                title_align="left",
+                border_style="dim",
+            )
+        )
     else:
         console.print("[yellow]No worktrees managed by shoal[/yellow]")
 
@@ -189,18 +184,14 @@ async def _wt_cleanup_impl():
     tracked: set[str] = set()
     stale: list[str] = []
 
-    ids = await list_sessions()
-    for sid in ids:
-        s = await get_session(sid)
-        if not s:
-            continue
-
+    sessions = await list_sessions()
+    for s in sessions:
         if s.worktree:
             tracked.add(s.worktree)
 
         # Find stale sessions (tmux session gone but not marked stopped)
         if s.status.value != "stopped" and not tmux.has_session(s.tmux_session):
-            stale.append(sid)
+            stale.append(s.id)
 
     # Report stale sessions
     if stale:
@@ -216,9 +207,8 @@ async def _wt_cleanup_impl():
     checked_repos: set[str] = set()
     orphans: list[str] = []
 
-    for sid in ids:
-        s = await get_session(sid)
-        if not s or s.path in checked_repos:
+    for s in sessions:
+        if s.path in checked_repos:
             continue
         checked_repos.add(s.path)
 

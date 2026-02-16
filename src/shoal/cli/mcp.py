@@ -55,18 +55,13 @@ async def _mcp_ls_impl():
         console.print("[yellow]No MCP servers in pool[/yellow]")
         return
 
-    table = Table(
-        show_header=True,
-        header_style="bold magenta",
-        box=None,
-        padding=(0, 2)
-    )
+    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
     table.add_column("NAME", width=20)
     table.add_column("PID", width=10, style="dim")
     table.add_column("STATUS", width=12)
     table.add_column("SESSIONS")
 
-    ids = await list_sessions()
+    sessions = await list_sessions()
     for sock_path in sorted(sockets):
         name = sock_path.stem
         pid = read_pid(name)
@@ -81,30 +76,27 @@ async def _mcp_ls_impl():
             mcp_status = "[yellow]? orphaned[/yellow]"
 
         # Find sessions using this MCP
-        using: list[str] = []
-        for sid in ids:
-            s = await get_session(sid)
-            if s and name in s.mcp_servers:
-                using.append(f"[bold cyan]{s.name}[/bold cyan]")
+        using = [f"[bold cyan]{s.name}[/bold cyan]" for s in sessions if name in s.mcp_servers]
 
         sessions_str = ", ".join(using) if using else "[dim]-(none)-[/dim]"
         table.add_row(f"[bold]{name}[/bold]", pid_str, mcp_status, sessions_str)
 
     from rich.panel import Panel
-    console.print(Panel(
-        table,
-        title="[bold blue]󰒓 MCP Server Pool[/bold blue]",
-        title_align="left",
-        border_style="dim"
-    ))
+
+    console.print(
+        Panel(
+            table,
+            title="[bold blue]󰒓 MCP Server Pool[/bold blue]",
+            title_align="left",
+            border_style="dim",
+        )
+    )
 
 
 @app.command("start")
 def mcp_start(
     name: Annotated[str, typer.Argument(help="MCP server name")],
-    command: Annotated[
-        str | None, typer.Option("--command", "-c", help="Command to run")
-    ] = None,
+    command: Annotated[str | None, typer.Option("--command", "-c", help="Command to run")] = None,
 ) -> None:
     """Start an MCP server in the pool."""
     ensure_dirs()
@@ -148,11 +140,10 @@ async def _mcp_stop_impl(name):
     console.print(f"MCP server '{name}' stopped")
 
     # Remove MCP from any sessions that reference it
-    ids = await list_sessions()
-    for sid in ids:
-        s = await get_session(sid)
-        if s and name in s.mcp_servers:
-            await remove_mcp_from_session(sid, name)
+    sessions = await list_sessions()
+    for s in sessions:
+        if name in s.mcp_servers:
+            await remove_mcp_from_session(s.id, name)
 
 
 @app.command("attach")
@@ -216,24 +207,29 @@ def mcp_status() -> None:
 
     from rich.panel import Panel
     from rich.text import Text
-    
+
     parts = []
-    if healthy: parts.append(f"[green]● {healthy} healthy[/green]")
-    if dead: parts.append(f"[red]✗ {dead} dead[/red]")
-    if orphaned: parts.append(f"[yellow]? {orphaned} orphaned[/yellow]")
-    
+    if healthy:
+        parts.append(f"[green]● {healthy} healthy[/green]")
+    if dead:
+        parts.append(f"[red]✗ {dead} dead[/red]")
+    if orphaned:
+        parts.append(f"[yellow]? {orphaned} orphaned[/yellow]")
+
     if not parts:
         summary = Text("No MCP servers in pool", style="yellow")
     else:
         summary = Text.from_markup("  |  ".join(parts))
 
-    console.print(Panel(
-        summary,
-        title=f"[bold blue]󰒓 MCP Pool Status ({total} total)[/bold blue]",
-        title_align="left",
-        border_style="dim",
-        expand=False
-    ))
+    console.print(
+        Panel(
+            summary,
+            title=f"[bold blue]󰒓 MCP Pool Status ({total} total)[/bold blue]",
+            title_align="left",
+            border_style="dim",
+            expand=False,
+        )
+    )
 
     if total == 0:
         console.print("\n[dim]Start one with: [bold]shoal mcp start <name>[/bold][/dim]")

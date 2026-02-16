@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-USMobile-Proprietary
 """Session state CRUD — all state stored in SQLite."""
 
 from __future__ import annotations
@@ -85,11 +86,10 @@ async def delete_session(session_id: str) -> bool:
     return False
 
 
-async def list_sessions() -> list[str]:
-    """Return all session IDs."""
+async def list_sessions() -> list[SessionState]:
+    """Return all sessions."""
     db = await get_db()
-    sessions = await db.list_sessions()
-    return [s.id for s in sessions]
+    return await db.list_sessions()
 
 
 async def find_by_name(name: str) -> str | None:
@@ -149,17 +149,15 @@ async def _resolve_session_interactive_impl(name_or_id: str | None = None) -> st
         raise SystemExit(1)
 
     # No argument — use fzf picker
-    ids = await list_sessions()
-    if not ids:
+    sessions = await list_sessions()
+    if not sessions:
         print("No sessions found", file=sys.stderr)
         raise SystemExit(1)
 
     lines: list[str] = []
-    for sid in ids:
-        session = await get_session(sid)
-        if session:
-            icon = _get_tool_icon(session.tool)
-            lines.append(f"{sid}\t{icon} {session.name}\t{session.tool}\t{session.status.value}")
+    for session in sessions:
+        icon = _get_tool_icon(session.tool)
+        lines.append(f"{session.id}\t{icon} {session.name}\t{session.tool}\t{session.status.value}")
 
     try:
         result = subprocess.run(

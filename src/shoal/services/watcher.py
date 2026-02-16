@@ -57,30 +57,31 @@ class Watcher:
 
     async def _poll_cycle(self) -> None:
         """Iterate sessions, capture panes, detect status, update state, notify."""
-        ids = await list_sessions()
-        for sid in ids:
-            session = await get_session(sid)
-            if not session or session.status.value == "stopped":
+        sessions = await list_sessions()
+        for session in sessions:
+            if session.status.value == "stopped":
                 continue
 
             # 1. Check if tmux session still exists
             if not tmux.has_session(session.tmux_session):
                 if session.status.value != "stopped":
                     await update_session(
-                        sid, status=SessionStatus.stopped, last_activity=datetime.now(UTC)
+                        session.id, status=SessionStatus.stopped, last_activity=datetime.now(UTC)
                     )
-                    logger.info("Session %s: marked stopped (tmux gone)", sid)
+                    logger.info("Session %s: marked stopped (tmux gone)", session.id)
                 continue
 
             # 2. Verify PID if we have one
             current_pane_pid = tmux.pane_pid(session.tmux_session)
             if session.pid and session.pid != current_pane_pid:
                 # PID changed (e.g. process restarted in same pane)
-                logger.info("Session %s: PID changed %s → %s", sid, session.pid, current_pane_pid)
-                await update_session(sid, pid=current_pane_pid)
+                logger.info(
+                    "Session %s: PID changed %s → %s", session.id, session.pid, current_pane_pid
+                )
+                await update_session(session.id, pid=current_pane_pid)
             elif not session.pid and current_pane_pid:
                 # PID found for first time
-                await update_session(sid, pid=current_pane_pid)
+                await update_session(session.id, pid=current_pane_pid)
 
             # 3. Capture pane content
             pane_content = tmux.capture_pane(session.tmux_session, lines=20)
@@ -98,11 +99,13 @@ class Watcher:
             # Update if changed
             if new_status.value != session.status.value:
                 await update_session(
-                    sid,
+                    session.id,
                     status=new_status,
                     last_activity=datetime.now(UTC),
                 )
-                logger.info("Session %s: %s → %s", sid, session.status.value, new_status.value)
+                logger.info(
+                    "Session %s: %s → %s", session.id, session.status.value, new_status.value
+                )
 
                 if new_status.value == "waiting":
                     notify(

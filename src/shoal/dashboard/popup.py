@@ -13,12 +13,8 @@ from shoal.core.state import get_session, list_sessions
 async def _build_entries() -> list[str]:
     """Build session list entries for fzf."""
     entries: list[str] = []
-    ids = await list_sessions()
-    for sid in ids:
-        session = await get_session(sid)
-        if not session:
-            continue
-
+    sessions = await list_sessions()
+    for session in sessions:
         try:
             icon = load_tool_config(session.tool).icon
         except FileNotFoundError:
@@ -31,7 +27,7 @@ async def _build_entries() -> list[str]:
             last = "-"
         status = session.status.value
         entries.append(
-            f"{sid}\t{icon} {session.name}\t{session.tool}\t{status}\t{branch}\t{last}"
+            f"{session.id}\t{icon} {session.name}\t{session.tool}\t{status}\t{branch}\t{last}"
         )
     return entries
 

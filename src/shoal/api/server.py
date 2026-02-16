@@ -121,12 +121,8 @@ async def poll_status_changes():
     previous_status: dict[str, str] = {}
     while True:
         try:
-            ids = await list_sessions()
-            current_status: dict[str, str] = {}
-            for sid in ids:
-                s = await get_session(sid)
-                if s:
-                    current_status[sid] = s.status.value
+            sessions = await list_sessions()
+            current_status: dict[str, str] = {s.id: s.status.value for s in sessions}
 
             # Detect changes
             for sid, status in current_status.items():
@@ -207,14 +203,12 @@ async def health():
 
 @app.get("/status", response_model=StatusResponse)
 async def get_status():
-    ids = await list_sessions()
+    sessions = await list_sessions()
     counts = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0}
-    for sid in ids:
-        s = await get_session(sid)
-        if s:
-            counts[s.status.value] = counts.get(s.status.value, 0) + 1
+    for s in sessions:
+        counts[s.status.value] = counts.get(s.status.value, 0) + 1
     return StatusResponse(
-        total=len(ids),
+        total=len(sessions),
         running=counts["running"],
         waiting=counts["waiting"],
         error=counts["error"],
@@ -227,13 +221,8 @@ async def get_status():
 @app.get("/sessions", response_model=list[SessionResponse])
 async def list_sessions_api():
     ensure_dirs()
-    ids = await list_sessions()
-    sessions = []
-    for sid in ids:
-        s = await get_session(sid)
-        if s:
-            sessions.append(_session_to_response(s))
-    return sessions
+    sessions = await list_sessions()
+    return [_session_to_response(s) for s in sessions]
 
 
 @app.get("/sessions/{session_id}", response_model=SessionResponse)
@@ -291,6 +280,7 @@ async def create_session_api(data: SessionCreate):
 
     # find_by_name is now async
     from shoal.core.state import find_by_name
+
     existing_id = await find_by_name(session_name)
     if existing_id:
         raise HTTPException(status_code=409, detail=f"Session '{session_name}' already exists")
@@ -307,7 +297,7 @@ async def create_session_api(data: SessionCreate):
 
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
-    
+
     # Run startup commands
     cfg = load_config()
     for cmd in cfg.tmux.startup_commands:
@@ -393,12 +383,8 @@ async def _get_mcp_info(name: str) -> McpResponse:
     socket = str(mcp_socket(name))
 
     # Find sessions using this MCP
-    sessions: list[str] = []
-    ids = await list_sessions()
-    for sid in ids:
-        s = await get_session(sid)
-        if s and name in s.mcp_servers:
-            sessions.append(s.name)
+    all_sessions = await list_sessions()
+    sessions = [s.name for s in all_sessions if name in s.mcp_servers]
 
     return McpResponse(
         name=name,
@@ -472,11 +458,10 @@ async def stop_mcp_server_api(name: str):
         raise HTTPException(status_code=404, detail=f"MCP server '{name}' is not running")
 
     # Remove MCP from any sessions that reference it
-    ids = await list_sessions()
-    for sid in ids:
-        s = await get_session(sid)
-        if s and name in s.mcp_servers:
-            await remove_mcp_from_session(sid, name)
+    all_sessions = await list_sessions()
+    for s in all_sessions:
+        if name in s.mcp_servers:
+            await remove_mcp_from_session(s.id, name)
 
     await manager.broadcast({"type": "mcp_stopped", "name": name})
 

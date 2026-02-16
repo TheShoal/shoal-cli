@@ -1,3 +1,4 @@
-"""Shoal — AI agent orchestration for terminal-first workflows."""
+# SPDX-License-Identifier: LicenseRef-USMobile-Proprietary
+"""Terminal-first orchestration for parallel AI coding agents."""
 
 __version__ = "0.4.0"

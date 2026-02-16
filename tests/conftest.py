@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 from httpx import AsyncClient, ASGITransport
 
+
 @pytest.fixture
 def tmp_config(tmp_path: Path) -> Path:
     """Create a temporary config directory with tool configs."""
@@ -116,8 +117,14 @@ def tmp_runtime(tmp_path: Path) -> Path:
 def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
     """Patch config_dir(), state_dir(), and runtime_dir() to use temp directories."""
     from shoal.core.config import load_config
+    from shoal.core.db import ShoalDB
 
     load_config.cache_clear()
+
+    # Reset DB singleton before test
+    import asyncio
+
+    asyncio.run(ShoalDB.reset_instance())
 
     config_patch = patch("shoal.core.config.config_dir", return_value=tmp_config)
     state_dir_patch = patch("shoal.core.config.state_dir", return_value=tmp_state)
@@ -138,10 +145,14 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
     ):
         yield tmp_config, tmp_state
         load_config.cache_clear()
+        # Reset DB singleton after test
+        asyncio.run(ShoalDB.reset_instance())
+
 
 @pytest.fixture
 async def async_client(mock_dirs):
     """Async test client for the Shoal API."""
     from shoal.api.server import app
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac

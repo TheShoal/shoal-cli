@@ -9,17 +9,13 @@ from shoal.core.state import get_session, list_sessions
 
 async def generate_status() -> str:
     """Generate the tmux status-right segment string."""
-    ids = await list_sessions()
-    if not ids:
+    sessions = await list_sessions()
+    if not sessions:
         return ""
 
     counts = {"running": 0, "idle": 0, "error": 0, "waiting": 0, "stopped": 0, "unknown": 0}
 
-    for sid in ids:
-        session = await get_session(sid)
-        if not session:
-            continue
-
+    for session in sessions:
         status_val = session.status.value
         if status_val in counts:
             counts[status_val] += 1
@@ -31,17 +27,17 @@ async def generate_status() -> str:
     # Non-zero: "● 1" (icon + space + digit)
     def fmt(count: int, icon: str, color: str) -> str:
         if count == 0:
-            return f"#[fg={color}]  "
+            return f"#[fg={color}]  "
         return f"#[fg={color}]{icon} {count}"
 
     res = (
-        fmt(counts["running"], " ", "green")
+        fmt(counts["running"], " ", "green")
         + " "
-        + fmt(counts["idle"], " ", "white")
+        + fmt(counts["idle"], " ", "white")
         + " "
-        + fmt(counts["waiting"], " ", "yellow")
+        + fmt(counts["waiting"], " ", "yellow")
         + " "
-        + fmt(counts["error"], " ", "red")
+        + fmt(counts["error"], " ", "red")
     )
     return f"{res}#[default]"
 

@@ -163,27 +163,21 @@ def ls(
 
 async def _ls_impl(format):
     ensure_dirs()
-    session_ids = await list_sessions()
+    sessions = await list_sessions()
 
     if format == "plain":
-        for sid in session_ids:
-            session = await get_session(sid)
-            if session:
-                console.print(session.name)
+        for session in sessions:
+            console.print(session.name)
         return
 
-    if not session_ids:
+    if not sessions:
         console.print("No sessions")
         return
 
-    # Fetch all sessions and group them by path
-    sessions = []
-    for sid in session_ids:
-        s = await get_session(sid)
-        if s:
-            sessions.append(s)
+    # Group sessions by path
 
     from collections import defaultdict
+
     groups = defaultdict(list)
     for s in sessions:
         groups[s.path].append(s)
@@ -194,7 +188,7 @@ async def _ls_impl(format):
     for path in sorted_paths:
         group_sessions = groups[path]
         display_project = path.replace(str(Path.home()), "~")
-        
+
         table = Table(
             show_header=True,
             header_style="bold magenta",
@@ -233,7 +227,7 @@ async def _ls_impl(format):
                 if status_style
                 else s.status.value
             )
-            
+
             if is_ghost:
                 status_text = f"[bold red]󱄽 ghost[/bold red] [dim]({s.status.value})[/dim]"
 
@@ -251,15 +245,18 @@ async def _ls_impl(format):
                 f"[cyan]{s.branch or '-'}[/cyan]",
                 wt_display,
             )
-        
+
         from rich.panel import Panel
-        console.print(Panel(
-            table,
-            title=f"[bold blue]󰚝 {Path(path).name}[/bold blue] [dim]({display_project})[/dim]",
-            title_align="left",
-            border_style="blue",
-            padding=(0, 1)
-        ))
+
+        console.print(
+            Panel(
+                table,
+                title=f"[bold blue]󰚝 {Path(path).name}[/bold blue] [dim]({display_project})[/dim]",
+                title_align="left",
+                border_style="blue",
+                padding=(0, 1),
+            )
+        )
 
 
 def attach(
@@ -360,7 +357,7 @@ async def _fork_impl(session, name, no_worktree):
     tmux.new_session(tmux_session, cwd=work_dir)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", new_session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", new_name)
-    
+
     # Run startup commands
     for cmd in cfg.tmux.startup_commands:
         interpolated = cmd.format(
@@ -425,7 +422,9 @@ async def _kill_impl(session, worktree):
 
 
 def prune(
-    force: Annotated[bool, typer.Option("--force", "-f", help="Do not ask for confirmation")] = False,
+    force: Annotated[
+        bool, typer.Option("--force", "-f", help="Do not ask for confirmation")
+    ] = False,
 ) -> None:
     """Remove all sessions marked as stopped."""
     asyncio.run(_prune_impl(force))
@@ -433,12 +432,8 @@ def prune(
 
 async def _prune_impl(force):
     ensure_dirs()
-    session_ids = await list_sessions()
-    stopped = []
-    for sid in session_ids:
-        s = await get_session(sid)
-        if s and s.status.value == "stopped":
-            stopped.append(s)
+    sessions = await list_sessions()
+    stopped = [s for s in sessions if s.status.value == "stopped"]
 
     if not stopped:
         console.print("No stopped sessions to prune")
@@ -463,19 +458,15 @@ def status() -> None:
 
 async def _status_impl():
     ensure_dirs()
-    session_ids = await list_sessions()
-    if not session_ids:
+    sessions = await list_sessions()
+    if not sessions:
         console.print("[yellow]No active sessions[/yellow]")
         console.print("Create one with: [bold]shoal add[/bold]")
         return
 
     counts: dict[str, int] = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0}
-    sessions = []
-    for sid in session_ids:
-        s = await get_session(sid)
-        if s:
-            counts[s.status.value] = counts.get(s.status.value, 0) + 1
-            sessions.append(s)
+    for s in sessions:
+        counts[s.status.value] = counts.get(s.status.value, 0) + 1
 
     total = len(sessions)
     from rich.panel import Panel
@@ -483,19 +474,20 @@ async def _status_impl():
 
     status_line = Text()
     status_line.append(f"Total Sessions: {total}", style="bold")
-    
+
     parts = []
-    if counts["running"]: parts.append(f"[green]● {counts['running']} running[/green]")
-    if counts["waiting"]: parts.append(f"[yellow]◉ {counts['waiting']} waiting[/yellow]")
-    if counts["error"]: parts.append(f"[red]✗ {counts['error']} error[/red]")
-    if counts["idle"]: parts.append(f"○ {counts['idle']} idle")
-    if counts["stopped"]: parts.append(f"[dim]◌ {counts['stopped']} stopped[/dim]")
-    
-    console.print(Panel(
-        Text.from_markup("  |  ".join(parts)),
-        title="Shoal Status",
-        expand=False
-    ))
+    if counts["running"]:
+        parts.append(f"[green]● {counts['running']} running[/green]")
+    if counts["waiting"]:
+        parts.append(f"[yellow]◉ {counts['waiting']} waiting[/yellow]")
+    if counts["error"]:
+        parts.append(f"[red]✗ {counts['error']} error[/red]")
+    if counts["idle"]:
+        parts.append(f"○ {counts['idle']} idle")
+    if counts["stopped"]:
+        parts.append(f"[dim]◌ {counts['stopped']} stopped[/dim]")
+
+    console.print(Panel(Text.from_markup("  |  ".join(parts)), title="Shoal Status", expand=False))
 
     # Sessions needing attention
     if counts["waiting"]:
@@ -517,7 +509,7 @@ async def _status_impl():
                 except FileNotFoundError:
                     icon = "●"
                 console.print(f"  {icon} [bold]{s.name}[/bold] [dim]→ shoal attach {s.name}[/dim]")
-    
+
     console.print("\n[dim]Use 'shoal ls' for a full list or 'shoal info <name>' for details.[/dim]")
 
 
@@ -558,9 +550,11 @@ def logs(
 async def _logs_impl(session_name_or_id, lines, tail):
     ensure_dirs()
     from shoal.core.state import resolve_session
+
     sid = await resolve_session(session_name_or_id) if session_name_or_id else None
     if not sid:
         from shoal.core.state import _resolve_session_interactive_impl
+
         sid = await _resolve_session_interactive_impl(session_name_or_id)
 
     s = await get_session(sid)
@@ -575,10 +569,11 @@ async def _logs_impl(session_name_or_id, lines, tail):
         content = tmux.capture_pane(s.tmux_session, lines=lines)
         console.print(content)
     else:
-        # Tailing tmux pane output is tricky without a dedicated tool, 
+        # Tailing tmux pane output is tricky without a dedicated tool,
         # but we can do a simple loop or use 'tmux pipe-pane'.
         # For simplicity, let's just use a loop for now.
         import time
+
         last_content = ""
         try:
             while True:
@@ -590,7 +585,7 @@ async def _logs_impl(session_name_or_id, lines, tail):
                         new_lines = content.splitlines()
                         old_lines = last_content.splitlines()
                         # This is a very naive tail
-                        for line in new_lines[len(old_lines)-1:]:
+                        for line in new_lines[len(old_lines) - 1 :]:
                             if line not in old_lines:
                                 console.print(line)
                     else:
@@ -604,6 +599,7 @@ async def _logs_impl(session_name_or_id, lines, tail):
 async def _rename_impl(old_name, new_name):
     ensure_dirs()
     from shoal.core.state import resolve_session, _sanitize_tmux_name
+
     sid = await resolve_session(old_name)
     if not sid:
         console.print(f"[red]Session not found: {old_name}[/red]")
@@ -634,11 +630,13 @@ async def _rename_impl(old_name, new_name):
 async def _info_impl(session_name_or_id):
     ensure_dirs()
     from shoal.core.state import resolve_session
+
     sid = await resolve_session(session_name_or_id) if session_name_or_id else None
-    
+
     if not sid:
         # Fallback to interactive if no arg or not found
         from shoal.core.state import _resolve_session_interactive_impl
+
         sid = await _resolve_session_interactive_impl(session_name_or_id)
 
     s = await get_session(sid)
@@ -663,9 +661,7 @@ async def _info_impl(session_name_or_id):
     }.get(s.status.value, "")
 
     status_text = (
-        f"[{status_style}]{s.status.value}[/{status_style}]"
-        if status_style
-        else s.status.value
+        f"[{status_style}]{s.status.value}[/{status_style}]" if status_style else s.status.value
     )
 
     details = Table.grid(padding=(0, 2))
@@ -678,14 +674,14 @@ async def _info_impl(session_name_or_id):
     details.add_row("󰀦 Status", status_text)
     details.add_row("󰃭 Created", s.created_at.strftime("%Y-%m-%d %H:%M:%S"))
     details.add_row("󰥔 Activity", s.last_activity.strftime("%Y-%m-%d %H:%M:%S"))
-    
+
     paths = Table.grid(padding=(0, 2))
     paths.add_column(style="bold green")
     paths.add_column()
     paths.add_row("󱂵 Git Root", s.path)
     paths.add_row("󱉭 Worktree", s.worktree or "[dim](none)[/dim]")
     paths.add_row("󰘬 Branch", f"[magenta]{s.branch or '-'}[/magenta]")
-    
+
     runtime = Table.grid(padding=(0, 2))
     runtime.add_column(style="bold yellow")
     runtime.add_column()
@@ -694,19 +690,22 @@ async def _info_impl(session_name_or_id):
     runtime.add_row("󰆍 PID", str(s.pid) if s.pid else "[dim]N/A[/dim]")
     runtime.add_row("󰒔 MCP", ", ".join(s.mcp_servers) if s.mcp_servers else "[dim](none)[/dim]")
 
-    console.print(Panel(
-        Columns([details, paths, runtime], expand=True),
-        title=f"[bold blue]󰚝 Session: {s.name}[/bold blue]",
-        title_align="left",
-        border_style="dim",
-        padding=(1, 2)
-    ))
+    console.print(
+        Panel(
+            Columns([details, paths, runtime], expand=True),
+            title=f"[bold blue]󰚝 Session: {s.name}[/bold blue]",
+            title_align="left",
+            border_style="dim",
+            padding=(1, 2),
+        )
+    )
 
     if tmux.has_session(s.tmux_session):
         console.print("\n[bold]󰆍 Recent Output:[/bold]")
         content = tmux.capture_pane(s.tmux_session)
         if content:
             from rich.syntax import Syntax
+
             # Show last 10 lines
             lines = content.splitlines()[-10:]
             preview = "\n".join(lines)
