@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Demo Command**: New `shoal demo start/stop` for interactive onboarding with example sessions.
+- **Documentation**: Comprehensive robo workflow guide (docs/ROBO_GUIDE.md) with patterns and examples.
+- **Documentation**: Release process guide (RELEASE_PROCESS.md) with semver workflow and checklist.
+- **Error Messages**: Improved CLI error messages with actionable suggestions for common mistakes.
+- **Use Cases**: Added practical examples to README (parallel development, code review, batch processing).
+
+### Performance
+- **Database Optimization**: Added indexed lookup for session name queries (replaced O(n) scan).
+
+### Development
+- **Test Coverage**: Measured baseline at 52% (96 tests passing).
+- **Dependencies**: Added pytest-cov for coverage tracking.
 
 ## [0.4.0] - 2026-02-16
 
