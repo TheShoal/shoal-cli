@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from shoal.core.config import state_dir
+
 from shoal.core.state import get_session, list_sessions
 
 
@@ -31,16 +31,19 @@ async def generate_status() -> str:
     # Non-zero: "● 1" (icon + space + digit)
     def fmt(count: int, icon: str, color: str) -> str:
         if count == 0:
-            return f"#[fg={color}]-  "
+            return f"#[fg={color}]  "
         return f"#[fg={color}]{icon} {count}"
 
     res = (
-        fmt(counts["running"], "●", "green") + " " +
-        fmt(counts["idle"], "○", "white") + " " +
-        fmt(counts["error"], "●", "red") + " " +
-        fmt(counts["waiting"], "◉", "yellow")
+        fmt(counts["running"], " ", "green")
+        + " "
+        + fmt(counts["idle"], " ", "white")
+        + " "
+        + fmt(counts["waiting"], " ", "yellow")
+        + " "
+        + fmt(counts["error"], " ", "red")
     )
-    return f"{res.strip()}#[default]"
+    return f"{res}#[default]"
 
 
 def main() -> None:
