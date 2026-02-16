@@ -295,7 +295,12 @@ async def create_session_api(data: SessionCreate):
     if existing_id:
         raise HTTPException(status_code=409, detail=f"Session '{session_name}' already exists")
 
-    session = await create_session(session_name, tool, root, work_dir, branch_name)
+    try:
+        session = await create_session(session_name, tool, root, work_dir, branch_name)
+    except ValueError as e:
+        # Validation error from create_session
+        raise HTTPException(status_code=400, detail=str(e))
+
     tool_cfg = load_tool_config(tool)
     tmux_session = session.tmux_session
 

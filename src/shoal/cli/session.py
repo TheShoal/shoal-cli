@@ -140,7 +140,11 @@ async def _add_impl(path, tool, worktree, branch, name):
         raise typer.Exit(1)
 
     # Create session state
-    session = await create_session(session_name, tool, root, work_dir, branch_name)
+    try:
+        session = await create_session(session_name, tool, root, work_dir, branch_name)
+    except ValueError as e:
+        console.print(f"[red]Invalid session name: {e}[/red]")
+        raise typer.Exit(1)
 
     # Get tool command
     tool_cfg = load_tool_config(tool)
@@ -386,7 +390,11 @@ async def _fork_impl(session, name, no_worktree):
         work_dir = wt_path
 
     # Create new session
-    new_session = await create_session(new_name, source.tool, source.path, wt_path, new_branch)
+    try:
+        new_session = await create_session(new_name, source.tool, source.path, wt_path, new_branch)
+    except ValueError as e:
+        console.print(f"[red]Invalid session name: {e}[/red]")
+        raise typer.Exit(1)
 
     tmux_session = new_session.tmux_session
 
@@ -625,7 +633,14 @@ async def _logs_impl(session_name_or_id, lines, tail):
 
 async def _rename_impl(old_name, new_name):
     ensure_dirs()
-    from shoal.core.state import resolve_session, _sanitize_tmux_name
+    from shoal.core.state import resolve_session, validate_session_name, _sanitize_tmux_name
+
+    # Validate new name
+    try:
+        validate_session_name(new_name)
+    except ValueError as e:
+        console.print(f"[red]Invalid session name: {e}[/red]")
+        raise typer.Exit(1)
 
     sid = await resolve_session(old_name)
     if not sid:

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import secrets
 import subprocess
 import sys
@@ -22,6 +23,36 @@ def generate_id(length: int = 8) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
+def validate_session_name(name: str) -> None:
+    """Validate session name for security and compatibility.
+
+    Session names are used in:
+    - Tmux session names (via _sanitize_tmux_name)
+    - File paths (tmux sockets, nvim sockets)
+    - String interpolation for startup commands
+    - Database queries (safe via parameterization)
+
+    Raises:
+        ValueError: If validation fails with descriptive message.
+    """
+    if not name:
+        raise ValueError("Session name cannot be empty")
+
+    if len(name) > 100:
+        raise ValueError("Session name too long (max 100 characters)")
+
+    # Allow: alphanumeric, dash, underscore, slash, dot
+    # Block: shell metacharacters, control chars, null bytes
+    if not re.match(r"^[a-zA-Z0-9_/.-]+$", name):
+        raise ValueError(
+            "Session name must contain only: letters, numbers, dash, underscore, slash, dot"
+        )
+
+    # Block reserved names
+    if name in (".", ".."):
+        raise ValueError(f"Reserved name: {name}")
+
+
 def _sanitize_tmux_name(name: str) -> str:
     """Sanitize a name for use in a tmux session name.
 
@@ -37,7 +68,12 @@ async def create_session(
     worktree: str = "",
     branch: str = "",
 ) -> SessionState:
-    """Create a new session state in DB and return the session."""
+    """Create a new session state in DB and return the session.
+
+    Raises:
+        ValueError: If session name validation fails.
+    """
+    validate_session_name(name)
     session_id = generate_id()
     tmux_session = f"shoal_{_sanitize_tmux_name(name)}"
     now = datetime.now(UTC)
