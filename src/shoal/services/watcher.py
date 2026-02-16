@@ -57,15 +57,16 @@ class Watcher:
 
     async def _poll_cycle(self) -> None:
         """Iterate sessions, capture panes, detect status, update state, notify."""
-        for sid in list_sessions():
-            session = get_session(sid)
+        ids = await list_sessions()
+        for sid in ids:
+            session = await get_session(sid)
             if not session or session.status.value == "stopped":
                 continue
 
             # Check if tmux session still exists
             if not tmux.has_session(session.tmux_session):
                 if session.status.value != "stopped":
-                    update_session(
+                    await update_session(
                         sid, status=SessionStatus.stopped, last_activity=datetime.now(UTC)
                     )
                     logger.info("Session %s: marked stopped (tmux gone)", sid)
@@ -86,7 +87,7 @@ class Watcher:
 
             # Update if changed
             if new_status.value != session.status.value:
-                update_session(
+                await update_session(
                     sid,
                     status=new_status,
                     last_activity=datetime.now(UTC),

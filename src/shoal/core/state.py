@@ -1,14 +1,17 @@
-"""Session state CRUD — all state stored as JSON in ~/.local/share/shoal/sessions/."""
+"""Session state CRUD — all state stored in SQLite."""
 
 from __future__ import annotations
 
+import asyncio
 import secrets
 import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from shoal.core.config import ensure_dirs, load_tool_config, state_dir
+from shoal.core.db import get_db
 from shoal.models.state import SessionState, SessionStatus
 
 
@@ -26,20 +29,14 @@ def _sanitize_tmux_name(name: str) -> str:
     return name.replace(".", "-").replace(":", "-").replace("/", "-")
 
 
-def session_file(session_id: str) -> Path:
-    """Return path to session JSON file."""
-    return state_dir() / "sessions" / f"{session_id}.json"
-
-
-def create_session(
+async def create_session(
     name: str,
     tool: str,
     git_root: str,
     worktree: str = "",
     branch: str = "",
 ) -> SessionState:
-    """Create a new session state file and return the session."""
-    ensure_dirs()
+    """Create a new session state in DB and return the session."""
     session_id = generate_id()
     tmux_session = f"shoal_{_sanitize_tmux_name(name)}"
     now = datetime.now(UTC)
@@ -61,105 +58,105 @@ def create_session(
         last_activity=now,
     )
 
-    path = session_file(session_id)
-    path.write_text(session.model_dump_json(indent=2))
+    db = await get_db()
+    await db.save_session(session)
     return session
 
 
-def get_session(session_id: str) -> SessionState | None:
-    """Read a session from disk, or None if not found."""
-    path = session_file(session_id)
-    if not path.exists():
-        return None
-    return SessionState.model_validate_json(path.read_text())
+async def get_session(session_id: str) -> SessionState | None:
+    """Read a session from DB, or None if not found."""
+    db = await get_db()
+    return await db.get_session(session_id)
 
 
-def update_session(session_id: str, **fields: object) -> SessionState | None:
-    """Update specific fields on a session and write back to disk."""
-    session = get_session(session_id)
-    if session is None:
-        return None
-    updated = session.model_copy(update=fields)
-    session_file(session_id).write_text(updated.model_dump_json(indent=2))
-    return updated
+async def update_session(session_id: str, **fields: Any) -> SessionState | None:
+    """Update specific fields on a session in DB."""
+    db = await get_db()
+    return await db.update_session(session_id, **fields)
 
 
-def delete_session(session_id: str) -> bool:
-    """Delete a session state file."""
-    path = session_file(session_id)
-    if path.exists():
-        path.unlink()
+async def delete_session(session_id: str) -> bool:
+    """Delete a session from DB."""
+    db = await get_db()
+    session = await db.get_session(session_id)
+    if session:
+        await db.delete_session(session_id)
         return True
     return False
 
 
-def list_sessions() -> list[str]:
+async def list_sessions() -> list[str]:
     """Return all session IDs."""
-    sessions_dir = state_dir() / "sessions"
-    if not sessions_dir.exists():
-        return []
-    return sorted(p.stem for p in sessions_dir.glob("*.json"))
+    db = await get_db()
+    sessions = await db.list_sessions()
+    return [s.id for s in sessions]
 
 
-def find_by_name(name: str) -> str | None:
+async def find_by_name(name: str) -> str | None:
     """Find a session ID by name."""
-    for session_id in list_sessions():
-        session = get_session(session_id)
-        if session and session.name == name:
-            return session_id
+    db = await get_db()
+    sessions = await db.list_sessions()
+    for session in sessions:
+        if session.name == name:
+            return session.id
     return None
 
 
-def touch_session(session_id: str) -> None:
+async def touch_session(session_id: str) -> None:
     """Update last_activity timestamp."""
-    update_session(session_id, last_activity=datetime.now(UTC))
+    await update_session(session_id, last_activity=datetime.now(UTC))
 
 
-def add_mcp_to_session(session_id: str, mcp_name: str) -> None:
+async def add_mcp_to_session(session_id: str, mcp_name: str) -> None:
     """Add an MCP server to a session's list."""
-    session = get_session(session_id)
+    session = await get_session(session_id)
     if session is None:
         return
     servers = list(set(session.mcp_servers) | {mcp_name})
-    update_session(session_id, mcp_servers=servers)
+    await update_session(session_id, mcp_servers=servers)
 
 
-def remove_mcp_from_session(session_id: str, mcp_name: str) -> None:
+async def remove_mcp_from_session(session_id: str, mcp_name: str) -> None:
     """Remove an MCP server from a session's list."""
-    session = get_session(session_id)
+    session = await get_session(session_id)
     if session is None:
         return
     servers = [s for s in session.mcp_servers if s != mcp_name]
-    update_session(session_id, mcp_servers=servers)
+    await update_session(session_id, mcp_servers=servers)
 
 
-def resolve_session(name_or_id: str) -> str | None:
+async def resolve_session(name_or_id: str) -> str | None:
     """Resolve a name or ID to a session ID. Returns None if not found."""
     # Try as direct ID first
-    if session_file(name_or_id).exists():
+    session = await get_session(name_or_id)
+    if session:
         return name_or_id
     # Try by name
-    return find_by_name(name_or_id)
+    return await find_by_name(name_or_id)
 
 
 def resolve_session_interactive(name_or_id: str | None = None) -> str:
     """Resolve session with fzf fallback. Raises SystemExit on failure."""
+    return asyncio.run(_resolve_session_interactive_impl(name_or_id))
+
+
+async def _resolve_session_interactive_impl(name_or_id: str | None = None) -> str:
     if name_or_id:
-        result = resolve_session(name_or_id)
+        result = await resolve_session(name_or_id)
         if result:
             return result
         print(f"Session not found: {name_or_id}", file=sys.stderr)
         raise SystemExit(1)
 
     # No argument — use fzf picker
-    sessions = list_sessions()
-    if not sessions:
+    ids = await list_sessions()
+    if not ids:
         print("No sessions found", file=sys.stderr)
         raise SystemExit(1)
 
     lines: list[str] = []
-    for sid in sessions:
-        session = get_session(sid)
+    for sid in ids:
+        session = await get_session(sid)
         if session:
             icon = _get_tool_icon(session.tool)
             lines.append(f"{sid}\t{icon} {session.name}\t{session.tool}\t{session.status.value}")

@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
+from httpx import AsyncClient, ASGITransport
 
 @pytest.fixture
 def tmp_config(tmp_path: Path) -> Path:
@@ -129,19 +129,20 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
         runtime_dir_patch,
         # Patch imported references in all modules that import these
         patch("shoal.core.state.state_dir", return_value=tmp_state),
-        patch("shoal.core.state.ensure_dirs"),
+        # Removed patch("shoal.core.state.ensure_dirs") to allow DB initialization
         patch("shoal.cli.session.config_dir", return_value=tmp_config),
-        patch("shoal.cli.session.ensure_dirs"),
-        patch("shoal.cli.mcp.ensure_dirs"),
         patch("shoal.cli.mcp.state_dir", return_value=tmp_state),
-        patch("shoal.cli.worktree.ensure_dirs"),
         patch("shoal.cli.conductor.config_dir", return_value=tmp_config),
         patch("shoal.cli.conductor.state_dir", return_value=tmp_state),
-        patch("shoal.cli.conductor.ensure_dirs"),
         patch("shoal.cli.watcher.runtime_dir", return_value=tmp_runtime),
-        patch("shoal.cli.watcher.ensure_dirs"),
-        patch("shoal.cli.nvim.ensure_dirs"),
         patch("shoal.services.status_bar.state_dir", return_value=tmp_state),
     ):
         yield tmp_config, tmp_state
         load_config.cache_clear()
+
+@pytest.fixture
+async def async_client(mock_dirs):
+    """Async test client for the Shoal API."""
+    from shoal.api.server import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac

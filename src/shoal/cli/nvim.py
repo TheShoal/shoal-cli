@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 import subprocess
 from pathlib import Path
@@ -24,9 +25,13 @@ def nvim_send(
     command: Annotated[str, typer.Argument(help="Ex command to send")],
 ) -> None:
     """Send a command to a session's neovim."""
+    asyncio.run(_nvim_send_impl(session, command))
+
+
+async def _nvim_send_impl(session, command):
     ensure_dirs()
     sid = resolve_session_interactive(session)
-    s = get_session(sid)
+    s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
 
@@ -55,9 +60,13 @@ def nvim_diagnostics(
     session: Annotated[str, typer.Argument(help="Session name or ID")],
 ) -> None:
     """Get LSP diagnostics from a session's neovim."""
+    asyncio.run(_nvim_diagnostics_impl(session))
+
+
+async def _nvim_diagnostics_impl(session):
     ensure_dirs()
     sid = resolve_session_interactive(session)
-    s = get_session(sid)
+    s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated
 
 import typer
@@ -39,6 +40,10 @@ def mcp_default(ctx: typer.Context) -> None:
 @app.command("ls")
 def mcp_ls() -> None:
     """List MCP servers in the pool."""
+    asyncio.run(_mcp_ls_impl())
+
+
+async def _mcp_ls_impl():
     ensure_dirs()
     socket_dir = state_dir() / "mcp-pool" / "sockets"
     if not socket_dir.exists():
@@ -56,6 +61,7 @@ def mcp_ls() -> None:
     table.add_column("STATUS", width=10)
     table.add_column("SESSIONS")
 
+    ids = await list_sessions()
     for sock_path in sorted(sockets):
         name = sock_path.stem
         pid = read_pid(name)
@@ -70,8 +76,8 @@ def mcp_ls() -> None:
 
         # Find sessions using this MCP
         using: list[str] = []
-        for sid in list_sessions():
-            s = get_session(sid)
+        for sid in ids:
+            s = await get_session(sid)
             if s and name in s.mcp_servers:
                 using.append(s.name)
 
@@ -116,6 +122,10 @@ def mcp_stop(
     name: Annotated[str, typer.Argument(help="MCP server to stop")],
 ) -> None:
     """Stop a pooled MCP server."""
+    asyncio.run(_mcp_stop_impl(name))
+
+
+async def _mcp_stop_impl(name):
     ensure_dirs()
     try:
         stop_mcp_server(name)
@@ -126,10 +136,11 @@ def mcp_stop(
     console.print(f"MCP server '{name}' stopped")
 
     # Remove MCP from any sessions that reference it
-    for sid in list_sessions():
-        s = get_session(sid)
+    ids = await list_sessions()
+    for sid in ids:
+        s = await get_session(sid)
         if s and name in s.mcp_servers:
-            remove_mcp_from_session(sid, name)
+            await remove_mcp_from_session(sid, name)
 
 
 @app.command("attach")
@@ -138,6 +149,10 @@ def mcp_attach(
     mcp_name: Annotated[str, typer.Argument(help="MCP server name")],
 ) -> None:
     """Attach an MCP server to a session."""
+    asyncio.run(_mcp_attach_impl(session, mcp_name))
+
+
+async def _mcp_attach_impl(session, mcp_name):
     ensure_dirs()
     sid = resolve_session_interactive(session)
 
@@ -151,9 +166,9 @@ def mcp_attach(
         console.print(f"[red]MCP server '{mcp_name}' has a stale socket (process dead)[/red]")
         raise typer.Exit(1)
 
-    add_mcp_to_session(sid, mcp_name)
+    await add_mcp_to_session(sid, mcp_name)
 
-    s = get_session(sid)
+    s = await get_session(sid)
     name = s.name if s else sid
     tool = s.tool if s else "unknown"
 

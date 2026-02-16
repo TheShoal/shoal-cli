@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Annotated
 
@@ -36,6 +37,10 @@ def add(
     name: Annotated[str | None, typer.Option("-n", "--name", help="Session name")] = None,
 ) -> None:
     """Create a new session."""
+    asyncio.run(_add_impl(path, tool, worktree, branch, name))
+
+
+async def _add_impl(path, tool, worktree, branch, name):
     ensure_dirs()
     cfg = load_config()
 
@@ -92,12 +97,12 @@ def add(
             session_name = project_name
 
     # Check name collision
-    if find_by_name(session_name):
+    if await find_by_name(session_name):
         console.print(f"[red]Session with name '{session_name}' already exists[/red]")
         raise typer.Exit(1)
 
     # Create session state
-    session = create_session(session_name, tool, root, work_dir, branch_name)
+    session = await create_session(session_name, tool, root, work_dir, branch_name)
 
     # Get tool command
     tool_cfg = load_tool_config(tool)
@@ -108,7 +113,7 @@ def add(
         tmux.new_session(tmux_session, cwd=work_dir)
     except Exception:
         console.print("[red]Failed to create tmux session[/red]")
-        delete_session(session.id)
+        await delete_session(session.id)
         raise typer.Exit(1) from None
 
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
@@ -118,11 +123,11 @@ def add(
     tmux.send_keys(tmux_session, tool_cfg.command)
 
     # Update state
-    update_session(session.id, status=SessionStatus.running)
+    await update_session(session.id, status=SessionStatus.running)
 
     pane = tmux.pane_pid(tmux_session)
     if pane:
-        update_session(session.id, pid=pane)
+        await update_session(session.id, pid=pane)
 
     console.print(
         f"{tool_cfg.icon} Session '{session_name}' created (id: {session.id}, tool: {tool})"
@@ -146,17 +151,21 @@ def ls(
     ] = None,
 ) -> None:
     """List all sessions."""
+    asyncio.run(_ls_impl(format))
+
+
+async def _ls_impl(format):
     ensure_dirs()
-    sessions = list_sessions()
+    session_ids = await list_sessions()
 
     if format == "plain":
-        for sid in sessions:
-            session = get_session(sid)
+        for sid in session_ids:
+            session = await get_session(sid)
             if session:
                 console.print(session.name)
         return
 
-    if not sessions:
+    if not session_ids:
         console.print("No sessions")
         return
 
@@ -168,8 +177,8 @@ def ls(
     table.add_column("BRANCH", width=30)
     table.add_column("PATH")
 
-    for sid in sessions:
-        session = get_session(sid)
+    for sid in session_ids:
+        session = await get_session(sid)
         if not session:
             continue
 
@@ -210,9 +219,13 @@ def attach(
     session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,
 ) -> None:
     """Attach to a session."""
+    asyncio.run(_attach_impl(session))
+
+
+async def _attach_impl(session_name_or_id):
     ensure_dirs()
-    sid = resolve_session_interactive(session)
-    s = get_session(sid)
+    sid = resolve_session_interactive(session_name_or_id)
+    s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
 
@@ -220,10 +233,10 @@ def attach(
         console.print(
             f"[red]Tmux session '{s.tmux_session}' not found (session may have died)[/red]"
         )
-        update_session(sid, status=SessionStatus.stopped)
+        await update_session(sid, status=SessionStatus.stopped)
         raise typer.Exit(1)
 
-    touch_session(sid)
+    await touch_session(sid)
 
     if tmux.is_inside_tmux():
         tmux.switch_client(s.tmux_session)
@@ -253,15 +266,19 @@ def fork(
     ] = False,
 ) -> None:
     """Fork a session into a new worktree (or standalone session with --no-worktree)."""
+    asyncio.run(_fork_impl(session, name, no_worktree))
+
+
+async def _fork_impl(session, name, no_worktree):
     ensure_dirs()
     source_id = resolve_session_interactive(session)
-    source = get_session(source_id)
+    source = await get_session(source_id)
     if not source:
         raise typer.Exit(1)
 
     new_name = name or f"{source.name}-fork"
 
-    if find_by_name(new_name):
+    if await find_by_name(new_name):
         console.print(f"[red]Session with name '{new_name}' already exists[/red]")
         raise typer.Exit(1)
 
@@ -288,7 +305,7 @@ def fork(
         work_dir = wt_path
 
     # Create new session
-    new_session = create_session(new_name, source.tool, source.path, wt_path, new_branch)
+    new_session = await create_session(new_name, source.tool, source.path, wt_path, new_branch)
 
     tmux_session = new_session.tmux_session
 
@@ -297,7 +314,7 @@ def fork(
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", new_name)
     tmux.send_keys(tmux_session, tool_cfg.command)
 
-    update_session(new_session.id, status=SessionStatus.running)
+    await update_session(new_session.id, status=SessionStatus.running)
 
     console.print(f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})")
     if wt_path:
@@ -316,9 +333,13 @@ def kill(
     ] = False,
 ) -> None:
     """Kill a session."""
+    asyncio.run(_kill_impl(session, worktree))
+
+
+async def _kill_impl(session, worktree):
     ensure_dirs()
     sid = resolve_session_interactive(session)
-    s = get_session(sid)
+    s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
 
@@ -342,23 +363,29 @@ def kill(
         if s.branch and s.branch not in ("main", "master") and git.branch_delete(s.path, s.branch):
             console.print(f"  Deleted branch: {s.branch}")
 
-    delete_session(sid)
+    await delete_session(sid)
     console.print(f"Session '{s.name}' ({sid}) removed")
 
 
 def status() -> None:
     """Quick status summary."""
+    asyncio.run(_status_impl())
+
+
+async def _status_impl():
     ensure_dirs()
-    sessions = list_sessions()
-    if not sessions:
+    session_ids = await list_sessions()
+    if not session_ids:
         console.print("No active sessions")
         return
 
     counts: dict[str, int] = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0}
-    for sid in sessions:
-        s = get_session(sid)
+    sessions = []
+    for sid in session_ids:
+        s = await get_session(sid)
         if s:
             counts[s.status.value] = counts.get(s.status.value, 0) + 1
+            sessions.append(s)
 
     total = len(sessions)
     console.print(f"Shoal Sessions: {total} total")
@@ -380,9 +407,8 @@ def status() -> None:
     # Sessions needing attention
     if counts["waiting"]:
         console.print("[yellow]Sessions waiting for input:[/yellow]")
-        for sid in sessions:
-            s = get_session(sid)
-            if s and s.status.value == "waiting":
+        for s in sessions:
+            if s.status.value == "waiting":
                 try:
                     icon = load_tool_config(s.tool).icon
                 except FileNotFoundError:
@@ -392,9 +418,8 @@ def status() -> None:
 
     if counts["error"]:
         console.print("[red]Sessions with errors:[/red]")
-        for sid in sessions:
-            s = get_session(sid)
-            if s and s.status.value == "error":
+        for s in sessions:
+            if s.status.value == "error":
                 try:
                     icon = load_tool_config(s.tool).icon
                 except FileNotFoundError:

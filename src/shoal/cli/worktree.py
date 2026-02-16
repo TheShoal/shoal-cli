@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Annotated
 
@@ -35,8 +36,12 @@ def wt_default(ctx: typer.Context) -> None:
 @app.command("ls")
 def wt_ls() -> None:
     """List managed worktrees."""
+    asyncio.run(_wt_ls_impl())
+
+
+async def _wt_ls_impl():
     ensure_dirs()
-    sessions = list_sessions()
+    ids = await list_sessions()
 
     table = Table(show_edge=False, pad_edge=False)
     table.add_column("SESSION", width=20)
@@ -46,8 +51,8 @@ def wt_ls() -> None:
     table.add_column("STATUS")
 
     found = 0
-    for sid in sessions:
-        s = get_session(sid)
+    for sid in ids:
+        s = await get_session(sid)
         if not s or not s.worktree:
             continue
 
@@ -74,9 +79,13 @@ def wt_finish(
     no_merge: Annotated[bool, typer.Option("--no-merge", help="Just clean up")] = False,
 ) -> None:
     """Merge and cleanup a worktree session."""
+    asyncio.run(_wt_finish_impl(session, pr, no_merge))
+
+
+async def _wt_finish_impl(session, pr, no_merge):
     ensure_dirs()
     sid = resolve_session_interactive(session)
-    s = get_session(sid)
+    s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
 
@@ -135,7 +144,7 @@ def wt_finish(
     ):
         console.print(f"  Deleted branch: {s.branch}")
 
-    delete_session(sid)
+    await delete_session(sid)
     console.print()
     console.print(f"Session '{s.name}' finished and cleaned up")
 
@@ -143,14 +152,19 @@ def wt_finish(
 @app.command("cleanup")
 def wt_cleanup() -> None:
     """Remove orphaned worktrees."""
+    asyncio.run(_wt_cleanup_impl())
+
+
+async def _wt_cleanup_impl():
     ensure_dirs()
 
     # Collect tracked worktrees
     tracked: set[str] = set()
     stale: list[str] = []
 
-    for sid in list_sessions():
-        s = get_session(sid)
+    ids = await list_sessions()
+    for sid in ids:
+        s = await get_session(sid)
         if not s:
             continue
 
@@ -165,18 +179,18 @@ def wt_cleanup() -> None:
     if stale:
         console.print("Stale sessions (tmux session gone):")
         for sid in stale:
-            s = get_session(sid)
+            s = await get_session(sid)
             if s:
                 console.print(f"  {s.name} ({sid}) — marking as stopped")
-                update_session(sid, status=SessionStatus.stopped)
+                await update_session(sid, status=SessionStatus.stopped)
         console.print()
 
     # Find orphaned worktrees
     checked_repos: set[str] = set()
     orphans: list[str] = []
 
-    for sid in list_sessions():
-        s = get_session(sid)
+    for sid in ids:
+        s = await get_session(sid)
         if not s or s.path in checked_repos:
             continue
         checked_repos.add(s.path)

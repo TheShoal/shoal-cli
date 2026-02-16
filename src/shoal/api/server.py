@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import shoal
 from shoal.core import git, tmux
 from shoal.core.config import ensure_dirs, load_config, load_tool_config
+from shoal.core.db import get_db
 from shoal.core.state import (
     add_mcp_to_session,
     create_session,
@@ -120,10 +121,10 @@ async def poll_status_changes():
     previous_status: dict[str, str] = {}
     while True:
         try:
-            sessions = list_sessions()
+            ids = await list_sessions()
             current_status: dict[str, str] = {}
-            for sid in sessions:
-                s = get_session(sid)
+            for sid in ids:
+                s = await get_session(sid)
                 if s:
                     current_status[sid] = s.status.value
 
@@ -149,6 +150,7 @@ async def poll_status_changes():
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     ensure_dirs()
+    await get_db()  # Initialize DB
     global status_poller_task
     status_poller_task = asyncio.create_task(poll_status_changes())
     yield
@@ -205,14 +207,14 @@ async def health():
 
 @app.get("/status", response_model=StatusResponse)
 async def get_status():
-    sessions = list_sessions()
+    ids = await list_sessions()
     counts = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0}
-    for sid in sessions:
-        s = get_session(sid)
+    for sid in ids:
+        s = await get_session(sid)
         if s:
             counts[s.status.value] = counts.get(s.status.value, 0) + 1
     return StatusResponse(
-        total=len(sessions),
+        total=len(ids),
         running=counts["running"],
         waiting=counts["waiting"],
         error=counts["error"],
@@ -225,13 +227,18 @@ async def get_status():
 @app.get("/sessions", response_model=list[SessionResponse])
 async def list_sessions_api():
     ensure_dirs()
-    sessions = list_sessions()
-    return [_session_to_response(get_session(sid)) for sid in sessions if get_session(sid)]
+    ids = await list_sessions()
+    sessions = []
+    for sid in ids:
+        s = await get_session(sid)
+        if s:
+            sessions.append(_session_to_response(s))
+    return sessions
 
 
 @app.get("/sessions/{session_id}", response_model=SessionResponse)
 async def get_session_api(session_id: str):
-    s = get_session(session_id)
+    s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
     return _session_to_response(s)
@@ -250,8 +257,9 @@ async def create_session_api(data: SessionCreate):
     if not tool:
         tool = cfg.general.default_tool
 
-    tool_config_path = f"{tool}.toml"
-    if not (load_tool_config(tool)):
+    try:
+        load_tool_config(tool)
+    except FileNotFoundError:
         raise HTTPException(status_code=400, detail=f"Unknown tool: {tool}")
 
     root = git.git_root(resolved_path)
@@ -281,49 +289,52 @@ async def create_session_api(data: SessionCreate):
         else:
             session_name = project_name
 
-    existing = get_session(session_name)
-    if existing:
+    # find_by_name is now async
+    from shoal.core.state import find_by_name
+    existing_id = await find_by_name(session_name)
+    if existing_id:
         raise HTTPException(status_code=409, detail=f"Session '{session_name}' already exists")
 
-    session = create_session(session_name, tool, root, work_dir, branch_name)
+    session = await create_session(session_name, tool, root, work_dir, branch_name)
     tool_cfg = load_tool_config(tool)
     tmux_session = session.tmux_session
 
     try:
         tmux.new_session(tmux_session, cwd=work_dir)
     except Exception as e:
-        delete_session(session.id)
+        await delete_session(session.id)
         raise HTTPException(status_code=500, detail=f"Failed to create tmux session: {e}")
 
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
     tmux.send_keys(tmux_session, tool_cfg.command)
 
-    update_session(session.id, status=SessionStatus.running)
+    await update_session(session.id, status=SessionStatus.running)
     pane = tmux.pane_pid(tmux_session)
     if pane:
-        update_session(session.id, pid=pane)
+        await update_session(session.id, pid=pane)
 
     await manager.broadcast({"type": "session_created", "session_id": session.id})
-    return _session_to_response(get_session(session.id))
+    updated_session = await get_session(session.id)
+    return _session_to_response(updated_session)
 
 
 @app.delete("/sessions/{session_id}", status_code=204)
 async def delete_session_api(session_id: str):
-    s = get_session(session_id)
+    s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
 
     if tmux.has_session(s.tmux_session):
         tmux.kill_session(s.tmux_session)
 
-    delete_session(session_id)
+    await delete_session(session_id)
     await manager.broadcast({"type": "session_deleted", "session_id": session_id})
 
 
 @app.post("/sessions/{session_id}/attach")
 async def attach_session_api(session_id: str):
-    s = get_session(session_id)
+    s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
     if not tmux.has_session(s.tmux_session):
@@ -334,7 +345,7 @@ async def attach_session_api(session_id: str):
 
 @app.post("/sessions/{session_id}/send")
 async def send_keys_api(session_id: str, body: dict):
-    s = get_session(session_id)
+    s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
     keys = body.get("keys")
@@ -359,7 +370,7 @@ async def websocket_endpoint(websocket: WebSocket):
 # =============================================================================
 
 
-def _get_mcp_info(name: str) -> McpResponse:
+async def _get_mcp_info(name: str) -> McpResponse:
     """Get MCP server status and associated sessions."""
     pid = read_pid(name)
     if pid is not None and is_mcp_running(name):
@@ -373,8 +384,9 @@ def _get_mcp_info(name: str) -> McpResponse:
 
     # Find sessions using this MCP
     sessions: list[str] = []
-    for sid in list_sessions():
-        s = get_session(sid)
+    ids = await list_sessions()
+    for sid in ids:
+        s = await get_session(sid)
         if s and name in s.mcp_servers:
             sessions.append(s.name)
 
@@ -398,7 +410,7 @@ async def list_mcp_servers():
     servers: list[McpResponse] = []
     for sock_path in socket_dir.glob("*.sock"):
         name = sock_path.stem
-        servers.append(_get_mcp_info(name))
+        servers.append(await _get_mcp_info(name))
     return servers
 
 
@@ -414,7 +426,7 @@ async def get_mcp_server(name: str):
     socket = mcp_socket(name)
     if not socket.exists() and not read_pid(name):
         raise HTTPException(status_code=404, detail=f"MCP server '{name}' not found")
-    return _get_mcp_info(name)
+    return await _get_mcp_info(name)
 
 
 @app.post("/mcp", response_model=McpResponse, status_code=201)
@@ -438,7 +450,7 @@ async def start_mcp_server_api(data: McpCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
     await manager.broadcast({"type": "mcp_started", "name": name, "pid": pid})
-    return _get_mcp_info(name)
+    return await _get_mcp_info(name)
 
 
 @app.delete("/mcp/{name}", status_code=204)
@@ -450,10 +462,11 @@ async def stop_mcp_server_api(name: str):
         raise HTTPException(status_code=404, detail=f"MCP server '{name}' is not running")
 
     # Remove MCP from any sessions that reference it
-    for sid in list_sessions():
-        s = get_session(sid)
+    ids = await list_sessions()
+    for sid in ids:
+        s = await get_session(sid)
         if s and name in s.mcp_servers:
-            remove_mcp_from_session(sid, name)
+            await remove_mcp_from_session(sid, name)
 
     await manager.broadcast({"type": "mcp_stopped", "name": name})
 
@@ -461,7 +474,7 @@ async def stop_mcp_server_api(name: str):
 @app.post("/sessions/{session_id}/mcp/{mcp_name}")
 async def attach_mcp_to_session(session_id: str, mcp_name: str):
     """Attach an MCP server to a session."""
-    s = get_session(session_id)
+    s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
@@ -472,7 +485,7 @@ async def attach_mcp_to_session(session_id: str, mcp_name: str):
     if not is_mcp_running(mcp_name):
         raise HTTPException(status_code=400, detail=f"MCP server '{mcp_name}' has a stale socket")
 
-    add_mcp_to_session(session_id, mcp_name)
+    await add_mcp_to_session(session_id, mcp_name)
     return {
         "message": f"Attached MCP '{mcp_name}' to session '{s.name}'",
         "socket": str(socket),
@@ -483,7 +496,7 @@ async def attach_mcp_to_session(session_id: str, mcp_name: str):
 @app.delete("/sessions/{session_id}/mcp/{mcp_name}", status_code=204)
 async def detach_mcp_from_session(session_id: str, mcp_name: str):
     """Detach an MCP server from a session."""
-    s = get_session(session_id)
+    s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
@@ -492,7 +505,7 @@ async def detach_mcp_from_session(session_id: str, mcp_name: str):
             status_code=400, detail=f"Session '{session_id}' is not attached to MCP '{mcp_name}'"
         )
 
-    remove_mcp_from_session(session_id, mcp_name)
+    await remove_mcp_from_session(session_id, mcp_name)
 
 
 if __name__ == "__main__":

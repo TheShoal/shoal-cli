@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -12,6 +13,7 @@ from rich.table import Table
 
 from shoal.core import tmux
 from shoal.core.config import config_dir, ensure_dirs, load_conductor_profile, state_dir
+from shoal.core.db import get_db
 from shoal.models.state import ConductorState
 
 console = Console()
@@ -28,10 +30,6 @@ def conductor_default(ctx: typer.Context) -> None:
 
 def _conductor_runtime_dir(name: str) -> Path:
     return state_dir() / "conductor" / name
-
-
-def _conductor_state_file(name: str) -> Path:
-    return _conductor_runtime_dir(name) / "state.json"
 
 
 @app.command("setup")
@@ -134,6 +132,10 @@ def conductor_start(
     name: Annotated[str | None, typer.Argument(help="Conductor profile")] = None,
 ) -> None:
     """Start a conductor session."""
+    asyncio.run(_conductor_start_impl(name))
+
+
+async def _conductor_start_impl(name):
     ensure_dirs()
     name = name or "default"
 
@@ -178,7 +180,7 @@ def conductor_start(
 
     tmux.send_keys(tmux_session, tool_cmd)
 
-    # Write state
+    # Write state to DB
     state = ConductorState(
         name=name,
         tool=tool,
@@ -186,8 +188,8 @@ def conductor_start(
         status="running",
         started_at=datetime.now(UTC),
     )
-    state_file = _conductor_state_file(name)
-    state_file.write_text(state.model_dump_json(indent=2))
+    db = await get_db()
+    await db.save_conductor(state)
 
     console.print(f"Conductor '{name}' started")
     console.print(f"  Tool: {tool}")
@@ -202,27 +204,29 @@ def conductor_stop(
     name: Annotated[str | None, typer.Argument(help="Conductor to stop")] = None,
 ) -> None:
     """Stop a conductor."""
+    asyncio.run(_conductor_stop_impl(name))
+
+
+async def _conductor_stop_impl(name):
     ensure_dirs()
     name = name or "default"
 
     tmux_session = f"shoal_conductor_{name}"
-    state_file = _conductor_state_file(name)
+    db = await get_db()
+    state = await db.get_conductor(name)
 
     if not tmux.has_session(tmux_session):
         console.print(f"[red]Conductor '{name}' is not running[/red]")
-        # Update state if stale
-        if state_file.exists():
-            state = ConductorState.model_validate_json(state_file.read_text())
-            state = state.model_copy(update={"status": "stopped"})
-            state_file.write_text(state.model_dump_json(indent=2))
+        if state:
+            updated = state.model_copy(update={"status": "stopped"})
+            await db.save_conductor(updated)
         raise typer.Exit(1)
 
     tmux.kill_session(tmux_session)
 
-    if state_file.exists():
-        state = ConductorState.model_validate_json(state_file.read_text())
-        state = state.model_copy(update={"status": "stopped"})
-        state_file.write_text(state.model_dump_json(indent=2))
+    if state:
+        updated = state.model_copy(update={"status": "stopped"})
+        await db.save_conductor(updated)
 
     console.print(f"Conductor '{name}' stopped")
 
@@ -230,24 +234,27 @@ def conductor_stop(
 @app.command("status")
 def conductor_status() -> None:
     """Conductor health check."""
+    asyncio.run(_conductor_status_impl())
+
+
+async def _conductor_status_impl():
     ensure_dirs()
-    conductor_dir = state_dir() / "conductor"
-    if not conductor_dir.exists():
+    db = await get_db()
+    conductors = await db.list_conductors()
+    
+    if not conductors:
         console.print("No conductors configured")
         console.print("Create one with: shoal conductor setup <name>")
         return
 
-    found = 0
-    for state_file in sorted(conductor_dir.glob("*/state.json")):
-        state = ConductorState.model_validate_json(state_file.read_text())
-        found += 1
-
+    for state in conductors:
         if tmux.has_session(state.tmux_session):
             cond_status = "[green]running[/green]"
         else:
             cond_status = "[bright_black]stopped[/bright_black]"
-            updated = state.model_copy(update={"status": "stopped"})
-            state_file.write_text(updated.model_dump_json(indent=2))
+            if state.status != "stopped":
+                state = state.model_copy(update={"status": "stopped"})
+                await db.save_conductor(state)
 
         started = state.started_at.strftime("%Y-%m-%dT%H:%M:%SZ") if state.started_at else "-"
         console.print(f"Conductor: {state.name}")
@@ -257,15 +264,16 @@ def conductor_status() -> None:
         console.print(f"  Started: {started}")
         console.print()
 
-    if found == 0:
-        console.print("No conductors found")
-        console.print("Set up with: shoal conductor setup <name>")
-
 
 @app.command("ls")
 def conductor_ls() -> None:
     """List conductor profiles."""
+    asyncio.run(_conductor_ls_impl())
+
+
+async def _conductor_ls_impl():
     ensure_dirs()
+    db = await get_db()
 
     profiles_dir = config_dir() / "conductor"
     if not profiles_dir.exists():
@@ -296,9 +304,8 @@ def conductor_ls() -> None:
         tmux_session = f"shoal_conductor_{name}"
         started = "-"
 
-        state_file = _conductor_state_file(name)
-        if state_file.exists():
-            state = ConductorState.model_validate_json(state_file.read_text())
+        state = await db.get_conductor(name)
+        if state:
             started = state.started_at.strftime("%Y-%m-%dT%H:%M:%SZ") if state.started_at else "-"
 
         if tmux.has_session(tmux_session):

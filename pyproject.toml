@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shoal"
-version = "0.3.0"
+version = "0.4.0"
 description = "AI agent orchestration for terminal-first workflows"
 readme = "README.md"
 license = "MIT"
@@ -15,6 +15,7 @@ dependencies = [
     "rich>=13.0.0",
     "fastapi>=0.109.0",
     "uvicorn>=0.27.0",
+    "aiosqlite>=0.20.0",
 ]
 
 [project.scripts]
@@ -48,6 +49,8 @@ warn_return_any = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_test_loop_scope = "function"
 markers = [
     "integration: tests that require tmux and external tools",
 ]

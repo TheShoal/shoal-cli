@@ -1,5 +1,12 @@
 # TO-DO
 
+## Done in v0.4.0
+
+- [x] **SQLite Migration**: Replace JSON files with a single `shoal.db` (using WAL mode for concurrency).
+- [x] **Async Refactor**: Move `shoal.core` to an async-first model using `aiosqlite` and `anyio`.
+- [x] **Strict Typing**: Audited `src/shoal/core/state.py` and improved typing.
+- [x] **API Update**: Refactored `server.py` to use async DB calls.
+
 ## Done in v0.3.0
 
 - [x] Fix Pydantic serialization warnings (pass `SessionStatus` enum instead of raw strings)
@@ -12,18 +19,20 @@
 - [x] Update architecture docs and README
 - [x] Conductor documentation: explain it's an AI agent running with AGENTS.md instructions
 
-## Next
+## Roadmap v0.5.0: The Interface (UI & UX)
+- [ ] **Web Dashboard**: React + Tailwind frontend for managing sessions via the API.
+- [ ] **Advanced TUI**: Richer `shoal popup` with interactive logs and session switching.
+- [ ] **Notifications**: Desktop alerts for session state transitions (waiting/error).
+- [ ] **Event Bus**: Implement a Unix-socket or SQLite-based pub/sub for real-time state updates.
 
-- Session Groups (i.e. Projects?) -- sessions for the same repo/project should get grouped together in some way (e.g., `shoal ls` could group by git root)
+## Next (General Improvements)
+- [ ] **Session Groups**: Group sessions for the same repo/project in `shoal ls` (e.g., group by git root).
+- [ ] **Improve Conductor**: Provide a way for the conductor to actually interact with child sessions (e.g., send keys, approve actions).
+- [ ] **CLI Commands**:
+    - [ ] `shoal rename <old> <new>`: rename a session and its tmux session.
+    - [ ] `shoal logs <name>`: tail the logs of a session tool.
+- [ ] **Robust Process Management**: Better tracking of session PIDs and auto-cleanup of "ghost" sessions.
 
-- Completions get messed up when tab completing after the command (shoal add) has been inputted:
-
-**FIXED in v0.3.1** - Added `--format plain` option to `shoal ls` command. The fish shell completion script was calling `shoal ls --format plain` expecting simple session names, but the `ls` command only outputted a Rich table. Now completions work correctly by returning session names one per line when `--format plain` is used.
-
-```
-╭─  ~/dev/laboratory                                                                               ↓60%
- │ (8m28s)
- ╰─λ shoal add ./shoal\n./grove-hub\n./openclaw-codehunter add
-```
-
-- Improve conductor: provide a way for the conductor to actually interact with child sessions (e.g., send keys, approve actions). Currently it just runs an AI tool with an AGENTS.md context file.
+## Code Quality
+- [ ] **Testing**: Add integration tests that use a mock `tmux` and `git` to verify session lifecycle.
+- [ ] **Dependency Injection**: Use FastAPI `Depends` in `server.py` for config/state access.
