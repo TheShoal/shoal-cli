@@ -1,3 +1,5 @@
+![assets/banner.jpeg]
+
 # Shoal
 
 Terminal-first orchestration for parallel AI coding agents.
@@ -41,6 +43,7 @@ In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a g
 ## Status
 
 Shoal is currently in **Beta**. It is the standard orchestration tool for terminal-first AI workflows at US Mobile.
+
 - **Target Platform**: macOS + tmux 3.3+.
 - **Stability**: CLI surface is stabilizing; config keys may change until v1.0.
 
@@ -49,11 +52,13 @@ Shoal is currently in **Beta**. It is the standard orchestration tool for termin
 ## Install
 
 ### Recommended (uv)
+
 ```bash
 uv tool install .
 ```
 
 ### From source (dev)
+
 ```bash
 git clone git@github.com:usmobile/shoal.git
 cd shoal
@@ -65,16 +70,19 @@ pip install -e ".[dev]"
 Shoal supports tab-completion for Bash, Zsh, and Fish.
 
 ### Zsh
+
 ```bash
 shoal --install-completion zsh
 ```
 
 ### Bash
+
 ```bash
 shoal --install-completion bash
 ```
 
 ### Fish
+
 ```bash
 shoal --install-completion fish
 ```
@@ -84,12 +92,15 @@ shoal --install-completion fish
 ## Concepts
 
 ### Sessions & Worktrees
+
 A **Session** is a tmux session tied to a specific tool and directory. If a **Worktree** name is provided, Shoal manages the git worktree and branch lifecycle for you, ensuring that parallel agents never stomp on each other's files.
 
 ### MCP Pooling
+
 Instead of every agent starting its own instance of an MCP server, Shoal runs them in a **Pool**. Agents connect via `shoal-mcp-proxy`, allowing them to share state (like a shared Memory server) and reduce resource usage.
 
 ### Robo Mode
+
 The **Robo** is a supervisory "super-session." It runs an agent with a specialized prompt (`AGENTS.md`) and access to the Shoal CLI. It can monitor the status of all other agents and interact with them directly—like a robo-fish leading the shoal.
 
 ---
@@ -149,17 +160,21 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for advanced robo patterns.
 ## Use Cases
 
 ### Parallel Feature Development
+
 Work on frontend, backend, and docs simultaneously without context switching:
+
 ```bash
 shoal new -t claude -w feature-ui -b
-shoal new -t opencode -w feature-api -b  
+shoal new -t opencode -w feature-api -b
 shoal new -t gemini -w feature-docs -b
 ```
 
 Each agent works in its own worktree, with shared MCP servers for memory and filesystem access.
 
 ### Code Review Automation
+
 Have one agent write code, another review it:
+
 ```bash
 shoal new -t claude -w implement-auth -b
 shoal new -t gemini -w review-auth -b
@@ -167,7 +182,9 @@ shoal new -t gemini -w review-auth -b
 ```
 
 ### Overnight Batch Processing
+
 Set up multiple agents with a robo supervisor to route tasks:
+
 ```bash
 shoal robo setup batch --tool opencode
 shoal robo start batch
@@ -181,28 +198,33 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed workflows.
 ## Command Reference
 
 ### Session Management
-| Command | Alias | Description |
-|---------|-------|-------------|
-| `shoal new` | `add` | Create a new session (optionally with a worktree) |
-| `shoal ls` | | List sessions grouped by project |
-| `shoal attach` | `a` | Attach to a session (fzf picker if no name) |
-| `shoal kill` | `rm` | Stop a session and clean up worktrees |
-| `shoal popup` | `pop` | Open the interactive TUI dashboard |
+
+| Command        | Alias | Description                                       |
+| -------------- | ----- | ------------------------------------------------- |
+| `shoal new`    | `add` | Create a new session (optionally with a worktree) |
+| `shoal ls`     |       | List sessions grouped by project                  |
+| `shoal attach` | `a`   | Attach to a session (fzf picker if no name)       |
+| `shoal kill`   | `rm`  | Stop a session and clean up worktrees             |
+| `shoal popup`  | `pop` | Open the interactive TUI dashboard                |
 
 ### Worktrees (`shoal wt`)
+
 - `ls`: List managed worktrees.
 - `finish`: Merge, delete branch, and remove worktree.
 - `cleanup`: Remove orphaned worktrees.
 
 ### MCP Pool (`shoal mcp`)
+
 - `start/stop`: Manage pooled servers.
 - `attach`: Connect a session to a pooled server.
 
 ### Demo (`shoal demo`)
+
 - `start`: Spin up a full demo environment with example sessions.
 - `stop`: Tear down the demo environment.
 
 ### Robo Supervisor (`shoal robo`)
+
 - `start`: Launch the supervisor agent.
 - `approve`: Send "Enter" to a waiting agent.
 - `send`: Send arbitrary keys to a child session.
@@ -212,6 +234,7 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed workflows.
 ## Architecture
 
 Shoal is built on a modern async Python stack:
+
 - **FastAPI/Uvicorn**: Provides a local API for state monitoring.
 - **SQLite (WAL)**: Concurrent, persistent state management.
 - **Typer**: Type-safe CLI interface.

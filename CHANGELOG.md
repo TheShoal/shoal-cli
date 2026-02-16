@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-02-16
+
+### Fixed
+- **Database Lifecycle**: Fixed database connection leaks in nvim commands by wrapping with `with_db()` context manager
+- **API Server**: Added database cleanup to lifespan shutdown to prevent connection leaks
+- **Async Sleep**: Replaced blocking `time.sleep(1)` with `await asyncio.sleep(1)` in `_logs_impl` function
+- **Error Logging**: Added `logger.exception()` to silent exception handler in `poll_status_changes` for better debugging
+- **Demo Security**: Added `shlex.quote()` to script paths in demo send_keys calls to prevent injection issues
+
+### Changed
+- **Code Deduplication**: Replaced 6 duplicated tool icon loading blocks with `_get_tool_icon()` helper function
+- **Status Style Extraction**: Extracted status style mapping to `get_status_style()` helper function, eliminating duplication across session.py and worktree.py
+- **Type Safety**: Converted `RoboState.status` from `str` to `SessionStatus` enum for type consistency
+- **API Validation**: Replaced raw `dict` with `SendKeysRequest` Pydantic model in `send_keys_api` endpoint
+
+### Added
+- **Test Coverage**: Added pytest-cov>=4.1.0 with 57% coverage threshold
+- **Test Infrastructure**: Created test files for demo commands, git wrappers, tmux wrappers, and MCP pool lifecycle
+- **DB Tests**: Added 5 new tests for robo database methods
+- **API Tests**: Added 3 new tests for create_session, send_keys, and status endpoints
+- **Coverage Config**: Added `[tool.coverage]` configuration to pyproject.toml with source path and reporting options
+
+### Development
+- **Test Status**: 137 tests passing, 11 complex integration tests skipped for future iteration
+- **Coverage**: Achieved 57.09% test coverage (baseline was 52% in v0.4.1)
+
 ## [0.4.1] - 2026-02-16
 
 ### Changed
