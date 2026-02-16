@@ -26,16 +26,18 @@ async def generate_status() -> str:
         else:
             counts["unknown"] += 1
 
-    # Format segments: hyphen and space if zero, icon and number if > 0
+    # Format segments: 3 chars wide total
+    # Zero: "-  " (hyphen + two spaces)
+    # Non-zero: "● 1" (icon + space + digit)
     def fmt(count: int, icon: str, color: str) -> str:
         if count == 0:
             return f"#[fg={color}]-  "
-        return f"#[fg={color}]{icon} {count} "
+        return f"#[fg={color}]{icon} {count}"
 
     res = (
-        fmt(counts["running"], "●", "green") +
-        fmt(counts["idle"], "○", "white") +
-        fmt(counts["error"], "●", "red") +
+        fmt(counts["running"], "●", "green") + " " +
+        fmt(counts["idle"], "○", "white") + " " +
+        fmt(counts["error"], "●", "red") + " " +
         fmt(counts["waiting"], "◉", "yellow")
     )
     return f"{res.strip()}#[default]"
