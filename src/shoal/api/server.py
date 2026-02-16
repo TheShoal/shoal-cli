@@ -6,7 +6,6 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
-from enum import StrEnum
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -40,15 +39,6 @@ from shoal.services.mcp_pool import (
 logger = logging.getLogger(__name__)
 
 
-class SessionStatusEnum(StrEnum):
-    running = "running"
-    waiting = "waiting"
-    error = "error"
-    idle = "idle"
-    stopped = "stopped"
-    unknown = "unknown"
-
-
 class SessionCreate(BaseModel):
     path: str | None = None
     tool: str
@@ -65,7 +55,7 @@ class SessionResponse(BaseModel):
     worktree: str | None
     branch: str | None
     tmux_session: str
-    status: SessionStatusEnum
+    status: SessionStatus
     pid: int | None
     mcp_servers: list[str]
     created_at: datetime
@@ -193,7 +183,7 @@ def _session_to_response(s) -> SessionResponse:
         worktree=s.worktree or None,
         branch=s.branch or None,
         tmux_session=s.tmux_session,
-        status=SessionStatusEnum(s.status.value),
+        status=s.status,
         pid=s.pid,
         mcp_servers=s.mcp_servers,
         created_at=s.created_at,
