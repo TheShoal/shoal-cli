@@ -16,6 +16,7 @@ from shoal.core.db import with_db
 from shoal.core.state import (
     delete_session,
     get_session,
+    get_status_style,
     list_sessions,
     resolve_session_interactive,
     update_session,
@@ -56,12 +57,7 @@ async def _wt_ls_impl():
         wt_exists = "[green]✔[/green]"
         status_val = s.status.value
 
-        status_style = {
-            "running": "green",
-            "waiting": "bold yellow",
-            "error": "bold red",
-            "stopped": "dim",
-        }.get(status_val, "")
+        status_style = get_status_style(status_val)
 
         if not Path(s.worktree).is_dir():
             wt_exists = "[red]✘[/red]"

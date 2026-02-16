@@ -15,7 +15,7 @@ from rich.table import Table
 from shoal.core import tmux
 from shoal.core.config import config_dir, ensure_dirs, load_robo_profile, state_dir
 from shoal.core.db import get_db, with_db
-from shoal.models.state import RoboState
+from shoal.models.state import RoboState, SessionStatus
 
 console = Console()
 
@@ -207,7 +207,7 @@ async def _robo_start_impl(name):
         name=name,
         tool=tool,
         tmux_session=tmux_session,
-        status="running",
+        status=SessionStatus.running,
         started_at=datetime.now(UTC),
     )
     db = await get_db()

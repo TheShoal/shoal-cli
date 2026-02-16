@@ -180,3 +180,13 @@ def _get_tool_icon(tool: str) -> str:
         return cfg.icon
     except FileNotFoundError:
         return "●"
+
+
+def get_status_style(status: str) -> str:
+    """Get Rich style for a session status."""
+    return {
+        "running": "green",
+        "waiting": "bold yellow",
+        "error": "bold red",
+        "stopped": "dim",
+    }.get(status, "")

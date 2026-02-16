@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -266,7 +267,7 @@ async def _demo_start_impl(custom_dir: str | None):
     )
     script_path = demo_dir / ".demo-main.sh"
     script_path.write_text(echo_script)
-    tmux.send_keys(s1.tmux_session, f"bash {script_path}")
+    tmux.send_keys(s1.tmux_session, f"bash {shlex.quote(str(script_path))}")
 
     # Session 2: Feature branch with worktree
     console.print("  ✓ Creating session: demo-feature (feat/api-endpoint worktree)")
@@ -294,7 +295,7 @@ async def _demo_start_impl(custom_dir: str | None):
     )
     script_path = worktree_path / ".demo-feature.sh"
     script_path.write_text(echo_script)
-    tmux.send_keys(s2.tmux_session, f"bash {script_path}")
+    tmux.send_keys(s2.tmux_session, f"bash {shlex.quote(str(script_path))}")
 
     # Session 3: Robo session
     console.print("  ✓ Creating session: demo-robo (supervisor)")
@@ -318,7 +319,7 @@ async def _demo_start_impl(custom_dir: str | None):
     )
     script_path = demo_dir / ".demo-robo.sh"
     script_path.write_text(echo_script)
-    tmux.send_keys(s3.tmux_session, f"bash {script_path}")
+    tmux.send_keys(s3.tmux_session, f"bash {shlex.quote(str(script_path))}")
 
     # Write marker file
     marker_file.write_text("\n".join(session_ids))

@@ -46,7 +46,7 @@ class RoboState(BaseModel):
     name: str
     tool: str
     tmux_session: str
-    status: str = "running"
+    status: SessionStatus = SessionStatus.running
     started_at: datetime = Field(default_factory=_utcnow)
 
 

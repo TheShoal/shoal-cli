@@ -7,7 +7,7 @@ import subprocess
 
 from shoal.core import tmux
 from shoal.core.config import load_tool_config
-from shoal.core.state import get_session, list_sessions
+from shoal.core.state import get_session, list_sessions, _get_tool_icon
 
 
 async def _build_entries() -> list[str]:
@@ -15,10 +15,7 @@ async def _build_entries() -> list[str]:
     entries: list[str] = []
     sessions = await list_sessions()
     for session in sessions:
-        try:
-            icon = load_tool_config(session.tool).icon
-        except FileNotFoundError:
-            icon = "●"
+        icon = _get_tool_icon(session.tool)
 
         branch = session.branch or "-"
         if session.last_activity:
