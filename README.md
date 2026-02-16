@@ -174,9 +174,6 @@ shoal robo approve feature-ui
 
 See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for advanced robo patterns.
 
-
-See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for advanced robo patterns.
-
 ---
 
 ## Use Cases

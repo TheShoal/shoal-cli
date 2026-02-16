@@ -34,41 +34,49 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
 - ✅ Added pytest-cov with coverage reporting
 - ✅ Security fix: Quote script paths in demo command
 
-## v0.4.3: Security & Test Hardening (In Progress)
+### v0.4.3 (Released: 2026-02-17)
 
-**Priority: Address immediate security gaps and test coverage issues identified in code audit.**
+**Priority: Security hardening and code quality improvements.**
 
 - **Security Fixes**:
-  - Fix demo command: create `.worktrees` parent directory before `git worktree add`
-  - Add comprehensive session name validation (regex, length, reserved names)
-  - Apply validation at all CLI entry points (new, fork, rename)
-  - Apply validation at all API entry points (POST /sessions, PUT /sessions/{id}/rename)
+  - ✅ Verified demo command `.worktrees` parent directory creation (already implemented)
+  - ✅ Added Pydantic field validators for session names (SessionState, SessionCreate)
+  - ✅ Added validation inside `update_session()` when name parameter is provided
+  - ✅ Implemented `PUT /sessions/{id}/rename` API endpoint with full validation
+  - ✅ Applied validation at all entry points (CLI new/fork/rename, API POST/PUT)
 - **Performance Fixes**:
-  - Fix N+1 query in GET /mcp endpoint (hoist `list_sessions()` out of loop)
+  - ✅ Verified N+1 query prevention in GET /mcp endpoint (already implemented)
+  - ✅ Added test to verify `list_sessions()` is called exactly once
 - **Test Coverage Expansion**:
-  - Add watcher service tests (tmux death, status transitions, notifications)
-  - Create MCP proxy tests (argument parsing, socket checks, execvp)
-  - Add status bar edge case tests (mixed statuses)
+  - ✅ Added CLI rename with invalid name test
+  - ✅ Added API session creation with invalid name test
+  - ✅ Added API rename endpoint tests (success, 404, invalid, duplicate)
+  - ✅ Added `update_session()` with invalid name test
+  - ✅ Added GET /status with unknown sessions test
+  - ✅ Added GET /mcp N+1 prevention test
+  - ✅ Verified MCP proxy test coverage (already adequate)
+  - ✅ Test coverage improvement (57% → 59%)
 - **Code Quality**:
-  - Unify SessionStatus models (remove API duplicate)
-  - Update ShoalDB docstring (clarify single connection vs pool)
-  - Document sync-in-async patterns in tmux.py
-  - Clarify stopped/unknown status handling in status bar
+  - ✅ Fixed StatusResponse model (added missing `unknown` field)
+  - ✅ Updated GET /status endpoint to include unknown count
+  - ✅ Updated ShoalDB docstring (clarified single connection, WAL mode, lifecycle)
+  - ✅ Documented sync-in-async patterns in tmux.py module docstring
+  - ✅ Added comment explaining stopped/unknown exclusion in status bar
 
 ## v0.5.0: Advanced Testing & Polish
 
 **Priority: Comprehensive testing, performance optimization, and developer experience.**
 
-**Note:** Security and code quality issues from original v0.5.0 scope moved to v0.4.3 for immediate resolution.
-
+- **Testing Infrastructure**:
+  - Add watcher service tests (tmux death detection, status transitions, notifications)
+  - Add status bar edge case tests (all sessions in one status, large counts, mixed statuses)
+  - Achieve 70%+ test coverage across all modules
+  - Add integration tests for full workflows (new → fork → kill)
+  - Add load tests for API server with concurrent requests
 - **Database & Performance**:
   - Evaluate need for connection pooling based on API load testing
   - Profile database operations under realistic multi-user scenarios
   - Optimize popup.py to reduce multiple DB connection cycles
-- **Testing Infrastructure**:
-  - Achieve 70%+ test coverage across all modules
-  - Add integration tests for full workflows (new → fork → kill)
-  - Add load tests for API server with concurrent requests
 - **Developer Experience**:
   - Improve error messages with file:line references
   - Add `--debug` flag for verbose logging
