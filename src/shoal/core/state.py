@@ -107,7 +107,15 @@ async def get_session(session_id: str) -> SessionState | None:
 
 
 async def update_session(session_id: str, **fields: Any) -> SessionState | None:
-    """Update specific fields on a session in DB."""
+    """Update specific fields on a session in DB.
+
+    Raises:
+        ValueError: If name field validation fails.
+    """
+    # Validate name if it's being updated
+    if "name" in fields:
+        validate_session_name(fields["name"])
+
     db = await get_db()
     return await db.update_session(session_id, **fields)
 

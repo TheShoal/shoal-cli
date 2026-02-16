@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SessionStatus(StrEnum):
@@ -38,6 +38,15 @@ class SessionState(BaseModel):
     mcp_servers: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=_utcnow)
     last_activity: datetime = Field(default_factory=_utcnow)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate session name for security and compatibility."""
+        from shoal.core.state import validate_session_name
+
+        validate_session_name(v)
+        return v
 
 
 class RoboState(BaseModel):
