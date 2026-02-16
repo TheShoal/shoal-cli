@@ -13,6 +13,7 @@ from shoal.core.state import (
     resolve_session,
     touch_session,
     update_session,
+    validate_session_name,
 )
 from shoal.models.state import SessionStatus
 
@@ -32,6 +33,71 @@ class TestGenerateId:
         assert len(ids) == 100
 
 
+class TestValidateSessionName:
+    def test_valid_names(self):
+        """Test that valid names pass validation."""
+        valid_names = [
+            "my-session",
+            "project/worktree",
+            "My.Project-v2",
+            "test_session",
+            "a1b2c3",
+            "very-long-but-valid-name-with-many-parts",
+        ]
+        for name in valid_names:
+            validate_session_name(name)  # Should not raise
+
+    def test_empty_name(self):
+        """Test that empty name fails."""
+        with pytest.raises(ValueError, match="cannot be empty"):
+            validate_session_name("")
+
+    def test_too_long(self):
+        """Test that names over 100 chars fail."""
+        long_name = "a" * 101
+        with pytest.raises(ValueError, match="too long"):
+            validate_session_name(long_name)
+
+    def test_shell_metacharacters(self):
+        """Test that shell metacharacters are blocked."""
+        invalid_names = [
+            "test$(whoami)",
+            "bad;name",
+            "test|pipe",
+            "back`tick`",
+            "test&background",
+            "test>redirect",
+            "test<input",
+            "test'quote",
+            'test"doublequote',
+            "test\\backslash",
+            "test*glob",
+            "test?wildcard",
+            "test[bracket]",
+            "test{brace}",
+            "test(paren)",
+            "test\nnewline",
+            "test\ttab",
+        ]
+        for name in invalid_names:
+            with pytest.raises(ValueError, match="must contain only"):
+                validate_session_name(name)
+
+    def test_reserved_names(self):
+        """Test that reserved names are blocked."""
+        with pytest.raises(ValueError, match="Reserved name"):
+            validate_session_name(".")
+        with pytest.raises(ValueError, match="Reserved name"):
+            validate_session_name("..")
+
+    def test_control_characters(self):
+        """Test that control characters are blocked."""
+        with pytest.raises(ValueError, match="must contain only"):
+            validate_session_name("test\x00null")
+        with pytest.raises(ValueError, match="must contain only"):
+            validate_session_name("test\x1besc")
+
+
 @pytest.mark.asyncio
 class TestSessionCRUD:
     async def test_create_and_get(self, mock_dirs):
@@ -45,6 +111,11 @@ class TestSessionCRUD:
         assert loaded is not None
         assert loaded.name == "test"
         assert loaded.id == session.id
+
+    async def test_create_with_invalid_name(self, mock_dirs):
+        """Test that create_session validates the name."""
+        with pytest.raises(ValueError, match="must contain only"):
+            await create_session("bad;name", "claude", "/tmp/repo")
 
     async def test_get_missing(self, mock_dirs):
         assert await get_session("nonexistent") is None
