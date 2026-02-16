@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 import shoal
 from shoal.core import git, tmux
@@ -21,6 +22,7 @@ from shoal.core.state import (
     add_mcp_to_session,
     create_session,
     delete_session,
+    find_by_name,
     get_session,
     list_sessions,
     remove_mcp_from_session,
@@ -46,6 +48,16 @@ class SessionCreate(BaseModel):
     branch: bool = False
     name: str | None = None
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str | None) -> str | None:
+        """Validate session name if provided."""
+        if v is not None:
+            from shoal.core.state import validate_session_name
+
+            validate_session_name(v)
+        return v
+
 
 class SessionResponse(BaseModel):
     id: str
@@ -69,6 +81,7 @@ class StatusResponse(BaseModel):
     error: int
     idle: int
     stopped: int
+    unknown: int
     version: str
 
 
@@ -93,6 +106,21 @@ class SendKeysRequest(BaseModel):
     """Request to send keys to a session."""
 
     keys: str
+
+
+class RenameRequest(BaseModel):
+    """Request to rename a session."""
+
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate new session name."""
+        from shoal.core.state import validate_session_name
+
+        validate_session_name(v)
+        return v
 
 
 class ConnectionManager:
@@ -204,7 +232,7 @@ async def health():
 @app.get("/status", response_model=StatusResponse)
 async def get_status():
     sessions = await list_sessions()
-    counts = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0}
+    counts = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0, "unknown": 0}
     for s in sessions:
         counts[s.status.value] = counts.get(s.status.value, 0) + 1
     return StatusResponse(
@@ -214,6 +242,7 @@ async def get_status():
         error=counts["error"],
         idle=counts["idle"],
         stopped=counts["stopped"],
+        unknown=counts["unknown"],
         version=shoal.__version__,
     )
 
@@ -335,6 +364,48 @@ async def delete_session_api(session_id: str):
 
     await delete_session(session_id)
     await manager.broadcast({"type": "session_deleted", "session_id": session_id})
+
+
+@app.put("/sessions/{session_id}/rename", response_model=SessionResponse)
+async def rename_session_api(session_id: str, body: RenameRequest):
+    """Rename a session."""
+    # Get the session
+    s = await get_session(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Check for duplicate name
+    existing = await find_by_name(body.name)
+    if existing and existing != session_id:
+        raise HTTPException(status_code=409, detail=f"Session name '{body.name}' already exists")
+
+    # Rename the tmux session
+    old_tmux_name = s.tmux_session
+    new_tmux_name = f"shoal_{body.name.replace('.', '-').replace(':', '-').replace('/', '-')}"
+
+    if tmux.has_session(old_tmux_name):
+        try:
+            tmux.rename_session(old_tmux_name, new_tmux_name)
+        except subprocess.CalledProcessError as e:
+            raise HTTPException(status_code=500, detail=f"Failed to rename tmux session: {e}")
+
+    # Update the session in the database
+    try:
+        updated = await update_session(
+            session_id,
+            name=body.name,
+            tmux_session=new_tmux_name,
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        await manager.broadcast(
+            {"type": "session_renamed", "session_id": session_id, "new_name": body.name}
+        )
+        return _session_to_response(updated)
+    except ValueError as e:
+        # Validation error from update_session
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/sessions/{session_id}/attach")
