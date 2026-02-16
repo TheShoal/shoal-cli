@@ -40,11 +40,15 @@ class SessionState(BaseModel):
     last_activity: datetime = Field(default_factory=_utcnow)
 
 
-class ConductorState(BaseModel):
-    """Runtime state for a conductor instance."""
+class RoboState(BaseModel):
+    """Runtime state for a robo instance."""
 
     name: str
     tool: str
     tmux_session: str
     status: str = "running"
     started_at: datetime = Field(default_factory=_utcnow)
+
+
+# Backward compatibility alias
+ConductorState = RoboState

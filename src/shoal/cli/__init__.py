@@ -6,9 +6,10 @@ import asyncio
 import typer
 
 import shoal
-from shoal.cli.conductor import app as conductor_app
+from shoal.cli.robo import app as robo_app
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
+from shoal.cli.demo import app as demo_app
 from shoal.cli.session import (
     add,
     attach,
@@ -36,21 +37,21 @@ app = typer.Typer(
 )
 
 # Session commands — top-level
-app.command()(add)
-app.command()(ls)
-app.command()(info)
-app.command()(rename)
-app.command()(logs)
-app.command()(attach)
-app.command()(detach)
-app.command()(fork)
-app.command()(kill)
-app.command()(prune)
-app.command()(status)
-app.command()(popup)
+app.command("new")(add)  # Primary command
+app.command("ls")(ls)
+app.command("info")(info)
+app.command("rename")(rename)
+app.command("logs")(logs)
+app.command("attach")(attach)
+app.command("detach")(detach)
+app.command("fork")(fork)
+app.command("kill")(kill)
+app.command("prune")(prune)
+app.command("status")(status)
+app.command("popup")(popup)
 
 # Aliases (hidden)
-app.command("new", hidden=True)(add)
+app.command("add", hidden=True)(add)  # Backward compat
 app.command("i", hidden=True)(info)
 app.command("mv", hidden=True)(rename)
 app.command("l", hidden=True)(logs)
@@ -64,10 +65,12 @@ app.command("pop", hidden=True)(popup)
 app.add_typer(wt_app, name="wt", help="Worktree management.")
 app.add_typer(wt_app, name="worktree", hidden=True)
 app.add_typer(mcp_app, name="mcp", help="MCP server pool.")
-app.add_typer(conductor_app, name="conductor", help="Conductor (supervisory agent).")
-app.add_typer(conductor_app, name="cond", hidden=True)
+app.add_typer(robo_app, name="robo", help="Robo (supervisory agent).")
+app.add_typer(robo_app, name="conductor", hidden=True)  # Backward compat
+app.add_typer(robo_app, name="cond", hidden=True)  # Backward compat
 app.add_typer(nvim_app, name="nvim", help="Neovim integration.")
 app.add_typer(watcher_app, name="watcher", help="Background status watcher.")
+app.add_typer(demo_app, name="demo", help="Demo environment.")
 
 
 @app.command()

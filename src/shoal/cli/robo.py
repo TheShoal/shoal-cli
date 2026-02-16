@@ -1,4 +1,4 @@
-"""Conductor (supervisory agent) commands: setup, start, stop, status, ls."""
+"""Robo (supervisory agent) commands: setup, start, stop, send, approve, status, ls."""
 
 from __future__ import annotations
 
@@ -9,12 +9,13 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 from shoal.core import tmux
-from shoal.core.config import config_dir, ensure_dirs, load_conductor_profile, state_dir
+from shoal.core.config import config_dir, ensure_dirs, load_robo_profile, state_dir
 from shoal.core.db import get_db, with_db
-from shoal.models.state import ConductorState
+from shoal.models.state import RoboState
 
 console = Console()
 
@@ -22,36 +23,37 @@ app = typer.Typer(no_args_is_help=False, invoke_without_command=True)
 
 
 @app.callback(invoke_without_command=True)
-def conductor_default(ctx: typer.Context) -> None:
-    """Conductor management (default: ls)."""
+def robo_default(ctx: typer.Context) -> None:
+    """Robo management (default: ls)."""
     if ctx.invoked_subcommand is None:
-        conductor_ls()
+        robo_ls()
 
 
-def _conductor_runtime_dir(name: str) -> Path:
-    return state_dir() / "conductor" / name
+def _robo_runtime_dir(name: str) -> Path:
+    return state_dir() / "robo" / name
 
 
 @app.command("setup")
-def conductor_setup(
-    name: Annotated[str | None, typer.Argument(help="Conductor profile name")] = None,
+def robo_setup(
+    name: Annotated[str | None, typer.Argument(help="Robo profile name")] = None,
     tool: Annotated[str | None, typer.Option("-t", "--tool", help="AI tool to use")] = None,
 ) -> None:
-    """Create a conductor profile."""
+    """Create a robo profile."""
     ensure_dirs()
     name = name or "default"
     tool = tool or "opencode"
 
-    profile_file = config_dir() / "conductor" / f"{name}.toml"
-    runtime_dir = _conductor_runtime_dir(name)
+    # Try new path first, support old path for backward compat
+    profile_file = config_dir() / "robo" / f"{name}.toml"
+    runtime_dir = _robo_runtime_dir(name)
 
     # Create profile if it doesn't exist
     if not profile_file.exists():
         profile_file.parent.mkdir(parents=True, exist_ok=True)
         profile_file.write_text(
-            f"""# Shoal conductor profile: {name}
+            f"""# Shoal robo profile: {name}
 
-[conductor]
+[robo]
 name = "{name}"
 tool = "{tool}"
 auto_approve = false
@@ -78,9 +80,18 @@ log_file = "task-log.md"
     agents_file = runtime_dir / "AGENTS.md"
     if not agents_file.exists():
         agents_file.write_text(
-            """# Shoal Conductor
+            """# Shoal Robo-Fish
 
-You are a conductor — a supervisory AI agent that monitors and coordinates other AI coding agents.
+You are a robo-fish — a supervisory AI agent that leads and coordinates a shoal of AI coding agents.
+
+## The Analogy
+
+In nature, researchers have shown that biomimetic robot fish can integrate into and lead schools of real fish 
+(see Marras & Porfiri 2012, Papaspyros et al. 2019). The robot alternates between following and leading to 
+gain social acceptance, then guides the group.
+
+In Shoal, you are that robo-fish. You monitor the shoal of AI coding agents, approve their actions, and 
+ensure the group stays on track.
 
 ## Your Responsibilities
 
@@ -95,8 +106,8 @@ You are a conductor — a supervisory AI agent that monitors and coordinates oth
 - `shoal ls` — List all sessions with details
 - `shoal attach <name>` — View a specific session
 - `shoal nvim diagnostics <name>` — Check LSP errors in a session's editor
-- `shoal conductor approve <name>` — Approve a waiting session (sends Enter)
-- `shoal conductor send <name> <keys>` — Send specific keys to a session
+- `shoal robo approve <name>` — Approve a waiting session (sends Enter)
+- `shoal robo send <name> <keys>` — Send specific keys to a session
 
 ## Workflow
 
@@ -118,58 +129,54 @@ You are a conductor — a supervisory AI agent that monitors and coordinates oth
 
     task_log = runtime_dir / "task-log.md"
     if not task_log.exists():
-        task_log.write_text(f"# Conductor Task Log: {name}\n\n---\n\n")
+        task_log.write_text(f"# Robo Task Log: {name}\n\n---\n\n")
         console.print(f"Created task log: {task_log}")
 
     console.print()
-    console.print(f"Conductor '{name}' ready")
+    console.print(f"Robo '{name}' ready")
     console.print(f"  Profile: {profile_file}")
     console.print(f"  Runtime: {runtime_dir}")
     console.print()
-    console.print(f"Start with: shoal conductor start {name}")
+    console.print(f"Start with: shoal robo start {name}")
 
 
 @app.command("start")
-def conductor_start(
-    name: Annotated[str | None, typer.Argument(help="Conductor profile")] = None,
+def robo_start(
+    name: Annotated[str | None, typer.Argument(help="Robo profile")] = None,
 ) -> None:
-    """Start a conductor session."""
-    asyncio.run(with_db(_conductor_start_impl(name)))
+    """Start a robo session."""
+    asyncio.run(with_db(_robo_start_impl(name)))
 
 
-async def _conductor_start_impl(name):
+async def _robo_start_impl(name):
     ensure_dirs()
     name = name or "default"
 
-    profile_file = config_dir() / "conductor" / f"{name}.toml"
-    runtime_dir = _conductor_runtime_dir(name)
+    runtime_dir = _robo_runtime_dir(name)
 
-    if not profile_file.exists():
-        console.print(f"[red]Conductor profile '{name}' not found[/red]")
-        console.print(f"Create it with: shoal conductor setup {name}")
-        raise typer.Exit(1)
-
-    # Read tool from profile
+    # Check if profile exists (backward compat with old conductor path)
     try:
-        profile = load_conductor_profile(name)
+        profile = load_robo_profile(name)
         tool = profile.tool
     except FileNotFoundError:
-        tool = "opencode"
+        console.print(f"[red]Robo profile '{name}' not found[/red]")
+        console.print(f"Create it with: shoal robo setup {name}")
+        raise typer.Exit(1)
 
-    tmux_session = f"shoal_conductor_{name}"
+    tmux_session = f"shoal_robo_{name}"
 
     if tmux.has_session(tmux_session):
-        console.print(f"[red]Conductor '{name}' is already running[/red]")
+        console.print(f"[red]Robo '{name}' is already running[/red]")
         console.print(f"Attach with: tmux attach -t {tmux_session}")
         raise typer.Exit(1)
 
     # Ensure runtime dir exists
     if not runtime_dir.exists():
-        conductor_setup(name, tool)
+        robo_setup(name, tool)
 
     # Create tmux session
     tmux.new_session(tmux_session, cwd=str(runtime_dir))
-    tmux.set_environment(tmux_session, "SHOAL_CONDUCTOR", name)
+    tmux.set_environment(tmux_session, "SHOAL_ROBO", name)
 
     # Get tool command and launch
     from shoal.core.config import load_tool_config
@@ -183,7 +190,7 @@ async def _conductor_start_impl(name):
     tmux.send_keys(tmux_session, tool_cmd)
 
     # Write state to DB
-    state = ConductorState(
+    state = RoboState(
         name=name,
         tool=tool,
         tmux_session=tmux_session,
@@ -191,9 +198,9 @@ async def _conductor_start_impl(name):
         started_at=datetime.now(UTC),
     )
     db = await get_db()
-    await db.save_conductor(state)
+    await db.save_robo(state)
 
-    console.print(f"Conductor '{name}' started")
+    console.print(f"Robo '{name}' started")
     console.print(f"  Tool: {tool}")
     console.print(f"  Tmux: {tmux_session}")
     console.print(f"  Runtime: {runtime_dir}")
@@ -202,47 +209,47 @@ async def _conductor_start_impl(name):
 
 
 @app.command("stop")
-def conductor_stop(
-    name: Annotated[str | None, typer.Argument(help="Conductor to stop")] = None,
+def robo_stop(
+    name: Annotated[str | None, typer.Argument(help="Robo to stop")] = None,
 ) -> None:
-    """Stop a conductor."""
-    asyncio.run(with_db(_conductor_stop_impl(name)))
+    """Stop a robo."""
+    asyncio.run(with_db(_robo_stop_impl(name)))
 
 
-async def _conductor_stop_impl(name):
+async def _robo_stop_impl(name):
     ensure_dirs()
     name = name or "default"
 
-    tmux_session = f"shoal_conductor_{name}"
+    tmux_session = f"shoal_robo_{name}"
     db = await get_db()
-    state = await db.get_conductor(name)
+    state = await db.get_robo(name)
 
     if not tmux.has_session(tmux_session):
-        console.print(f"[red]Conductor '{name}' is not running[/red]")
+        console.print(f"[red]Robo '{name}' is not running[/red]")
         if state:
             updated = state.model_copy(update={"status": "stopped"})
-            await db.save_conductor(updated)
+            await db.save_robo(updated)
         raise typer.Exit(1)
 
     tmux.kill_session(tmux_session)
 
     if state:
         updated = state.model_copy(update={"status": "stopped"})
-        await db.save_conductor(updated)
+        await db.save_robo(updated)
 
-    console.print(f"Conductor '{name}' stopped")
+    console.print(f"Robo '{name}' stopped")
 
 
 @app.command("send")
-def conductor_send(
+def robo_send(
     session: Annotated[str, typer.Argument(help="Session name or ID")],
     keys: Annotated[str, typer.Argument(help="Keys to send")],
 ) -> None:
     """Send keys to a session's tmux pane."""
-    asyncio.run(with_db(_conductor_send_impl(session, keys)))
+    asyncio.run(with_db(_robo_send_impl(session, keys)))
 
 
-async def _conductor_send_impl(session_name_or_id: str, keys: str):
+async def _robo_send_impl(session_name_or_id: str, keys: str):
     ensure_dirs()
     from shoal.core.state import get_session, resolve_session
 
@@ -264,95 +271,114 @@ async def _conductor_send_impl(session_name_or_id: str, keys: str):
 
 
 @app.command("approve")
-def conductor_approve(
+def robo_approve(
     session: Annotated[str, typer.Argument(help="Session name or ID")],
 ) -> None:
     """Approve a waiting session (sends Enter)."""
-    asyncio.run(with_db(_conductor_send_impl(session, "")))
+    asyncio.run(with_db(_robo_send_impl(session, "")))
 
 
 @app.command("status")
-def conductor_status() -> None:
-    """Conductor health check."""
-    asyncio.run(with_db(_conductor_status_impl()))
+def robo_status() -> None:
+    """Robo health check."""
+    asyncio.run(with_db(_robo_status_impl()))
 
 
-async def _conductor_status_impl():
+async def _robo_status_impl():
     ensure_dirs()
     db = await get_db()
-    conductors = await db.list_conductors()
+    robos = await db.list_robos()
 
-    if not conductors:
-        console.print("No conductors configured")
-        console.print("Create one with: shoal conductor setup <name>")
+    if not robos:
+        console.print("No robos configured")
+        console.print("Create one with: shoal robo setup <name>")
         return
 
-    for state in conductors:
+    for state in robos:
         if tmux.has_session(state.tmux_session):
-            cond_status = "[green]running[/green]"
+            robo_status_text = "[green]running[/green]"
         else:
-            cond_status = "[bright_black]stopped[/bright_black]"
+            robo_status_text = "[bright_black]stopped[/bright_black]"
             if state.status != "stopped":
                 state = state.model_copy(update={"status": "stopped"})
-                await db.save_conductor(state)
+                await db.save_robo(state)
 
         started = state.started_at.strftime("%Y-%m-%dT%H:%M:%SZ") if state.started_at else "-"
-        console.print(f"Conductor: {state.name}")
+        console.print(f"Robo: {state.name}")
         console.print(f"  Tool: {state.tool}")
-        console.print(f"  Status: {cond_status}")
+        console.print(f"  Status: {robo_status_text}")
         console.print(f"  Tmux: {state.tmux_session}")
         console.print(f"  Started: {started}")
         console.print()
 
 
 @app.command("ls")
-def conductor_ls() -> None:
-    """List conductor profiles."""
-    asyncio.run(with_db(_conductor_ls_impl()))
+def robo_ls() -> None:
+    """List robo profiles."""
+    asyncio.run(with_db(_robo_ls_impl()))
 
 
-async def _conductor_ls_impl():
+async def _robo_ls_impl():
     ensure_dirs()
     db = await get_db()
 
-    profiles_dir = config_dir() / "conductor"
-    if not profiles_dir.exists():
-        console.print("No conductor profiles")
-        console.print("Create one with: shoal conductor setup <name>")
+    # Check both new and old paths for backward compat
+    profiles_dir = config_dir() / "robo"
+    old_profiles_dir = config_dir() / "conductor"
+
+    profiles = []
+    if profiles_dir.exists():
+        profiles.extend(sorted(profiles_dir.glob("*.toml")))
+    if old_profiles_dir.exists():
+        profiles.extend(sorted(old_profiles_dir.glob("*.toml")))
+
+    # Deduplicate by name
+    seen_names = set()
+    unique_profiles = []
+    for p in profiles:
+        if p.stem not in seen_names:
+            seen_names.add(p.stem)
+            unique_profiles.append(p)
+
+    if not unique_profiles:
+        console.print("No robo profiles")
+        console.print("Create one with: shoal robo setup <name>")
         return
 
-    profiles = sorted(profiles_dir.glob("*.toml"))
-    if not profiles:
-        console.print("No conductor profiles")
-        console.print("Create one with: shoal conductor setup <name>")
-        return
-
-    table = Table(show_edge=False, pad_edge=False)
+    # Use consistent table style with Panel (fixing Task 1)
+    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 1))
     table.add_column("NAME", width=20)
     table.add_column("TOOL", width=10)
     table.add_column("STATUS", width=10)
     table.add_column("STARTED")
 
-    for profile_path in profiles:
+    for profile_path in unique_profiles:
         name = profile_path.stem
         try:
-            profile = load_conductor_profile(name)
+            profile = load_robo_profile(name)
             tool = profile.tool
         except Exception:
             tool = "opencode"
 
-        tmux_session = f"shoal_conductor_{name}"
+        tmux_session = f"shoal_robo_{name}"
         started = "-"
 
-        state = await db.get_conductor(name)
+        state = await db.get_robo(name)
         if state:
             started = state.started_at.strftime("%Y-%m-%dT%H:%M:%SZ") if state.started_at else "-"
 
         if tmux.has_session(tmux_session):
-            cond_status = "[green]running[/green]"
+            robo_status_display = "[green]running[/green]"
         else:
-            cond_status = "[bright_black]stopped[/bright_black]"
+            robo_status_display = "[bright_black]stopped[/bright_black]"
 
-        table.add_row(name, tool, cond_status, started)
+        table.add_row(name, tool, robo_status_display, started)
 
-    console.print(table)
+    console.print(
+        Panel(
+            table,
+            title="[bold blue]󰚩 Robo[/bold blue]",
+            title_align="left",
+            border_style="dim",
+        )
+    )

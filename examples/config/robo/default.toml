@@ -1,6 +1,6 @@
-# Shoal — default conductor profile
+# Shoal — default robo profile
 
-[conductor]
+[robo]
 name = "default"
 tool = "opencode"
 auto_approve = false

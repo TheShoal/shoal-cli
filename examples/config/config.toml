@@ -31,6 +31,6 @@ enabled = true
 # macOS osascript notifications for waiting sessions
 timeout_seconds = 300
 
-[conductor]
+[robo]
 default_tool = "opencode"
 default_profile = "default"

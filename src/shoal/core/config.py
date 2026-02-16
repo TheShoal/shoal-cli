@@ -7,6 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from shoal.models.config import (
+    RoboProfileConfig,
     ConductorProfileConfig,
     DetectionPatterns,
     MCPToolConfig,
@@ -21,7 +22,7 @@ def config_dir() -> Path:
 
 
 def state_dir() -> Path:
-    """Return ~/.local/share/shoal (persistent data: sessions, conductor state)."""
+    """Return ~/.local/share/shoal (persistent data: sessions, robo state)."""
     return Path.home() / ".local" / "share" / "shoal"
 
 
@@ -33,7 +34,7 @@ def runtime_dir() -> Path:
 def ensure_dirs() -> None:
     """Create all required state and runtime directories."""
     base = state_dir()
-    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "conductor"):
+    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "robo"):
         (base / subdir).mkdir(parents=True, exist_ok=True)
     rt = runtime_dir()
     for subdir in ("logs",):
@@ -72,23 +73,31 @@ def load_tool_config(name: str) -> ToolConfig:
     )
 
 
-def load_conductor_profile(name: str) -> ConductorProfileConfig:
-    """Load a conductor profile TOML."""
-    path = config_dir() / "conductor" / f"{name}.toml"
+def load_robo_profile(name: str) -> RoboProfileConfig:
+    """Load a robo profile TOML."""
+    # Try new location first, fall back to old conductor path for backward compat
+    path = config_dir() / "robo" / f"{name}.toml"
     if not path.exists():
-        raise FileNotFoundError(f"No conductor profile: {path}")
+        path = config_dir() / "conductor" / f"{name}.toml"
+    if not path.exists():
+        raise FileNotFoundError(f"No robo profile: {name}")
     with open(path, "rb") as f:
         data = tomllib.load(f)
 
-    conductor_section = data.get("conductor", {})
-    return ConductorProfileConfig(
-        name=conductor_section.get("name", name),
-        tool=conductor_section.get("tool", "opencode"),
-        auto_approve=conductor_section.get("auto_approve", False),
+    # Support both [robo] and [conductor] section names
+    robo_section = data.get("robo", data.get("conductor", {}))
+    return RoboProfileConfig(
+        name=robo_section.get("name", name),
+        tool=robo_section.get("tool", "opencode"),
+        auto_approve=robo_section.get("auto_approve", False),
         monitoring=data.get("monitoring", {}),
         escalation=data.get("escalation", {}),
         tasks=data.get("tasks", {}),
     )
+
+
+# Backward compatibility alias
+load_conductor_profile = load_robo_profile
 
 
 def available_tools() -> list[str]:

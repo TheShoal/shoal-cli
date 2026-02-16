@@ -32,9 +32,13 @@ class NotificationsConfig(BaseModel):
     timeout_seconds: int = 300
 
 
-class ConductorGlobalConfig(BaseModel):
+class RoboGlobalConfig(BaseModel):
     default_tool: str = "opencode"
     default_profile: str = "default"
+
+
+# Backward compatibility alias
+ConductorGlobalConfig = RoboGlobalConfig
 
 
 class ShoalConfig(BaseModel):
@@ -44,7 +48,7 @@ class ShoalConfig(BaseModel):
     tmux: TmuxConfig = Field(default_factory=TmuxConfig)
     status_bar: StatusBarConfig = Field(default_factory=StatusBarConfig)
     notifications: NotificationsConfig = Field(default_factory=NotificationsConfig)
-    conductor: ConductorGlobalConfig = Field(default_factory=ConductorGlobalConfig)
+    robo: RoboGlobalConfig = Field(default_factory=RoboGlobalConfig, alias="conductor")
 
 
 # --- Tool config models (tools/<name>.toml) ---
@@ -73,7 +77,7 @@ class ToolConfig(BaseModel):
     mcp: MCPToolConfig = Field(default_factory=MCPToolConfig)
 
 
-# --- Conductor profile models (conductor/<name>.toml) ---
+# --- Robo profile models (robo/<name>.toml) ---
 
 
 class MonitoringConfig(BaseModel):
@@ -90,8 +94,8 @@ class TasksConfig(BaseModel):
     log_file: str = "task-log.md"
 
 
-class ConductorProfileConfig(BaseModel):
-    """Conductor profile — maps to ~/.config/shoal/conductor/<name>.toml."""
+class RoboProfileConfig(BaseModel):
+    """Robo profile — maps to ~/.config/shoal/robo/<name>.toml."""
 
     name: str = "default"
     tool: str = "opencode"
@@ -99,3 +103,7 @@ class ConductorProfileConfig(BaseModel):
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
     escalation: EscalationConfig = Field(default_factory=EscalationConfig)
     tasks: TasksConfig = Field(default_factory=TasksConfig)
+
+
+# Backward compatibility alias
+ConductorProfileConfig = RoboProfileConfig
