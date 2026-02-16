@@ -15,7 +15,7 @@ class TestVersion:
     def test_version_command(self):
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "shoal 0.4.0" in result.output
+        assert "shoal 0.4.2" in result.output
 
 
 class TestLs:

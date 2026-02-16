@@ -1,0 +1,168 @@
+"""Tests for core.tmux module."""
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from shoal.core import tmux
+
+
+def test_has_session_true():
+    """Test has_session returns True when session exists."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        result = tmux.has_session("test-session")
+
+        assert result is True
+        mock_run.assert_called_once_with(
+            ["tmux", "has-session", "-t", "test-session"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+
+def test_has_session_false():
+    """Test has_session returns False when session doesn't exist."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=1)
+
+        result = tmux.has_session("nonexistent")
+
+        assert result is False
+
+
+def test_new_session():
+    """Test new_session creates a tmux session."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.new_session("my-session", cwd="/tmp/project")
+
+        mock_run.assert_called_once_with(
+            ["tmux", "new-session", "-d", "-s", "my-session", "-c", "/tmp/project"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+def test_new_session_no_cwd():
+    """Test new_session without specifying cwd."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.new_session("my-session")
+
+        mock_run.assert_called_once_with(
+            ["tmux", "new-session", "-d", "-s", "my-session"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+def test_kill_session():
+    """Test kill_session terminates a tmux session."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.kill_session("old-session")
+
+        mock_run.assert_called_once_with(
+            ["tmux", "kill-session", "-t", "old-session"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+
+def test_send_keys():
+    """Test send_keys sends keys to a tmux session."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.send_keys("my-session", "echo hello")
+
+        mock_run.assert_called_once_with(
+            ["tmux", "send-keys", "-t", "my-session", "echo hello", "Enter"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+def test_switch_client():
+    """Test switch_client switches to a tmux session."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.switch_client("target-session")
+
+        mock_run.assert_called_once_with(
+            ["tmux", "switch-client", "-t", "target-session"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+def test_run_command():
+    """Test run_command executes a tmux command."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.run_command("display-message 'Hello'")
+
+        # Should split by shlex and prepend 'tmux'
+        assert mock_run.call_count == 1
+        call_args = mock_run.call_args[0][0]
+        assert call_args[0] == "tmux"
+        assert "display-message" in call_args
+        assert "Hello" in call_args
+
+
+def test_set_environment():
+    """Test set_environment sets an env var in a tmux session."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.set_environment("my-session", "MY_VAR", "my-value")
+
+        mock_run.assert_called_once_with(
+            ["tmux", "set-environment", "-t", "my-session", "MY_VAR", "my-value"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+def test_popup():
+    """Test popup creates a tmux popup."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.popup("shoal ls")
+
+        mock_run.assert_called_once_with(
+            ["tmux", "popup", "-E", "-w", "90%", "-h", "80%", "shoal ls"],
+            capture_output=False,
+            text=True,
+            check=True,
+        )
+
+
+def test_popup_custom_size():
+    """Test popup with custom width and height."""
+    with patch("shoal.core.tmux.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        tmux.popup("shoal status", width="50%", height="60%")
+
+        mock_run.assert_called_once_with(
+            ["tmux", "popup", "-E", "-w", "50%", "-h", "60%", "shoal status"],
+            capture_output=False,
+            text=True,
+            check=True,
+        )

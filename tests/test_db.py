@@ -4,7 +4,7 @@ import pytest
 import aiosqlite
 from pathlib import Path
 from shoal.core.db import ShoalDB
-from shoal.models.state import SessionState, SessionStatus
+from shoal.models.state import SessionState, SessionStatus, RoboState
 from datetime import datetime, UTC
 
 
@@ -88,3 +88,81 @@ async def test_delete_session(db):
 
     await db.delete_session("id1")
     assert await db.get_session("id1") is None
+
+
+@pytest.mark.asyncio
+async def test_save_and_get_robo(db):
+    """Test saving and retrieving a robo state."""
+    robo = RoboState(
+        name="test-robo",
+        tool="opencode",
+        tmux_session="shoal_robo_test",
+        status=SessionStatus.running,
+    )
+
+    await db.save_robo(robo)
+    loaded = await db.get_robo("test-robo")
+
+    assert loaded is not None
+    assert loaded.name == "test-robo"
+    assert loaded.tool == "opencode"
+    assert loaded.tmux_session == "shoal_robo_test"
+    assert loaded.status == SessionStatus.running
+
+
+@pytest.mark.asyncio
+async def test_get_robo_not_found(db):
+    """Test getting a non-existent robo returns None."""
+    result = await db.get_robo("nonexistent")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_list_robos(db):
+    """Test listing all robo states."""
+    r1 = RoboState(
+        name="robo1",
+        tool="claude",
+        tmux_session="shoal_robo_1",
+        status=SessionStatus.running,
+    )
+    r2 = RoboState(
+        name="robo2",
+        tool="opencode",
+        tmux_session="shoal_robo_2",
+        status=SessionStatus.stopped,
+    )
+
+    await db.save_robo(r1)
+    await db.save_robo(r2)
+
+    robos = await db.list_robos()
+    assert len(robos) == 2
+    assert "robo1" in [r.name for r in robos]
+    assert "robo2" in [r.name for r in robos]
+
+
+@pytest.mark.asyncio
+async def test_update_robo(db):
+    """Test updating a robo state."""
+    robo = RoboState(
+        name="test-robo",
+        tool="claude",
+        tmux_session="shoal_robo_test",
+        status=SessionStatus.running,
+    )
+    await db.save_robo(robo)
+
+    # Update the robo
+    robo.status = SessionStatus.stopped
+    await db.save_robo(robo)
+
+    updated = await db.get_robo("test-robo")
+    assert updated.status == SessionStatus.stopped
+
+
+@pytest.mark.asyncio
+async def test_list_robos_empty(db):
+    """Test listing robos when none exist."""
+    robos = await db.list_robos()
+    assert robos == []
