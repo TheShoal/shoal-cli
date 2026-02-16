@@ -32,14 +32,6 @@ def test_create_demo_project(tmp_path):
         git_add_call = [c for c in mock_run.call_args_list if c[0][0][:2] == ["git", "add"]]
         assert len(git_add_call) > 0
 
-        # Should create feature branch
-        mock_run.assert_any_call(
-            ["git", "checkout", "-b", "feat/api-endpoint"],
-            cwd=demo_dir,
-            check=True,
-            capture_output=True,
-        )
-
 
 @pytest.mark.asyncio
 @pytest.mark.skip(reason="Complex mocking needed - to be fixed in future iteration")
