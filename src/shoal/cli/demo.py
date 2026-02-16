@@ -107,20 +107,6 @@ def test_greet(capsys):
         capture_output=True,
     )
 
-    # Create feature branch
-    subprocess.run(
-        ["git", "checkout", "-b", "feat/api-endpoint"],
-        cwd=demo_dir,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "checkout", "main"],
-        cwd=demo_dir,
-        check=True,
-        capture_output=True,
-    )
-
 
 def _create_session_echo_script(
     session_name: str,
@@ -272,6 +258,7 @@ async def _demo_start_impl(custom_dir: str | None):
     # Session 2: Feature branch with worktree
     console.print("  ✓ Creating session: demo-feature (feat/api-endpoint worktree)")
     worktree_path = demo_dir / ".worktrees" / "feat-api-endpoint"
+    (demo_dir / ".worktrees").mkdir(parents=True, exist_ok=True)
     git.worktree_add(str(demo_dir), str(worktree_path), branch="feat/api-endpoint")
 
     s2 = await create_session(

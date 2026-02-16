@@ -34,20 +34,45 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
 - ✅ Added pytest-cov with coverage reporting
 - ✅ Security fix: Quote script paths in demo command
 
-## v0.5.0: Foundation Hardening (Next Up)
+## v0.4.3: Security & Test Hardening (In Progress)
 
-**Priority: Security, stability, and infrastructure quality.**
+**Priority: Address immediate security gaps and test coverage issues identified in code audit.**
+
+- **Security Fixes**:
+  - Fix demo command: create `.worktrees` parent directory before `git worktree add`
+  - Add comprehensive session name validation (regex, length, reserved names)
+  - Apply validation at all CLI entry points (new, fork, rename)
+  - Apply validation at all API entry points (POST /sessions, PUT /sessions/{id}/rename)
+- **Performance Fixes**:
+  - Fix N+1 query in GET /mcp endpoint (hoist `list_sessions()` out of loop)
+- **Test Coverage Expansion**:
+  - Add watcher service tests (tmux death, status transitions, notifications)
+  - Create MCP proxy tests (argument parsing, socket checks, execvp)
+  - Add status bar edge case tests (mixed statuses)
+- **Code Quality**:
+  - Unify SessionStatus models (remove API duplicate)
+  - Update ShoalDB docstring (clarify single connection vs pool)
+  - Document sync-in-async patterns in tmux.py
+  - Clarify stopped/unknown status handling in status bar
+
+## v0.5.0: Advanced Testing & Polish
+
+**Priority: Comprehensive testing, performance optimization, and developer experience.**
+
+**Note:** Security and code quality issues from original v0.5.0 scope moved to v0.4.3 for immediate resolution.
 
 - **Database & Performance**:
-  - Implement proper connection pooling for `ShoalDB`.
-  - Fix any remaining N+1 query patterns.
-- **Security**:
-  - Audit command injection risks in notification handlers.
-  - Add input validation for user-provided session names.
-- **Code Quality**:
-  - Unify `SessionStatus` models across CLI and API.
-  - Improve sync/async boundaries and documentation.
-  - Complete test coverage for background services.
+  - Evaluate need for connection pooling based on API load testing
+  - Profile database operations under realistic multi-user scenarios
+  - Optimize popup.py to reduce multiple DB connection cycles
+- **Testing Infrastructure**:
+  - Achieve 70%+ test coverage across all modules
+  - Add integration tests for full workflows (new → fork → kill)
+  - Add load tests for API server with concurrent requests
+- **Developer Experience**:
+  - Improve error messages with file:line references
+  - Add `--debug` flag for verbose logging
+  - Create troubleshooting guide for common issues
 
 ## v0.6.0: Event-Driven Architecture
 

@@ -1,4 +1,4 @@
-![assets/banner.jpeg]
+![](assets/banner.jpeg)
 
 # Shoal
 
