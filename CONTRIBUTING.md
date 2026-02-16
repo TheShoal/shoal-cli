@@ -43,3 +43,7 @@ pytest
 2.  **Commit**: Use clear, concise commit messages.
 3.  **PR**: Open a PR to the `main` branch.
 4.  **Review**: Ensure CI passes and wait for a review from a maintainer.
+
+## Release Process
+
+For maintainers: see [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for versioning and release workflow.
