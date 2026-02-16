@@ -29,3 +29,6 @@ htmlcov/
 
 # Claude settings
 settings.local.json
+
+# Workflow
+.worktrees

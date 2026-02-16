@@ -78,6 +78,21 @@ def popup_list() -> None:
     print_popup_list()
 
 
+@app.command("session-json", hidden=True)
+def session_json(session_id: str) -> None:
+    """Internal: print session state as JSON for fzf preview."""
+    import asyncio
+    from shoal.core.state import get_session, resolve_session
+    async def _impl():
+        sid = await resolve_session(session_id)
+        if not sid:
+            return
+        s = await get_session(sid)
+        if s:
+            print(s.model_dump_json(indent=2))
+    asyncio.run(_impl())
+
+
 @app.command()
 def serve(
     host: str = typer.Option("0.0.0.0", "--host"),

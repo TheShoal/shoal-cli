@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import subprocess
 
 from shoal.core import tmux
-from shoal.core.config import load_tool_config, state_dir
+from shoal.core.config import load_tool_config
 from shoal.core.state import get_session, list_sessions
 
 
-def _build_entries() -> list[str]:
+async def _build_entries() -> list[str]:
     """Build session list entries for fzf."""
     entries: list[str] = []
-    for sid in list_sessions():
-        session = get_session(sid)
+    ids = await list_sessions()
+    for sid in ids:
+        session = await get_session(sid)
         if not session:
             continue
 
@@ -24,7 +26,7 @@ def _build_entries() -> list[str]:
 
         branch = session.branch or "-"
         if session.last_activity:
-            last = session.last_activity.strftime("%Y-%m-%dT%H:%M:%SZ")
+            last = session.last_activity.strftime("%H:%M")
         else:
             last = "-"
         status = session.status.value
@@ -36,23 +38,22 @@ def _build_entries() -> list[str]:
 
 def run_popup() -> None:
     """Run the interactive fzf dashboard."""
-    entries = _build_entries()
+    entries = asyncio.run(_build_entries())
 
     if not entries:
         print("No sessions. Create one with: shoal add")
         input("Press Enter to close...")
         return
 
-    sessions_dir = state_dir() / "sessions"
-
     header = "SHOAL DASHBOARD — Enter: attach | ctrl-x: kill | esc: close"
 
+    # We use 'shoal session-json' as a helper for previewing since we don't have .json files anymore
     fzf_args = [
         "fzf",
         "--delimiter=\t",
         "--with-nth=2,3,4,5,6",
         f"--header={header}",
-        f"--preview=cat {sessions_dir}/{{1}}.json 2>/dev/null",
+        "--preview=shoal session-json {1}",
         "--preview-window=right:50%:wrap",
         "--bind=ctrl-x:execute-silent(shoal kill {1})+reload(shoal _popup-list)",
         "--ansi",
@@ -73,12 +74,13 @@ def run_popup() -> None:
 
     if result.returncode == 0 and result.stdout.strip():
         selected_id = result.stdout.strip().split("\t")[0]
-        session = get_session(selected_id)
-        if session and tmux.has_session(session.tmux_session):
-            tmux.switch_client(session.tmux_session)
+        s = asyncio.run(get_session(selected_id))
+        if s and tmux.has_session(s.tmux_session):
+            tmux.switch_client(s.tmux_session)
 
 
 def print_popup_list() -> None:
     """Print session list for fzf reload."""
-    for line in _build_entries():
+    entries = asyncio.run(_build_entries())
+    for line in entries:
         print(line)
