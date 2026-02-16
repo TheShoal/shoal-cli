@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 
 from shoal.core.config import ensure_dirs
+from shoal.core.db import with_db
 from shoal.core.state import get_session, resolve_session_interactive
 
 console = Console()
@@ -25,7 +26,7 @@ def nvim_send(
     command: Annotated[str, typer.Argument(help="Ex command to send")],
 ) -> None:
     """Send a command to a session's neovim."""
-    asyncio.run(_nvim_send_impl(session, command))
+    asyncio.run(with_db(_nvim_send_impl(session, command)))
 
 
 async def _nvim_send_impl(session, command):
@@ -60,7 +61,7 @@ def nvim_diagnostics(
     session: Annotated[str, typer.Argument(help="Session name or ID")],
 ) -> None:
     """Get LSP diagnostics from a session's neovim."""
-    asyncio.run(_nvim_diagnostics_impl(session))
+    asyncio.run(with_db(_nvim_diagnostics_impl(session)))
 
 
 async def _nvim_diagnostics_impl(session):

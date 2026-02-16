@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from enum import StrEnum
@@ -16,7 +17,7 @@ from pydantic import BaseModel
 import shoal
 from shoal.core import git, tmux
 from shoal.core.config import ensure_dirs, load_config, load_tool_config
-from shoal.core.db import get_db
+from shoal.core.db import ShoalDB, get_db
 from shoal.core.state import (
     add_mcp_to_session,
     create_session,
@@ -35,6 +36,8 @@ from shoal.services.mcp_pool import (
     start_mcp_server,
     stop_mcp_server,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SessionStatusEnum(StrEnum):
@@ -96,6 +99,12 @@ class McpCreate(BaseModel):
     command: str | None = None
 
 
+class SendKeysRequest(BaseModel):
+    """Request to send keys to a session."""
+
+    keys: str
+
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: list[WebSocket] = []
@@ -139,7 +148,7 @@ async def poll_status_changes():
 
             previous_status = current_status
         except Exception:
-            pass
+            logger.exception("Error in status poller")
         await asyncio.sleep(2)
 
 
@@ -156,6 +165,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await status_poller_task
         except asyncio.CancelledError:
             pass
+    await ShoalDB.reset_instance()  # Clean up DB connection
 
 
 app = FastAPI(
@@ -344,14 +354,11 @@ async def attach_session_api(session_id: str):
 
 
 @app.post("/sessions/{session_id}/send")
-async def send_keys_api(session_id: str, body: dict):
+async def send_keys_api(session_id: str, body: SendKeysRequest):
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
-    keys = body.get("keys")
-    if not keys:
-        raise HTTPException(status_code=400, detail="Missing 'keys' field")
-    tmux.send_keys(s.tmux_session, keys)
+    tmux.send_keys(s.tmux_session, body.keys)
     return {"message": "Keys sent"}
 
 

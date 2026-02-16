@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 from typing import Annotated
 
@@ -18,10 +19,12 @@ from shoal.core.state import (
     delete_session,
     find_by_name,
     get_session,
+    get_status_style,
     list_sessions,
     resolve_session_interactive,
     touch_session,
     update_session,
+    _get_tool_icon,
 )
 from shoal.models.state import SessionStatus
 
@@ -246,22 +249,14 @@ async def _ls_impl(format):
 
         # Sort sessions within group by name
         for s in sorted(group_sessions, key=lambda x: x.name):
-            try:
-                icon = load_tool_config(s.tool).icon
-            except FileNotFoundError:
-                icon = "●"
+            icon = _get_tool_icon(s.tool)
 
             # Check if it's a ghost session
             is_ghost = False
             if s.status.value != "stopped" and not tmux.has_session(s.tmux_session):
                 is_ghost = True
 
-            status_style = {
-                "running": "green",
-                "waiting": "bold yellow",
-                "error": "bold red",
-                "stopped": "dim",
-            }.get(s.status.value, "")
+            status_style = get_status_style(s.status.value)
 
             status_text = (
                 f"[{status_style}]{s.status.value}[/{status_style}]"
@@ -438,10 +433,7 @@ async def _kill_impl(session, worktree):
     if not s:
         raise typer.Exit(1)
 
-    try:
-        icon = load_tool_config(s.tool).icon
-    except FileNotFoundError:
-        icon = "●"
+    icon = _get_tool_icon(s.tool)
 
     # Kill tmux session
     if tmux.has_session(s.tmux_session):
@@ -535,20 +527,14 @@ async def _status_impl():
         console.print("\n[bold yellow]󰀦 Waiting for input:[/bold yellow]")
         for s in sessions:
             if s.status.value == "waiting":
-                try:
-                    icon = load_tool_config(s.tool).icon
-                except FileNotFoundError:
-                    icon = "●"
+                icon = _get_tool_icon(s.tool)
                 console.print(f"  {icon} [bold]{s.name}[/bold] [dim]→ shoal attach {s.name}[/dim]")
 
     if counts["error"]:
         console.print("\n[bold red]󰅚 Errors detected:[/bold red]")
         for s in sessions:
             if s.status.value == "error":
-                try:
-                    icon = load_tool_config(s.tool).icon
-                except FileNotFoundError:
-                    icon = "●"
+                icon = _get_tool_icon(s.tool)
                 console.print(f"  {icon} [bold]{s.name}[/bold] [dim]→ shoal attach {s.name}[/dim]")
 
     console.print("\n[dim]Use 'shoal ls' for a full list or 'shoal info <name>' for details.[/dim]")
@@ -632,7 +618,7 @@ async def _logs_impl(session_name_or_id, lines, tail):
                     else:
                         console.print(content)
                     last_content = content
-                time.sleep(1)
+                await asyncio.sleep(1)
         except KeyboardInterrupt:
             pass
 
@@ -688,18 +674,13 @@ async def _info_impl(session_name_or_id):
         tool_cfg = load_tool_config(s.tool)
         icon = tool_cfg.icon
     except FileNotFoundError:
-        icon = "●"
+        icon = _get_tool_icon(s.tool)
         tool_cfg = None
 
     from rich.panel import Panel
     from rich.columns import Columns
 
-    status_style = {
-        "running": "green",
-        "waiting": "yellow",
-        "error": "red",
-        "stopped": "bright_black",
-    }.get(s.status.value, "")
+    status_style = get_status_style(s.status.value)
 
     status_text = (
         f"[{status_style}]{s.status.value}[/{status_style}]" if status_style else s.status.value
