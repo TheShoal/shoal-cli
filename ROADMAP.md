@@ -5,7 +5,6 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
 ## Completed Milestones
 
 ### v0.4.0 (Released: 2026-02-16)
-
 - ✅ SQLite migration with WAL mode
 - ✅ Async-first architecture using `aiosqlite` and `anyio`
 - ✅ Session rename, logs, and info commands
@@ -16,20 +15,25 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
 - ✅ Interactive demo command (`shoal demo`)
 - ✅ Consistent Panel styling with Nerd Font icons
 
-## v0.4.1: Polish & Onboarding (In Progress)
+### v0.4.1 (Released: 2026-02-16)
+- ✅ Comprehensive robo workflow guide (docs/ROBO_GUIDE.md)
+- ✅ Release process documentation (RELEASE_PROCESS.md)
+- ✅ Enhanced error messages with actionable suggestions
+- ✅ README improvements (use cases, examples, documentation links)
+- ✅ Database optimization (indexed session name lookups)
+- ✅ Test coverage baseline measurement (52%)
 
-**Priority: User experience and production readiness.**
+## v0.4.2: Continued Polish (Next Up)
+
+**Priority: User experience and visual enhancements.**
 
 - **Documentation**:
-  - Add usage examples and screenshots to README.
-  - Document robo workflow patterns.
   - Create video/GIF demo of `shoal popup` and status bar.
+  - Add more usage examples and screenshots to README.
 - **Testing & Quality**:
-  - Measure baseline coverage with `pytest-cov`.
   - Add integration tests for demo command.
-  - Improve error messages for common user mistakes.
+  - Expand test coverage to 60%+.
 - **Performance**:
-  - Profile and optimize `list_sessions()` queries.
   - Review database connection lifecycle.
 
 ## v0.5.0: Foundation Hardening
