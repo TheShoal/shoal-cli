@@ -118,9 +118,11 @@ def main() -> None:
     """Entry point for running as a module."""
     import contextlib
 
+    from shoal.core.db import with_db
+
     watcher = Watcher()
     with contextlib.suppress(KeyboardInterrupt):
-        asyncio.run(watcher.run())
+        asyncio.run(with_db(watcher.run()))
 
 
 if __name__ == "__main__":

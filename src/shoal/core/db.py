@@ -75,6 +75,7 @@ class ShoalDB:
         if self._conn is not None:
             await self._conn.close()
             self._conn = None
+            self._initialized = False
 
     @asynccontextmanager
     async def _connection(self) -> AsyncIterator[aiosqlite.Connection]:
@@ -158,3 +159,19 @@ class ShoalDB:
 async def get_db() -> ShoalDB:
     """Get the global database instance."""
     return await ShoalDB.get_instance()
+
+
+async def with_db(coro):
+    """Run a coroutine and close the DB connection afterward.
+
+    Use this to wrap coroutines passed to asyncio.run() in CLI
+    entry points so the aiosqlite background thread is properly
+    stopped and the process can exit cleanly.
+
+    Example:
+        asyncio.run(with_db(_ls_impl(format)))
+    """
+    try:
+        return await coro
+    finally:
+        await ShoalDB.reset_instance()

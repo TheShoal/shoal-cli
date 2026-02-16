@@ -12,6 +12,7 @@ from rich.table import Table
 
 from shoal.core import git, tmux
 from shoal.core.config import ensure_dirs
+from shoal.core.db import with_db
 from shoal.core.state import (
     delete_session,
     get_session,
@@ -36,7 +37,7 @@ def wt_default(ctx: typer.Context) -> None:
 @app.command("ls")
 def wt_ls() -> None:
     """List managed worktrees."""
-    asyncio.run(_wt_ls_impl())
+    asyncio.run(with_db(_wt_ls_impl()))
 
 
 async def _wt_ls_impl():
@@ -101,7 +102,7 @@ def wt_finish(
     no_merge: Annotated[bool, typer.Option("--no-merge", help="Just clean up")] = False,
 ) -> None:
     """Merge and cleanup a worktree session."""
-    asyncio.run(_wt_finish_impl(session, pr, no_merge))
+    asyncio.run(with_db(_wt_finish_impl(session, pr, no_merge)))
 
 
 async def _wt_finish_impl(session, pr, no_merge):
@@ -174,7 +175,7 @@ async def _wt_finish_impl(session, pr, no_merge):
 @app.command("cleanup")
 def wt_cleanup() -> None:
     """Remove orphaned worktrees."""
-    asyncio.run(_wt_cleanup_impl())
+    asyncio.run(with_db(_wt_cleanup_impl()))
 
 
 async def _wt_cleanup_impl():

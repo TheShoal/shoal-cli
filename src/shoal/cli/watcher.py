@@ -54,11 +54,12 @@ def watcher_start(
         import asyncio
         import contextlib
 
+        from shoal.core.db import with_db
         from shoal.services.watcher import Watcher
 
         watcher = Watcher()
         with contextlib.suppress(KeyboardInterrupt):
-            asyncio.run(watcher.run())
+            asyncio.run(with_db(watcher.run()))
     else:
         # Fork a background process
         proc = subprocess.Popen(

@@ -13,7 +13,7 @@ from rich.table import Table
 
 from shoal.core import tmux
 from shoal.core.config import config_dir, ensure_dirs, load_conductor_profile, state_dir
-from shoal.core.db import get_db
+from shoal.core.db import get_db, with_db
 from shoal.models.state import ConductorState
 
 console = Console()
@@ -134,7 +134,7 @@ def conductor_start(
     name: Annotated[str | None, typer.Argument(help="Conductor profile")] = None,
 ) -> None:
     """Start a conductor session."""
-    asyncio.run(_conductor_start_impl(name))
+    asyncio.run(with_db(_conductor_start_impl(name)))
 
 
 async def _conductor_start_impl(name):
@@ -206,7 +206,7 @@ def conductor_stop(
     name: Annotated[str | None, typer.Argument(help="Conductor to stop")] = None,
 ) -> None:
     """Stop a conductor."""
-    asyncio.run(_conductor_stop_impl(name))
+    asyncio.run(with_db(_conductor_stop_impl(name)))
 
 
 async def _conductor_stop_impl(name):
@@ -239,12 +239,13 @@ def conductor_send(
     keys: Annotated[str, typer.Argument(help="Keys to send")],
 ) -> None:
     """Send keys to a session's tmux pane."""
-    asyncio.run(_conductor_send_impl(session, keys))
+    asyncio.run(with_db(_conductor_send_impl(session, keys)))
 
 
 async def _conductor_send_impl(session_name_or_id: str, keys: str):
     ensure_dirs()
     from shoal.core.state import get_session, resolve_session
+
     sid = await resolve_session(session_name_or_id)
     if not sid:
         console.print(f"[red]Session not found: {session_name_or_id}[/red]")
@@ -267,20 +268,20 @@ def conductor_approve(
     session: Annotated[str, typer.Argument(help="Session name or ID")],
 ) -> None:
     """Approve a waiting session (sends Enter)."""
-    asyncio.run(_conductor_send_impl(session, ""))
+    asyncio.run(with_db(_conductor_send_impl(session, "")))
 
 
 @app.command("status")
 def conductor_status() -> None:
     """Conductor health check."""
-    asyncio.run(_conductor_status_impl())
+    asyncio.run(with_db(_conductor_status_impl()))
 
 
 async def _conductor_status_impl():
     ensure_dirs()
     db = await get_db()
     conductors = await db.list_conductors()
-    
+
     if not conductors:
         console.print("No conductors configured")
         console.print("Create one with: shoal conductor setup <name>")
@@ -307,7 +308,7 @@ async def _conductor_status_impl():
 @app.command("ls")
 def conductor_ls() -> None:
     """List conductor profiles."""
-    asyncio.run(_conductor_ls_impl())
+    asyncio.run(with_db(_conductor_ls_impl()))
 
 
 async def _conductor_ls_impl():

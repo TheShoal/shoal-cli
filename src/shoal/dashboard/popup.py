@@ -34,7 +34,9 @@ async def _build_entries() -> list[str]:
 
 def run_popup() -> None:
     """Run the interactive fzf dashboard."""
-    entries = asyncio.run(_build_entries())
+    from shoal.core.db import with_db
+
+    entries = asyncio.run(with_db(_build_entries()))
 
     if not entries:
         print("No sessions. Create one with: shoal add")
@@ -69,14 +71,18 @@ def run_popup() -> None:
     )
 
     if result.returncode == 0 and result.stdout.strip():
+        from shoal.core.db import with_db
+
         selected_id = result.stdout.strip().split("\t")[0]
-        s = asyncio.run(get_session(selected_id))
+        s = asyncio.run(with_db(get_session(selected_id)))
         if s and tmux.has_session(s.tmux_session):
             tmux.switch_client(s.tmux_session)
 
 
 def print_popup_list() -> None:
     """Print session list for fzf reload."""
-    entries = asyncio.run(_build_entries())
+    from shoal.core.db import with_db
+
+    entries = asyncio.run(with_db(_build_entries()))
     for line in entries:
         print(line)

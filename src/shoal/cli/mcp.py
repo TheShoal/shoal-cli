@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from shoal.core.config import ensure_dirs, state_dir
+from shoal.core.db import with_db
 from shoal.core.state import (
     add_mcp_to_session,
     get_session,
@@ -40,7 +41,7 @@ def mcp_default(ctx: typer.Context) -> None:
 @app.command("ls")
 def mcp_ls() -> None:
     """List MCP servers in the pool."""
-    asyncio.run(_mcp_ls_impl())
+    asyncio.run(with_db(_mcp_ls_impl()))
 
 
 async def _mcp_ls_impl():
@@ -126,7 +127,7 @@ def mcp_stop(
     name: Annotated[str, typer.Argument(help="MCP server to stop")],
 ) -> None:
     """Stop a pooled MCP server."""
-    asyncio.run(_mcp_stop_impl(name))
+    asyncio.run(with_db(_mcp_stop_impl(name)))
 
 
 async def _mcp_stop_impl(name):
@@ -152,7 +153,7 @@ def mcp_attach(
     mcp_name: Annotated[str, typer.Argument(help="MCP server name")],
 ) -> None:
     """Attach an MCP server to a session."""
-    asyncio.run(_mcp_attach_impl(session, mcp_name))
+    asyncio.run(with_db(_mcp_attach_impl(session, mcp_name)))
 
 
 async def _mcp_attach_impl(session, mcp_name):

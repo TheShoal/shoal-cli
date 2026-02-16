@@ -12,6 +12,7 @@ from rich.table import Table
 
 from shoal.core import git, tmux
 from shoal.core.config import config_dir, ensure_dirs, load_config, load_tool_config
+from shoal.core.db import with_db
 from shoal.core.state import (
     create_session,
     delete_session,
@@ -37,7 +38,7 @@ def add(
     name: Annotated[str | None, typer.Option("-n", "--name", help="Session name")] = None,
 ) -> None:
     """Create a new session."""
-    asyncio.run(_add_impl(path, tool, worktree, branch, name))
+    asyncio.run(with_db(_add_impl(path, tool, worktree, branch, name)))
 
 
 async def _add_impl(path, tool, worktree, branch, name):
@@ -158,7 +159,7 @@ def ls(
     ] = None,
 ) -> None:
     """List all sessions."""
-    asyncio.run(_ls_impl(format))
+    asyncio.run(with_db(_ls_impl(format)))
 
 
 async def _ls_impl(format):
@@ -263,7 +264,7 @@ def attach(
     session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,
 ) -> None:
     """Attach to a session."""
-    asyncio.run(_attach_impl(session))
+    asyncio.run(with_db(_attach_impl(session)))
 
 
 async def _attach_impl(session_name_or_id):
@@ -310,7 +311,7 @@ def fork(
     ] = False,
 ) -> None:
     """Fork a session into a new worktree (or standalone session with --no-worktree)."""
-    asyncio.run(_fork_impl(session, name, no_worktree))
+    asyncio.run(with_db(_fork_impl(session, name, no_worktree)))
 
 
 async def _fork_impl(session, name, no_worktree):
@@ -387,7 +388,7 @@ def kill(
     ] = False,
 ) -> None:
     """Kill a session."""
-    asyncio.run(_kill_impl(session, worktree))
+    asyncio.run(with_db(_kill_impl(session, worktree)))
 
 
 async def _kill_impl(session, worktree):
@@ -427,7 +428,7 @@ def prune(
     ] = False,
 ) -> None:
     """Remove all sessions marked as stopped."""
-    asyncio.run(_prune_impl(force))
+    asyncio.run(with_db(_prune_impl(force)))
 
 
 async def _prune_impl(force):
@@ -453,7 +454,7 @@ async def _prune_impl(force):
 
 def status() -> None:
     """Quick status summary."""
-    asyncio.run(_status_impl())
+    asyncio.run(with_db(_status_impl()))
 
 
 async def _status_impl():
@@ -527,7 +528,7 @@ def info(
     session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,
 ) -> None:
     """Show detailed information about a session."""
-    asyncio.run(_info_impl(session))
+    asyncio.run(with_db(_info_impl(session)))
 
 
 def rename(
@@ -535,7 +536,7 @@ def rename(
     new_name: Annotated[str, typer.Argument(help="New name for the session")],
 ) -> None:
     """Rename a session."""
-    asyncio.run(_rename_impl(old_name, new_name))
+    asyncio.run(with_db(_rename_impl(old_name, new_name)))
 
 
 def logs(
@@ -544,7 +545,7 @@ def logs(
     tail: Annotated[bool, typer.Option("--tail", "-f", help="Follow the logs")] = False,
 ) -> None:
     """Show recent output from a session."""
-    asyncio.run(_logs_impl(session, lines, tail))
+    asyncio.run(with_db(_logs_impl(session, lines, tail)))
 
 
 async def _logs_impl(session_name_or_id, lines, tail):

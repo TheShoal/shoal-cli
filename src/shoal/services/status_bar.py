@@ -44,7 +44,9 @@ async def generate_status() -> str:
 
 def main() -> None:
     """Entry point for shoal-status console script."""
-    print(asyncio.run(generate_status()))
+    from shoal.core.db import with_db
+
+    print(asyncio.run(with_db(generate_status())))
 
 
 if __name__ == "__main__":

@@ -58,7 +58,7 @@
 Output demo.gif
 
 # You'll likely want to add a Margin + MarginFill if you use BorderRadius.
-Set Margin 10
+Set Margin 20
 Set MarginFill "#1E2030"
 Set BorderRadius 10
 
@@ -67,9 +67,10 @@ Require printf
 Set Shell "fish"
 Set Theme "Catppuccin Macchiato"
 Set WindowBar Colorful
-Set FontSize 24
-Set Width 1200
-Set Height 600
+Set FontFamily "JetBrainsMono Nerd Font Mono"
+Set FontSize 20
+Set Width 1600
+Set Height 900
 
 Type "printf 'Welcome to Shoal!\n'" Sleep 500ms  Enter
 Sleep 2s

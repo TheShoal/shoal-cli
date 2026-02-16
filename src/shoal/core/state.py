@@ -137,7 +137,9 @@ async def resolve_session(name_or_id: str) -> str | None:
 
 def resolve_session_interactive(name_or_id: str | None = None) -> str:
     """Resolve session with fzf fallback. Raises SystemExit on failure."""
-    return asyncio.run(_resolve_session_interactive_impl(name_or_id))
+    from shoal.core.db import with_db
+
+    return asyncio.run(with_db(_resolve_session_interactive_impl(name_or_id)))
 
 
 async def _resolve_session_interactive_impl(name_or_id: str | None = None) -> str:

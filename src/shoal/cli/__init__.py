@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import typer
 
 import shoal
@@ -24,6 +25,8 @@ from shoal.cli.session import (
 )
 from shoal.cli.watcher import app as watcher_app
 from shoal.cli.worktree import app as wt_app
+from shoal.core.db import with_db
+from shoal.core.state import get_session
 
 app = typer.Typer(
     name="shoal",
@@ -82,7 +85,7 @@ def init() -> None:
 
     ensure_dirs()
     cfg_dir = config_dir()
-    
+
     if not cfg_dir.exists():
         cfg_dir.mkdir(parents=True)
         typer.echo(f"Created configuration directory: {cfg_dir}")
@@ -90,7 +93,7 @@ def init() -> None:
     # Check for examples in the project root
     # This assumes we are running from the source or examples are bundled
     example_src = Path(__file__).parents[3] / "examples" / "config"
-    
+
     if example_src.exists():
         for item in example_src.iterdir():
             dest = cfg_dir / item.name
@@ -116,14 +119,9 @@ def check() -> None:
     from rich.table import Table
     from rich.console import Console
     from rich.panel import Panel
-    
+
     console = Console()
-    table = Table(
-        show_header=True, 
-        header_style="bold magenta",
-        box=None,
-        padding=(0, 2)
-    )
+    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
     table.add_column("Tool", width=20)
     table.add_column("Status", width=12)
     table.add_column("Notes")
@@ -142,31 +140,39 @@ def check() -> None:
         status = "[green]✔ OK[/green]" if path else "[red]✘ Missing[/red]"
         table.add_row(tool, status, f"[dim]{note}[/dim]")
 
-    console.print(Panel(
-        table,
-        title="[bold blue]󰒓 Dependency Check[/bold blue]",
-        title_align="left",
-        border_style="dim"
-    ))
-    
+    console.print(
+        Panel(
+            table,
+            title="[bold blue]󰒓 Dependency Check[/bold blue]",
+            title_align="left",
+            border_style="dim",
+        )
+    )
+
     # Check dirs
     from shoal.core.config import config_dir, state_dir, runtime_dir
     from rich.text import Text
-    
+
     dir_info = Table.grid(padding=(0, 2))
     dir_info.add_column(style="bold cyan")
     dir_info.add_column()
 
-    for name, path in [("Config", config_dir()), ("State", state_dir()), ("Runtime", runtime_dir())]:
+    for name, path in [
+        ("Config", config_dir()),
+        ("State", state_dir()),
+        ("Runtime", runtime_dir()),
+    ]:
         exists = "[green]exists[/green]" if path.exists() else "[yellow]not created[/yellow]"
         dir_info.add_row(name, f"{path} [dim]({exists})[/dim]")
-    
-    console.print(Panel(
-        dir_info,
-        title="[bold blue]󰓗 Directories[/bold blue]",
-        title_align="left",
-        border_style="dim"
-    ))
+
+    console.print(
+        Panel(
+            dir_info,
+            title="[bold blue]󰓗 Directories[/bold blue]",
+            title_align="left",
+            border_style="dim",
+        )
+    )
 
 
 @app.command("_popup-inner", hidden=True)
@@ -187,17 +193,19 @@ def popup_list() -> None:
 
 @app.command("session-json", hidden=True)
 def session_json(session_id: str) -> None:
-    """Internal: print session state as JSON for fzf preview."""
-    import asyncio
-    from shoal.core.state import get_session, resolve_session
+    """Dump session JSON for debugging/preview (used by popup)."""
+
     async def _impl():
-        sid = await resolve_session(session_id)
+        from shoal.core.state import get_session
+
+        sid = session_id
         if not sid:
             return
         s = await get_session(sid)
         if s:
             print(s.model_dump_json(indent=2))
-    asyncio.run(_impl())
+
+    asyncio.run(with_db(_impl()))
 
 
 @app.command()
