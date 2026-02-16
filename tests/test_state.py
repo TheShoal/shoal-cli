@@ -132,6 +132,12 @@ class TestSessionCRUD:
         assert loaded is not None
         assert loaded.status == SessionStatus.running
 
+    async def test_update_with_invalid_name(self, mock_dirs):
+        """Test that update_session validates the name field."""
+        session = await create_session("test", "claude", "/tmp/repo")
+        with pytest.raises(ValueError, match="must contain only"):
+            await update_session(session.id, name="bad;name")
+
     async def test_update_missing(self, mock_dirs):
         assert await update_session("nonexistent", status="running") is None
 

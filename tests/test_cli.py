@@ -242,6 +242,18 @@ class TestRename:
         assert result.exit_code == 1
         assert "Session not found" in result.output
 
+    def test_rename_invalid_name(self, mock_dirs):
+        """Test that renaming to an invalid name fails with validation error."""
+        from shoal.core.state import create_session
+
+        asyncio.run(create_session("valid-name", "claude", "/tmp/repo"))
+
+        with patch("shoal.core.tmux.has_session", return_value=False):
+            result = runner.invoke(app, ["rename", "valid-name", "bad;name"])
+
+        assert result.exit_code == 1
+        assert "must contain only" in result.output
+
 
 class TestLogs:
     def test_logs_not_found(self, mock_dirs):

@@ -112,8 +112,91 @@ class TestSessions:
         data = response.json()
         assert "total" in data
         assert "running" in data
+        assert "unknown" in data
         assert "version" in data
         assert data["total"] >= 2
+
+    async def test_get_status_with_unknown(self, async_client):
+        """Test GET /status correctly counts unknown sessions."""
+        from shoal.core.state import update_session
+        from shoal.models.state import SessionStatus
+
+        # Create a session and mark it as unknown
+        s = await create_session("unknown-test", "claude", "/tmp/test")
+        await update_session(s.id, status=SessionStatus.unknown)
+
+        response = await async_client.get("/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["unknown"] >= 1
+        assert data["total"] >= 1
+
+    async def test_create_session_invalid_name(self, async_client, tmp_path):
+        """Test POST /sessions rejects invalid session names via Pydantic validation."""
+        test_dir = tmp_path / "test"
+        test_dir.mkdir()
+
+        with (
+            patch("shoal.api.server.git.is_git_repo", return_value=True),
+            patch("shoal.api.server.git.git_root", return_value=str(test_dir)),
+        ):
+            response = await async_client.post(
+                "/sessions",
+                json={
+                    "path": str(test_dir),
+                    "tool": "claude",
+                    "name": "bad;name",  # Invalid: contains semicolon
+                },
+            )
+            assert response.status_code == 422  # Pydantic validation error
+            assert "detail" in response.json()
+
+    async def test_rename_session_success(self, async_client):
+        """Test PUT /sessions/{id}/rename successfully renames a session."""
+        s = await create_session("old-name", "claude", "/tmp/test")
+
+        with patch("shoal.api.server.tmux.has_session", return_value=False):
+            response = await async_client.put(
+                f"/sessions/{s.id}/rename",
+                json={"name": "new-name"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "new-name"
+        assert data["id"] == s.id
+
+    async def test_rename_session_not_found(self, async_client):
+        """Test PUT /sessions/{id}/rename returns 404 for non-existent session."""
+        response = await async_client.put(
+            "/sessions/nonexistent/rename",
+            json={"name": "new-name"},
+        )
+        assert response.status_code == 404
+
+    async def test_rename_session_invalid_name(self, async_client):
+        """Test PUT /sessions/{id}/rename rejects invalid names via Pydantic validation."""
+        s = await create_session("valid-name", "claude", "/tmp/test")
+
+        response = await async_client.put(
+            f"/sessions/{s.id}/rename",
+            json={"name": "bad;name"},  # Invalid: contains semicolon
+        )
+        assert response.status_code == 422  # Pydantic validation error
+
+    async def test_rename_session_duplicate_name(self, async_client):
+        """Test PUT /sessions/{id}/rename rejects duplicate names."""
+        s1 = await create_session("first", "claude", "/tmp/test")
+        s2 = await create_session("second", "claude", "/tmp/test")
+
+        with patch("shoal.api.server.tmux.has_session", return_value=False):
+            response = await async_client.put(
+                f"/sessions/{s2.id}/rename",
+                json={"name": "first"},  # Name already exists
+            )
+
+        assert response.status_code == 409  # Conflict
+        assert "already exists" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -149,3 +232,41 @@ class TestMcp:
     async def test_detach_mcp_session_not_found(self, async_client):
         response = await async_client.delete("/sessions/nonexistent/mcp/memory")
         assert response.status_code == 404
+
+    async def test_list_mcp_avoids_n_plus_one(self, async_client, mock_dirs, tmp_path):
+        """Test GET /mcp pre-fetches sessions to avoid N+1 queries."""
+        from unittest.mock import AsyncMock, call
+        from shoal.core.state import list_sessions as real_list_sessions
+
+        # Create a few sessions
+        await create_session("s1", "claude", "/tmp/test")
+        await create_session("s2", "claude", "/tmp/test")
+
+        # Mock list_sessions to count calls
+        call_count = 0
+
+        async def mock_list_sessions():
+            nonlocal call_count
+            call_count += 1
+            return await real_list_sessions()
+
+        # Create fake socket files
+        socket_dir = tmp_path / "mcp-pool" / "sockets"
+        socket_dir.mkdir(parents=True, exist_ok=True)
+        (socket_dir / "server1.sock").touch()
+        (socket_dir / "server2.sock").touch()
+        (socket_dir / "server3.sock").touch()
+
+        with (
+            patch("shoal.api.server.mcp_socket") as mock_socket,
+            patch("shoal.api.server.list_sessions", side_effect=mock_list_sessions),
+            patch("shoal.api.server.read_pid", return_value=None),
+        ):
+            # Mock mcp_socket to return path with our test directory
+            mock_socket.return_value = socket_dir / "dummy.sock"
+
+            response = await async_client.get("/mcp")
+            assert response.status_code == 200
+
+            # list_sessions should be called exactly ONCE, not once per socket
+            assert call_count == 1
