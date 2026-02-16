@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 
 
@@ -86,3 +87,8 @@ def popup(command: str, *, width: str = "90%", height: str = "80%") -> None:
 
 def detach_client() -> None:
     _run(["detach-client"])
+
+
+def run_command(command: str) -> None:
+    """Run a raw tmux command (e.g. 'new-window -n editor')."""
+    _run(shlex.split(command))

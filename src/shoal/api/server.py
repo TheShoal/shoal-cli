@@ -307,7 +307,17 @@ async def create_session_api(data: SessionCreate):
 
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
-    tmux.send_keys(tmux_session, tool_cfg.command)
+    
+    # Run startup commands
+    cfg = load_config()
+    for cmd in cfg.tmux.startup_commands:
+        interpolated = cmd.format(
+            tool_command=tool_cfg.command,
+            work_dir=work_dir,
+            session_name=session_name,
+            tmux_session=tmux_session,
+        )
+        tmux.run_command(interpolated)
 
     await update_session(session.id, status=SessionStatus.running)
     pane = tmux.pane_pid(tmux_session)

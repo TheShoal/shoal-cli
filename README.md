@@ -87,10 +87,10 @@ Shoal follows the XDG Base Directory Specification:
 | Path | Contents |
 |------|----------|
 | `~/.config/shoal/` | Configuration (TOML files) |
-| `~/.local/share/shoal/` | Persistent state (session JSON, conductor state, MCP pool) |
+| `~/.local/share/shoal/` | Persistent state (SQLite database, conductor state, MCP pool) |
 | `~/.local/state/shoal/` | Transient runtime (watcher PID, logs) |
 
-Session state is stored as JSON files in `~/.local/share/shoal/sessions/`. These are managed automatically.
+Session state is stored in an SQLite database at `~/.local/share/shoal/shoal.db`.
 
 ## Quick Start
 
@@ -230,6 +230,24 @@ set -g status-right "#(shoal-status)"
 
 This shows active sessions with tool icons, color-coded status, and an active count.
 
+### Tmux Startup Commands
+
+You can configure Shoal to run arbitrary tmux commands when creating a new session. This is useful for splitting panes, starting an editor, or launching monitoring tools.
+
+In `~/.config/shoal/config.toml`:
+
+```toml
+[tmux]
+# Optional: Commands to run when creating a new session
+# Variables: {tool_command}, {work_dir}, {session_name}, {tmux_session}
+startup_commands = [
+    "send-keys -t {tmux_session} 'nvim .' Enter",
+    "new-window -t {tmux_session} -n tool '{tool_command}'",
+    "new-window -t {tmux_session} -d -n monitor 'btop'",
+    "select-window -t {tmux_session}:2"
+]
+```
+
 To also bind the popup dashboard to a key:
 
 ```tmux
@@ -253,7 +271,8 @@ src/shoal/
 ├── cli/            # Typer commands (one file per command group)
 ├── core/           # Pure logic + subprocess wrappers
 │   ├── config.py   # TOML loading, XDG paths
-│   ├── state.py    # Session CRUD (JSON via Pydantic)
+│   ├── db.py       # SQLite database management
+│   ├── state.py    # Session CRUD (via SQLite)
 │   ├── tmux.py     # Tmux subprocess wrappers
 │   ├── git.py      # Git subprocess wrappers
 │   ├── detection.py# Status detection (pure function)
@@ -269,7 +288,8 @@ src/shoal/
 
 Key design decisions:
 
-- **Pydantic for all I/O** — config (TOML) and state (JSON) go through typed models. No `jq` dependency.
+- **Pydantic for typed I/O** — config (TOML) and state (SQLite/JSON) go through typed models.
+- **SQLite with WAL mode** — Efficient, concurrent state management in a single database file.
 - **Pure detection function** — `detect_status(pane_text, tool_config) -> SessionStatus` has no side effects, making it trivially testable.
 - **Subprocess wrappers** — `core/tmux.py` and `core/git.py` isolate all subprocess calls, keeping CLI handlers focused on orchestration logic.
 - **XDG layout** — config in `~/.config/shoal/`, persistent state in `~/.local/share/shoal/`, runtime state in `~/.local/state/shoal/`.

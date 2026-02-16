@@ -119,8 +119,15 @@ async def _add_impl(path, tool, worktree, branch, name):
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
 
-    # Launch the AI tool
-    tmux.send_keys(tmux_session, tool_cfg.command)
+    # Run startup commands
+    for cmd in cfg.tmux.startup_commands:
+        interpolated = cmd.format(
+            tool_command=tool_cfg.command,
+            work_dir=work_dir,
+            session_name=session_name,
+            tmux_session=tmux_session,
+        )
+        tmux.run_command(interpolated)
 
     # Update state
     await update_session(session.id, status=SessionStatus.running)
@@ -298,6 +305,7 @@ def fork(
 
 async def _fork_impl(session, name, no_worktree):
     ensure_dirs()
+    cfg = load_config()
     source_id = resolve_session_interactive(session)
     source = await get_session(source_id)
     if not source:
@@ -339,7 +347,16 @@ async def _fork_impl(session, name, no_worktree):
     tmux.new_session(tmux_session, cwd=work_dir)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", new_session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", new_name)
-    tmux.send_keys(tmux_session, tool_cfg.command)
+    
+    # Run startup commands
+    for cmd in cfg.tmux.startup_commands:
+        interpolated = cmd.format(
+            tool_command=tool_cfg.command,
+            work_dir=work_dir,
+            session_name=new_name,
+            tmux_session=tmux_session,
+        )
+        tmux.run_command(interpolated)
 
     await update_session(new_session.id, status=SessionStatus.running)
 

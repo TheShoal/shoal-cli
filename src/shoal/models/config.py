@@ -16,6 +16,9 @@ class TmuxConfig(BaseModel):
     popup_width: str = "90%"
     popup_height: str = "90%"
     popup_key: str = "S"
+    startup_commands: list[str] = Field(
+        default_factory=lambda: ["send-keys -t {tmux_session} '{tool_command}' Enter"]
+    )
 
 
 class StatusBarConfig(BaseModel):

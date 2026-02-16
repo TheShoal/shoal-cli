@@ -1,4 +1,4 @@
-"""Pydantic models for shoal runtime state (session JSON files)."""
+"""Pydantic models for shoal runtime state."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def _utcnow() -> datetime:
 
 
 class SessionState(BaseModel):
-    """Represents a single shoal session — stored as JSON in sessions/<id>.json."""
+    """Represents a single shoal session — stored in SQLite."""
 
     id: str
     name: str
