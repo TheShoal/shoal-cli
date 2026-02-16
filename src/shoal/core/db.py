@@ -1,10 +1,10 @@
-"""Async SQLite database for Shoal session and conductor state."""
+"""Async SQLite database for Shoal session and robo state."""
 
 import aiosqlite
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator
-from shoal.models.state import SessionState, ConductorState
+from shoal.models.state import SessionState, RoboState, ConductorState
 
 
 class ShoalDB:
@@ -128,8 +128,8 @@ class ShoalDB:
             await conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             await conn.commit()
 
-    async def save_conductor(self, state: ConductorState):
-        """Save or update conductor state."""
+    async def save_robo(self, state: RoboState):
+        """Save or update robo state."""
         async with self._connection() as conn:
             await conn.execute(
                 "INSERT OR REPLACE INTO conductors (name, data) VALUES (?, ?)",
@@ -137,23 +137,28 @@ class ShoalDB:
             )
             await conn.commit()
 
-    async def get_conductor(self, name: str) -> ConductorState | None:
-        """Get conductor state by name."""
+    async def get_robo(self, name: str) -> RoboState | None:
+        """Get robo state by name."""
         async with self._connection() as conn:
             async with conn.execute(
                 "SELECT data FROM conductors WHERE name = ?", (name,)
             ) as cursor:
                 row = await cursor.fetchone()
                 if row:
-                    return ConductorState.model_validate_json(row[0])
+                    return RoboState.model_validate_json(row[0])
         return None
 
-    async def list_conductors(self) -> list[ConductorState]:
-        """List all conductors."""
+    async def list_robos(self) -> list[RoboState]:
+        """List all robos."""
         async with self._connection() as conn:
             async with conn.execute("SELECT data FROM conductors") as cursor:
                 rows = await cursor.fetchall()
-                return [ConductorState.model_validate_json(row[0]) for row in rows]
+                return [RoboState.model_validate_json(row[0]) for row in rows]
+
+    # Backward compatibility aliases
+    save_conductor = save_robo
+    get_conductor = get_robo
+    list_conductors = list_robos
 
 
 async def get_db() -> ShoalDB:

@@ -1,4 +1,4 @@
-"""Session management commands: add, ls, attach, detach, fork, kill, status, popup."""
+"""Session management commands: new, ls, attach, detach, fork, kill, status, popup."""
 
 from __future__ import annotations
 
@@ -462,7 +462,7 @@ async def _status_impl():
     sessions = await list_sessions()
     if not sessions:
         console.print("[yellow]No active sessions[/yellow]")
-        console.print("Create one with: [bold]shoal add[/bold]")
+        console.print("Create one with: [bold]shoal new[/bold]")
         return
 
     counts: dict[str, int] = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0}

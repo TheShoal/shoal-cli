@@ -39,7 +39,7 @@ def run_popup() -> None:
     entries = asyncio.run(with_db(_build_entries()))
 
     if not entries:
-        print("No sessions. Create one with: shoal add")
+        print("No sessions. Create one with: shoal new")
         input("Press Enter to close...")
         return
 
