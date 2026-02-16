@@ -5,6 +5,7 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
 ## Completed Milestones
 
 ### v0.4.0 (Released: 2026-02-16)
+
 - ✅ SQLite migration with WAL mode
 - ✅ Async-first architecture using `aiosqlite` and `anyio`
 - ✅ Session rename, logs, and info commands

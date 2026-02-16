@@ -96,22 +96,85 @@ The **Robo** is a supervisory "super-session." It runs an agent with a specializ
 
 ## Quick Start
 
+### Try the Interactive Demo
+
 ```bash
-# Try the interactive demo to learn Shoal hands-on
+# Launch a guided demo environment
 shoal demo start
 
-# Start a new agent session in a dedicated worktree
-shoal new -t claude -w feature-api -b
+# When done:
+shoal demo stop
+```
 
-# Open the interactive dashboard (tmux popup)
+### Basic Workflow
+
+```bash
+# 1. Create a new agent session in a dedicated worktree
+shoal new -t claude -w feature-auth -b
+
+# 2. Open the interactive dashboard to see all sessions
 shoal popup
 
-# Check the status of all running agents
+# 3. Check status of running agents
 shoal status
 
-# Merge a worktree and clean up when done
-shoal wt finish feature-api --pr
+# 4. Attach to a session
+shoal attach feature-auth
+# Or use the picker: shoal attach
+
+# 5. When done, merge and cleanup
+shoal wt finish feature-auth --pr
 ```
+
+### Robo Supervisor Workflow
+
+```bash
+# Start 3 parallel agents
+shoal new -t claude -w feature-ui -b
+shoal new -t opencode -w feature-api -b
+shoal new -t gemini -w docs -b
+
+# Launch a supervisor to coordinate them
+shoal robo setup default --tool opencode
+shoal robo start default
+
+# The robo monitors all sessions and can approve actions
+shoal robo approve feature-ui
+```
+
+See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for advanced robo patterns.
+
+---
+
+## Use Cases
+
+### Parallel Feature Development
+Work on frontend, backend, and docs simultaneously without context switching:
+```bash
+shoal new -t claude -w feature-ui -b
+shoal new -t opencode -w feature-api -b  
+shoal new -t gemini -w feature-docs -b
+```
+
+Each agent works in its own worktree, with shared MCP servers for memory and filesystem access.
+
+### Code Review Automation
+Have one agent write code, another review it:
+```bash
+shoal new -t claude -w implement-auth -b
+shoal new -t gemini -w review-auth -b
+# Reviewer can access implementer's worktree via shared filesystem MCP
+```
+
+### Overnight Batch Processing
+Set up multiple agents with a robo supervisor to route tasks:
+```bash
+shoal robo setup batch --tool opencode
+shoal robo start batch
+# Robo monitors agents and assigns tasks from a backlog
+```
+
+See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed workflows.
 
 ---
 
@@ -158,7 +221,21 @@ Shoal is built on a modern async Python stack:
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and [ROADMAP.md](ROADMAP.md) for what's coming next.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, [ROADMAP.md](ROADMAP.md) for upcoming features, and [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for versioning details.
+
+**Coverage**: Currently at 52% test coverage (baseline measured 2026-02-16).
+
+---
+
+## Documentation
+
+- [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) — Robo supervisor patterns and workflows
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Development setup and guidelines
+- [ROADMAP.md](ROADMAP.md) — Upcoming features and milestones
+- [RELEASE_PROCESS.md](RELEASE_PROCESS.md) — Versioning and release workflow
+- [SECURITY.md](SECURITY.md) — Security policy and vulnerability reporting
+
+---
 
 ## License
 

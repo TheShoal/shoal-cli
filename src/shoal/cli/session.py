@@ -53,12 +53,35 @@ async def _add_impl(path, tool, worktree, branch, name):
     # Validate tool config
     tool_config_path = config_dir() / "tools" / f"{tool}.toml"
     if not tool_config_path.exists():
-        console.print(f"[red]Unknown tool: {tool} (no config at {tool_config_path})[/red]")
+        console.print(f"[red]Error: Unknown tool '{tool}'[/red]")
+        console.print(f"[dim]Expected config at: {tool_config_path}[/dim]")
+        console.print()
+        console.print("[yellow]Available tools:[/yellow]")
+        tools_dir = config_dir() / "tools"
+        if tools_dir.exists():
+            for f in sorted(tools_dir.glob("*.toml")):
+                console.print(f"  • {f.stem}")
+        else:
+            console.print("  [dim](none configured)[/dim]")
+        console.print()
+        console.print("[yellow]To create a tool config:[/yellow]")
+        console.print(f"  mkdir -p {tools_dir}")
+        console.print(f"  cat > {tool_config_path} <<EOF")
+        console.print("  [tool]")
+        console.print(f'  name = "{tool}"')
+        console.print(f'  command = "{tool}"  # or full path')
+        console.print("  EOF")
         raise typer.Exit(1)
 
     # Validate git repo
     if not git.is_git_repo(str(resolved_path)):
-        console.print(f"[red]Not a git repository: {resolved_path}[/red]")
+        console.print(f"[red]Error: Not a git repository[/red]")
+        console.print(f"[dim]Path: {resolved_path}[/dim]")
+        console.print()
+        console.print("[yellow]Shoal requires a git repository to track sessions.[/yellow]")
+        console.print("Run one of the following:")
+        console.print(f"  cd {resolved_path} && git init")
+        console.print("  shoal new <path-to-git-repo>")
         raise typer.Exit(1)
 
     root = git.git_root(str(resolved_path))
@@ -71,7 +94,13 @@ async def _add_impl(path, tool, worktree, branch, name):
         wt_path = str(Path(root) / ".worktrees" / wt_dir_name)
 
         if Path(wt_path).exists():
-            console.print(f"[red]Worktree already exists: {wt_path}[/red]")
+            console.print(f"[red]Error: Worktree already exists[/red]")
+            console.print(f"[dim]Path: {wt_path}[/dim]")
+            console.print()
+            console.print("[yellow]Options:[/yellow]")
+            console.print(f"  • Attach to existing worktree: shoal attach")
+            console.print(f"  • Use a different worktree name: shoal new -w {worktree}-v2")
+            console.print(f"  • Remove existing worktree: rm -rf {wt_path}")
             raise typer.Exit(1)
 
         Path(root, ".worktrees").mkdir(parents=True, exist_ok=True)
@@ -99,7 +128,12 @@ async def _add_impl(path, tool, worktree, branch, name):
 
     # Check name collision
     if await find_by_name(session_name):
-        console.print(f"[red]Session with name '{session_name}' already exists[/red]")
+        console.print(f"[red]Error: Session '{session_name}' already exists[/red]")
+        console.print()
+        console.print("[yellow]Options:[/yellow]")
+        console.print(f"  • Attach to existing session: shoal attach {session_name}")
+        console.print(f"  • Use a different name: shoal new -n {session_name}-v2")
+        console.print(f"  • Kill existing session: shoal kill {session_name}")
         raise typer.Exit(1)
 
     # Create session state
@@ -112,8 +146,14 @@ async def _add_impl(path, tool, worktree, branch, name):
     # Create tmux session
     try:
         tmux.new_session(tmux_session, cwd=work_dir)
-    except Exception:
-        console.print("[red]Failed to create tmux session[/red]")
+    except Exception as e:
+        console.print("[red]Error: Failed to create tmux session[/red]")
+        console.print(f"[dim]{e}[/dim]")
+        console.print()
+        console.print("[yellow]Troubleshooting:[/yellow]")
+        console.print("  • Check if tmux is installed: which tmux")
+        console.print("  • Check if tmux server is responsive: tmux ls")
+        console.print(f"  • Verify working directory exists: ls {work_dir}")
         await delete_session(session.id)
         raise typer.Exit(1) from None
 

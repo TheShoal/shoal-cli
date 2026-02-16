@@ -159,15 +159,28 @@ async def _robo_start_impl(name):
         profile = load_robo_profile(name)
         tool = profile.tool
     except FileNotFoundError:
-        console.print(f"[red]Robo profile '{name}' not found[/red]")
-        console.print(f"Create it with: shoal robo setup {name}")
+        console.print(f"[red]Error: Robo profile '{name}' not found[/red]")
+        console.print()
+        console.print("[yellow]Available profiles:[/yellow]")
+        robo_dir = config_dir() / "robo"
+        if robo_dir.exists() and list(robo_dir.glob("*.toml")):
+            for f in sorted(robo_dir.glob("*.toml")):
+                console.print(f"  • {f.stem}")
+        else:
+            console.print("  [dim](none configured)[/dim]")
+        console.print()
+        console.print(f"[yellow]Create a profile:[/yellow] shoal robo setup {name}")
         raise typer.Exit(1)
 
     tmux_session = f"shoal_robo_{name}"
 
     if tmux.has_session(tmux_session):
-        console.print(f"[red]Robo '{name}' is already running[/red]")
-        console.print(f"Attach with: tmux attach -t {tmux_session}")
+        console.print(f"[red]Error: Robo '{name}' is already running[/red]")
+        console.print(f"[dim]Tmux session: {tmux_session}[/dim]")
+        console.print()
+        console.print("[yellow]Options:[/yellow]")
+        console.print(f"  • Attach to existing robo: tmux attach -t {tmux_session}")
+        console.print(f"  • Stop and restart: shoal robo stop {name} && shoal robo start {name}")
         raise typer.Exit(1)
 
     # Ensure runtime dir exists
