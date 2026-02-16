@@ -377,8 +377,14 @@ async def websocket_endpoint(websocket: WebSocket):
 # =============================================================================
 
 
-async def _get_mcp_info(name: str) -> McpResponse:
-    """Get MCP server status and associated sessions."""
+async def _get_mcp_info(name: str, all_sessions: list | None = None) -> McpResponse:
+    """Get MCP server status and associated sessions.
+
+    Args:
+        name: MCP server name
+        all_sessions: Optional pre-fetched session list to avoid N+1 queries.
+                     If None, sessions will be fetched.
+    """
     pid = read_pid(name)
     if pid is not None and is_mcp_running(name):
         status = "running"
@@ -390,7 +396,8 @@ async def _get_mcp_info(name: str) -> McpResponse:
     socket = str(mcp_socket(name))
 
     # Find sessions using this MCP
-    all_sessions = await list_sessions()
+    if all_sessions is None:
+        all_sessions = await list_sessions()
     sessions = [s.name for s in all_sessions if name in s.mcp_servers]
 
     return McpResponse(
@@ -410,10 +417,13 @@ async def list_mcp_servers():
     if not socket_dir.exists():
         return []
 
+    # Fetch all sessions once to avoid N+1 queries
+    all_sessions = await list_sessions()
+
     servers: list[McpResponse] = []
     for sock_path in socket_dir.glob("*.sock"):
         name = sock_path.stem
-        servers.append(await _get_mcp_info(name))
+        servers.append(await _get_mcp_info(name, all_sessions))
     return servers
 
 
