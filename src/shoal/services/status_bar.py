@@ -13,19 +13,18 @@ async def generate_status() -> str:
     if not ids:
         return ""
 
-    counts = {"running": 0, "idle": 0, "error": 0, "waiting": 0}
+    counts = {"running": 0, "idle": 0, "error": 0, "waiting": 0, "stopped": 0, "unknown": 0}
 
     for sid in ids:
         session = await get_session(sid)
         if not session:
             continue
 
-        if session.status.value in counts:
-            counts[session.status.value] += 1
-
-    total = sum(counts.values())
-    if total == 0:
-        return ""
+        status_val = session.status.value
+        if status_val in counts:
+            counts[status_val] += 1
+        else:
+            counts["unknown"] += 1
 
     return f"#[fg=green]● {counts['running']} #[fg=white]○ {counts['idle']} #[fg=red]● {counts['error']} #[fg=yellow]◉ {counts['waiting']}#[default]"
 
