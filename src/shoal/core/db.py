@@ -8,7 +8,7 @@ from shoal.models.state import SessionState, RoboState, ConductorState
 
 
 class ShoalDB:
-    """Database manager with persistent connection pool."""
+    """Database manager with persistent singleton connection."""
 
     _instance: "ShoalDB | None" = None
     _initialized: bool = False

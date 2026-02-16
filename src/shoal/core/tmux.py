@@ -1,4 +1,8 @@
-"""Tmux subprocess wrappers."""
+"""Tmux subprocess wrappers.
+
+Note: All functions in this module are synchronous subprocess calls.
+For async tmux operations, use the async wrapper functions in state.py.
+"""
 
 from __future__ import annotations
 
