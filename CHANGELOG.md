@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-16
+
+### Added
+- **Fish Shell Integration**: `shoal setup fish` command to install completions, key bindings, and abbreviations
+- **Fish Completions**: Dynamic completions for session names, MCP servers, robo profiles, and all subcommands
+- **Fish Key Bindings**: Ctrl+S for dashboard popup, Alt+A for quick attach
+- **Fish Abbreviations**: Short aliases (sa, sl, ss, sp, sn, sk, si) for common commands
+- **Fish Uninstall**: `shoal setup fish --uninstall` to cleanly remove all installed fish integration files
+- **Debug Logging**: `--debug` global flag enables DEBUG-level logging to stderr for any command
+- **Plain Format**: Extended `--format plain` to `ls` and `status` commands for shell completion parsing
+
+### Fixed
+- **Subprocess Timeouts**: Added 30s default timeout (120s for git push) with clear error messages
+- **Watcher Resilience**: Wrapped watcher poll loop in try/except to survive transient errors
+- **Tmux Collisions**: Added tmux name collision detection and fork cleanup on failure
+- **ConnectionManager**: Refactored to use set with per-connection error handling
+- **API Security**: Bound API server to 127.0.0.1 by default instead of 0.0.0.0
+- **Fish Templates**: Added interactive guard, fixed universal variable scope, sanitized fzf arguments
+- **MCP Proxy Validation**: Added regex validation on MCP proxy server names to prevent command injection
+- **Socat Injection**: Added `shlex.quote()` to socat EXEC command arguments
+- **Startup Commands**: Added KeyError guard on `cmd.format()` to handle malformed templates
+- **Status Counts**: Unknown session statuses are now bucketed and displayed instead of silently dropped
+- **XDG Compliance**: `get_fish_config_dir()` respects `XDG_CONFIG_HOME` with fallback to `~/.config/fish`
+
+### Changed
+- **CLI Deduplication**: Extracted shared `_check_environment()` helper for `init` and `check` commands
+- **CI Hardening**: Replaced curl|sh with setup-uv action, added fish syntax check to CI pipeline
+
 ## [0.4.2] - 2026-02-16
 
 ### Fixed
