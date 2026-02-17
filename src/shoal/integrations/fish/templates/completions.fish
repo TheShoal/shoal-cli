@@ -58,13 +58,19 @@ complete -c shoal -n "__fish_seen_subcommand_from fork" -a "(__shoal_sessions)" 
 # Common flags for session creation
 complete -c shoal -n "__fish_seen_subcommand_from new fork" -l "worktree" -s "w" -d "Create in worktree"
 complete -c shoal -n "__fish_seen_subcommand_from new fork" -l "branch" -s "b" -d "Create branch"
-complete -c shoal -n "__fish_seen_subcommand_from new fork" -l "robo" -s "r" -d "Start with robo"
+complete -c shoal -n "__fish_seen_subcommand_from new fork" -l "robo" -s "r" -d "Start with robo" -xa "(__shoal_robo_profiles)"
 
 # MCP subcommands
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls attach kill status" -a "ls" -d "List MCP servers"
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls attach kill status" -a "attach" -d "Attach server to session"
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls attach kill status" -a "kill" -d "Kill MCP server"
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls attach kill status" -a "status" -d "MCP pool status"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "ls" -d "List MCP servers"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "start" -d "Start MCP server"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "attach" -d "Attach server to session"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "kill" -d "Kill MCP server"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "status" -d "MCP pool status"
+
+# MCP server name completions for commands that take a server argument
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from start" -a "(__shoal_mcp_servers)" -d "MCP server"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from attach" -a "(__shoal_mcp_servers)" -d "MCP server"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from kill" -a "(__shoal_mcp_servers)" -d "MCP server"
 
 # Robo subcommands
 complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles" -a "send" -d "Send keys to robo"

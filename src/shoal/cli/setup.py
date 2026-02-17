@@ -14,10 +14,16 @@ app = typer.Typer(
 @app.command()
 def fish(
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing files"),
+    uninstall: bool = typer.Option(False, "--uninstall", help="Remove fish integration files"),
 ) -> None:
     """Install fish shell integration."""
-    from shoal.integrations.fish.installer import install_fish_integration
+    if uninstall:
+        from shoal.integrations.fish.installer import uninstall_fish_integration
 
-    success = install_fish_integration(force=force)
+        success = uninstall_fish_integration()
+    else:
+        from shoal.integrations.fish.installer import install_fish_integration
+
+        success = install_fish_integration(force=force)
     if not success:
         raise typer.Exit(code=1)
