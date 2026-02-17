@@ -116,6 +116,11 @@ class Icons:
     DASHBOARD = "󰚩"  # nf-md-view_dashboard
     DEPENDENCY = "󰒓"  # nf-md-package_variant
     DIRECTORY = "󰓗"  # nf-md-folder
+    FISH = "󰈺"  # nf-md-fish
+
+    # Information/help
+    INFO = "󰋽"  # nf-md-information
+    ERROR = "󰅙"  # nf-md-alert_octagon
 
 
 # ============================================================================
@@ -130,6 +135,7 @@ class Symbols:
     CHECK = "✔"
     CROSS = "✘"
     ARROW = "→"
+    INFO = "ℹ"
 
     # fzf/picker markers
     POINTER = "▶"

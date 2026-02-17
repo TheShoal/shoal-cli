@@ -512,15 +512,26 @@ async def _prune_impl(force):
         console.print(f"Removed session '{s.name}' ({s.id})")
 
 
-def status() -> None:
+def status(
+    format: Annotated[
+        str | None,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format: default (rich panel) or plain (simple text for completions)",
+        ),
+    ] = None,
+) -> None:
     """Quick status summary."""
-    asyncio.run(with_db(_status_impl()))
+    asyncio.run(with_db(_status_impl(format)))
 
 
-async def _status_impl():
+async def _status_impl(format):
     ensure_dirs()
     sessions = await list_sessions()
     if not sessions:
+        if format == "plain":
+            return
         console.print("[yellow]No active sessions[/yellow]")
         console.print("Create one with: [bold]shoal new[/bold]")
         return
@@ -528,6 +539,23 @@ async def _status_impl():
     counts: dict[str, int] = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0}
     for s in sessions:
         counts[s.status.value] = counts.get(s.status.value, 0) + 1
+
+    # Plain format for shell completions
+    if format == "plain":
+        total = len(sessions)
+        status_parts = []
+        if counts["running"]:
+            status_parts.append(f"{counts['running']} running")
+        if counts["waiting"]:
+            status_parts.append(f"{counts['waiting']} waiting")
+        if counts["error"]:
+            status_parts.append(f"{counts['error']} error")
+        if counts["idle"]:
+            status_parts.append(f"{counts['idle']} idle")
+        if counts["stopped"]:
+            status_parts.append(f"{counts['stopped']} stopped")
+        console.print(f"Total: {total} | {', '.join(status_parts)}")
+        return
 
     total = len(sessions)
     from rich.panel import Panel

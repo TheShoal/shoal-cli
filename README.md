@@ -93,7 +93,23 @@ shoal --install-completion zsh
 shoal --install-completion bash
 ```
 
-### Fish
+### Fish (Enhanced Integration)
+
+Shoal provides native fish shell integration with completions, key bindings, abbreviations, and helper functions:
+
+```fish
+shoal setup fish
+```
+
+This installs:
+- **Tab completions** for all commands and dynamic session names
+- **Key bindings**: `Ctrl+S` for popup dashboard, `Alt+A` for quick attach
+- **Abbreviations**: `sa` (attach), `sl` (ls), `ss` (status), `sp` (popup), etc.
+- **Helper functions**: `shoal-quick-attach`, `shoal-dashboard`
+
+See [Fish Integration Guide](docs/FISH_INTEGRATION.md) for full documentation.
+
+For basic completions only (no enhanced features):
 
 ```bash
 shoal --install-completion fish

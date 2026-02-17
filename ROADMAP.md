@@ -85,24 +85,27 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
   - ✅ Updated test assertions for new Unicode icons
   - ✅ All 161 tests passing (11 skipped)
 
-## v0.5.0: Fish Shell Integration
+### v0.5.0 (Released: 2026-02-17)
 
 **Priority: Native fish shell integration for enhanced developer experience.**
 
 - **Fish Shell Support**:
-  - Add `shoal setup fish` command to install integration files
-  - Create `~/.config/fish/conf.d/shoal.fish` bootstrap script
-  - Create `~/.config/fish/completions/shoal.fish` with dynamic session name completions
-  - Add helper functions in `~/.config/fish/functions/` for common workflows
-  - Implement fish key bindings for instant dashboard access
-  - Use universal variables for cross-session state sharing
-  - Add fish event handlers (fish_preexec/fish_postexec) for automatic status detection
-  - Create abbreviations for common shoal commands
-  - **Constraint**: Fish remains optional, not a hard dependency
+  - ✅ Added `shoal setup fish` command to install integration files
+  - ✅ Created `~/.config/fish/conf.d/shoal.fish` bootstrap script
+  - ✅ Created `~/.config/fish/completions/shoal.fish` with dynamic session name completions
+  - ✅ Added helper functions in `~/.config/fish/functions/` for common workflows
+  - ✅ Implemented fish key bindings for instant dashboard access (Ctrl+S, Alt+A)
+  - ✅ Added universal variables for cross-session state sharing
+  - ✅ Added fish event handlers (fish_preexec) for automatic status detection
+  - ✅ Created abbreviations for common shoal commands (sa, sl, ss, sp, sn, sk, si)
+  - ✅ Fish remains optional, not a hard dependency
 - **Theme Module Enhancements**:
-  - Add plain-text output variants for fish completions
-  - Ensure `--format plain` works across all relevant commands
-  - Document fish integration in README and dedicated guide
+  - ✅ Added plain-text output variants for fish completions (`--format plain`)
+  - ✅ Ensured `--format plain` works for `ls` and `status` commands
+  - ✅ Documented fish integration in README and dedicated guide (docs/FISH_INTEGRATION.md)
+- **Testing**:
+  - ✅ Added 8 comprehensive tests for fish setup command
+  - ✅ All 169 tests passing (11 skipped)
 
 ## v0.6.0: Advanced Testing & Polish
 

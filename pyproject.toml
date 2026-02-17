@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shoal"
-version = "0.4.4"
+version = "0.5.0"
 description = "Terminal-first orchestration for parallel AI coding agents"
 readme = "README.md"
 license = {text = "Proprietary"}
@@ -35,6 +35,9 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/shoal"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/shoal/integrations/fish/templates" = "shoal/integrations/fish/templates"
 
 [tool.ruff]
 target-version = "py312"

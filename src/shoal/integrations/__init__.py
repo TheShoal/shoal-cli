@@ -1,0 +1,1 @@
+"""Shell integrations for Shoal."""

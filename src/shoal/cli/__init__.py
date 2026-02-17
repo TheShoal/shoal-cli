@@ -10,6 +10,7 @@ from shoal.cli.robo import app as robo_app
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
 from shoal.cli.demo import app as demo_app
+from shoal.cli.setup import app as setup_app
 from shoal.cli.session import (
     add,
     attach,
@@ -71,6 +72,7 @@ app.add_typer(robo_app, name="cond", hidden=True)  # Backward compat
 app.add_typer(nvim_app, name="nvim", help="Neovim integration.")
 app.add_typer(watcher_app, name="watcher", help="Background status watcher.")
 app.add_typer(demo_app, name="demo", help="Demo environment.")
+app.add_typer(setup_app, name="setup", help="Setup shell integrations.")
 
 
 @app.command()
