@@ -63,7 +63,48 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
   - ✅ Documented sync-in-async patterns in tmux.py module docstring
   - ✅ Added comment explaining stopped/unknown exclusion in status bar
 
-## v0.5.0: Advanced Testing & Polish
+### v0.4.4 (Released: 2026-02-17)
+
+**Priority: Critical bug fixes and UI/UX improvements.**
+
+- **Critical Bug Fixes**:
+  - ✅ Fixed nested `asyncio.run()` crash in 7 commands (attach, fork, kill, wt finish, nvim send/diagnostics, mcp attach)
+  - ✅ Fixed branch naming logic (respect existing prefix in worktree names)
+  - ✅ Fixed syntax error in mcp.py (extra closing parenthesis)
+  - ✅ Restored missing `check` command
+  - ✅ Added success message to `init` command
+  - ✅ Fixed MCP status to show panel even with 0 servers
+- **UI/UX Centralization**:
+  - ✅ Created `src/shoal/core/theme.py` module (single source of truth for styling)
+  - ✅ Centralized status colors, icons, and table/panel factories
+  - ✅ Replaced 100+ inline color/icon references with theme imports
+  - ✅ Switched tmux status bar to Unicode symbols (●, ○, ◉, ✗) for universal rendering
+  - ✅ Kept Nerd Font glyphs available via optional parameter
+- **Code Quality**:
+  - ✅ Refactored 6 CLI files to use theme module
+  - ✅ Updated test assertions for new Unicode icons
+  - ✅ All 161 tests passing (11 skipped)
+
+## v0.5.0: Fish Shell Integration
+
+**Priority: Native fish shell integration for enhanced developer experience.**
+
+- **Fish Shell Support**:
+  - Add `shoal setup fish` command to install integration files
+  - Create `~/.config/fish/conf.d/shoal.fish` bootstrap script
+  - Create `~/.config/fish/completions/shoal.fish` with dynamic session name completions
+  - Add helper functions in `~/.config/fish/functions/` for common workflows
+  - Implement fish key bindings for instant dashboard access
+  - Use universal variables for cross-session state sharing
+  - Add fish event handlers (fish_preexec/fish_postexec) for automatic status detection
+  - Create abbreviations for common shoal commands
+  - **Constraint**: Fish remains optional, not a hard dependency
+- **Theme Module Enhancements**:
+  - Add plain-text output variants for fish completions
+  - Ensure `--format plain` works across all relevant commands
+  - Document fish integration in README and dedicated guide
+
+## v0.6.0: Advanced Testing & Polish
 
 **Priority: Comprehensive testing, performance optimization, and developer experience.**
 
@@ -82,7 +123,7 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
   - Add `--debug` flag for verbose logging
   - Create troubleshooting guide for common issues
 
-## v0.6.0: Event-Driven Architecture
+## v0.7.0: Event-Driven Architecture
 
 **Priority: Infrastructure for real-time UI features.**
 
@@ -90,7 +131,7 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
 - **WebSocket Updates**: Real-time state pushing to the API and UI.
 - **Enhanced Watcher**: Use the event bus instead of polling for faster, more efficient notifications.
 
-## v0.7.0: The Interface
+## v0.8.0: The Interface
 
 **Priority: User experience and TUI polish.**
 

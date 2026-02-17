@@ -87,44 +87,15 @@ def init() -> None:
     from pathlib import Path
 
     ensure_dirs()
-    cfg_dir = config_dir()
 
-    if not cfg_dir.exists():
-        cfg_dir.mkdir(parents=True)
-        typer.echo(f"Created configuration directory: {cfg_dir}")
-
-    # Check for examples in the project root
-    # This assumes we are running from the source or examples are bundled
-    example_src = Path(__file__).parents[3] / "examples" / "config"
-
-    if example_src.exists():
-        for item in example_src.iterdir():
-            dest = cfg_dir / item.name
-            if not dest.exists():
-                if item.is_dir():
-                    shutil.copytree(item, dest)
-                else:
-                    shutil.copy(item, dest)
-                typer.echo(f"Copied example: {item.name}")
-            else:
-                typer.echo(f"Skipping existing: {item.name}")
-    else:
-        typer.echo("Example configurations not found in expected location.")
-        typer.echo(f"Please manually copy examples to {cfg_dir}")
-
-    typer.echo("Shoal initialized successfully!")
-
-
-@app.command()
-def check() -> None:
-    """Check dependencies and environment."""
-    import shutil
-    from rich.table import Table
     from rich.console import Console
     from rich.panel import Panel
+    from rich.table import Table
+    from shoal.core.theme import Colors, Icons, Symbols, create_panel, create_table
 
     console = Console()
-    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
+
+    table = create_table(padding=(0, 2))
     table.add_column("Tool", width=20)
     table.add_column("Status", width=12)
     table.add_column("Notes")
@@ -140,15 +111,15 @@ def check() -> None:
 
     for tool, note in dependencies:
         path = shutil.which(tool)
-        status = "[green]✔ OK[/green]" if path else "[red]✘ Missing[/red]"
+        marker = f"[green]{Symbols.CHECK}[/green]" if path else f"[red]{Symbols.CROSS}[/red]"
+        status = f"{marker} {'OK' if path else 'Missing'}"
         table.add_row(tool, status, f"[dim]{note}[/dim]")
 
     console.print(
-        Panel(
+        create_panel(
             table,
-            title="[bold blue]󰒓 Dependency Check[/bold blue]",
+            title=f"[bold blue]{Icons.DEPENDENCY} Dependency Check[/bold blue]",
             title_align="left",
-            border_style="dim",
         )
     )
 
@@ -169,11 +140,73 @@ def check() -> None:
         dir_info.add_row(name, f"{path} [dim]({exists})[/dim]")
 
     console.print(
-        Panel(
+        create_panel(
             dir_info,
-            title="[bold blue]󰓗 Directories[/bold blue]",
+            title=f"[bold blue]{Icons.DIRECTORY} Directories[/bold blue]",
             title_align="left",
-            border_style="dim",
+        )
+    )
+
+    console.print("\n[green]Shoal initialized successfully![/green]")
+
+
+@app.command()
+def check() -> None:
+    """Check dependencies and environment."""
+    from shoal.core.config import ensure_dirs, config_dir, state_dir, runtime_dir
+    import shutil
+    from rich.console import Console
+    from rich.table import Table
+    from shoal.core.theme import Icons, Symbols, create_panel, create_table
+
+    console = Console()
+
+    table = create_table(padding=(0, 2))
+    table.add_column("Tool", width=20)
+    table.add_column("Status", width=12)
+    table.add_column("Notes")
+
+    dependencies = [
+        ("tmux", "Required for session management"),
+        ("git", "Required for project/worktree management"),
+        ("fzf", "Required for interactive picking"),
+        ("socat", "Required for MCP pooling"),
+        ("gh", "Optional: for 'wt finish --pr'"),
+        ("nvr", "Optional: for neovim integration"),
+    ]
+
+    for tool, note in dependencies:
+        path = shutil.which(tool)
+        marker = f"[green]{Symbols.CHECK}[/green]" if path else f"[red]{Symbols.CROSS}[/red]"
+        status = f"{marker} {'OK' if path else 'Missing'}"
+        table.add_row(tool, status, f"[dim]{note}[/dim]")
+
+    console.print(
+        create_panel(
+            table,
+            title=f"[bold blue]{Icons.DEPENDENCY} Dependency Check[/bold blue]",
+            title_align="left",
+        )
+    )
+
+    # Check dirs
+    dir_info = Table.grid(padding=(0, 2))
+    dir_info.add_column(style="bold cyan")
+    dir_info.add_column()
+
+    for name, path in [
+        ("Config", config_dir()),
+        ("State", state_dir()),
+        ("Runtime", runtime_dir()),
+    ]:
+        exists = "[green]exists[/green]" if path.exists() else "[yellow]not created[/yellow]"
+        dir_info.add_row(name, f"{path} [dim]({exists})[/dim]")
+
+    console.print(
+        create_panel(
+            dir_info,
+            title=f"[bold blue]{Icons.DIRECTORY} Directories[/bold blue]",
+            title_align="left",
         )
     )
 

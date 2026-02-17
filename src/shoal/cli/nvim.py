@@ -13,7 +13,11 @@ from rich.console import Console
 
 from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
-from shoal.core.state import get_session, resolve_session_interactive
+from shoal.core.state import (
+    get_session,
+    resolve_session_interactive,
+    _resolve_session_interactive_impl,
+)
 
 console = Console()
 
@@ -31,7 +35,7 @@ def nvim_send(
 
 async def _nvim_send_impl(session, command):
     ensure_dirs()
-    sid = resolve_session_interactive(session)
+    sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
@@ -66,7 +70,7 @@ def nvim_diagnostics(
 
 async def _nvim_diagnostics_impl(session):
     ensure_dirs()
-    sid = resolve_session_interactive(session)
+    sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)

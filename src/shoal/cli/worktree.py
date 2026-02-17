@@ -20,7 +20,9 @@ from shoal.core.state import (
     list_sessions,
     resolve_session_interactive,
     update_session,
+    _resolve_session_interactive_impl,
 )
+from shoal.core.theme import Colors, Icons, Symbols, create_panel, create_table
 from shoal.models.state import SessionStatus
 
 console = Console()
@@ -45,7 +47,7 @@ async def _wt_ls_impl():
     ensure_dirs()
     sessions = await list_sessions()
 
-    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
+    table = create_table(padding=(0, 2))
     table.add_column("SESSION", width=20)
     table.add_column("ID", style="dim", width=8)
     table.add_column("BRANCH", width=30)
@@ -54,13 +56,13 @@ async def _wt_ls_impl():
 
     worktree_sessions = [s for s in sessions if s.worktree]
     for s in worktree_sessions:
-        wt_exists = "[green]✔[/green]"
+        wt_exists = f"[green]{Symbols.CHECK}[/green]"
         status_val = s.status.value
 
         status_style = get_status_style(status_val)
 
         if not Path(s.worktree).is_dir():
-            wt_exists = "[red]✘[/red]"
+            wt_exists = f"[red]{Symbols.CROSS}[/red]"
             status_text = "[red]missing[/red]"
         else:
             status_text = (
@@ -77,14 +79,11 @@ async def _wt_ls_impl():
         )
 
     if worktree_sessions:
-        from rich.panel import Panel
-
         console.print(
-            Panel(
+            create_panel(
                 table,
-                title="[bold blue]󱉭 Managed Worktrees[/bold blue]",
+                title=f"[bold blue]{Icons.WORKTREE} Managed Worktrees[/bold blue]",
                 title_align="left",
-                border_style="dim",
             )
         )
     else:
@@ -103,7 +102,7 @@ def wt_finish(
 
 async def _wt_finish_impl(session, pr, no_merge):
     ensure_dirs()
-    sid = resolve_session_interactive(session)
+    sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)

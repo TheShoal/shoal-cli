@@ -66,10 +66,11 @@ class TestGenerateStatus:
 
         result = await generate_status()
         # Should have 2 running, 1 idle, 1 waiting, 1 error
-        assert "#[fg=green]  2" in result
-        assert "#[fg=white]  1" in result
-        assert "#[fg=yellow]  1" in result
-        assert "#[fg=red]  1" in result
+        # Unicode icons: ● (running), ○ (idle), ◉ (waiting), ✗ (error)
+        assert "#[fg=green]● 2" in result
+        assert "#[fg=white]○ 1" in result
+        assert "#[fg=yellow]◉ 1" in result
+        assert "#[fg=red]✗ 1" in result
 
     @pytest.mark.asyncio
     async def test_stopped_and_unknown_not_displayed(self, mock_dirs):
@@ -83,8 +84,8 @@ class TestGenerateStatus:
         await update_session(s2.id, status=SessionStatus.running)
 
         result = await generate_status()
-        # Should show 1 running, and stopped/unknown should not contribute
-        assert "#[fg=green]  1" in result
+        # Should show 1 running (● 1), and stopped/unknown should not contribute
+        assert "#[fg=green]● 1" in result
         # Should not show stopped or unknown counts
         assert "stopped" not in result.lower()
         assert "unknown" not in result.lower()

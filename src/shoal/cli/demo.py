@@ -16,6 +16,7 @@ from rich.panel import Panel
 from shoal.core import git, tmux
 from shoal.core.db import get_db, with_db
 from shoal.core.state import create_session, delete_session, list_sessions
+from shoal.core.theme import Icons, create_panel
 
 console = Console()
 
@@ -313,7 +314,7 @@ async def _demo_start_impl(custom_dir: str | None):
 
     console.print()
     console.print(
-        Panel(
+        create_panel(
             f"""[bold green]Demo environment ready![/bold green]
 
 [bold]What was created:[/bold]
@@ -334,9 +335,9 @@ async def _demo_start_impl(custom_dir: str | None):
 [bold]Cleanup:[/bold]
   [yellow]shoal demo stop[/yellow]       — Remove all demo sessions and files
 """,
-            title="[bold blue]󰚩 Shoal Demo Started[/bold blue]",
+            title=f"[bold blue]{Icons.DASHBOARD} Shoal Demo Started[/bold blue]",
             title_align="left",
-            border_style="blue",
+            primary=True,
         )
     )
 

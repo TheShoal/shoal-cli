@@ -15,6 +15,7 @@ from rich.table import Table
 from shoal.core import tmux
 from shoal.core.config import config_dir, ensure_dirs, load_robo_profile, state_dir
 from shoal.core.db import get_db, with_db
+from shoal.core.theme import Icons, create_panel, create_table
 from shoal.models.state import RoboState, SessionStatus
 
 console = Console()
@@ -359,7 +360,7 @@ async def _robo_ls_impl():
         return
 
     # Use consistent table style with Panel (fixing Task 1)
-    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 1))
+    table = create_table(padding=(0, 1))
     table.add_column("NAME", width=20)
     table.add_column("TOOL", width=10)
     table.add_column("STATUS", width=10)
@@ -388,10 +389,9 @@ async def _robo_ls_impl():
         table.add_row(name, tool, robo_status_display, started)
 
     console.print(
-        Panel(
+        create_panel(
             table,
-            title="[bold blue]󰚩 Robo[/bold blue]",
+            title=f"[bold blue]{Icons.DASHBOARD} Robo[/bold blue]",
             title_align="left",
-            border_style="dim",
         )
     )

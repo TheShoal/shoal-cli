@@ -17,7 +17,9 @@ from shoal.core.state import (
     list_sessions,
     remove_mcp_from_session,
     resolve_session_interactive,
+    _resolve_session_interactive_impl,
 )
+from shoal.core.theme import Colors, Icons, Symbols, create_panel, create_table, get_status_icon
 from shoal.services.mcp_pool import (
     is_mcp_running,
     mcp_socket,
@@ -56,7 +58,7 @@ async def _mcp_ls_impl():
         console.print("[yellow]No MCP servers in pool[/yellow]")
         return
 
-    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
+    table = create_table(padding=(0, 2))
     table.add_column("NAME", width=20)
     table.add_column("PID", width=10, style="dim")
     table.add_column("STATUS", width=12)
@@ -85,11 +87,10 @@ async def _mcp_ls_impl():
     from rich.panel import Panel
 
     console.print(
-        Panel(
+        create_panel(
             table,
-            title="[bold blue]󰒓 MCP Server Pool[/bold blue]",
+            title=f"[bold blue]{Icons.MCP} MCP Server Pool[/bold blue]",
             title_align="left",
-            border_style="dim",
         )
     )
 
@@ -158,7 +159,7 @@ def mcp_attach(
 
 async def _mcp_attach_impl(session, mcp_name):
     ensure_dirs()
-    sid = resolve_session_interactive(session)
+    sid = await _resolve_session_interactive_impl(session)
 
     socket = mcp_socket(mcp_name)
     if not socket.exists():
@@ -223,11 +224,9 @@ def mcp_status() -> None:
         summary = Text.from_markup("  |  ".join(parts))
 
     console.print(
-        Panel(
+        create_panel(
             summary,
-            title=f"[bold blue]󰒓 MCP Pool Status ({total} total)[/bold blue]",
-            title_align="left",
-            border_style="dim",
+            title=f"[bold blue]{Icons.MCP} MCP Pool Status ({total} total)[/bold blue]",
             expand=False,
         )
     )

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
-from shoal.core.state import get_session, list_sessions
+from shoal.core.state import list_sessions
+from shoal.core.theme import STATUS_STYLES, tmux_status_segment
 
 
 async def generate_status() -> str:
@@ -22,27 +23,20 @@ async def generate_status() -> str:
         else:
             counts["unknown"] += 1
 
-    # Format segments: 3 chars wide total
-    # Zero: "-  " (hyphen + two spaces)
-    # Non-zero: "● 1" (icon + space + digit)
-    def fmt(count: int, icon: str, color: str) -> str:
-        if count == 0:
-            return f"#[fg={color}]  "
-        return f"#[fg={color}]{icon} {count}"
-
-    # Only display active statuses (running, idle, waiting, error).
+    # Build status segments for active statuses (running, idle, waiting, error).
     # Stopped and unknown sessions are intentionally excluded from the status bar
     # because they represent inactive sessions and would add noise to the display.
-    res = (
-        fmt(counts["running"], " ", "green")
-        + " "
-        + fmt(counts["idle"], " ", "white")
-        + " "
-        + fmt(counts["waiting"], " ", "yellow")
-        + " "
-        + fmt(counts["error"], " ", "red")
-    )
-    return f"{res}#[default]"
+    segments = []
+    for status_key in ["running", "idle", "waiting", "error"]:
+        style = STATUS_STYLES[status_key]
+        segment = tmux_status_segment(
+            icon=style.icon,
+            count=counts[status_key],
+            color=style.tmux,
+        )
+        segments.append(segment)
+
+    return " ".join(segments) + "#[default]"
 
 
 def main() -> None:

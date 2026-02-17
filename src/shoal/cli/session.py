@@ -25,10 +25,36 @@ from shoal.core.state import (
     touch_session,
     update_session,
     _get_tool_icon,
+    _resolve_session_interactive_impl,
+)
+from shoal.core.theme import (
+    Colors,
+    Icons,
+    Symbols,
+    create_panel,
+    create_table,
+    get_status_icon,
 )
 from shoal.models.state import SessionStatus
 
 console = Console()
+
+
+def _infer_branch_name(worktree_name: str) -> str:
+    """Infer branch name from worktree name.
+
+    If the worktree name contains a '/', use it as-is (assumes it has a prefix like fix/, feat/, chore/).
+    Otherwise, prepend 'feat/' as the default prefix.
+
+    Examples:
+        fix/tmux-status -> fix/tmux-status
+        chore/cleanup -> chore/cleanup
+        tmux-status -> feat/tmux-status
+        my-feature -> feat/my-feature
+    """
+    if "/" in worktree_name:
+        return worktree_name
+    return f"feat/{worktree_name}"
 
 
 def add(
@@ -109,7 +135,7 @@ async def _add_impl(path, tool, worktree, branch, name):
         Path(root, ".worktrees").mkdir(parents=True, exist_ok=True)
 
         if branch:
-            branch_name = f"feat/{worktree}"
+            branch_name = _infer_branch_name(worktree)
             git.worktree_add(root, wt_path, branch=branch_name)
         else:
             git.worktree_add(root, wt_path)
@@ -237,13 +263,7 @@ async def _ls_impl(format):
         group_sessions = groups[path]
         display_project = path.replace(str(Path.home()), "~")
 
-        table = Table(
-            show_header=True,
-            header_style="bold magenta",
-            box=None,
-            padding=(0, 1),
-            collapse_padding=True,
-        )
+        table = create_table(padding=(0, 1), collapse_padding=True)
         table.add_column("ID", style="dim", width=8)
         table.add_column("NAME", width=25)
         table.add_column("TOOL", width=12)
@@ -269,7 +289,9 @@ async def _ls_impl(format):
             )
 
             if is_ghost:
-                status_text = f"[bold red]󱄽 ghost[/bold red] [dim]({s.status.value})[/dim]"
+                status_text = (
+                    f"[bold red]{Icons.GHOST} ghost[/bold red] [dim]({s.status.value})[/dim]"
+                )
 
             wt_display = ""
             if s.worktree:
@@ -286,14 +308,12 @@ async def _ls_impl(format):
                 wt_display,
             )
 
-        from rich.panel import Panel
-
         console.print(
-            Panel(
+            create_panel(
                 table,
-                title=f"[bold blue]󰚝 {Path(path).name}[/bold blue] [dim]({display_project})[/dim]",
+                title=f"[bold blue]{Icons.SESSION} {display_project}[/bold blue]",
+                primary=True,
                 title_align="left",
-                border_style="blue",
                 padding=(0, 1),
             )
         )
@@ -308,7 +328,7 @@ def attach(
 
 async def _attach_impl(session_name_or_id):
     ensure_dirs()
-    sid = resolve_session_interactive(session_name_or_id)
+    sid = await _resolve_session_interactive_impl(session_name_or_id)
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
@@ -356,7 +376,7 @@ def fork(
 async def _fork_impl(session, name, no_worktree):
     ensure_dirs()
     cfg = load_config()
-    source_id = resolve_session_interactive(session)
+    source_id = await _resolve_session_interactive_impl(session)
     source = await get_session(source_id)
     if not source:
         raise typer.Exit(1)
@@ -379,7 +399,7 @@ async def _fork_impl(session, name, no_worktree):
         # Create new worktree
         wt_dir_name = new_name.replace("/", "-")
         wt_path = str(Path(source.path) / ".worktrees" / wt_dir_name)
-        new_branch = f"feat/{new_name.replace('/', '-')}"
+        new_branch = _infer_branch_name(new_name)
 
         Path(source.path, ".worktrees").mkdir(parents=True, exist_ok=True)
         try:
@@ -436,7 +456,7 @@ def kill(
 
 async def _kill_impl(session, worktree):
     ensure_dirs()
-    sid = resolve_session_interactive(session)
+    sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
@@ -518,32 +538,38 @@ async def _status_impl():
 
     parts = []
     if counts["running"]:
-        parts.append(f"[green]● {counts['running']} running[/green]")
+        parts.append(f"[green]{get_status_icon('running')} {counts['running']} running[/green]")
     if counts["waiting"]:
-        parts.append(f"[yellow]◉ {counts['waiting']} waiting[/yellow]")
+        parts.append(f"[yellow]{get_status_icon('waiting')} {counts['waiting']} waiting[/yellow]")
     if counts["error"]:
-        parts.append(f"[red]✗ {counts['error']} error[/red]")
+        parts.append(f"[red]{get_status_icon('error')} {counts['error']} error[/red]")
     if counts["idle"]:
-        parts.append(f"○ {counts['idle']} idle")
+        parts.append(f"{get_status_icon('idle')} {counts['idle']} idle")
     if counts["stopped"]:
-        parts.append(f"[dim]◌ {counts['stopped']} stopped[/dim]")
+        parts.append(f"[dim]{get_status_icon('stopped')} {counts['stopped']} stopped[/dim]")
 
-    console.print(Panel(Text.from_markup("  |  ".join(parts)), title="Shoal Status", expand=False))
+    console.print(
+        create_panel(Text.from_markup("  |  ".join(parts)), title="Shoal Status", expand=False)
+    )
 
     # Sessions needing attention
     if counts["waiting"]:
-        console.print("\n[bold yellow]󰀦 Waiting for input:[/bold yellow]")
+        console.print(f"\n[bold yellow]{Icons.STATUS} Waiting for input:[/bold yellow]")
         for s in sessions:
             if s.status.value == "waiting":
                 icon = _get_tool_icon(s.tool)
-                console.print(f"  {icon} [bold]{s.name}[/bold] [dim]→ shoal attach {s.name}[/dim]")
+                console.print(
+                    f"  {icon} [bold]{s.name}[/bold] [dim]{Symbols.ARROW} shoal attach {s.name}[/dim]"
+                )
 
     if counts["error"]:
-        console.print("\n[bold red]󰅚 Errors detected:[/bold red]")
+        console.print(f"\n[bold red]{Icons.ERROR_ICON} Errors detected:[/bold red]")
         for s in sessions:
             if s.status.value == "error":
                 icon = _get_tool_icon(s.tool)
-                console.print(f"  {icon} [bold]{s.name}[/bold] [dim]→ shoal attach {s.name}[/dim]")
+                console.print(
+                    f"  {icon} [bold]{s.name}[/bold] [dim]{Symbols.ARROW} shoal attach {s.name}[/dim]"
+                )
 
     console.print("\n[dim]Use 'shoal ls' for a full list or 'shoal info <name>' for details.[/dim]")
 
@@ -692,7 +718,6 @@ async def _info_impl(session_name_or_id):
         icon = _get_tool_icon(s.tool)
         tool_cfg = None
 
-    from rich.panel import Panel
     from rich.columns import Columns
 
     status_style = get_status_style(s.status.value)
@@ -702,43 +727,44 @@ async def _info_impl(session_name_or_id):
     )
 
     details = Table.grid(padding=(0, 2))
-    details.add_column(style="bold cyan")
+    details.add_column(style=Colors.HEADER_PRIMARY)
     details.add_column()
 
-    details.add_row("󰚝 ID", s.id)
+    details.add_row(f"{Icons.SESSION} ID", s.id)
     details.add_row(f"{icon} Name", f"[bold]{s.name}[/bold]")
-    details.add_row("󰏗 Tool", s.tool)
-    details.add_row("󰀦 Status", status_text)
-    details.add_row("󰃭 Created", s.created_at.strftime("%Y-%m-%d %H:%M:%S"))
-    details.add_row("󰥔 Activity", s.last_activity.strftime("%Y-%m-%d %H:%M:%S"))
+    details.add_row(f"{Icons.TOOL} Tool", s.tool)
+    details.add_row(f"{Icons.STATUS} Status", status_text)
+    details.add_row(f"{Icons.DATE} Created", s.created_at.strftime("%Y-%m-%d %H:%M:%S"))
+    details.add_row(f"{Icons.ACTIVITY} Activity", s.last_activity.strftime("%Y-%m-%d %H:%M:%S"))
 
     paths = Table.grid(padding=(0, 2))
-    paths.add_column(style="bold green")
+    paths.add_column(style=Colors.HEADER_SECONDARY)
     paths.add_column()
-    paths.add_row("󱂵 Git Root", s.path)
-    paths.add_row("󱉭 Worktree", s.worktree or "[dim](none)[/dim]")
-    paths.add_row("󰘬 Branch", f"[magenta]{s.branch or '-'}[/magenta]")
+    paths.add_row(f"{Icons.GIT_ROOT} Git Root", s.path)
+    paths.add_row(f"{Icons.WORKTREE} Worktree", s.worktree or "[dim](none)[/dim]")
+    paths.add_row(f"{Icons.BRANCH} Branch", f"[magenta]{s.branch or '-'}[/magenta]")
 
     runtime = Table.grid(padding=(0, 2))
-    runtime.add_column(style="bold yellow")
+    runtime.add_column(style=Colors.HEADER_WARNING)
     runtime.add_column()
-    runtime.add_row("󰒋 Tmux", f"[dim]session:[/dim] {s.tmux_session}")
+    runtime.add_row(f"{Icons.TMUX} Tmux", f"[dim]session:[/dim] {s.tmux_session}")
     runtime.add_row(" ", f"[dim]window:[/dim] {s.tmux_window}")
-    runtime.add_row("󰆍 PID", str(s.pid) if s.pid else "[dim]N/A[/dim]")
-    runtime.add_row("󰒔 MCP", ", ".join(s.mcp_servers) if s.mcp_servers else "[dim](none)[/dim]")
+    runtime.add_row(f"{Icons.PID} PID", str(s.pid) if s.pid else "[dim]N/A[/dim]")
+    runtime.add_row(
+        f"{Icons.MCP} MCP", ", ".join(s.mcp_servers) if s.mcp_servers else "[dim](none)[/dim]"
+    )
 
     console.print(
-        Panel(
+        create_panel(
             Columns([details, paths, runtime], expand=True),
-            title=f"[bold blue]󰚝 Session: {s.name}[/bold blue]",
+            title=f"[bold blue]{Icons.SESSION} Session: {s.name}[/bold blue]",
             title_align="left",
-            border_style="dim",
             padding=(1, 2),
         )
     )
 
     if tmux.has_session(s.tmux_session):
-        console.print("\n[bold]󰆍 Recent Output:[/bold]")
+        console.print(f"\n[bold]{Icons.OUTPUT} Recent Output:[/bold]")
         content = tmux.capture_pane(s.tmux_session)
         if content:
             from rich.syntax import Syntax
@@ -746,7 +772,7 @@ async def _info_impl(session_name_or_id):
             # Show last 10 lines
             lines = content.splitlines()[-10:]
             preview = "\n".join(lines)
-            console.print(Panel(preview, border_style="dim", padding=(0, 1)))
+            console.print(create_panel(preview, padding=(0, 1)))
         else:
             console.print("  [dim](no output captured)[/dim]")
 
