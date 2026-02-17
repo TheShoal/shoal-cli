@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import typer
 
 import shoal
@@ -36,6 +37,16 @@ app = typer.Typer(
     no_args_is_help=True,
     rich_markup_mode="rich",
 )
+
+
+@app.callback()
+def main(
+    debug: bool = typer.Option(False, "--debug", help="Enable DEBUG-level logging to stderr."),
+) -> None:
+    """Orchestrate AI coding agents."""
+    if debug:
+        logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(name)s: %(message)s")
+
 
 # Session commands — top-level
 app.command("new")(add)  # Primary command
@@ -81,22 +92,19 @@ def version() -> None:
     print(f"shoal {shoal.__version__}")
 
 
-@app.command()
-def init() -> None:
-    """Initialize Shoal configuration and directories."""
-    from shoal.core.config import ensure_dirs, config_dir
+def _check_environment() -> None:
+    """Shared helper: display dependency check and directory status."""
     import shutil
-    from pathlib import Path
-
-    ensure_dirs()
 
     from rich.console import Console
-    from rich.panel import Panel
     from rich.table import Table
-    from shoal.core.theme import Colors, Icons, Symbols, create_panel, create_table
+
+    from shoal.core.config import config_dir, state_dir, runtime_dir
+    from shoal.core.theme import Icons, Symbols, create_panel, create_table
 
     console = Console()
 
+    # Dependency check
     table = create_table(padding=(0, 2))
     table.add_column("Tool", width=20)
     table.add_column("Status", width=12)
@@ -125,10 +133,7 @@ def init() -> None:
         )
     )
 
-    # Check dirs
-    from shoal.core.config import config_dir, state_dir, runtime_dir
-    from rich.text import Text
-
+    # Directory check
     dir_info = Table.grid(padding=(0, 2))
     dir_info.add_column(style="bold cyan")
     dir_info.add_column()
@@ -149,68 +154,23 @@ def init() -> None:
         )
     )
 
-    console.print("\n[green]Shoal initialized successfully![/green]")
+
+@app.command()
+def init() -> None:
+    """Initialize Shoal configuration and directories."""
+    from rich.console import Console
+
+    from shoal.core.config import ensure_dirs
+
+    ensure_dirs()
+    _check_environment()
+    Console().print("\n[green]Shoal initialized successfully![/green]")
 
 
 @app.command()
 def check() -> None:
     """Check dependencies and environment."""
-    from shoal.core.config import ensure_dirs, config_dir, state_dir, runtime_dir
-    import shutil
-    from rich.console import Console
-    from rich.table import Table
-    from shoal.core.theme import Icons, Symbols, create_panel, create_table
-
-    console = Console()
-
-    table = create_table(padding=(0, 2))
-    table.add_column("Tool", width=20)
-    table.add_column("Status", width=12)
-    table.add_column("Notes")
-
-    dependencies = [
-        ("tmux", "Required for session management"),
-        ("git", "Required for project/worktree management"),
-        ("fzf", "Required for interactive picking"),
-        ("socat", "Required for MCP pooling"),
-        ("gh", "Optional: for 'wt finish --pr'"),
-        ("nvr", "Optional: for neovim integration"),
-    ]
-
-    for tool, note in dependencies:
-        path = shutil.which(tool)
-        marker = f"[green]{Symbols.CHECK}[/green]" if path else f"[red]{Symbols.CROSS}[/red]"
-        status = f"{marker} {'OK' if path else 'Missing'}"
-        table.add_row(tool, status, f"[dim]{note}[/dim]")
-
-    console.print(
-        create_panel(
-            table,
-            title=f"[bold blue]{Icons.DEPENDENCY} Dependency Check[/bold blue]",
-            title_align="left",
-        )
-    )
-
-    # Check dirs
-    dir_info = Table.grid(padding=(0, 2))
-    dir_info.add_column(style="bold cyan")
-    dir_info.add_column()
-
-    for name, path in [
-        ("Config", config_dir()),
-        ("State", state_dir()),
-        ("Runtime", runtime_dir()),
-    ]:
-        exists = "[green]exists[/green]" if path.exists() else "[yellow]not created[/yellow]"
-        dir_info.add_row(name, f"{path} [dim]({exists})[/dim]")
-
-    console.print(
-        create_panel(
-            dir_info,
-            title=f"[bold blue]{Icons.DIRECTORY} Directories[/bold blue]",
-            title_align="left",
-        )
-    )
+    _check_environment()
 
 
 @app.command("_popup-inner", hidden=True)
