@@ -25,6 +25,7 @@ def test_is_git_repo_true(tmp_path):
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
 
 
@@ -61,6 +62,7 @@ def test_git_root(tmp_path):
             capture_output=True,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -81,6 +83,7 @@ def test_main_branch_main(tmp_path):
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
 
 
@@ -111,6 +114,7 @@ def test_worktree_add(tmp_path):
             capture_output=True,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -131,6 +135,7 @@ def test_worktree_add_no_branch(tmp_path):
             capture_output=True,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -153,6 +158,7 @@ def test_worktree_remove(tmp_path):
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
 
 
@@ -173,6 +179,7 @@ def test_checkout(tmp_path):
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
 
 
@@ -193,6 +200,7 @@ def test_merge(tmp_path):
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
 
 
@@ -213,6 +221,7 @@ def test_push(tmp_path):
             capture_output=True,
             text=True,
             check=False,
+            timeout=120,
         )
 
 
@@ -233,4 +242,5 @@ def test_branch_delete(tmp_path):
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )

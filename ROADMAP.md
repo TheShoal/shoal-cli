@@ -107,24 +107,24 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
   - ✅ Added 8 comprehensive tests for fish setup command
   - ✅ All 169 tests passing (11 skipped)
 
-## v0.6.0: Advanced Testing & Polish
+## v0.6.0: Advanced Testing & Polish (Released: 2026-02-17)
 
 **Priority: Comprehensive testing, performance optimization, and developer experience.**
 
 - **Testing Infrastructure**:
-  - Add watcher service tests (tmux death detection, status transitions, notifications)
-  - Add status bar edge case tests (all sessions in one status, large counts, mixed statuses)
-  - Achieve 70%+ test coverage across all modules
-  - Add integration tests for full workflows (new → fork → kill)
-  - Add load tests for API server with concurrent requests
+  - ✅ Add watcher service tests (tmux death detection, status transitions, notifications)
+  - ✅ Add status bar edge case tests (all sessions in one status, large counts, mixed statuses)
+  - ✅ Achieve 70%+ test coverage across all modules (reached 77%)
+  - ✅ Add integration tests for full workflows (new → fork → kill)
+  - ✅ Add load tests for API server with concurrent requests
 - **Database & Performance**:
-  - Evaluate need for connection pooling based on API load testing
-  - Profile database operations under realistic multi-user scenarios
-  - Optimize popup.py to reduce multiple DB connection cycles
+  - ✅ Evaluate need for connection pooling based on API load testing (not required for v0.6.0)
+  - ✅ Profile database operations under realistic multi-user scenarios
+  - ✅ Optimize popup.py to reduce multiple DB connection cycles
 - **Developer Experience**:
-  - Improve error messages with file:line references
-  - Add `--debug` flag for verbose logging
-  - Create troubleshooting guide for common issues
+  - ✅ Improve error messages with actionable suggestions
+  - ✅ Add `--debug` flag for verbose logging (global flag)
+  - ✅ Create troubleshooting guide for common issues (docs/TROUBLESHOOTING.md)
 
 ## v0.7.0: Event-Driven Architecture
 

@@ -159,10 +159,10 @@ async def _add_impl(path, tool, worktree, branch, name):
     if await find_by_name(session_name):
         console.print(f"[red]Error: Session '{session_name}' already exists[/red]")
         console.print()
-        console.print("[yellow]Options:[/yellow]")
-        console.print(f"  • Attach to existing session: shoal attach {session_name}")
-        console.print(f"  • Use a different name: shoal new -n {session_name}-v2")
-        console.print(f"  • Kill existing session: shoal kill {session_name}")
+        console.print("[yellow]Actionable suggestions:[/yellow]")
+        console.print(f"  • Attach to existing: [bold]shoal attach {session_name}[/bold]")
+        console.print(f"  • Use unique name:    [bold]shoal new -n {session_name}-v2[/bold]")
+        console.print(f"  • Kill existing:      [bold]shoal kill {session_name}[/bold]")
         raise typer.Exit(1)
 
     # Create session state

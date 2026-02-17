@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shoal"
-version = "0.5.0"
+version = "0.6.0"
 description = "Terminal-first orchestration for parallel AI coding agents"
 readme = "README.md"
 license = {text = "Proprietary"}
@@ -64,6 +64,6 @@ source = ["src/shoal"]
 omit = ["*/tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
-fail_under = 57
+fail_under = 70
 show_missing = true
 skip_covered = false

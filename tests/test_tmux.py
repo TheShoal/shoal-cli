@@ -20,6 +20,7 @@ def test_has_session_true():
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
 
 
@@ -45,6 +46,7 @@ def test_new_session():
             capture_output=True,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -60,6 +62,7 @@ def test_new_session_no_cwd():
             capture_output=True,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -75,6 +78,7 @@ def test_kill_session():
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
 
 
@@ -90,6 +94,7 @@ def test_send_keys():
             capture_output=True,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -105,6 +110,7 @@ def test_switch_client():
             capture_output=True,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -135,6 +141,7 @@ def test_set_environment():
             capture_output=True,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -150,6 +157,7 @@ def test_popup():
             capture_output=False,
             text=True,
             check=True,
+            timeout=30,
         )
 
 
@@ -165,4 +173,5 @@ def test_popup_custom_size():
             capture_output=False,
             text=True,
             check=True,
+            timeout=30,
         )

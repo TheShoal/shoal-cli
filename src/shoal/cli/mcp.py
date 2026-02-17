@@ -105,7 +105,13 @@ def mcp_start(
 
     if is_mcp_running(name):
         pid = read_pid(name)
-        console.print(f"[red]MCP server '{name}' is already running (pid: {pid})[/red]")
+        console.print(f"[red]Error: MCP server '{name}' is already running (pid: {pid})[/red]")
+        console.print()
+        console.print("[yellow]Actionable suggestions:[/yellow]")
+        console.print(f"  • Use existing server: [bold]shoal mcp attach <session> {name}[/bold]")
+        console.print(
+            f"  • Restart server:      [bold]shoal mcp stop {name} && shoal mcp start {name}[/bold]"
+        )
         raise typer.Exit(1)
 
     try:
@@ -163,12 +169,21 @@ async def _mcp_attach_impl(session, mcp_name):
 
     socket = mcp_socket(mcp_name)
     if not socket.exists():
-        console.print(f"[red]MCP server '{mcp_name}' is not running[/red]")
-        console.print(f"Start it with: shoal mcp start {mcp_name}")
+        console.print(f"[red]Error: MCP server '{mcp_name}' is not running[/red]")
+        console.print()
+        console.print("[yellow]Actionable suggestions:[/yellow]")
+        console.print(f"  • Start the server: [bold]shoal mcp start {mcp_name}[/bold]")
         raise typer.Exit(1)
 
     if not is_mcp_running(mcp_name):
-        console.print(f"[red]MCP server '{mcp_name}' has a stale socket (process dead)[/red]")
+        console.print(
+            f"[red]Error: MCP server '{mcp_name}' has a stale socket (process dead)[/red]"
+        )
+        console.print()
+        console.print("[yellow]Actionable suggestions:[/yellow]")
+        console.print(
+            f"  • Restart the server: [bold]shoal mcp stop {mcp_name} && shoal mcp start {mcp_name}[/bold]"
+        )
         raise typer.Exit(1)
 
     await add_mcp_to_session(sid, mcp_name)

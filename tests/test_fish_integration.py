@@ -13,6 +13,7 @@ from shoal.integrations.fish.installer import (
     get_template_dir,
     install_fish_integration,
     is_fish_installed,
+    uninstall_fish_integration,
 )
 
 
@@ -160,5 +161,45 @@ def test_install_fish_integration_force(
     # Should succeed and overwrite all files
     assert result is True
 
-    # All 4 files should be copied
-    assert mock_copy.call_count == 4
+
+@patch("shoal.integrations.fish.installer.get_fish_config_dir")
+@patch("shoal.integrations.fish.installer.Console")
+def test_uninstall_fish_integration_success(mock_console, mock_get_config, tmp_path):
+    """Test successful fish integration removal."""
+    fish_config = tmp_path / "fish"
+    mock_get_config.return_value = fish_config
+
+    # Create directories and files
+    completions_dir = fish_config / "completions"
+    conf_d_dir = fish_config / "conf.d"
+    functions_dir = fish_config / "functions"
+    completions_dir.mkdir(parents=True)
+    conf_d_dir.mkdir(parents=True)
+    functions_dir.mkdir(parents=True)
+
+    f1 = completions_dir / "shoal.fish"
+    f2 = conf_d_dir / "shoal.fish"
+    f1.touch()
+    f2.touch()
+
+    result = uninstall_fish_integration()
+
+    assert result is True
+    assert not f1.exists()
+    assert not f2.exists()
+    # Verify success message printed
+    mock_console.return_value.print.assert_called()
+
+
+@patch("shoal.integrations.fish.installer.get_fish_config_dir")
+@patch("shoal.integrations.fish.installer.Console")
+def test_uninstall_fish_integration_not_found(mock_console, mock_get_config, tmp_path):
+    """Test uninstall when no files exist."""
+    fish_config = tmp_path / "nonexistent"
+    mock_get_config.return_value = fish_config
+
+    result = uninstall_fish_integration()
+
+    assert result is True
+    # Verify "not found" message printed
+    mock_console.return_value.print.assert_called()

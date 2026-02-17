@@ -255,11 +255,79 @@ class TestRename:
         assert "must contain only" in result.output
 
 
+class TestKill:
+    def test_kill_success(self, mock_dirs):
+        from shoal.core.state import create_session, get_session
+
+        s = asyncio.run(create_session("to-kill", "claude", "/tmp/repo"))
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch("shoal.core.tmux.kill_session") as mock_tmux_kill,
+        ):
+            result = runner.invoke(app, ["kill", "to-kill"])
+            assert result.exit_code == 0
+            assert "Session 'to-kill' (" in result.output
+            assert "removed" in result.output
+            mock_tmux_kill.assert_called_once_with(s.tmux_session)
+
+        assert asyncio.run(get_session(s.id)) is None
+
+    def test_kill_not_found(self, mock_dirs):
+        result = runner.invoke(app, ["kill", "nonexistent"])
+        assert result.exit_code == 1
+        assert "Session not found" in result.output
+
+    def test_kill_worktree(self, mock_dirs):
+        from shoal.core.state import create_session
+
+        s = asyncio.run(
+            create_session("wt-session", "claude", "/tmp/repo", worktree="/tmp/repo/.worktrees/wt")
+        )
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.git.worktree_remove", return_value=True) as mock_wt_remove,
+            patch("pathlib.Path.is_dir", return_value=True),
+        ):
+            result = runner.invoke(app, ["kill", "wt-session", "--worktree"])
+            assert result.exit_code == 0
+            assert "Removed worktree" in result.output
+            mock_wt_remove.assert_called_once()
+
+
 class TestLogs:
     def test_logs_not_found(self, mock_dirs):
         result = runner.invoke(app, ["logs", "nonexistent"])
         assert result.exit_code == 1
         assert "Session not found" in result.output
+
+    def test_logs_success(self, mock_dirs):
+        from shoal.core.state import create_session
+
+        asyncio.run(create_session("logs-session", "claude", "/tmp/repo"))
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch("shoal.core.tmux.capture_pane", return_value="hello world") as mock_capture,
+        ):
+            result = runner.invoke(app, ["logs", "logs-session"])
+            assert result.exit_code == 0
+            assert "hello world" in result.output
+            mock_capture.assert_called_once()
+
+
+class TestAttach:
+    def test_attach_tmux_missing(self, mock_dirs):
+        from shoal.core.state import create_session
+
+        asyncio.run(create_session("missing-tmux", "claude", "/tmp/repo"))
+
+        with patch("shoal.core.tmux.has_session", return_value=False):
+            result = runner.invoke(app, ["attach", "missing-tmux"])
+            assert result.exit_code == 1
+            assert "Tmux session" in result.output
+            assert "not found" in result.output
 
 
 class TestCheck:

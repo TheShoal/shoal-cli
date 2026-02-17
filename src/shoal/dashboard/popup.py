@@ -10,12 +10,14 @@ from shoal.core.config import load_tool_config
 from shoal.core.state import get_session, list_sessions, _get_tool_icon
 
 
-async def _build_entries() -> list[str]:
-    """Build session list entries for fzf."""
+async def _build_entries() -> tuple[list[str], dict[str, str]]:
+    """Build session list entries for fzf and a lookup for tmux session names."""
     entries: list[str] = []
+    lookup: dict[str, str] = {}
     sessions = await list_sessions()
     for session in sessions:
         icon = _get_tool_icon(session.tool)
+        lookup[session.id] = session.tmux_session
 
         branch = session.branch or "-"
         if session.last_activity:
@@ -26,14 +28,14 @@ async def _build_entries() -> list[str]:
         entries.append(
             f"{session.id}\t{icon} {session.name}\t{session.tool}\t{status}\t{branch}\t{last}"
         )
-    return entries
+    return entries, lookup
 
 
 def run_popup() -> None:
     """Run the interactive fzf dashboard."""
     from shoal.core.db import with_db
 
-    entries = asyncio.run(with_db(_build_entries()))
+    entries, lookup = asyncio.run(with_db(_build_entries()))
 
     if not entries:
         print("No sessions. Create one with: shoal new")
@@ -68,18 +70,16 @@ def run_popup() -> None:
     )
 
     if result.returncode == 0 and result.stdout.strip():
-        from shoal.core.db import with_db
-
         selected_id = result.stdout.strip().split("\t")[0]
-        s = asyncio.run(with_db(get_session(selected_id)))
-        if s and tmux.has_session(s.tmux_session):
-            tmux.switch_client(s.tmux_session)
+        tmux_session = lookup.get(selected_id)
+        if tmux_session and tmux.has_session(tmux_session):
+            tmux.switch_client(tmux_session)
 
 
 def print_popup_list() -> None:
     """Print session list for fzf reload."""
     from shoal.core.db import with_db
 
-    entries = asyncio.run(with_db(_build_entries()))
+    entries, _ = asyncio.run(with_db(_build_entries()))
     for line in entries:
         print(line)

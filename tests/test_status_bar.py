@@ -29,9 +29,47 @@ class TestGenerateStatus:
         await update_session(s.id, status=SessionStatus.stopped)
 
         # Stopped sessions don't affect the count of running/idle/waiting/error
-        # The result should show all counts as 0
+        # The result should be empty since no active sessions exist
+        assert await generate_status() == ""
+
+    @pytest.mark.asyncio
+    async def test_all_same_status(self, mock_dirs):
+        """Only one segment should be rendered if all sessions have the same status."""
+        from shoal.core.state import create_session, update_session
+
+        s1 = await create_session("s1", "claude", "/tmp")
+        await update_session(s1.id, status=SessionStatus.running)
+        s2 = await create_session("s2", "claude", "/tmp")
+        await update_session(s2.id, status=SessionStatus.running)
+
         result = await generate_status()
-        assert "1" not in result
+        assert "● 2" in result
+        assert "○" not in result
+        assert "◉" not in result
+        assert "✗" not in result
+
+    @pytest.mark.asyncio
+    async def test_large_session_count(self, mock_dirs):
+        """Status bar should correctly handle large session counts."""
+        from shoal.core.state import create_session, update_session
+
+        # Add 100 running sessions
+        for i in range(100):
+            s = await create_session(f"s{i}", "claude", "/tmp")
+            await update_session(s.id, status=SessionStatus.running)
+
+        result = await generate_status()
+        assert "● 100" in result
+
+    @pytest.mark.asyncio
+    async def test_all_stopped(self, mock_dirs):
+        """Status bar should be empty if all sessions are stopped."""
+        from shoal.core.state import create_session, update_session
+
+        s1 = await create_session("s1", "claude", "/tmp")
+        await update_session(s1.id, status=SessionStatus.stopped)
+
+        assert await generate_status() == ""
 
     @pytest.mark.asyncio
     async def test_waiting_style(self, mock_dirs):

@@ -24,17 +24,23 @@ async def generate_status() -> str:
             counts["unknown"] += 1
 
     # Build status segments for active statuses (running, idle, waiting, error).
+    # Only include segments with non-zero counts to keep the status bar compact.
     # Stopped and unknown sessions are intentionally excluded from the status bar
     # because they represent inactive sessions and would add noise to the display.
     segments = []
     for status_key in ["running", "idle", "waiting", "error"]:
-        style = STATUS_STYLES[status_key]
-        segment = tmux_status_segment(
-            icon=style.icon,
-            count=counts[status_key],
-            color=style.tmux,
-        )
-        segments.append(segment)
+        count = counts[status_key]
+        if count > 0:
+            style = STATUS_STYLES[status_key]
+            segment = tmux_status_segment(
+                icon=style.icon,
+                count=count,
+                color=style.tmux,
+            )
+            segments.append(segment)
+
+    if not segments:
+        return ""
 
     return " ".join(segments) + "#[default]"
 

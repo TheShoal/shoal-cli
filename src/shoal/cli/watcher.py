@@ -47,7 +47,11 @@ def watcher_start(
 
     existing = _read_pid()
     if existing:
-        console.print(f"Watcher already running (pid: {existing})")
+        console.print(f"[red]Error: Watcher already running (pid: {existing})[/red]")
+        console.print()
+        console.print("[yellow]Actionable suggestions:[/yellow]")
+        console.print(f"  • Check status: [bold]shoal watcher status[/bold]")
+        console.print(f"  • Stop watcher: [bold]shoal watcher stop[/bold]")
         raise typer.Exit(1)
 
     if foreground:
@@ -76,7 +80,10 @@ def watcher_stop() -> None:
     """Stop the background watcher."""
     pid = _read_pid()
     if not pid:
-        console.print("Watcher is not running")
+        console.print("[red]Error: Watcher is not running[/red]")
+        console.print()
+        console.print("[yellow]Actionable suggestions:[/yellow]")
+        console.print(f"  • Start watcher: [bold]shoal watcher start[/bold]")
         raise typer.Exit(1)
 
     os.kill(pid, signal.SIGTERM)
