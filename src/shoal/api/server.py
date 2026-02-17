@@ -349,8 +349,10 @@ async def create_session_api(data: SessionCreate):
         )
         tmux.run_command(interpolated)
 
+    tmux.set_pane_title(tmux_session, f"shoal:{session.id}")
+
     await update_session(session.id, status=SessionStatus.running)
-    pane = tmux.pane_pid(tmux_session)
+    pane = tmux.pane_pid(tmux.preferred_pane(tmux_session, f"shoal:{session.id}"))
     if pane:
         await update_session(session.id, pid=pane)
 

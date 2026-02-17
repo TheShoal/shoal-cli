@@ -68,9 +68,58 @@ def send_keys(target: str, keys: str, *, enter: bool = True) -> None:
     _run(args)
 
 
-def capture_pane(target: str, lines: int = 20) -> str:
-    result = _run(["capture-pane", "-t", target, "-p", "-S", f"-{lines}"], check=False)
+def capture_pane(target: str, lines: int = 20, include_ansi: bool = False) -> str:
+    args = ["capture-pane", "-t", target, "-p", "-S", f"-{lines}"]
+    if include_ansi:
+        args.append("-e")
+    result = _run(args, check=False)
     return result.stdout if result.returncode == 0 else ""
+
+
+def list_panes(target: str) -> list[dict[str, str]]:
+    result = _run(
+        [
+            "list-panes",
+            "-t",
+            target,
+            "-F",
+            "#{pane_id}\t#{pane_title}\t#{pane_current_command}\t#{pane_active}",
+        ],
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    panes: list[dict[str, str]] = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 4:
+            continue
+        pane_id, title, command, active = parts
+        panes.append(
+            {
+                "id": pane_id,
+                "title": title,
+                "command": command,
+                "active": active,
+            }
+        )
+    return panes
+
+
+def preferred_pane(session: str, title: str | None = None) -> str:
+    panes = list_panes(session)
+    if title:
+        for pane in panes:
+            if pane["title"] == title:
+                return pane["id"]
+    for pane in panes:
+        if pane["active"] == "1":
+            return pane["id"]
+    return session
+
+
+def set_pane_title(target: str, title: str) -> None:
+    _run(["select-pane", "-t", target, "-T", title], check=False)
 
 
 def pane_pid(target: str) -> int | None:

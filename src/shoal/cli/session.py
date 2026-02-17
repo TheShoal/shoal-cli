@@ -209,10 +209,12 @@ async def _add_impl(path, tool, worktree, branch, name):
             continue
         tmux.run_command(interpolated)
 
+    tmux.set_pane_title(tmux_session, f"shoal:{session.id}")
+
     # Update state
     await update_session(session.id, status=SessionStatus.running)
 
-    pane = tmux.pane_pid(tmux_session)
+    pane = tmux.pane_pid(tmux.preferred_pane(tmux_session, f"shoal:{session.id}"))
     if pane:
         await update_session(session.id, pid=pane)
 
@@ -456,6 +458,8 @@ async def _fork_impl(session, name, no_worktree):
             continue
         tmux.run_command(interpolated)
 
+    tmux.set_pane_title(tmux_session, f"shoal:{new_session.id}")
+
     await update_session(new_session.id, status=SessionStatus.running)
 
     console.print(f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})")
@@ -650,9 +654,19 @@ def popup() -> None:
 
 def info(
     session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,
+    color: Annotated[
+        str,
+        typer.Option(
+            "--color",
+            help="Color output: auto, always, never",
+        ),
+    ] = "auto",
 ) -> None:
     """Show detailed information about a session."""
-    asyncio.run(with_db(_info_impl(session)))
+    color_setting = color.lower()
+    if color_setting not in {"auto", "always", "never"}:
+        raise typer.BadParameter("Color must be one of: auto, always, never")
+    asyncio.run(with_db(_info_impl(session, color_setting)))
 
 
 def rename(
@@ -667,12 +681,22 @@ def logs(
     session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,
     lines: Annotated[int, typer.Option("--lines", "-n", help="Number of lines to show")] = 20,
     tail: Annotated[bool, typer.Option("--tail", "-f", help="Follow the logs")] = False,
+    color: Annotated[
+        str,
+        typer.Option(
+            "--color",
+            help="Color output: auto, always, never",
+        ),
+    ] = "auto",
 ) -> None:
     """Show recent output from a session."""
-    asyncio.run(with_db(_logs_impl(session, lines, tail)))
+    color_setting = color.lower()
+    if color_setting not in {"auto", "always", "never"}:
+        raise typer.BadParameter("Color must be one of: auto, always, never")
+    asyncio.run(with_db(_logs_impl(session, lines, tail, color_setting)))
 
 
-async def _logs_impl(session_name_or_id, lines, tail):
+async def _logs_impl(session_name_or_id, lines, tail, color_setting):
     ensure_dirs()
     from shoal.core.state import resolve_session
 
@@ -690,9 +714,24 @@ async def _logs_impl(session_name_or_id, lines, tail):
         console.print(f"[red]Tmux session '{s.tmux_session}' not found[/red]")
         raise typer.Exit(1)
 
+    if color_setting == "always":
+        logs_console = Console(force_terminal=True, color_system="truecolor")
+    elif color_setting == "never":
+        logs_console = Console(no_color=True)
+    else:
+        logs_console = console
+
+    include_ansi = color_setting == "always"
+    pane_target = tmux.preferred_pane(s.tmux_session, f"shoal:{s.id}")
+
     if not tail:
-        content = tmux.capture_pane(s.tmux_session, lines=lines)
-        console.print(content)
+        content = tmux.capture_pane(pane_target, lines=lines, include_ansi=include_ansi)
+        if include_ansi:
+            from rich.text import Text
+
+            logs_console.print(Text.from_ansi(content))
+        else:
+            logs_console.print(content)
     else:
         # Tailing tmux pane output is tricky without a dedicated tool,
         # but we can do a simple loop or use 'tmux pipe-pane'.
@@ -702,7 +741,11 @@ async def _logs_impl(session_name_or_id, lines, tail):
         last_content = ""
         try:
             while True:
-                content = tmux.capture_pane(s.tmux_session, lines=lines)
+                content = tmux.capture_pane(
+                    pane_target,
+                    lines=lines,
+                    include_ansi=include_ansi,
+                )
                 if content != last_content:
                     # Clear screen and show new content, or just show diff
                     # Simplest: just print it if it changed
@@ -712,9 +755,19 @@ async def _logs_impl(session_name_or_id, lines, tail):
                         # This is a very naive tail
                         for line in new_lines[len(old_lines) - 1 :]:
                             if line not in old_lines:
-                                console.print(line)
+                                if include_ansi:
+                                    from rich.text import Text
+
+                                    logs_console.print(Text.from_ansi(line))
+                                else:
+                                    logs_console.print(line)
                     else:
-                        console.print(content)
+                        if include_ansi:
+                            from rich.text import Text
+
+                            logs_console.print(Text.from_ansi(content))
+                        else:
+                            logs_console.print(content)
                     last_content = content
                 await asyncio.sleep(1)
         except KeyboardInterrupt:
@@ -759,7 +812,7 @@ async def _rename_impl(old_name, new_name):
     console.print(f"Renamed session: {s.name} → {new_name}")
 
 
-async def _info_impl(session_name_or_id):
+async def _info_impl(session_name_or_id, color_setting):
     ensure_dirs()
     from shoal.core.state import resolve_session
 
@@ -818,7 +871,14 @@ async def _info_impl(session_name_or_id):
         f"{Icons.MCP} MCP", ", ".join(s.mcp_servers) if s.mcp_servers else "[dim](none)[/dim]"
     )
 
-    console.print(
+    if color_setting == "always":
+        info_console = Console(force_terminal=True, color_system="truecolor")
+    elif color_setting == "never":
+        info_console = Console(no_color=True)
+    else:
+        info_console = console
+
+    info_console.print(
         create_panel(
             Columns([details, paths, runtime], expand=True),
             title=f"[bold blue]{Icons.SESSION} Session: {s.name}[/bold blue]",
@@ -828,17 +888,34 @@ async def _info_impl(session_name_or_id):
     )
 
     if tmux.has_session(s.tmux_session):
-        console.print(f"\n[bold]{Icons.OUTPUT} Recent Output:[/bold]")
-        content = tmux.capture_pane(s.tmux_session)
+        info_console.print(f"\n[bold]{Icons.OUTPUT} Recent Output:[/bold]")
+        include_ansi = color_setting == "always"
+        preview_lines = 15
+        skip_lines = 10
+        capture_lines = preview_lines * 6 if include_ansi else 20
+        pane_target = tmux.preferred_pane(s.tmux_session, f"shoal:{s.id}")
+        content = tmux.capture_pane(
+            pane_target,
+            lines=capture_lines,
+            include_ansi=include_ansi,
+        )
         if content:
-            from rich.syntax import Syntax
-
-            # Show last 10 lines
-            lines = content.splitlines()[-10:]
+            lines = content.splitlines()
+            while lines and not lines[-1].strip():
+                lines.pop()
+            if include_ansi and len(lines) > skip_lines:
+                lines = lines[:-skip_lines]
+            lines = lines[-preview_lines:]
             preview = "\n".join(lines)
-            console.print(create_panel(preview, padding=(0, 1)))
+            if include_ansi:
+                from rich.text import Text
+
+                preview_renderable = Text.from_ansi(preview)
+            else:
+                preview_renderable = preview
+            info_console.print(create_panel(preview_renderable, padding=(0, 1)))
         else:
-            console.print("  [dim](no output captured)[/dim]")
+            info_console.print("  [dim](no output captured)[/dim]")
 
 
 def _popup_inner_impl() -> None:

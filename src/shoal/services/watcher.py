@@ -75,7 +75,8 @@ class Watcher:
                 continue
 
             # 2. Verify PID if we have one
-            current_pane_pid = tmux.pane_pid(session.tmux_session)
+            pane_target = tmux.preferred_pane(session.tmux_session, f"shoal:{session.id}")
+            current_pane_pid = tmux.pane_pid(pane_target)
             if session.pid and session.pid != current_pane_pid:
                 # PID changed (e.g. process restarted in same pane)
                 logger.info(
@@ -87,7 +88,7 @@ class Watcher:
                 await update_session(session.id, pid=current_pane_pid)
 
             # 3. Capture pane content
-            pane_content = tmux.capture_pane(session.tmux_session, lines=20)
+            pane_content = tmux.capture_pane(pane_target, lines=20)
             if not pane_content:
                 continue
 
