@@ -22,14 +22,19 @@ import subprocess
 
 
 def _run(
-    args: list[str], *, check: bool = True, capture: bool = True
+    args: list[str], *, check: bool = True, capture: bool = True, timeout: int = 30
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["tmux", *args],
-        capture_output=capture,
-        text=True,
-        check=check,
-    )
+    try:
+        return subprocess.run(
+            ["tmux", *args],
+            capture_output=capture,
+            text=True,
+            check=check,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        cmd_name = args[0] if args else "unknown"
+        raise TimeoutError(f"tmux {cmd_name} timed out after {timeout}s") from None
 
 
 def has_session(name: str) -> bool:

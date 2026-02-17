@@ -6,15 +6,20 @@ import subprocess
 
 
 def _run(
-    args: list[str], *, cwd: str | None = None, check: bool = True
+    args: list[str], *, cwd: str | None = None, check: bool = True, timeout: int = 30
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=check,
-    )
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=check,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        cmd_name = args[0] if args else "unknown"
+        raise TimeoutError(f"git {cmd_name} timed out after {timeout}s") from None
 
 
 def is_git_repo(path: str) -> bool:
@@ -75,14 +80,12 @@ def push(repo: str, branch: str, *, set_upstream: bool = False) -> bool:
         args.extend(["-u", "origin", branch])
     else:
         args.extend(["origin", branch])
-    result = _run(args, cwd=repo, check=False)
+    result = _run(args, cwd=repo, check=False, timeout=120)
     return result.returncode == 0
 
 
 def main_branch(repo: str) -> str:
-    result = _run(
-        ["symbolic-ref", "refs/remotes/origin/HEAD"], cwd=repo, check=False
-    )
+    result = _run(["symbolic-ref", "refs/remotes/origin/HEAD"], cwd=repo, check=False)
     if result.returncode == 0 and result.stdout.strip():
         return result.stdout.strip().replace("refs/remotes/origin/", "")
     return "main"

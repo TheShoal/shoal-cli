@@ -46,7 +46,10 @@ class Watcher:
 
         try:
             while self._running:
-                await self._poll_cycle()
+                try:
+                    await self._poll_cycle()
+                except Exception:
+                    logger.exception("Poll cycle failed, continuing")
                 await asyncio.sleep(self.poll_interval)
         finally:
             pid_file.unlink(missing_ok=True)

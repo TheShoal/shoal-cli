@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Optional
 
 from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
 
 from shoal.core.theme import Colors, Icons, Symbols, create_panel, create_table
 

@@ -418,7 +418,19 @@ async def _fork_impl(session, name, no_worktree):
 
     tmux_session = new_session.tmux_session
 
-    tmux.new_session(tmux_session, cwd=work_dir)
+    try:
+        tmux.new_session(tmux_session, cwd=work_dir)
+    except Exception as e:
+        console.print("[red]Error: Failed to create tmux session[/red]")
+        console.print(f"[dim]{e}[/dim]")
+        console.print()
+        console.print("[yellow]Troubleshooting:[/yellow]")
+        console.print("  • Check if tmux is installed: which tmux")
+        console.print("  • Check if tmux server is responsive: tmux ls")
+        console.print(f"  • Verify working directory exists: ls {work_dir}")
+        await delete_session(new_session.id)
+        raise typer.Exit(1) from None
+
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", new_session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", new_name)
 

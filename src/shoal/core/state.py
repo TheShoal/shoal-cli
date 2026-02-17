@@ -71,11 +71,21 @@ async def create_session(
     """Create a new session state in DB and return the session.
 
     Raises:
-        ValueError: If session name validation fails.
+        ValueError: If session name validation fails or tmux name collision detected.
     """
+    from shoal.core import tmux
+
     validate_session_name(name)
     session_id = generate_id()
     tmux_session = f"shoal_{_sanitize_tmux_name(name)}"
+
+    # Check for tmux name collision from lossy sanitization
+    if tmux.has_session(tmux_session):
+        raise ValueError(
+            f"Tmux session '{tmux_session}' already exists. "
+            f"Session name '{name}' collides with an existing session after sanitization "
+            f"(characters '.', ':', '/' are replaced with '-'). Choose a different name."
+        )
     now = datetime.now(UTC)
 
     session = SessionState(

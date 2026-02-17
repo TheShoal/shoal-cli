@@ -248,7 +248,7 @@ def session_json(session_id: str) -> None:
 
 @app.command()
 def serve(
-    host: str = typer.Option("0.0.0.0", "--host"),
+    host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8080, "--port"),
 ) -> None:
     """Start FastAPI server for HTTP API access."""
