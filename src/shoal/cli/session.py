@@ -195,12 +195,18 @@ async def _add_impl(path, tool, worktree, branch, name):
 
     # Run startup commands
     for cmd in cfg.tmux.startup_commands:
-        interpolated = cmd.format(
-            tool_command=tool_cfg.command,
-            work_dir=work_dir,
-            session_name=session_name,
-            tmux_session=tmux_session,
-        )
+        try:
+            interpolated = cmd.format(
+                tool_command=tool_cfg.command,
+                work_dir=work_dir,
+                session_name=session_name,
+                tmux_session=tmux_session,
+            )
+        except KeyError as e:
+            console.print(
+                f"[yellow]Warning: Skipping startup command with missing variable {e}: {cmd}[/yellow]"
+            )
+            continue
         tmux.run_command(interpolated)
 
     # Update state
@@ -436,12 +442,18 @@ async def _fork_impl(session, name, no_worktree):
 
     # Run startup commands
     for cmd in cfg.tmux.startup_commands:
-        interpolated = cmd.format(
-            tool_command=tool_cfg.command,
-            work_dir=work_dir,
-            session_name=new_name,
-            tmux_session=tmux_session,
-        )
+        try:
+            interpolated = cmd.format(
+                tool_command=tool_cfg.command,
+                work_dir=work_dir,
+                session_name=new_name,
+                tmux_session=tmux_session,
+            )
+        except KeyError as e:
+            console.print(
+                f"[yellow]Warning: Skipping startup command with missing variable {e}: {cmd}[/yellow]"
+            )
+            continue
         tmux.run_command(interpolated)
 
     await update_session(new_session.id, status=SessionStatus.running)
@@ -548,9 +560,17 @@ async def _status_impl(format):
         console.print("Create one with: [bold]shoal new[/bold]")
         return
 
-    counts: dict[str, int] = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0}
+    counts: dict[str, int] = {
+        "running": 0,
+        "waiting": 0,
+        "error": 0,
+        "idle": 0,
+        "stopped": 0,
+        "unknown": 0,
+    }
     for s in sessions:
-        counts[s.status.value] = counts.get(s.status.value, 0) + 1
+        key = s.status.value if s.status.value in counts else "unknown"
+        counts[key] += 1
 
     # Plain format for shell completions
     if format == "plain":
@@ -566,6 +586,8 @@ async def _status_impl(format):
             status_parts.append(f"{counts['idle']} idle")
         if counts["stopped"]:
             status_parts.append(f"{counts['stopped']} stopped")
+        if counts["unknown"]:
+            status_parts.append(f"{counts['unknown']} unknown")
         console.print(f"Total: {total} | {', '.join(status_parts)}")
         return
 
@@ -587,6 +609,8 @@ async def _status_impl(format):
         parts.append(f"{get_status_icon('idle')} {counts['idle']} idle")
     if counts["stopped"]:
         parts.append(f"[dim]{get_status_icon('stopped')} {counts['stopped']} stopped[/dim]")
+    if counts["unknown"]:
+        parts.append(f"[dim]? {counts['unknown']} unknown[/dim]")
 
     console.print(
         create_panel(Text.from_markup("  |  ".join(parts)), title="Shoal Status", expand=False)

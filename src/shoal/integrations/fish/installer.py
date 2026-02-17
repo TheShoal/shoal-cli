@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -17,8 +18,15 @@ def get_template_dir() -> Path:
 
 
 def get_fish_config_dir() -> Optional[Path]:
-    """Get the user's fish configuration directory."""
-    fish_config = Path.home() / ".config" / "fish"
+    """Get the user's fish configuration directory.
+
+    Respects XDG_CONFIG_HOME if set, falling back to ~/.config/fish.
+    """
+    xdg_config = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config:
+        fish_config = Path(xdg_config) / "fish"
+    else:
+        fish_config = Path.home() / ".config" / "fish"
     return fish_config if fish_config.exists() or fish_config.parent.exists() else None
 
 
@@ -160,3 +168,41 @@ def install_fish_integration(force: bool = False) -> bool:
     else:
         console.print(f"\n[red]Installation completed with {len(errors)} error(s).[/red]")
         return False
+
+
+def uninstall_fish_integration() -> bool:
+    """Remove fish shell integration files installed by shoal.
+
+    Returns:
+        True if uninstall succeeded, False otherwise.
+    """
+    console = Console()
+
+    fish_config = get_fish_config_dir()
+    if not fish_config:
+        console.print("[yellow]No fish configuration directory found. Nothing to remove.[/yellow]")
+        return True
+
+    # These are the exact files the installer creates
+    targets = [
+        (fish_config / "completions" / "shoal.fish", "Completions"),
+        (fish_config / "conf.d" / "shoal.fish", "Bootstrap"),
+        (fish_config / "functions" / "shoal-quick-attach.fish", "Quick Attach"),
+        (fish_config / "functions" / "shoal-dashboard.fish", "Dashboard"),
+    ]
+
+    removed = 0
+    for path, name in targets:
+        if path.exists():
+            path.unlink()
+            console.print(f"  {Symbols.CHECK} Removed {name}: [dim]{path}[/dim]")
+            removed += 1
+        else:
+            console.print(f"  [dim]{Symbols.INFO} Not found: {path}[/dim]")
+
+    if removed:
+        console.print(f"\n[green]Removed {removed} fish integration file(s).[/green]")
+    else:
+        console.print("\n[yellow]No shoal fish integration files found to remove.[/yellow]")
+
+    return True
