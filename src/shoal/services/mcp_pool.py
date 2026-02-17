@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import signal
 import subprocess
 import time
@@ -48,9 +49,7 @@ def is_mcp_running(name: str) -> bool:
         return False
 
 
-def start_mcp_server(
-    name: str, command: str | None = None
-) -> tuple[int, Path, str]:
+def start_mcp_server(name: str, command: str | None = None) -> tuple[int, Path, str]:
     """Start an MCP server. Returns (pid, socket_path, command_used).
 
     Raises ValueError if command can't be determined.
@@ -73,19 +72,19 @@ def start_mcp_server(
         if not command:
             raise ValueError(
                 f"Unknown MCP server: {name}\n"
-                "Provide --command or use a known server: "
-                + ", ".join(KNOWN_SERVERS)
+                "Provide --command or use a known server: " + ", ".join(KNOWN_SERVERS)
             )
 
     socket.parent.mkdir(parents=True, exist_ok=True)
     pid_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Start socat proxy
+    # Start socat proxy — quote command to prevent shell injection via config values
+    safe_command = " ".join(shlex.quote(tok) for tok in shlex.split(command))
     proc = subprocess.Popen(
         [
             "socat",
             f"UNIX-LISTEN:{socket},fork,reuseaddr",
-            f"EXEC:{command},pipes",
+            f"EXEC:{safe_command},pipes",
         ],
         start_new_session=True,
         stdout=subprocess.DEVNULL,
