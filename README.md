@@ -5,10 +5,10 @@
 # <p align="center">Shoal</p>
 
 <p align="center">
-  <a href="https://github.com/usmobile/shoal"><img src="https://img.shields.io/badge/status-beta-yellow" alt="Status: Beta"></a>
-  <a href="https://github.com/usmobile/shoal"><img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="Platform: macOS"></a>
-  <a href="https://github.com/usmobile/shoal"><img src="https://img.shields.io/badge/license-Proprietary-red" alt="License: Proprietary"></a>
-  <a href="https://github.com/usmobile/shoal"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python: 3.12+"></a>
+  <a href="https://github.com/usm-ricardoroche/shoal"><img src="https://img.shields.io/badge/status-beta-yellow" alt="Status: Beta"></a>
+  <a href="https://github.com/usm-ricardoroche/shoal"><img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="Platform: macOS"></a>
+  <a href="https://github.com/usm-ricardoroche/shoal"><img src="https://img.shields.io/badge/license-Proprietary-red" alt="License: Proprietary"></a>
+  <a href="https://github.com/usm-ricardoroche/shoal"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python: 3.12+"></a>
 </p>
 
 <p align="center">
@@ -16,6 +16,15 @@
 </p>
 
 ---
+
+## TL;DR
+
+<!-- TODO: add this section on what the tool does and why one would use it-->
+
+## Demo
+
+> [!TIP]
+> **Coming Soon**: An interactive VHS/Video showing `shoal popup` and the tmux status bar in action.
 
 ## Why Shoal?
 
@@ -45,11 +54,6 @@ In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a g
 - 🏠 **Environment-First**: Built for tmux. SSH in from your phone, attach to a session inside VS Code, or live in the terminal.
 - 🎓 **Interactive Demo**: Try `shoal demo start` to spin up a full environment and learn Shoal hands-on.
 
-## Demo
-
-> [!TIP]
-> **Coming Soon**: An interactive VHS/Video showing `shoal popup` and the tmux status bar in action.
-
 ---
 
 ## Status
@@ -72,7 +76,7 @@ uv tool install .
 ### From source (dev)
 
 ```bash
-git clone git@github.com:usmobile/shoal.git
+git clone git@github.com:usm-ricardoroche/shoal.git
 cd shoal
 pip install -e ".[dev]"
 ```
