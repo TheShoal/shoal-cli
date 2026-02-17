@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.jpeg" width="600" style="border-radius: 12px;">
+  <img src="assets/banner.png" width="600" style="border-radius: 24px;">
 </p>
 
 # <p align="center">Shoal</p>
@@ -102,6 +102,7 @@ shoal setup fish
 ```
 
 This installs:
+
 - **Tab completions** for all commands and dynamic session names
 - **Key bindings**: `Ctrl+S` for popup dashboard, `Alt+A` for quick attach
 - **Abbreviations**: `sa` (attach), `sl` (ls), `ss` (status), `sp` (popup), etc.
