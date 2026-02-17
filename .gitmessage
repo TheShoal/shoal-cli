@@ -1,0 +1,18 @@
+# <type>: <description>
+#
+# Types: feat, fix, docs, style, refactor, perf, test, chore
+#
+# Description:
+# - Use imperative mood ("add" not "added")
+# - Don't capitalize first letter
+# - No period at the end
+# - Max 50 characters
+#
+# Body (optional):
+# - Explain what and why (not how)
+# - Use bullets for multiple changes
+# - Wrap at 72 characters
+#
+# Footer (optional):
+# - Fixes #123
+# - BREAKING CHANGE: description

@@ -40,9 +40,32 @@ pytest
 ## Workflow
 
 1.  **Branch**: Create a feature branch (or use `shoal add -w my-feature -b`!).
-2.  **Commit**: Use clear, concise commit messages.
+2.  **Commit**: Follow the [Conventional Commits](COMMIT_GUIDELINES.md) format:
+    - `feat:` for new features
+    - `fix:` for bug fixes
+    - `docs:` for documentation changes
+    - `test:` for test additions or corrections
+    - `refactor:` for code restructuring
+    - `chore:` for maintenance tasks
 3.  **PR**: Open a PR to the `main` branch.
 4.  **Review**: Ensure CI passes and wait for a review from a maintainer.
+
+### Commit Messages
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages.
+
+**Format**: `<type>: <description>`
+
+**Example**:
+```
+feat: add session name validation at all entry points
+
+- Validate session names in models and API endpoints
+- Add CLI validation for new/fork/rename commands
+- Include comprehensive test coverage
+```
+
+See [COMMIT_GUIDELINES.md](COMMIT_GUIDELINES.md) for full details and examples.
 
 ## Release Process
 
