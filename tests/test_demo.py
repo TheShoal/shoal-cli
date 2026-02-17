@@ -1,5 +1,6 @@
 """Tests for demo command."""
 
+import shlex
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -79,7 +80,7 @@ async def test_demo_start_happy_path(tmp_path, mock_dirs):
 @pytest.mark.asyncio
 async def test_demo_start_custom_dir(tmp_path, mock_dirs):
     """Test demo start with custom directory."""
-    custom_dir = tmp_path / "my-custom-demo"
+    custom_dir = tmp_path / "my custom demo"
 
     def mock_wt_add(root, path, **kwargs):
         Path(path).mkdir(parents=True, exist_ok=True)
@@ -100,6 +101,88 @@ async def test_demo_start_custom_dir(tmp_path, mock_dirs):
         # Verify custom directory was used
         assert custom_dir.exists()
         assert (custom_dir / ".shoal-demo").exists()
+
+        # Verify scripts are executed with quoted paths
+        demo_main_script = custom_dir / ".demo-main.sh"
+        demo_robo_script = custom_dir / ".demo-robo.sh"
+        worktree_path = custom_dir / ".worktrees" / "feat-api-endpoint"
+        demo_feature_script = worktree_path / ".demo-feature.sh"
+
+        expected_commands = {
+            f"bash {shlex.quote(str(demo_main_script))}",
+            f"bash {shlex.quote(str(demo_robo_script))}",
+            f"bash {shlex.quote(str(demo_feature_script))}",
+        }
+        actual_commands = {call.args[1] for call in mock_send_keys.call_args_list}
+        assert expected_commands.issubset(actual_commands)
+
+
+@pytest.mark.asyncio
+async def test_demo_start_marker_exists(tmp_path, mock_dirs):
+    """Test demo start exits when marker file exists."""
+    demo_dir = tmp_path / "demo-test"
+    demo_dir.mkdir(parents=True)
+    (demo_dir / ".shoal-demo").write_text("existing")
+
+    with (
+        patch("shoal.cli.demo.shutil.which", return_value="/usr/bin/tmux"),
+        patch("shoal.cli.demo.console.print") as mock_print,
+        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo._create_demo_project") as mock_create,
+    ):
+        from typer import Exit
+
+        with pytest.raises(Exit) as exc:
+            await _demo_start_impl(None)
+
+        assert exc.value.exit_code == 1
+        mock_create.assert_not_called()
+        error_calls = [str(c) for c in mock_print.call_args_list]
+        assert any("demo already running" in str(c).lower() for c in error_calls)
+
+
+@pytest.mark.asyncio
+async def test_demo_start_missing_tmux(tmp_path, mock_dirs):
+    """Test demo start fails when tmux is missing."""
+    demo_dir = tmp_path / "demo-test"
+
+    with (
+        patch("shoal.cli.demo.shutil.which", return_value=None),
+        patch("shoal.cli.demo.console.print") as mock_print,
+        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo._create_demo_project") as mock_create,
+    ):
+        from typer import Exit
+
+        with pytest.raises(Exit) as exc:
+            await _demo_start_impl(None)
+
+        assert exc.value.exit_code == 1
+        mock_create.assert_not_called()
+        error_calls = [str(c) for c in mock_print.call_args_list]
+        assert any("tmux not found" in str(c).lower() for c in error_calls)
+
+
+@pytest.mark.asyncio
+async def test_demo_start_missing_git(tmp_path, mock_dirs):
+    """Test demo start fails when git is missing."""
+    demo_dir = tmp_path / "demo-test"
+
+    with (
+        patch("shoal.cli.demo.shutil.which", side_effect=["/usr/bin/tmux", None]),
+        patch("shoal.cli.demo.console.print") as mock_print,
+        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo._create_demo_project") as mock_create,
+    ):
+        from typer import Exit
+
+        with pytest.raises(Exit) as exc:
+            await _demo_start_impl(None)
+
+        assert exc.value.exit_code == 1
+        mock_create.assert_not_called()
+        error_calls = [str(c) for c in mock_print.call_args_list]
+        assert any("git not found" in str(c).lower() for c in error_calls)
 
 
 @pytest.mark.asyncio
@@ -157,3 +240,31 @@ async def test_demo_stop_partial_cleanup(tmp_path, mock_dirs):
         # Should still clean up what exists
         assert mock_kill_session.call_count == 2
         mock_rmtree.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_demo_stop_without_tmux_sessions(tmp_path, mock_dirs):
+    """Test demo stop still deletes sessions when tmux sessions are missing."""
+    demo_dir = tmp_path / "demo-test"
+    marker_file = demo_dir / ".shoal-demo"
+    demo_dir.mkdir(parents=True)
+
+    from shoal.core.state import create_session, get_session
+
+    s1 = await create_session("demo-main", "claude", str(demo_dir))
+    s2 = await create_session("demo-feature", "opencode", str(demo_dir))
+
+    marker_file.write_text(f"{s1.id}\n{s2.id}")
+
+    with (
+        patch("shoal.cli.demo.tmux.has_session", return_value=False),
+        patch("shoal.cli.demo.tmux.kill_session") as mock_kill_session,
+        patch("shoal.cli.demo.shutil.rmtree") as mock_rmtree,
+    ):
+        await _demo_stop_impl(demo_dir)
+
+        assert mock_kill_session.call_count == 0
+        mock_rmtree.assert_called_once()
+
+        assert await get_session(s1.id) is None
+        assert await get_session(s2.id) is None
