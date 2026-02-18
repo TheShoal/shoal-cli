@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+
 import typer
 
 import shoal
-from shoal.cli.robo import app as robo_app
+from shoal.cli.demo import app as demo_app
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
-from shoal.cli.demo import app as demo_app
-from shoal.cli.setup import app as setup_app
+from shoal.cli.robo import app as robo_app
 from shoal.cli.session import (
     add,
     attach,
@@ -26,6 +26,7 @@ from shoal.cli.session import (
     rename,
     status,
 )
+from shoal.cli.setup import app as setup_app
 from shoal.cli.watcher import app as watcher_app
 from shoal.cli.worktree import app as wt_app
 from shoal.core.db import with_db
@@ -99,7 +100,7 @@ def _check_environment() -> None:
     from rich.console import Console
     from rich.table import Table
 
-    from shoal.core.config import config_dir, state_dir, runtime_dir
+    from shoal.core.config import config_dir, runtime_dir, state_dir
     from shoal.core.theme import Icons, Symbols, create_panel, create_table
 
     console = Console()
@@ -194,8 +195,6 @@ def session_json(session_id: str) -> None:
     """Dump session JSON for debugging/preview (used by popup)."""
 
     async def _impl():
-        from shoal.core.state import get_session
-
         sid = session_id
         if not sid:
             return
@@ -212,8 +211,9 @@ def serve(
     port: int = typer.Option(8080, "--port"),
 ) -> None:
     """Start FastAPI server for HTTP API access."""
-    from shoal.api.server import app as fastapi_app
     import uvicorn
+
+    from shoal.api.server import app as fastapi_app
 
     typer.echo(f"Starting Shoal API server at http://{host}:{port}")
     uvicorn.run(fastapi_app, host=host, port=port)

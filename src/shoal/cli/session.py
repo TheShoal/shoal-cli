@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from pathlib import Path
 from typing import Annotated
 
@@ -15,17 +14,16 @@ from shoal.core import git, tmux
 from shoal.core.config import config_dir, ensure_dirs, load_config, load_tool_config
 from shoal.core.db import with_db
 from shoal.core.state import (
+    _get_tool_icon,
+    _resolve_session_interactive_impl,
     create_session,
     delete_session,
     find_by_name,
     get_session,
     get_status_style,
     list_sessions,
-    resolve_session_interactive,
     touch_session,
     update_session,
-    _get_tool_icon,
-    _resolve_session_interactive_impl,
 )
 from shoal.core.theme import (
     Colors,
@@ -104,7 +102,7 @@ async def _add_impl(path, tool, worktree, branch, name):
 
     # Validate git repo
     if not git.is_git_repo(str(resolved_path)):
-        console.print(f"[red]Error: Not a git repository[/red]")
+        console.print("[red]Error: Not a git repository[/red]")
         console.print(f"[dim]Path: {resolved_path}[/dim]")
         console.print()
         console.print("[yellow]Shoal requires a git repository to track sessions.[/yellow]")
@@ -123,11 +121,11 @@ async def _add_impl(path, tool, worktree, branch, name):
         wt_path = str(Path(root) / ".worktrees" / wt_dir_name)
 
         if Path(wt_path).exists():
-            console.print(f"[red]Error: Worktree already exists[/red]")
+            console.print("[red]Error: Worktree already exists[/red]")
             console.print(f"[dim]Path: {wt_path}[/dim]")
             console.print()
             console.print("[yellow]Options:[/yellow]")
-            console.print(f"  • Attach to existing worktree: shoal attach")
+            console.print("  • Attach to existing worktree: shoal attach")
             console.print(f"  • Use a different worktree name: shoal new -w {worktree}-v2")
             console.print(f"  • Remove existing worktree: rm -rf {wt_path}")
             raise typer.Exit(1)
@@ -596,7 +594,6 @@ async def _status_impl(format):
         return
 
     total = len(sessions)
-    from rich.panel import Panel
     from rich.text import Text
 
     status_line = Text()
@@ -736,7 +733,6 @@ async def _logs_impl(session_name_or_id, lines, tail, color_setting):
         # Tailing tmux pane output is tricky without a dedicated tool,
         # but we can do a simple loop or use 'tmux pipe-pane'.
         # For simplicity, let's just use a loop for now.
-        import time
 
         last_content = ""
         try:
@@ -776,7 +772,7 @@ async def _logs_impl(session_name_or_id, lines, tail, color_setting):
 
 async def _rename_impl(old_name, new_name):
     ensure_dirs()
-    from shoal.core.state import resolve_session, validate_session_name, _sanitize_tmux_name
+    from shoal.core.state import _sanitize_tmux_name, resolve_session, validate_session_name
 
     # Validate new name
     try:
@@ -848,7 +844,7 @@ async def _info_impl(session_name_or_id, color_setting):
     details.add_column()
 
     details.add_row(f"{Icons.SESSION} ID", s.id)
-    details.add_row(f"{icon} Name", f"[bold]{s.name}[/bold]")
+    details.add_row(f"{icon.strip()} Name", f"[bold]{s.name}[/bold]")
     details.add_row(f"{Icons.TOOL} Tool", s.tool)
     details.add_row(f"{Icons.STATUS} Status", status_text)
     details.add_row(f"{Icons.DATE} Created", s.created_at.strftime("%Y-%m-%d %H:%M:%S"))
