@@ -103,6 +103,11 @@ def test_tmux_fg():
 
 def test_tmux_status_segment():
     """Test tmux status bar segment formatting."""
+    from shoal.core.theme import Symbols
+
     assert tmux_status_segment("●", 5, "green") == "#[fg=green]● 5"
-    assert tmux_status_segment("●", 0, "green") == "#[fg=green]   "
-    assert tmux_status_segment("●", 0, "green", empty_width=5) == "#[fg=green]     "
+    assert tmux_status_segment("●", 0, "green") == f"#[fg=green] {Symbols.BULLET_OFF}  "
+    assert (
+        tmux_status_segment("●", 0, "green", empty_width=5)
+        == f"#[fg=green] {Symbols.BULLET_OFF}    "
+    )

@@ -14,6 +14,7 @@ from typing import Any
 
 from shoal.core.config import ensure_dirs, load_tool_config, state_dir
 from shoal.core.db import get_db
+from shoal.core.theme import Symbols
 from shoal.models.state import SessionState, SessionStatus
 
 
@@ -228,12 +229,12 @@ async def _resolve_session_interactive_impl(name_or_id: str | None = None) -> st
 
 
 def _get_tool_icon(tool: str) -> str:
-    """Get tool icon, falling back to ● if config not found."""
+    """Get tool icon, falling back to bullet if config not found."""
     try:
         cfg = load_tool_config(tool)
         return cfg.icon
     except FileNotFoundError:
-        return "●"
+        return Symbols.BULLET_FILLED
 
 
 def get_status_style(status: str) -> str:

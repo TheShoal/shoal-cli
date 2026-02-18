@@ -94,8 +94,11 @@ async def test_multi_session_status_aggregation(mock_dirs):
     with patch("shoal.core.tmux.has_session", return_value=True):
         status_line = await generate_status()
 
-        # Should show 1 running, 1 error (s1 is idle, which is omitted if we only show active)
-        # Wait, s1 is idle. Our new logic only shows non-zero counts for running, idle, waiting, error.
+        from shoal.core.theme import Symbols
+
+        # Should show 1 running, 1 idle, 1 error, waiting and inactive as placeholders
         assert "● 1" in status_line  # running
         assert "○ 1" in status_line  # idle
         assert "✗ 1" in status_line  # error
+        # waiting and inactive should show as placeholders
+        assert status_line.count(Symbols.BULLET_OFF) >= 2

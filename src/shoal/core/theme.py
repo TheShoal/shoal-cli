@@ -16,7 +16,6 @@ from typing import Any
 from rich.panel import Panel
 from rich.table import Table
 
-
 # ============================================================================
 # Status Definitions
 # ============================================================================
@@ -147,6 +146,7 @@ class Symbols:
     BULLET_WAITING = "◉"
     BULLET_ERROR = "✗"
     BULLET_STOPPED = "◌"
+    BULLET_OFF = ""
 
 
 # ============================================================================
@@ -285,7 +285,7 @@ def tmux_status_segment(icon: str, count: int, color: str, empty_width: int = 3)
     """Format a tmux status bar segment.
 
     Args:
-        icon: Icon to display
+        icon: Icon to display when count > 0
         count: Count to display
         color: Tmux color name
         empty_width: Width to reserve when count is 0 (default: 3 chars)
@@ -295,8 +295,8 @@ def tmux_status_segment(icon: str, count: int, color: str, empty_width: int = 3)
 
     Example:
         tmux_status_segment("●", 5, "green") -> "#[fg=green]● 5"
-        tmux_status_segment("●", 0, "green") -> "#[fg=green]   "
+        tmux_status_segment("●", 0, "green") -> "#[fg=green]  "
     """
     if count == 0:
-        return f"#[fg={color}]{' ' * empty_width}"
+        return f"#[fg={color}] {Symbols.BULLET_OFF}{' ' * (empty_width - 1)}"
     return f"#[fg={color}]{icon} {count}"

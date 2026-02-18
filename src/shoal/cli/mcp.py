@@ -72,9 +72,9 @@ async def _mcp_ls_impl():
 
         if pid is not None:
             if is_mcp_running(name):
-                mcp_status = "[green]● running[/green]"
+                mcp_status = f"[green]{Symbols.BULLET_FILLED} running[/green]"
             else:
-                mcp_status = "[red]✗ dead[/red]"
+                mcp_status = f"[red]{Symbols.BULLET_ERROR} dead[/red]"
         else:
             mcp_status = "[yellow]? orphaned[/yellow]"
 
@@ -227,9 +227,9 @@ def mcp_status() -> None:
 
     parts = []
     if healthy:
-        parts.append(f"[green]● {healthy} healthy[/green]")
+        parts.append(f"[green]{Symbols.BULLET_FILLED} {healthy} healthy[/green]")
     if dead:
-        parts.append(f"[red]✗ {dead} dead[/red]")
+        parts.append(f"[red]{Symbols.BULLET_ERROR} {dead} dead[/red]")
     if orphaned:
         parts.append(f"[yellow]? {orphaned} orphaned[/yellow]")
 

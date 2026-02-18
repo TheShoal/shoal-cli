@@ -8,6 +8,7 @@ import subprocess
 from shoal.core import tmux
 from shoal.core.config import load_tool_config
 from shoal.core.state import get_session, list_sessions, _get_tool_icon
+from shoal.core.theme import Symbols
 
 
 async def _build_entries() -> tuple[list[str], dict[str, str]]:
@@ -58,8 +59,8 @@ def run_popup() -> None:
         "--layout=reverse",
         "--border=rounded",
         "--prompt=shoal> ",
-        "--pointer=▶",
-        "--marker=●",
+        f"--pointer={Symbols.POINTER}",
+        f"--marker={Symbols.MARKER}",
     ]
 
     result = subprocess.run(
