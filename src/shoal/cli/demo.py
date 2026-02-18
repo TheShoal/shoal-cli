@@ -237,7 +237,7 @@ async def _demo_start_impl(custom_dir: str | None):
     console.print("  ✓ Creating session: demo-main (main branch)")
     s1 = await create_session(
         name="demo-main",
-        tool="claude",
+        tool="opencode",
         git_root=str(demo_dir),
     )
     session_ids.append(s1.id)
@@ -247,7 +247,7 @@ async def _demo_start_impl(custom_dir: str | None):
     echo_script = _create_session_echo_script(
         session_name="demo-main",
         session_id=s1.id,
-        tool="claude",
+        tool="opencode",
         branch="main",
         project_path=str(demo_dir).replace(str(Path.home()), "~"),
         tmux_session_name=s1.tmux_session,

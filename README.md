@@ -155,7 +155,7 @@ shoal demo stop
 ```bash
 # 1. Create a new agent session in a dedicated worktree
 # Use -w to create a worktree, add -b to create a new branch
-shoal new -t claude -w feature-auth -b
+shoal new -w feature-auth -b
 
 # 2. Open the interactive dashboard to see all sessions
 shoal popup
@@ -170,6 +170,8 @@ shoal attach feature-auth
 # 5. When done, merge and cleanup
 shoal wt finish feature-auth --pr
 ```
+
+`shoal new` defaults to `--tool opencode`. Pass `-t/--tool` to override.
 
 ### Flags Explained: `-w` vs `-b`
 

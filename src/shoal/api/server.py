@@ -20,6 +20,7 @@ from shoal.core.config import ensure_dirs, load_config, load_tool_config
 from shoal.core.db import ShoalDB, get_db
 from shoal.core.state import (
     add_mcp_to_session,
+    build_tmux_session_name,
     create_session,
     delete_session,
     find_by_name,
@@ -43,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 class SessionCreate(BaseModel):
     path: str | None = None
-    tool: str
+    tool: str | None = None
     worktree: str | None = None
     branch: bool = False
     name: str | None = None
@@ -389,7 +390,7 @@ async def rename_session_api(session_id: str, body: RenameRequest):
 
     # Rename the tmux session
     old_tmux_name = s.tmux_session
-    new_tmux_name = f"shoal_{body.name.replace('.', '-').replace(':', '-').replace('/', '-')}"
+    new_tmux_name = build_tmux_session_name(body.name)
 
     if tmux.has_session(old_tmux_name):
         try:

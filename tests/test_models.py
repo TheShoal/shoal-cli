@@ -14,8 +14,8 @@ from shoal.models.state import RoboState, SessionState, SessionStatus
 class TestShoalConfig:
     def test_defaults(self):
         cfg = ShoalConfig()
-        assert cfg.general.default_tool == "claude"
-        assert cfg.tmux.session_prefix == "shoal"
+        assert cfg.general.default_tool == "opencode"
+        assert cfg.tmux.session_prefix == "_"
         assert cfg.notifications.enabled is True
         assert cfg.robo.default_tool == "opencode"
 
@@ -76,7 +76,7 @@ class TestSessionState:
             path="/tmp/repo",
             worktree="/tmp/repo/.worktrees/test",
             branch="feat/test",
-            tmux_session="shoal_abc12345",
+            tmux_session="_abc12345",
             status=SessionStatus.running,
             created_at=now,
             last_activity=now,
@@ -92,11 +92,11 @@ class TestSessionState:
         assert restored.status == state.status
 
     def test_mcp_servers_default(self):
-        state = SessionState(id="x", name="x", tool="claude", path="/tmp", tmux_session="shoal_x")
+        state = SessionState(id="x", name="x", tool="claude", path="/tmp", tmux_session="_x")
         assert state.mcp_servers == []
 
     def test_model_copy(self):
-        state = SessionState(id="x", name="x", tool="claude", path="/tmp", tmux_session="shoal_x")
+        state = SessionState(id="x", name="x", tool="claude", path="/tmp", tmux_session="_x")
         updated = state.model_copy(update={"status": SessionStatus.waiting})
         assert updated.status == SessionStatus.waiting
         assert state.status == SessionStatus.idle  # original unchanged

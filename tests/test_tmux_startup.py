@@ -1,7 +1,7 @@
 """Tests for tmux startup commands configuration."""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, patch, MagicMock
 from typer.testing import CliRunner
 from shoal.cli import app
 from shoal.models.config import ShoalConfig
@@ -42,7 +42,10 @@ def test_add_session_executes_startup_commands(mock_dirs, mock_git_repo):
         patch("shoal.core.tmux.run_command") as mock_run_command,
         patch("shoal.core.tmux.pane_pid", return_value=123),
     ):
-        result = runner.invoke(app, ["new", str(mock_git_repo), "--name", "test-session"])
+        result = runner.invoke(
+            app,
+            ["new", str(mock_git_repo), "--name", "test-session", "--tool", "claude"],
+        )
 
         assert result.exit_code == 0
 
@@ -50,7 +53,7 @@ def test_add_session_executes_startup_commands(mock_dirs, mock_git_repo):
         mock_new_session.assert_called_once()
 
         # Verify startup commands were run with correct interpolation
-        expected_tmux_session = "shoal_test-session"
+        expected_tmux_session = "_test-session"
 
         assert mock_run_command.call_count == 2
 
@@ -85,7 +88,10 @@ def test_fork_session_executes_startup_commands(mock_dirs, mock_git_repo):
 
     with (
         patch("shoal.cli.session.load_config", return_value=custom_config),
-        patch("shoal.cli.session.resolve_session_interactive", return_value=source_session.id),
+        patch(
+            "shoal.cli.session._resolve_session_interactive_impl",
+            new=AsyncMock(return_value=source_session.id),
+        ),
         patch("shoal.core.tmux.new_session") as mock_new_session,
         patch("shoal.core.tmux.set_environment") as mock_set_env,
         patch("shoal.core.tmux.run_command") as mock_run_command,
@@ -96,7 +102,7 @@ def test_fork_session_executes_startup_commands(mock_dirs, mock_git_repo):
         assert result.exit_code == 0
 
         # Verify startup commands
-        expected_tmux_session = "shoal_forked-session"
+        expected_tmux_session = "_forked-session"
         mock_run_command.assert_called_once_with(
             f"send-keys -t {expected_tmux_session} 'forked forked-session' Enter"
         )

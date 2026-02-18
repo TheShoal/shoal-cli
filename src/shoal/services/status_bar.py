@@ -11,9 +11,6 @@ from shoal.core.theme import STATUS_STYLES, tmux_status_segment
 async def generate_status() -> str:
     """Generate the tmux status-right segment string."""
     sessions = await list_sessions()
-    if not sessions:
-        return ""
-
     counts = {"running": 0, "idle": 0, "error": 0, "waiting": 0, "inactive": 0}
 
     for session in sessions:

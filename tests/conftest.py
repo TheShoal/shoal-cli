@@ -19,10 +19,10 @@ def tmp_config(tmp_path: Path) -> Path:
     (config / "config.toml").write_text(
         """
 [general]
-default_tool = "claude"
+default_tool = "opencode"
 
 [tmux]
-session_prefix = "shoal"
+session_prefix = "_"
 
 [notifications]
 enabled = false

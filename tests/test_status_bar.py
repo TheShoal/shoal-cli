@@ -9,7 +9,9 @@ from shoal.services.status_bar import generate_status
 class TestGenerateStatus:
     @pytest.mark.asyncio
     async def test_empty(self, mock_dirs):
-        assert await generate_status() == ""
+        result = await generate_status()
+        assert result.endswith("#[default]")
+        assert result.count(Symbols.BULLET_OFF) == 5
 
     @pytest.mark.asyncio
     async def test_with_sessions(self, mock_dirs):

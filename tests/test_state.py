@@ -105,7 +105,7 @@ class TestSessionCRUD:
         assert session.name == "test"
         assert session.tool == "claude"
         assert session.status == SessionStatus.idle
-        assert session.tmux_session.startswith("shoal_")
+        assert session.tmux_session.startswith("_")
 
         loaded = await get_session(session.id)
         assert loaded is not None

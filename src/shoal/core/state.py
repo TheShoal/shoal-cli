@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from shoal.core.config import ensure_dirs, load_tool_config, state_dir
+from shoal.core.config import ensure_dirs, load_config, load_tool_config, state_dir
 from shoal.core.db import get_db
 from shoal.core.theme import Symbols
 from shoal.models.state import SessionState, SessionStatus
@@ -62,6 +62,35 @@ def _sanitize_tmux_name(name: str) -> str:
     return name.replace(".", "-").replace(":", "-").replace("/", "-")
 
 
+def tmux_session_prefix() -> str:
+    """Return configured tmux session prefix string."""
+    cfg = load_config()
+    return (cfg.tmux.session_prefix or "").strip()
+
+
+def build_tmux_session_name(name: str) -> str:
+    """Build a tmux session name from configured prefix + sanitized name."""
+    sanitized_name = _sanitize_tmux_name(name)
+    prefix = tmux_session_prefix()
+    if not prefix:
+        return sanitized_name
+    if prefix.endswith("_"):
+        return f"{prefix}{sanitized_name}"
+    return f"{prefix}_{sanitized_name}"
+
+
+def is_shoal_tmux_session_name(name: str | None) -> bool:
+    """Check whether a tmux session name matches the configured Shoal prefix."""
+    if not name:
+        return False
+    prefix = tmux_session_prefix()
+    if not prefix:
+        return True
+    if prefix.endswith("_"):
+        return name.startswith(prefix)
+    return name.startswith(f"{prefix}_")
+
+
 async def create_session(
     name: str,
     tool: str,
@@ -78,7 +107,7 @@ async def create_session(
 
     validate_session_name(name)
     session_id = generate_id()
-    tmux_session = f"shoal_{_sanitize_tmux_name(name)}"
+    tmux_session = build_tmux_session_name(name)
 
     # Check for tmux name collision from lossy sanitization
     if tmux.has_session(tmux_session):

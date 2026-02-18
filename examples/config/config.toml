@@ -2,12 +2,12 @@
 # Copy to ~/.config/shoal/config.toml
 
 [general]
-default_tool = "claude"
+default_tool = "opencode"
 state_dir = "~/.local/share/shoal"
 worktree_dir = ".worktrees"  # relative to project root
 
 [tmux]
-session_prefix = "shoal"
+session_prefix = "_"
 popup_width = "90%"
 popup_height = "90%"
 popup_key = "S"  # Prefix + S

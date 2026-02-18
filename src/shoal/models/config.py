@@ -6,13 +6,13 @@ from pydantic import BaseModel, Field
 
 
 class GeneralConfig(BaseModel):
-    default_tool: str = "claude"
+    default_tool: str = "opencode"
     state_dir: str = "~/.local/share/shoal"
     worktree_dir: str = ".worktrees"
 
 
 class TmuxConfig(BaseModel):
-    session_prefix: str = "shoal"
+    session_prefix: str = "_"
     popup_width: str = "90%"
     popup_height: str = "90%"
     popup_key: str = "S"

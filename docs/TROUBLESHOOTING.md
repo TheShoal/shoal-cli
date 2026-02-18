@@ -41,7 +41,7 @@ This will output DEBUG-level logs to stderr, which can help identify where a pro
 
 ## 4. Tmux Issues
 
-### Symptom: `Tmux session 'shoal_...' not found`
+### Symptom: `Tmux session '_...' not found`
 
 **Causes:**
 - The tmux session was killed manually outside of Shoal.
@@ -51,6 +51,16 @@ This will output DEBUG-level logs to stderr, which can help identify where a pro
 1. Run `shoal ls` to see if the session is marked as a **ghost**.
 2. Use `shoal prune` to remove stale records for dead tmux sessions.
 3. Use `shoal kill <session>` to clean up the DB record.
+
+### Symptom: Session status does not change even though tmux output changed
+
+**Cause:**
+- The active pane is no longer running the tool command configured for that session.
+
+**Solution:**
+1. Run `shoal info <session>` and check the session's configured tool.
+2. In tmux, restart the matching tool command in that session pane (for example, `opencode`).
+3. Run `shoal status` again. The tmux status segment always stays visible, even when all counts are zero.
 
 ## 5. MCP Connection Problems
 

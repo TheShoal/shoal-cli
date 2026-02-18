@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shlex
 import signal
 from datetime import UTC, datetime
+from pathlib import Path
 
 from shoal.core import tmux
 from shoal.core.config import ensure_dirs, load_tool_config, runtime_dir
@@ -16,6 +18,32 @@ from shoal.core.state import get_session, list_sessions, update_session
 from shoal.models.state import SessionStatus
 
 logger = logging.getLogger("shoal.watcher")
+
+
+def _tool_command_name(command: str) -> str | None:
+    """Extract executable name from a tool command string."""
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return None
+    if not parts:
+        return None
+    return Path(parts[0]).name
+
+
+def _find_session_tool_pane(
+    panes: list[dict[str, str]],
+    pane_title: str,
+    tool_command_name: str,
+) -> str | None:
+    """Pick pane matching both session title and tool command, then command-only fallback."""
+    for pane in panes:
+        if pane.get("title") == pane_title and pane.get("command") == tool_command_name:
+            return pane.get("id")
+    for pane in panes:
+        if pane.get("command") == tool_command_name:
+            return pane.get("id")
+    return None
 
 
 class Watcher:
@@ -74,8 +102,27 @@ class Watcher:
                     logger.info("Session %s: marked stopped (tmux gone)", session.id)
                 continue
 
-            # 2. Verify PID if we have one
-            pane_target = tmux.preferred_pane(session.tmux_session, f"shoal:{session.id}")
+            # 2. Resolve the pane to track by session tool command
+            try:
+                tool_config = load_tool_config(session.tool)
+            except FileNotFoundError:
+                continue
+
+            tool_command_name = _tool_command_name(tool_config.command)
+            if not tool_command_name:
+                logger.debug("Session %s: invalid tool command for '%s'", session.id, session.tool)
+                continue
+
+            pane_title = f"shoal:{session.id}"
+            panes = tmux.list_panes(session.tmux_session)
+            pane_target = _find_session_tool_pane(panes, pane_title, tool_command_name)
+            if not pane_target:
+                logger.debug(
+                    "Session %s: no pane running tool '%s'", session.id, tool_command_name
+                )
+                continue
+
+            # 3. Verify PID if we have one
             current_pane_pid = tmux.pane_pid(pane_target)
             if session.pid and session.pid != current_pane_pid:
                 # PID changed (e.g. process restarted in same pane)
@@ -87,17 +134,12 @@ class Watcher:
                 # PID found for first time
                 await update_session(session.id, pid=current_pane_pid)
 
-            # 3. Capture pane content
+            # 4. Capture pane content
             pane_content = tmux.capture_pane(pane_target, lines=20)
             if not pane_content:
                 continue
 
             # Detect status
-            try:
-                tool_config = load_tool_config(session.tool)
-            except FileNotFoundError:
-                continue
-
             new_status = detect_status(pane_content, tool_config)
 
             # Update if changed

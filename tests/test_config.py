@@ -11,7 +11,7 @@ from shoal.core.config import (
 class TestLoadConfig:
     def test_loads_config(self, mock_dirs):
         cfg = load_config()
-        assert cfg.general.default_tool == "claude"
+        assert cfg.general.default_tool == "opencode"
         assert cfg.notifications.enabled is False
 
     def test_default_when_missing(self, tmp_path, monkeypatch):
@@ -20,7 +20,7 @@ class TestLoadConfig:
         load_config.cache_clear()
         monkeypatch.setattr(config_mod, "config_dir", lambda: tmp_path / "nonexistent")
         cfg = load_config()
-        assert cfg.general.default_tool == "claude"
+        assert cfg.general.default_tool == "opencode"
         load_config.cache_clear()
 
 

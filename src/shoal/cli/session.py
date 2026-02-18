@@ -14,11 +14,13 @@ from shoal.core import git, tmux
 from shoal.core.config import config_dir, ensure_dirs, load_config, load_tool_config
 from shoal.core.db import with_db
 from shoal.core.state import (
+    build_tmux_session_name,
     _get_tool_icon,
     _resolve_session_interactive_impl,
     create_session,
     delete_session,
     find_by_name,
+    is_shoal_tmux_session_name,
     get_session,
     get_status_style,
     list_sessions,
@@ -361,7 +363,7 @@ def detach() -> None:
         raise typer.Exit(1)
 
     current = tmux.current_session_name()
-    if not current or not current.startswith("shoal_"):
+    if not is_shoal_tmux_session_name(current):
         console.print(f"[red]Not inside a shoal session (current: {current})[/red]")
         raise typer.Exit(1)
 
@@ -772,7 +774,7 @@ async def _logs_impl(session_name_or_id, lines, tail, color_setting):
 
 async def _rename_impl(old_name, new_name):
     ensure_dirs()
-    from shoal.core.state import _sanitize_tmux_name, resolve_session, validate_session_name
+    from shoal.core.state import resolve_session, validate_session_name
 
     # Validate new name
     try:
@@ -796,7 +798,7 @@ async def _rename_impl(old_name, new_name):
         raise typer.Exit(1)
 
     old_tmux = s.tmux_session
-    new_tmux = f"shoal_{_sanitize_tmux_name(new_name)}"
+    new_tmux = build_tmux_session_name(new_name)
 
     # Rename tmux session if it exists
     if tmux.has_session(old_tmux):
