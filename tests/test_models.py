@@ -18,6 +18,7 @@ class TestShoalConfig:
         assert cfg.tmux.session_prefix == "_"
         assert cfg.notifications.enabled is True
         assert cfg.robo.default_tool == "opencode"
+        assert cfg.robo.session_prefix == "__"
 
     def test_override(self):
         cfg = ShoalConfig(general={"default_tool": "opencode"})
@@ -107,7 +108,7 @@ class TestRoboState:
         state = RoboState(
             name="default",
             tool="opencode",
-            tmux_session="shoal_robo_default",
+            tmux_session="__default",
         )
         assert state.status == "running"
         json_str = state.model_dump_json()

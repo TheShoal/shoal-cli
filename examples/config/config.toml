@@ -34,3 +34,4 @@ timeout_seconds = 300
 [robo]
 default_tool = "opencode"
 default_profile = "default"
+session_prefix = "__"

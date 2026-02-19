@@ -34,19 +34,19 @@ This creates:
 shoal robo start default
 ```
 
-This launches a tmux session (`shoal_robo_default`) running your chosen AI tool (OpenCode, Claude, Gemini) with robo-specific instructions.
+This launches a tmux session (`__default` by default) running your chosen AI tool (OpenCode, Claude, Gemini) with robo-specific instructions.
 
 ### 3. Attach to the Robo
 
 ```bash
-tmux attach -t shoal_robo_default
+tmux attach -t __default
 ```
 
 Or use Shoal's session picker:
 
 ```bash
 shoal attach
-# Select "shoal_robo_default" from the list
+# Select "__default" from the list
 ```
 
 ---
@@ -183,6 +183,23 @@ If any session is "error" or "crashed":
 
 ## Configuration Options
 
+### Global Session Prefixes
+
+```toml
+# ~/.config/shoal/config.toml
+
+[tmux]
+session_prefix = "_"   # Regular shoal sessions: _<name>
+
+[robo]
+session_prefix = "__"  # Robo sessions: __<name>
+default_tool = "opencode"
+default_profile = "default"
+```
+
+If a prefix ends with `_`, Shoal appends the session name directly.
+Otherwise Shoal inserts `_` between prefix and session name.
+
 ### Profile Structure
 
 ```toml
@@ -268,7 +285,7 @@ You can customize these rules by editing `~/.local/state/shoal/robo/<name>/AGENT
 tmux ls | grep robo
 
 # Attach and see what's happening
-tmux attach -t shoal_robo_default
+tmux attach -t __default
 ```
 
 ### Robo approved something risky

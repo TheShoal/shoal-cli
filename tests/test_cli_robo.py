@@ -93,7 +93,7 @@ def test_robo_status_with_robos(mock_dirs):
         state = RoboState(
             name="status-test",
             tool="opencode",
-            tmux_session="shoal_robo_status-test",
+            tmux_session="__status-test",
             status=SessionStatus.running,
             started_at=datetime.now(UTC),
         )

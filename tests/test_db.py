@@ -96,7 +96,7 @@ async def test_save_and_get_robo(db):
     robo = RoboState(
         name="test-robo",
         tool="opencode",
-        tmux_session="shoal_robo_test",
+        tmux_session="__test",
         status=SessionStatus.running,
     )
 
@@ -106,7 +106,7 @@ async def test_save_and_get_robo(db):
     assert loaded is not None
     assert loaded.name == "test-robo"
     assert loaded.tool == "opencode"
-    assert loaded.tmux_session == "shoal_robo_test"
+    assert loaded.tmux_session == "__test"
     assert loaded.status == SessionStatus.running
 
 
@@ -123,13 +123,13 @@ async def test_list_robos(db):
     r1 = RoboState(
         name="robo1",
         tool="claude",
-        tmux_session="shoal_robo_1",
+        tmux_session="__1",
         status=SessionStatus.running,
     )
     r2 = RoboState(
         name="robo2",
         tool="opencode",
-        tmux_session="shoal_robo_2",
+        tmux_session="__2",
         status=SessionStatus.stopped,
     )
 
@@ -148,7 +148,7 @@ async def test_update_robo(db):
     robo = RoboState(
         name="test-robo",
         tool="claude",
-        tmux_session="shoal_robo_test",
+        tmux_session="__test",
         status=SessionStatus.running,
     )
     await db.save_robo(robo)

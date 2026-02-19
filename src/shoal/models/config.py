@@ -35,6 +35,7 @@ class NotificationsConfig(BaseModel):
 class RoboGlobalConfig(BaseModel):
     default_tool: str = "opencode"
     default_profile: str = "default"
+    session_prefix: str = "__"
 
 
 # Backward compatibility alias

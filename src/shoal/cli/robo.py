@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from shoal.core import tmux
-from shoal.core.config import config_dir, ensure_dirs, load_robo_profile, state_dir
+from shoal.core.config import config_dir, ensure_dirs, load_config, load_robo_profile, state_dir
 from shoal.core.db import get_db, with_db
 from shoal.core.theme import Icons, create_panel, create_table
 from shoal.models.state import RoboState, SessionStatus
@@ -32,6 +32,20 @@ def robo_default(ctx: typer.Context) -> None:
 
 def _robo_runtime_dir(name: str) -> Path:
     return state_dir() / "robo" / name
+
+
+def _robo_session_prefix() -> str:
+    cfg = load_config()
+    return (cfg.robo.session_prefix or "").strip()
+
+
+def _build_robo_tmux_session(name: str) -> str:
+    prefix = _robo_session_prefix()
+    if not prefix:
+        return name
+    if prefix.endswith("_"):
+        return f"{prefix}{name}"
+    return f"{prefix}_{name}"
 
 
 @app.command("setup")
@@ -173,7 +187,7 @@ async def _robo_start_impl(name):
         console.print(f"[yellow]Create a profile:[/yellow] shoal robo setup {name}")
         raise typer.Exit(1)
 
-    tmux_session = f"shoal_robo_{name}"
+    tmux_session = _build_robo_tmux_session(name)
 
     if tmux.has_session(tmux_session):
         console.print(f"[red]Error: Robo '{name}' is already running[/red]")
@@ -234,9 +248,9 @@ async def _robo_stop_impl(name):
     ensure_dirs()
     name = name or "default"
 
-    tmux_session = f"shoal_robo_{name}"
     db = await get_db()
     state = await db.get_robo(name)
+    tmux_session = state.tmux_session if state else _build_robo_tmux_session(name)
 
     if not tmux.has_session(tmux_session):
         console.print(f"[red]Robo '{name}' is not running[/red]")
@@ -374,7 +388,7 @@ async def _robo_ls_impl():
         except Exception:
             tool = "opencode"
 
-        tmux_session = f"shoal_robo_{name}"
+        tmux_session = _build_robo_tmux_session(name)
         started = "-"
 
         state = await db.get_robo(name)

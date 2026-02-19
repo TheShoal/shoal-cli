@@ -29,6 +29,7 @@ enabled = false
 
 [robo]
 default_tool = "opencode"
+session_prefix = "__"
 """
     )
 
