@@ -1,6 +1,5 @@
 """Tests for demo command."""
 
-import shlex
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -112,19 +111,15 @@ async def test_demo_start_custom_dir(tmp_path, mock_dirs):
         assert custom_dir.exists()
         assert (custom_dir / ".shoal-demo").exists()
 
-        # Verify scripts are executed with quoted paths
-        demo_main_script = custom_dir / ".demo-main.sh"
-        demo_robo_script = custom_dir / ".demo-robo.sh"
-        worktree_path = custom_dir / ".worktrees" / "feat-api-endpoint"
-        demo_feature_script = worktree_path / ".demo-feature.sh"
-
-        expected_commands = {
-            f"fish {shlex.quote(str(demo_main_script))}",
-            f"fish {shlex.quote(str(demo_robo_script))}",
-            f"fish {shlex.quote(str(demo_feature_script))}",
-        }
-        actual_commands = {call.args[1] for call in mock_send_keys.call_args_list}
-        assert expected_commands.issubset(actual_commands)
+        # Verify pane render commands are sent through Typer/Rich command path
+        actual_commands = [call.args[1] for call in mock_send_keys.call_args_list]
+        pane_commands = [cmd for cmd in actual_commands if "shoal demo pane" in cmd]
+        assert len(pane_commands) == 3
+        assert any("--session-name demo-main" in cmd for cmd in pane_commands)
+        assert any("--session-name demo-feature" in cmd for cmd in pane_commands)
+        assert any("--session-name demo-robo" in cmd for cmd in pane_commands)
+        assert any("--worktree-note" in cmd for cmd in pane_commands)
+        assert any("--robo" in cmd for cmd in pane_commands)
         assert mock_new_session.call_count == 3
         assert mock_run_command.call_count >= 3
 

@@ -11,7 +11,9 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
+from rich.rule import Rule
+from rich.table import Table
+from rich.text import Text
 
 from shoal.core import git, tmux
 from shoal.core.config import load_tool_config
@@ -110,64 +112,132 @@ def test_greet(capsys):
     )
 
 
-def _create_session_echo_script(
+def _build_demo_pane_command(
     session_name: str,
     session_id: str,
     tool: str,
     branch: str,
     project_path: str,
     tmux_session_name: str,
+    *,
+    worktree_note: bool = False,
     is_robo: bool = False,
 ) -> str:
-    """Generate a simple info script for the demo sidebar pane."""
+    """Build shell command to render demo pane via Typer/Rich."""
+    parts = [
+        "shoal",
+        "demo",
+        "pane",
+        "--session-name",
+        session_name,
+        "--session-id",
+        session_id,
+        "--tool",
+        tool,
+        "--branch",
+        branch,
+        "--project-path",
+        project_path,
+        "--tmux-session-name",
+        tmux_session_name,
+    ]
+    if worktree_note:
+        parts.append("--worktree-note")
     if is_robo:
-        return f"""clear
-echo "Shoal Demo: robo supervisor"
-echo
-echo "Session details"
-echo "- session_id: {session_id}"
-echo "- tool: {tool}"
-echo "- branch: {branch}"
-echo "- project: {project_path}"
-echo "- tmux: {tmux_session_name}"
-echo
-echo "Suggested commands for pane 0 (opencode)"
-echo "1) shoal status"
-echo "2) shoal ls"
-echo "3) shoal logs demo-feature"
-echo "4) shoal robo approve demo-feature"
-echo "5) shoal robo send demo-main \"run pytest -q\""
-echo
-echo "Tip: if opencode requires authentication, sign in there first."
-echo ""
-"""
-    else:
-        worktree_note = ""
-        if "feature" in session_name:
-            worktree_note = """echo "Worktree note"
-echo "- This session uses an isolated worktree."
-echo "- Changes here stay isolated from main."
-echo
-"""
+        parts.append("--robo")
+    return " ".join(shlex.quote(part) for part in parts)
 
-        return f"""clear
-echo "Shoal Demo: {session_name}"
-echo
-echo "Session details"
-echo "- session_id: {session_id}"
-echo "- tool: {tool}"
-echo "- branch: {branch}"
-echo "- project: {project_path}"
-echo "- tmux: {tmux_session_name}"
-echo ""
-{worktree_note}echo "Suggested prompts for pane 0 (opencode)"
-echo "1) summarize the repository and current branch"
-echo "2) run tests with: uv run pytest -q"
-echo "3) implement a tiny change and show git diff"
-echo "4) explain next commit message before committing"
-echo
-echo "Tip: if opencode requires authentication, sign in there first."
-"""
+
+def _render_demo_pane(
+    session_name: str,
+    session_id: str,
+    tool: str,
+    branch: str,
+    project_path: str,
+    tmux_session_name: str,
+    *,
+    worktree_note: bool,
+    robo: bool,
+) -> None:
+    """Render borderless, guided demo output with Rich."""
+    header_style = "bold white on magenta" if robo else "bold black on cyan"
+    header = " ROBO SUPERVISOR " if robo else " SHOAL WORKER "
+
+    console.print(Text(header, style=header_style))
+    console.print(Text(f"session: {session_name}", style="bold white"))
+    console.print(Text(f"project: {project_path}", style="dim"))
+    console.print(Rule(style="magenta" if robo else "cyan"))
+
+    details = Table.grid(padding=(0, 1), expand=True)
+    details.add_column(style="bold", width=11)
+    details.add_column(style="white")
+    details.add_row("session_id", session_id)
+    details.add_row("tool", tool)
+    details.add_row("branch", branch)
+    details.add_row("tmux", tmux_session_name)
+    console.print(details)
+    console.print()
+
+    console.print(Text("Start Here", style="bold green"))
+    if robo:
+        console.print(
+            Text("1) Run `shoal status` and identify any non-idle worker.", style="white")
+        )
+    else:
+        console.print(Text("1) In the LEFT pane, authenticate opencode if needed.", style="white"))
+
+    if worktree_note:
+        console.print(Text("2) You are in an isolated worktree. Iterate freely.", style="white"))
+    else:
+        console.print(Text("2) Ask opencode for a quick repo + branch summary.", style="white"))
+
+    console.print()
+    console.print(Text("Guided Next Steps", style="bold yellow"))
+    steps = Table.grid(padding=(0, 1), expand=True)
+    steps.add_column(style="dim", width=2)
+    steps.add_column(style="white")
+    if robo:
+        steps.add_row("3", "Review workers: `shoal ls` and `shoal logs demo-feature`")
+        steps.add_row("4", "Approve only when needed: `shoal robo approve demo-feature`")
+        steps.add_row("5", "Dispatch work: `shoal robo send demo-main 'uv run pytest -q'`")
+    else:
+        steps.add_row("3", "Implement one tiny change and show `git diff`")
+        steps.add_row("4", "Run `uv run pytest -q` and report result")
+        steps.add_row("5", "Draft the next commit message before committing")
+    console.print(steps)
+
+    console.print()
+    console.print(Rule(style="dim"))
+    console.print(
+        Text("Success signal: clear output + passing tests + clean plan.", style="bold green")
+    )
+    console.print(Text("Cleanup when done: `shoal demo stop`", style="dim italic"))
+
+
+@app.command("pane", hidden=True)
+def demo_pane(
+    session_name: Annotated[str, typer.Option("--session-name", help="Demo session name")],
+    session_id: Annotated[str, typer.Option("--session-id", help="Session ID")],
+    tool: Annotated[str, typer.Option("--tool", help="Tool name")],
+    branch: Annotated[str, typer.Option("--branch", help="Git branch")],
+    project_path: Annotated[str, typer.Option("--project-path", help="Project path")],
+    tmux_session_name: Annotated[str, typer.Option("--tmux-session-name", help="Tmux name")],
+    worktree_note: Annotated[
+        bool, typer.Option("--worktree-note", help="Show worktree note")
+    ] = False,
+    robo: Annotated[bool, typer.Option("--robo", help="Render robo supervisor pane")] = False,
+) -> None:
+    """Render the demo sidebar pane output."""
+    _render_demo_pane(
+        session_name,
+        session_id,
+        tool,
+        branch,
+        project_path,
+        tmux_session_name,
+        worktree_note=worktree_note,
+        robo=robo,
+    )
 
 
 def _sanitize_demo_tmux_name(name: str) -> str:
@@ -199,16 +269,18 @@ def _start_demo_tmux_session(
     cwd: Path,
     *,
     tool_command: str,
-    info_script_path: Path,
+    info_command: str,
 ) -> None:
     """Start a 2-pane demo layout: tool pane + info pane."""
     tmux.new_session(tmux_session_name, cwd=str(cwd))
-    quoted_session = shlex.quote(tmux_session_name)
     quoted_cwd = shlex.quote(str(cwd))
-    tmux.run_command(f"split-window -t {quoted_session}:0 -h -p 35 -c {quoted_cwd}")
-    tmux.send_keys(f"{tmux_session_name}:0.0", tool_command)
-    tmux.send_keys(f"{tmux_session_name}:0.1", f"fish {shlex.quote(str(info_script_path))}")
-    tmux.run_command(f"select-pane -t {quoted_session}:0.0")
+    quoted_session = shlex.quote(tmux_session_name)
+
+    # Use session-level targets so demo works with any tmux base-index settings.
+    tmux.send_keys(tmux_session_name, tool_command)
+    tmux.run_command(f"split-window -t {quoted_session} -h -c {quoted_cwd}")
+    tmux.send_keys(tmux_session_name, info_command)
+    tmux.run_command(f"select-pane -t {quoted_session} -L")
 
 
 @app.command("start")
@@ -263,21 +335,20 @@ async def _demo_start_impl(custom_dir: str | None):
     session_ids.append(s1.id)
 
     # Create tmux session with tool + info panes
-    echo_script = _create_session_echo_script(
+    pane_command = _build_demo_pane_command(
         session_name="demo-main",
         session_id=s1.id,
         tool="opencode",
         branch="main",
         project_path=str(demo_dir).replace(str(Path.home()), "~"),
         tmux_session_name=s1.tmux_session,
+        worktree_note=False,
     )
-    script_path = demo_dir / ".demo-main.sh"
-    script_path.write_text(echo_script)
     _start_demo_tmux_session(
         s1.tmux_session,
         demo_dir,
         tool_command=tool_command,
-        info_script_path=script_path,
+        info_command=pane_command,
     )
 
     # Session 2: Feature branch with worktree
@@ -297,21 +368,20 @@ async def _demo_start_impl(custom_dir: str | None):
     session_ids.append(s2.id)
 
     # Create tmux session with tool + info panes
-    echo_script = _create_session_echo_script(
+    pane_command = _build_demo_pane_command(
         session_name="demo-feature",
         session_id=s2.id,
         tool="opencode",
         branch="feat/api-endpoint",
         project_path=str(worktree_path).replace(str(Path.home()), "~"),
         tmux_session_name=s2.tmux_session,
+        worktree_note=True,
     )
-    script_path = worktree_path / ".demo-feature.sh"
-    script_path.write_text(echo_script)
     _start_demo_tmux_session(
         s2.tmux_session,
         worktree_path,
         tool_command=tool_command,
-        info_script_path=script_path,
+        info_command=pane_command,
     )
 
     # Session 3: Robo session
@@ -325,22 +395,21 @@ async def _demo_start_impl(custom_dir: str | None):
     session_ids.append(s3.id)
 
     # Create tmux session with tool + info panes
-    echo_script = _create_session_echo_script(
+    pane_command = _build_demo_pane_command(
         session_name="demo-robo",
         session_id=s3.id,
         tool="opencode",
         branch="main",
         project_path=str(demo_dir).replace(str(Path.home()), "~"),
         tmux_session_name=s3.tmux_session,
+        worktree_note=False,
         is_robo=True,
     )
-    script_path = demo_dir / ".demo-robo.sh"
-    script_path.write_text(echo_script)
     _start_demo_tmux_session(
         s3.tmux_session,
         demo_dir,
         tool_command=tool_command,
-        info_script_path=script_path,
+        info_command=pane_command,
     )
 
     # Write marker file
