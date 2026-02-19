@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <strong>Terminal-first orchestration for parallel AI coding agents.</strong>
+  <strong>Fish-first orchestration for my personal AI coding workflow.</strong>
 </p>
 
 ---
@@ -30,7 +30,7 @@
 
 Shoal was originally designed for the **Fish Shell** environment (hence the name). The concept of a "shoal" of "robo-fish" came from the idea that multiple independent AI agents (the fish) can be coordinated by a single supervisor (the robo-fish) to move as a unified, self-directing unit.
 
-Shoal manages multiple AI coding agents (Claude Code, OpenCode, Gemini) in persistent, branch-aware tmux sessions. It provides a unified control plane with shared MCP servers, automated status detection, and a supervisor "robo-fish" workflow.
+Shoal manages multiple AI coding agents (OpenCode first, with Claude Code and Gemini supported) in persistent, branch-aware tmux sessions. It provides a unified control plane with shared MCP servers, automated status detection, and a supervisor "robo-fish" workflow.
 
 ## The Analogy: A Robo-Fish in the Shoal
 
@@ -58,9 +58,10 @@ In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a g
 
 ## Status
 
-Shoal is currently in **Beta**. It is the standard orchestration tool for terminal-first AI workflows at US Mobile.
+Shoal is currently in **Beta** and intentionally optimized for a single maintainer workflow.
 
 - **Target Platform**: macOS + tmux 3.3+.
+- **Support Policy**: Fish shell only. Bash/Zsh are out of scope for now.
 - **Stability**: CLI surface is stabilizing; config keys may change until v1.0.
 
 ---
@@ -81,25 +82,9 @@ cd shoal
 pip install -e ".[dev]"
 ```
 
-## Shell Completions
+## Fish Integration
 
-Shoal supports tab-completion for Bash, Zsh, and Fish.
-
-### Zsh
-
-```bash
-shoal --install-completion zsh
-```
-
-### Bash
-
-```bash
-shoal --install-completion bash
-```
-
-### Fish (Enhanced Integration)
-
-Shoal provides native fish shell integration with completions, key bindings, abbreviations, and helper functions:
+Shoal is fish-first and provides native fish integration with completions, key bindings, abbreviations, and helper functions:
 
 ```fish
 shoal setup fish
@@ -114,9 +99,9 @@ This installs:
 
 See [Fish Integration Guide](docs/FISH_INTEGRATION.md) for full documentation.
 
-For basic completions only (no enhanced features):
+For completions only (without helper functions and keybindings):
 
-```bash
+```fish
 shoal --install-completion fish
 ```
 

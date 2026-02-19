@@ -6,7 +6,7 @@ This guide covers common issues you might encounter while using Shoal and provid
 
 If you encounter an error or unexpected behavior, the first step is to enable verbose logging.
 
-```bash
+```fish
 shoal --debug <command>
 ```
 
@@ -76,7 +76,7 @@ This will output DEBUG-level logs to stderr, which can help identify where a pro
 2. Check MCP pool status: `shoal mcp status`
 3. Restart the MCP server: `shoal mcp stop <name> && shoal mcp start <name>`
 4. Verify the tool's MCP configuration. For Claude Code, it should look like:
-   ```bash
+   ```fish
    claude mcp add <name> -- socat STDIO UNIX-CONNECT:~/.local/state/shoal/mcp-pool/sockets/<name>.sock
    ```
 

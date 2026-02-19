@@ -1,14 +1,20 @@
 # Contributing to Shoal
 
-Shoal is an internal US Mobile tool. Contributions are welcome from all employees and contractors!
+Shoal is a personal-first project. Contributions are welcome, but the default scope is the maintainer's workflow: fish + tmux + neovim + opencode.
+
+## Scope and Compatibility
+
+- Fish shell is the only actively supported shell integration right now.
+- Claude and Gemini are supported as secondary tool profiles.
+- Broad compatibility changes should be optional, isolated, and non-disruptive to default workflows.
 
 ## Development Setup
 
 We use `uv` for dependency management.
 
-```bash
+```fish
 # Clone and install in editable mode
-git clone git@github.com:usmobile/shoal.git
+git clone git@github.com:usm-ricardoroche/shoal.git
 cd shoal
 uv pip install -e ".[dev]"
 ```

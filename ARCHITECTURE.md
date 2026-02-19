@@ -1,6 +1,6 @@
 # Shoal Architecture Guide
 
-**Why invest in Shoal?** This guide explains the technical design decisions, implementation architecture, and the engineering philosophy that makes Shoal a robust platform for orchestrating parallel AI coding agents.
+**Why build Shoal this way?** This guide explains the technical design decisions, implementation architecture, and engineering philosophy behind a fish-first orchestration tool tailored to one maintainer's daily workflow.
 
 ---
 
@@ -17,6 +17,12 @@
 ---
 
 ## Why Shoal Exists
+
+### Scope
+
+- Shoal is intentionally optimized for a personal stack: **Fish + tmux + Neovim + OpenCode**.
+- Claude and Gemini remain supported as secondary tool profiles.
+- Bash/Zsh compatibility is out of scope for now to keep maintenance overhead low.
 
 ### The Problem
 
@@ -267,17 +273,11 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 - **Works Remotely**: SSH into any machine, attach to tmux, keep working
 - **Terminal Native**: Integrates with your existing workflow (vim, fzf, lazygit)
 
-### For Teams
+### For Optional Collaborators and Forks
 
-- **Resource Efficiency**: 5 agents sharing MCP servers uses 1/5 the memory
-- **Reproducible Workflows**: Git worktrees ensure clean state, no "works on my machine"
-- **Supervision at Scale**: One robo can manage 10+ agents overnight
-
-### For the Company
-
-- **No Vendor Lock-In**: Open-source tools (tmux, git, sqlite), runs locally
-- **Operational Simplicity**: No infrastructure to maintain, no cloud costs
-- **Audit Trail**: SQLite DB contains full session history, status changes, timestamps
+- **Resource Efficiency**: Shared MCP servers reduce duplicate process overhead
+- **Reproducible Workflows**: Git worktrees preserve isolation and clean state
+- **Extensible Foundation**: Tool profiles and tmux orchestration can be adapted per fork
 
 ---
 
@@ -289,7 +289,7 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 - ✅ **Type Safety**: Full type hints, Pydantic models, mypy-ready
 - ✅ **Error Handling**: Structured logging, exception tracking
 - ✅ **Database Lifecycle**: Connection pooling, WAL mode, async cleanup
-- ✅ **Used in Production**: Standard tool at US Mobile for AI workflows
+- ✅ **Used Daily**: Built for sustained personal use in terminal-heavy AI workflows
 
 ### Known Limitations
 
@@ -330,11 +330,11 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 - **Production-Tested**: Built and battle-tested at a high-growth company
 - **Clean Codebase**: Type-safe, well-documented, 57% test coverage and growing
 
-### Business Value
+### Practical Value
 
-- **Immediate ROI**: Engineers already using it daily at US Mobile
+- **Immediate ROI**: Speeds up one developer's multi-agent workflow today
 - **Low Maintenance**: SQLite + local-first = no infrastructure overhead
-- **Scalable Patterns**: Robo supervisor enables AI-driven orchestration at scale
+- **Composable Patterns**: Robo supervisor workflows remain available when needed
 
 ### Community Potential
 
