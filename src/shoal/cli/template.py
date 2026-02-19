@@ -55,6 +55,7 @@ def template_ls() -> None:
             template.description or "[dim]-[/dim]",
         )
 
+    console.print()
     console.print(table)
 
 

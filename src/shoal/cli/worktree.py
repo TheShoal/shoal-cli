@@ -79,6 +79,7 @@ async def _wt_ls_impl():
         )
 
     if worktree_sessions:
+        console.print()
         console.print(
             create_panel(
                 table,

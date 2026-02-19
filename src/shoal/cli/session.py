@@ -675,6 +675,7 @@ async def _ls_impl(format):
                 wt_display,
             )
 
+        console.print()
         console.print(
             create_panel(
                 table,
@@ -892,6 +893,7 @@ async def _prune_impl(force):
         return
 
     if not force:
+        console.print()
         console.print(f"Found {len(stopped)} stopped sessions:")
         for s in stopped:
             console.print(f"  - {s.name} ({s.id})")
@@ -978,6 +980,7 @@ async def _status_impl(format):
     if counts["unknown"]:
         parts.append(f"[dim]? {counts['unknown']} unknown[/dim]")
 
+    console.print()
     console.print(
         create_panel(Text.from_markup("  |  ".join(parts)), title="Shoal Status", expand=False)
     )
@@ -1239,6 +1242,7 @@ async def _info_impl(session_name_or_id, color_setting):
     else:
         info_console = console
 
+    info_console.print()
     info_console.print(
         create_panel(
             Columns([details, paths, runtime], expand=True),

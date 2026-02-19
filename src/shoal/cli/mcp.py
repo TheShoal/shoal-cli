@@ -86,6 +86,7 @@ async def _mcp_ls_impl():
 
     from rich.panel import Panel
 
+    console.print()
     console.print(
         create_panel(
             table,
@@ -238,6 +239,7 @@ def mcp_status() -> None:
     else:
         summary = Text.from_markup("  |  ".join(parts))
 
+    console.print()
     console.print(
         create_panel(
             summary,

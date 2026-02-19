@@ -402,6 +402,7 @@ async def _robo_ls_impl():
 
         table.add_row(name, tool, robo_status_display, started)
 
+    console.print()
     console.print(
         create_panel(
             table,
