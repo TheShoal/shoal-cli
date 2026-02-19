@@ -47,6 +47,7 @@ async def test_demo_start_happy_path(tmp_path, mock_dirs):
         patch("shoal.cli.demo.subprocess.run") as mock_run,
         patch("shoal.cli.demo.tmux.has_session", return_value=False),
         patch("shoal.cli.demo.tmux.new_session") as mock_new_session,
+        patch("shoal.cli.demo.tmux.run_command") as mock_run_command,
         patch("shoal.cli.demo.tmux.send_keys") as mock_send_keys,
         patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add) as mock_worktree_add,
         patch("shoal.cli.demo.console.print") as mock_print,
@@ -64,8 +65,16 @@ async def test_demo_start_happy_path(tmp_path, mock_dirs):
         # Verify tmux sessions were created (3 sessions)
         assert mock_new_session.call_count == 3
 
-        # Verify send_keys was called for all 3 sessions (to run echo scripts)
-        assert mock_send_keys.call_count == 3
+        # Demo sessions should use stable names (no global prefix)
+        created_names = {call.args[0] for call in mock_new_session.call_args_list}
+        assert created_names == {"demo-main", "demo-feature", "demo-robo"}
+
+        # Each session has 2 panes: tool + info script
+        assert mock_send_keys.call_count == 6
+
+        # Verify pane split commands were issued
+        split_commands = [call.args[0] for call in mock_run_command.call_args_list]
+        assert sum("split-window" in cmd for cmd in split_commands) == 3
 
         # Verify worktree was created for feature session
         mock_worktree_add.assert_called_once()
@@ -90,6 +99,7 @@ async def test_demo_start_custom_dir(tmp_path, mock_dirs):
         patch("shoal.cli.demo.subprocess.run") as mock_run,
         patch("shoal.cli.demo.tmux.has_session", return_value=False),
         patch("shoal.cli.demo.tmux.new_session") as mock_new_session,
+        patch("shoal.cli.demo.tmux.run_command") as mock_run_command,
         patch("shoal.cli.demo.tmux.send_keys") as mock_send_keys,
         patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add) as mock_worktree_add,
     ):
@@ -109,12 +119,14 @@ async def test_demo_start_custom_dir(tmp_path, mock_dirs):
         demo_feature_script = worktree_path / ".demo-feature.sh"
 
         expected_commands = {
-            f"bash {shlex.quote(str(demo_main_script))}",
-            f"bash {shlex.quote(str(demo_robo_script))}",
-            f"bash {shlex.quote(str(demo_feature_script))}",
+            f"fish {shlex.quote(str(demo_main_script))}",
+            f"fish {shlex.quote(str(demo_robo_script))}",
+            f"fish {shlex.quote(str(demo_feature_script))}",
         }
         actual_commands = {call.args[1] for call in mock_send_keys.call_args_list}
         assert expected_commands.issubset(actual_commands)
+        assert mock_new_session.call_count == 3
+        assert mock_run_command.call_count >= 3
 
 
 @pytest.mark.asyncio

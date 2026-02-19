@@ -14,8 +14,9 @@ from rich.console import Console
 from rich.panel import Panel
 
 from shoal.core import git, tmux
+from shoal.core.config import load_tool_config
 from shoal.core.db import get_db, with_db
-from shoal.core.state import create_session, delete_session, list_sessions
+from shoal.core.state import create_session, delete_session, list_sessions, update_session
 from shoal.core.theme import Icons, create_panel
 
 console = Console()
@@ -118,80 +119,96 @@ def _create_session_echo_script(
     tmux_session_name: str,
     is_robo: bool = False,
 ) -> str:
-    """Generate an echo script that describes what the session is."""
+    """Generate a simple info script for the demo sidebar pane."""
     if is_robo:
         return f"""clear
-echo "╭──────────────────────────────────────────────╮"
-echo "│  󰚩 Shoal Demo — Robo Session                │"
-echo "├──────────────────────────────────────────────┤"
-echo "│                                              │"
-echo "│  This is a ROBO-FISH session — Shoal's       │"
-echo "│  supervisory agent.                          │"
-echo "│                                              │"
-echo "│  In nature, robot fish lead schools of real  │"
-echo "│  fish. In Shoal, the robo leads your AI      │"
-echo "│  coding agents.                              │"
-echo "│                                              │"
-echo "│  The robo can see these active sessions:     │"
-echo "│    • demo-main     (main branch)             │"
-echo "│    • demo-feature  (feat/api-endpoint)       │"
-echo "│                                              │"
-echo "│  A robo-fish can:                            │"
-echo "│    • Monitor agent status (shoal status)     │"
-echo "│    • Approve waiting agents                  │"
-echo "│    • Send commands to any session            │"
-echo "│    • Coordinate work across the shoal        │"
-echo "│                                              │"
-echo "│  In production, this session runs an AI      │"
-echo "│  tool with a specialized AGENTS.md prompt    │"
-echo "│  that gives it awareness of all sessions.    │"
-echo "│                                              │"
-echo "╰──────────────────────────────────────────────╯"
+echo "Shoal Demo: robo supervisor"
+echo
+echo "Session details"
+echo "- session_id: {session_id}"
+echo "- tool: {tool}"
+echo "- branch: {branch}"
+echo "- project: {project_path}"
+echo "- tmux: {tmux_session_name}"
+echo
+echo "Suggested commands for pane 0 (opencode)"
+echo "1) shoal status"
+echo "2) shoal ls"
+echo "3) shoal logs demo-feature"
+echo "4) shoal robo approve demo-feature"
+echo "5) shoal robo send demo-main \"run pytest -q\""
+echo
+echo "Tip: if opencode requires authentication, sign in there first."
 echo ""
-bash
 """
     else:
         worktree_note = ""
         if "feature" in session_name:
-            worktree_note = """echo "│  This session uses a dedicated worktree,     │"
-echo "│  which means it has its own working          │"
-echo "│  directory separate from the main branch.    │"
-echo "│  Changes here won't affect other sessions.   │"
-echo "│                                              │" """
+            worktree_note = """echo "Worktree note"
+echo "- This session uses an isolated worktree."
+echo "- Changes here stay isolated from main."
+echo
+"""
 
         return f"""clear
-echo "╭──────────────────────────────────────────────╮"
-echo "│  󰚩 Shoal Demo — Session: {session_name:22s}│"
-echo "├──────────────────────────────────────────────┤"
-echo "│                                              │"
-echo "│  This is a Shoal session running on the      │"
-echo "│  {branch:42s}│"
-{worktree_note}echo "│  In a real workflow, this session would be    │"
-echo "│  running an AI coding tool like:             │"
-echo "│    • OpenCode (opencode)                     │"
-echo "│    • Claude Code (claude)                    │"
-echo "│    • Gemini CLI (gemini)                     │"
-echo "│                                              │"
-echo "│  The tool would have full access to the      │"
-echo "│  project files and could make changes,       │"
-echo "│  run tests, and commit code.                 │"
-echo "│                                              │"
-echo "│  You can also run terminal tools here:       │"
-echo "│    • lazygit — TUI git client                │"
-echo "│    • btop — system monitor                   │"
-echo "│    • nvim — editor with LSP                  │"
-echo "│                                              │"
-echo "│  Session ID:    {session_id:30s}│"
-echo "│  Tool:          {tool:30s}│"
-echo "│  Branch:        {branch:30s}│"
-echo "│  Project:       {project_path:30s}│"
-echo "│  Tmux Session:  {tmux_session_name:30s}│"
-echo "│                                              │"
-echo "╰──────────────────────────────────────────────╯"
+echo "Shoal Demo: {session_name}"
+echo
+echo "Session details"
+echo "- session_id: {session_id}"
+echo "- tool: {tool}"
+echo "- branch: {branch}"
+echo "- project: {project_path}"
+echo "- tmux: {tmux_session_name}"
 echo ""
-echo "Type 'exit' or press Ctrl+D to leave this session."
-bash
+{worktree_note}echo "Suggested prompts for pane 0 (opencode)"
+echo "1) summarize the repository and current branch"
+echo "2) run tests with: uv run pytest -q"
+echo "3) implement a tiny change and show git diff"
+echo "4) explain next commit message before committing"
+echo
+echo "Tip: if opencode requires authentication, sign in there first."
 """
+
+
+def _sanitize_demo_tmux_name(name: str) -> str:
+    """Return a stable tmux-safe name for demo sessions."""
+    return name.replace("/", "-").replace(":", "-").replace(".", "-")
+
+
+async def _pin_demo_tmux_name(session_name: str, session_id: str, current_tmux_name: str) -> str:
+    """Use stable demo tmux names, independent of configured global prefix."""
+    target_tmux_name = _sanitize_demo_tmux_name(session_name)
+    if target_tmux_name == current_tmux_name:
+        return current_tmux_name
+    if tmux.has_session(target_tmux_name):
+        console.print(
+            "[red]Error: Demo tmux session name already exists:[/red] "
+            f"[bold]{target_tmux_name}[/bold]"
+        )
+        raise typer.Exit(1)
+    await update_session(
+        session_id,
+        tmux_session=target_tmux_name,
+        nvim_socket=f"/tmp/nvim-{target_tmux_name}-0.sock",
+    )
+    return target_tmux_name
+
+
+def _start_demo_tmux_session(
+    tmux_session_name: str,
+    cwd: Path,
+    *,
+    tool_command: str,
+    info_script_path: Path,
+) -> None:
+    """Start a 2-pane demo layout: tool pane + info pane."""
+    tmux.new_session(tmux_session_name, cwd=str(cwd))
+    quoted_session = shlex.quote(tmux_session_name)
+    quoted_cwd = shlex.quote(str(cwd))
+    tmux.run_command(f"split-window -t {quoted_session}:0 -h -p 35 -c {quoted_cwd}")
+    tmux.send_keys(f"{tmux_session_name}:0.0", tool_command)
+    tmux.send_keys(f"{tmux_session_name}:0.1", f"fish {shlex.quote(str(info_script_path))}")
+    tmux.run_command(f"select-pane -t {quoted_session}:0.0")
 
 
 @app.command("start")
@@ -232,6 +249,8 @@ async def _demo_start_impl(custom_dir: str | None):
 
     # Create marker file to track demo sessions
     session_ids = []
+    tool_cfg = load_tool_config("opencode")
+    tool_command = tool_cfg.command
 
     # Session 1: Main branch
     console.print("  ✓ Creating session: demo-main (main branch)")
@@ -240,10 +259,10 @@ async def _demo_start_impl(custom_dir: str | None):
         tool="opencode",
         git_root=str(demo_dir),
     )
+    s1.tmux_session = await _pin_demo_tmux_name(s1.name, s1.id, s1.tmux_session)
     session_ids.append(s1.id)
 
-    # Create tmux session with echo script
-    tmux.new_session(s1.tmux_session, cwd=str(demo_dir))
+    # Create tmux session with tool + info panes
     echo_script = _create_session_echo_script(
         session_name="demo-main",
         session_id=s1.id,
@@ -254,7 +273,12 @@ async def _demo_start_impl(custom_dir: str | None):
     )
     script_path = demo_dir / ".demo-main.sh"
     script_path.write_text(echo_script)
-    tmux.send_keys(s1.tmux_session, f"bash {shlex.quote(str(script_path))}")
+    _start_demo_tmux_session(
+        s1.tmux_session,
+        demo_dir,
+        tool_command=tool_command,
+        info_script_path=script_path,
+    )
 
     # Session 2: Feature branch with worktree
     console.print("  ✓ Creating session: demo-feature (feat/api-endpoint worktree)")
@@ -269,10 +293,10 @@ async def _demo_start_impl(custom_dir: str | None):
         worktree=str(worktree_path),
         branch="feat/api-endpoint",
     )
+    s2.tmux_session = await _pin_demo_tmux_name(s2.name, s2.id, s2.tmux_session)
     session_ids.append(s2.id)
 
-    # Create tmux session with echo script
-    tmux.new_session(s2.tmux_session, cwd=str(worktree_path))
+    # Create tmux session with tool + info panes
     echo_script = _create_session_echo_script(
         session_name="demo-feature",
         session_id=s2.id,
@@ -283,7 +307,12 @@ async def _demo_start_impl(custom_dir: str | None):
     )
     script_path = worktree_path / ".demo-feature.sh"
     script_path.write_text(echo_script)
-    tmux.send_keys(s2.tmux_session, f"bash {shlex.quote(str(script_path))}")
+    _start_demo_tmux_session(
+        s2.tmux_session,
+        worktree_path,
+        tool_command=tool_command,
+        info_script_path=script_path,
+    )
 
     # Session 3: Robo session
     console.print("  ✓ Creating session: demo-robo (supervisor)")
@@ -292,10 +321,10 @@ async def _demo_start_impl(custom_dir: str | None):
         tool="opencode",
         git_root=str(demo_dir),
     )
+    s3.tmux_session = await _pin_demo_tmux_name(s3.name, s3.id, s3.tmux_session)
     session_ids.append(s3.id)
 
-    # Create tmux session with robo echo script
-    tmux.new_session(s3.tmux_session, cwd=str(demo_dir))
+    # Create tmux session with tool + info panes
     echo_script = _create_session_echo_script(
         session_name="demo-robo",
         session_id=s3.id,
@@ -307,7 +336,12 @@ async def _demo_start_impl(custom_dir: str | None):
     )
     script_path = demo_dir / ".demo-robo.sh"
     script_path.write_text(echo_script)
-    tmux.send_keys(s3.tmux_session, f"bash {shlex.quote(str(script_path))}")
+    _start_demo_tmux_session(
+        s3.tmux_session,
+        demo_dir,
+        tool_command=tool_command,
+        info_script_path=script_path,
+    )
 
     # Write marker file
     marker_file.write_text("\n".join(session_ids))

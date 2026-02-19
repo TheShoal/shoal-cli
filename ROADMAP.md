@@ -1,6 +1,6 @@
 # Shoal Roadmap
 
-This roadmap outlines the planned development for Shoal as it moves toward a stable v1.0.0 for internal use at US Mobile.
+This roadmap outlines the planned development for Shoal as a fish-first, personal workflow tool that may still be useful to others.
 
 ## Completed Milestones
 
@@ -98,7 +98,7 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
   - ✅ Added universal variables for cross-session state sharing
   - ✅ Added fish event handlers (fish_preexec) for automatic status detection
   - ✅ Created abbreviations for common shoal commands (sa, sl, ss, sp, sn, sk, si)
-  - ✅ Fish remains optional, not a hard dependency
+  - ✅ Fish is now the primary supported shell experience
 - **Theme Module Enhancements**:
   - ✅ Added plain-text output variants for fish completions (`--format plain`)
   - ✅ Ensured `--format plain` works for `ls` and `status` commands
@@ -126,25 +126,33 @@ This roadmap outlines the planned development for Shoal as it moves toward a sta
   - ✅ Add `--debug` flag for verbose logging (global flag)
   - ✅ Create troubleshooting guide for common issues (docs/TROUBLESHOOTING.md)
 
-## v0.7.0: Event-Driven Architecture
+## v0.7.0: Fish-First Scope Consolidation
 
-**Priority: Infrastructure for real-time UI features.**
+**Priority: Align product surface with personal workflow constraints.**
 
-- **Event Bus**: Implement an internal pub/sub system for session state changes.
-- **WebSocket Updates**: Real-time state pushing to the API and UI.
-- **Enhanced Watcher**: Use the event bus instead of polling for faster, more efficient notifications.
+- **Scope Reset**: Remove bash/zsh support claims from docs and examples.
+- **CLI Clarity**: Keep fish setup and fish completions as the single supported shell path.
+- **Demo Consistency**: Eliminate bash-dependent demo paths and scripts.
+- **Tool Priority**: Keep OpenCode-first UX with Claude/Gemini as secondary profiles.
 
-## v0.8.0: The Interface
+## v0.8.0: Session Template MVP
 
-**Priority: User experience and TUI polish.**
+**Priority: tmux sessionizer-style workflows.**
 
-- **Advanced Popup**: Add preview panes and interactive log tailing to the fzf dashboard.
-- **Tmux Integration**: Configurable status bar segments with color-coded health checks.
-- **Visuals**: Explore a minimal web dashboard for visualizing complex multi-agent workflows.
+- **Template Schema**: Add declarative templates for windows, panes, and startup commands.
+- **Profile Workflows**: Define reusable profiles for common project/task types.
+- **`shoal new --template`**: Create sessions/worktrees from a named template.
+- **Validation**: Add template validation and dry-run output before execution.
+
+## Brain Dump
+
+- [x] Demo templates: Configure demo to start with two panes -- one for opencode and one for the current demo output
+- [x] Change demo output to list instead of boxes, and have it include examples of what to run in the opencode window (assumes they are logged in -- up to them to do so)
+- [x] Demo tmux naming: Keep demo tmux session names stable (`demo-main`, `demo-feature`, `demo-robo`) regardless of configured global session prefix.
 
 ## Future Considerations
 
 - **FastMCP Integration**: Native support for the FastMCP protocol.
-- **Session Templates**: Predefined session configurations for common stacks.
+- **Session Templates v2**: Advanced inheritance/composition after MVP stabilizes.
 - **Remote Sessions**: Support managing sessions on remote machines via SSH.
 - **Ruff Lint Expansion**: Enforce stricter async and security linting rules.
