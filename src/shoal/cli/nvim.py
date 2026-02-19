@@ -15,7 +15,7 @@ from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
 from shoal.core.state import (
     get_session,
-    resolve_session_interactive,
+    resolve_nvim_socket,
     _resolve_session_interactive_impl,
 )
 
@@ -40,12 +40,13 @@ async def _nvim_send_impl(session, command):
     if not s:
         raise typer.Exit(1)
 
-    if not s.nvim_socket:
+    socket = await resolve_nvim_socket(s)
+    if not socket:
         console.print(f"[red]No nvim socket for session '{s.name}'[/red]")
         raise typer.Exit(1)
 
-    if not Path(s.nvim_socket).exists():
-        console.print(f"[red]Nvim socket not found: {s.nvim_socket}[/red]")
+    if not Path(socket).exists():
+        console.print(f"[red]Nvim socket not found: {socket}[/red]")
         console.print(f"Is nvim running in session '{s.name}'?")
         raise typer.Exit(1)
 
@@ -54,7 +55,7 @@ async def _nvim_send_impl(session, command):
         raise typer.Exit(1)
 
     subprocess.run(
-        ["nvr", "--servername", s.nvim_socket, "--remote-send", f"<C-\\><C-n>:{command}<CR>"],
+        ["nvr", "--servername", socket, "--remote-send", f"<C-\\><C-n>:{command}<CR>"],
         check=False,
     )
     console.print(f"Sent to {s.name} nvim: :{command}")
@@ -75,12 +76,13 @@ async def _nvim_diagnostics_impl(session):
     if not s:
         raise typer.Exit(1)
 
-    if not s.nvim_socket:
+    socket = await resolve_nvim_socket(s)
+    if not socket:
         console.print(f"[red]No nvim socket for session '{s.name}'[/red]")
         raise typer.Exit(1)
 
-    if not Path(s.nvim_socket).exists():
-        console.print(f"[red]Nvim socket not found: {s.nvim_socket}[/red]")
+    if not Path(socket).exists():
+        console.print(f"[red]Nvim socket not found: {socket}[/red]")
         console.print(f"Is nvim running in session '{s.name}'?")
         raise typer.Exit(1)
 
@@ -99,7 +101,7 @@ async def _nvim_diagnostics_impl(session):
     )
 
     result = subprocess.run(
-        ["nvr", "--servername", s.nvim_socket, "--remote-expr", f"luaeval('{lua_cmd}')"],
+        ["nvr", "--servername", socket, "--remote-expr", f"luaeval('{lua_cmd}')"],
         capture_output=True,
         text=True,
         check=False,
