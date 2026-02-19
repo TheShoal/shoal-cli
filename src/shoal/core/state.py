@@ -91,6 +91,40 @@ def is_shoal_tmux_session_name(name: str | None) -> bool:
     return name.startswith(f"{prefix}_")
 
 
+def build_nvim_socket_path(tmux_session_id: str, tmux_window_id: str) -> str:
+    """Build Neovim socket path from tmux IDs."""
+    return f"/tmp/nvim-{tmux_session_id}-{tmux_window_id}.sock"
+
+
+async def resolve_nvim_socket(session: SessionState) -> str | None:
+    """Resolve and persist a session's Neovim socket from current tmux IDs."""
+    from shoal.core import tmux
+
+    if not tmux.has_session(session.tmux_session):
+        return None
+
+    pane_target = tmux.preferred_pane(session.tmux_session, f"shoal:{session.id}")
+    coordinates = tmux.pane_coordinates(pane_target)
+    if not coordinates:
+        return None
+
+    tmux_session_id, tmux_window_id = coordinates
+    socket = build_nvim_socket_path(tmux_session_id, tmux_window_id)
+
+    updates: dict[str, str] = {}
+    if session.tmux_session_id != tmux_session_id:
+        updates["tmux_session_id"] = tmux_session_id
+    if session.tmux_window != tmux_window_id:
+        updates["tmux_window"] = tmux_window_id
+    if session.nvim_socket != socket:
+        updates["nvim_socket"] = socket
+
+    if updates:
+        await update_session(session.id, **updates)
+
+    return socket
+
+
 async def create_session(
     name: str,
     tool: str,
@@ -126,8 +160,9 @@ async def create_session(
         worktree=worktree,
         branch=branch,
         tmux_session=tmux_session,
-        tmux_window="0",
-        nvim_socket=f"/tmp/nvim-{tmux_session}-0.sock",
+        tmux_session_id="",
+        tmux_window="",
+        nvim_socket="",
         status=SessionStatus.idle,
         pid=None,
         mcp_servers=[],

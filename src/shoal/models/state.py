@@ -31,7 +31,8 @@ class SessionState(BaseModel):
     worktree: str = ""
     branch: str = ""
     tmux_session: str
-    tmux_window: str = "0"
+    tmux_session_id: str = ""
+    tmux_window: str = ""
     nvim_socket: str = ""
     status: SessionStatus = SessionStatus.idle
     pid: int | None = None

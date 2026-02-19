@@ -16,6 +16,7 @@ from shoal.core import git, tmux
 from shoal.core.config import config_dir, ensure_dirs, load_config, load_template, load_tool_config
 from shoal.core.db import with_db
 from shoal.core.state import (
+    build_nvim_socket_path,
     build_tmux_session_name,
     _get_tool_icon,
     _resolve_session_interactive_impl,
@@ -569,11 +570,19 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
     tmux.set_pane_title(tmux_session, f"shoal:{session.id}")
 
     # Update state
-    await update_session(session.id, status=SessionStatus.running)
-
+    updates: dict[str, str | int | SessionStatus] = {"status": SessionStatus.running}
     pane = tmux.pane_pid(tmux.preferred_pane(tmux_session, f"shoal:{session.id}"))
     if pane:
-        await update_session(session.id, pid=pane)
+        updates["pid"] = pane
+
+    coordinates = tmux.pane_coordinates(tmux.preferred_pane(tmux_session, f"shoal:{session.id}"))
+    if coordinates:
+        tmux_session_id, tmux_window_id = coordinates
+        updates["tmux_session_id"] = tmux_session_id
+        updates["tmux_window"] = tmux_window_id
+        updates["nvim_socket"] = build_nvim_socket_path(tmux_session_id, tmux_window_id)
+
+    await update_session(session.id, **updates)
 
     console.print(
         f"{tool_cfg.icon} Session '{session_name}' created (id: {session.id}, tool: {tool})"
@@ -824,7 +833,17 @@ async def _fork_impl(session, name, no_worktree):
 
     tmux.set_pane_title(tmux_session, f"shoal:{new_session.id}")
 
-    await update_session(new_session.id, status=SessionStatus.running)
+    updates: dict[str, str | SessionStatus] = {"status": SessionStatus.running}
+    coordinates = tmux.pane_coordinates(
+        tmux.preferred_pane(tmux_session, f"shoal:{new_session.id}")
+    )
+    if coordinates:
+        tmux_session_id, tmux_window_id = coordinates
+        updates["tmux_session_id"] = tmux_session_id
+        updates["tmux_window"] = tmux_window_id
+        updates["nvim_socket"] = build_nvim_socket_path(tmux_session_id, tmux_window_id)
+
+    await update_session(new_session.id, **updates)
 
     console.print(f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})")
     if wt_path:

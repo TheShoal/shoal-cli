@@ -129,6 +129,23 @@ def pane_pid(target: str) -> int | None:
     return None
 
 
+def pane_coordinates(target: str) -> tuple[str, str] | None:
+    """Return tmux (session_id, window_id) for a pane/window target."""
+    result = _run(
+        ["display-message", "-t", target, "-p", "#{session_id}\t#{window_id}"],
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    parts = result.stdout.strip().split("\t")
+    if len(parts) != 2:
+        return None
+    session_id, window_id = parts
+    if not session_id or not window_id:
+        return None
+    return session_id, window_id
+
+
 def switch_client(target: str) -> None:
     _run(["switch-client", "-t", target])
 
