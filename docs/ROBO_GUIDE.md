@@ -53,6 +53,37 @@ shoal attach
 
 ## Robo Workflow Patterns
 
+### Pattern 0: Template-Based Worker Fleet
+
+**Use case**: You want predictable worker layouts so the robo can coordinate sessions with the same pane/window structure.
+
+**Setup**:
+```bash
+# Verify global templates
+shoal template ls
+shoal template validate feature-dev
+
+# Start workers with a shared template + valid category/slug branches
+shoal new -t claude -w feat/auth-ui -b --template feature-dev
+shoal new -t opencode -w feat/auth-api -b --template feature-dev
+shoal new -t gemini -w docs/auth-guide -b --template feature-dev
+
+# Start robo supervisor
+shoal robo start default
+```
+
+**Robo instructions**:
+```
+Treat worker sessions as template-driven environments.
+For each waiting/idle session:
+1. Check status with `shoal status`
+2. Send follow-up commands with `shoal robo send <session> <keys>`
+3. Assume pane roles are consistent because workers use the same template
+4. Log routing decisions in task-log.md
+```
+
+**Result**: The robo supervises a uniform fleet, reducing ambiguity when routing and approvals happen in parallel.
+
 ### Pattern 1: Passive Monitoring
 
 **Use case**: You have 3 agents working on different features. The robo periodically checks their status.
@@ -87,9 +118,9 @@ Log findings in task-log.md.
 **Setup**:
 ```bash
 # Start 3 sessions
-shoal new -t claude -w feature-auth -b
-shoal new -t opencode -w feature-api -b
-shoal new -t gemini -w bugfix-cache -b
+shoal new -t claude -w feat/auth -b --template feature-dev
+shoal new -t opencode -w feat/api -b --template feature-dev
+shoal new -t gemini -w fix/cache -b --template feature-dev
 
 # Start robo
 shoal robo start approval-bot
@@ -324,9 +355,9 @@ shoal robo setup <name>
 
 ```bash
 # Create three sessions
-shoal new -t claude -w feature-auth-ui -b
-shoal new -t opencode -w feature-auth-api -b
-shoal new -t gemini -w feature-auth-docs -b
+shoal new -t claude -w feat/auth-ui -b --template feature-dev
+shoal new -t opencode -w feat/auth-api -b --template feature-dev
+shoal new -t gemini -w docs/auth-docs -b --template feature-dev
 
 # Start robo to coordinate
 shoal robo start feature-auth-coordinator
@@ -346,10 +377,10 @@ Monitor these three sessions. When all three are "idle":
 
 ```bash
 # Create 4 worker sessions
-shoal new -t claude -w worker-1 -b
-shoal new -t opencode -w worker-2 -b
-shoal new -t gemini -w worker-3 -b
-shoal new -t claude -w worker-4 -b
+shoal new -t claude -w chore/worker-1 -b --template feature-dev
+shoal new -t opencode -w chore/worker-2 -b --template feature-dev
+shoal new -t gemini -w chore/worker-3 -b --template feature-dev
+shoal new -t claude -w chore/worker-4 -b --template feature-dev
 
 # Start robo
 shoal robo start overnight-batch

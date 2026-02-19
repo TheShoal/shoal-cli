@@ -27,6 +27,7 @@ from shoal.cli.session import (
     status,
 )
 from shoal.cli.setup import app as setup_app
+from shoal.cli.template import app as template_app
 from shoal.cli.watcher import app as watcher_app
 from shoal.cli.worktree import app as wt_app
 from shoal.core.db import with_db
@@ -85,6 +86,7 @@ app.add_typer(nvim_app, name="nvim", help="Neovim integration.")
 app.add_typer(watcher_app, name="watcher", help="Background status watcher.")
 app.add_typer(demo_app, name="demo", help="Demo environment.")
 app.add_typer(setup_app, name="setup", help="Setup shell integrations.")
+app.add_typer(template_app, name="template", help="Session templates.")
 
 
 @app.command()

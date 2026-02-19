@@ -7,11 +7,12 @@ from functools import lru_cache
 from pathlib import Path
 
 from shoal.models.config import (
-    RoboProfileConfig,
-    ConductorProfileConfig,
     DetectionPatterns,
     MCPToolConfig,
+    RoboProfileConfig,
+    SessionTemplateConfig,
     ShoalConfig,
+    TemplateWorktreeConfig,
     ToolConfig,
 )
 
@@ -33,6 +34,10 @@ def runtime_dir() -> Path:
 
 def ensure_dirs() -> None:
     """Create all required state and runtime directories."""
+    cfg = config_dir()
+    for subdir in ("templates",):
+        (cfg / subdir).mkdir(parents=True, exist_ok=True)
+
     base = state_dir()
     for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "robo"):
         (base / subdir).mkdir(parents=True, exist_ok=True)
@@ -106,3 +111,51 @@ def available_tools() -> list[str]:
     if not tools_dir.exists():
         return []
     return sorted(p.stem for p in tools_dir.glob("*.toml"))
+
+
+def templates_dir() -> Path:
+    """Return ~/.config/shoal/templates."""
+    return config_dir() / "templates"
+
+
+def available_templates() -> list[str]:
+    """List available template names from config/templates/*.toml."""
+    dir_path = templates_dir()
+    if not dir_path.exists():
+        return []
+    return sorted(p.stem for p in dir_path.glob("*.toml"))
+
+
+def load_template(name: str) -> SessionTemplateConfig:
+    """Load a session template TOML.
+
+    Expected shape:
+      [template]
+      name, description, tool
+      [template.worktree]
+      name, create_branch
+      [template.env]
+      ...
+      [[windows]]
+      [[windows.panes]]
+    """
+    path = templates_dir() / f"{name}.toml"
+    if not path.exists():
+        raise FileNotFoundError(f"No template config: {path}")
+
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+
+    template_section = data.get("template", {})
+    worktree_section = template_section.get("worktree", {})
+    env_section = template_section.get("env", {})
+    windows_section = data.get("windows", [])
+
+    return SessionTemplateConfig(
+        name=template_section.get("name", name),
+        description=template_section.get("description", ""),
+        tool=template_section.get("tool", "opencode"),
+        worktree=TemplateWorktreeConfig.model_validate(worktree_section),
+        env=env_section,
+        windows=windows_section,
+    )

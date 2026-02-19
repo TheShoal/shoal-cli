@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -108,3 +110,35 @@ class RoboProfileConfig(BaseModel):
 
 # Backward compatibility alias
 ConductorProfileConfig = RoboProfileConfig
+
+
+# --- Session template models (templates/<name>.toml) ---
+
+
+class TemplateWorktreeConfig(BaseModel):
+    name: str = ""
+    create_branch: bool = False
+
+
+class TemplatePaneConfig(BaseModel):
+    split: Literal["root", "right", "down"] = "root"
+    size: str = ""
+    title: str = ""
+    command: str
+
+
+class TemplateWindowConfig(BaseModel):
+    name: str
+    cwd: str = ""
+    layout: str = ""
+    focus: bool = False
+    panes: list[TemplatePaneConfig] = Field(default_factory=list)
+
+
+class SessionTemplateConfig(BaseModel):
+    name: str
+    description: str = ""
+    tool: str = "opencode"
+    worktree: TemplateWorktreeConfig = Field(default_factory=TemplateWorktreeConfig)
+    env: dict[str, str] = Field(default_factory=dict)
+    windows: list[TemplateWindowConfig] = Field(default_factory=list)

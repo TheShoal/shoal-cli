@@ -3,7 +3,6 @@
 import asyncio
 from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from shoal.cli import app
@@ -110,6 +109,11 @@ class TestNew:
         assert result.exit_code == 1
         assert "Not a git repository" in result.output
 
+    def test_unknown_template(self, mock_dirs, tmp_path):
+        result = runner.invoke(app, ["new", str(tmp_path), "--template", "nonexistent"])
+        assert result.exit_code == 1
+        assert "Template 'nonexistent' not found" in result.output
+
 
 class TestDetach:
     def test_not_in_tmux(self, mock_dirs):
@@ -205,6 +209,79 @@ class TestWorktree:
         assert result.exit_code == 0
 
 
+class TestTemplate:
+    def test_ls_empty(self, mock_dirs):
+        result = runner.invoke(app, ["template", "ls"])
+        assert result.exit_code == 0
+        assert "No templates found" in result.output
+
+    def test_show(self, mock_dirs):
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        templates.mkdir(parents=True, exist_ok=True)
+        (templates / "feature-dev.toml").write_text(
+            """
+[template]
+name = "feature-dev"
+tool = "opencode"
+
+[[windows]]
+name = "dev"
+
+[[windows.panes]]
+split = "root"
+command = "opencode"
+"""
+        )
+
+        result = runner.invoke(app, ["template", "show", "feature-dev"])
+        assert result.exit_code == 0
+        assert '"name": "feature-dev"' in result.output
+
+    def test_validate_all_ok(self, mock_dirs):
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        templates.mkdir(parents=True, exist_ok=True)
+        (templates / "feature-dev.toml").write_text(
+            """
+[template]
+name = "feature-dev"
+
+[[windows]]
+name = "dev"
+
+[[windows.panes]]
+split = "root"
+command = "opencode"
+"""
+        )
+
+        result = runner.invoke(app, ["template", "validate"])
+        assert result.exit_code == 0
+        assert "OK" in result.output
+
+    def test_validate_invalid(self, mock_dirs):
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        templates.mkdir(parents=True, exist_ok=True)
+        (templates / "broken.toml").write_text(
+            """
+[template]
+name = "broken"
+
+[[windows]]
+name = "dev"
+
+[[windows.panes]]
+split = "root"
+"""
+        )
+
+        result = runner.invoke(app, ["template", "validate"])
+        assert result.exit_code == 1
+        assert "INVALID" in result.output
+
+
 class TestInfo:
     def test_info_not_found(self, mock_dirs):
         result = runner.invoke(app, ["info", "nonexistent"])
@@ -281,7 +358,7 @@ class TestKill:
     def test_kill_worktree(self, mock_dirs):
         from shoal.core.state import create_session
 
-        s = asyncio.run(
+        asyncio.run(
             create_session("wt-session", "claude", "/tmp/repo", worktree="/tmp/repo/.worktrees/wt")
         )
 

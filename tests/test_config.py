@@ -1,9 +1,13 @@
 """Tests for core/config.py — TOML loading and path helpers."""
 
+import pytest
+
 from shoal.core.config import (
+    available_templates,
     available_tools,
     load_robo_profile,
     load_config,
+    load_template,
     load_tool_config,
 )
 
@@ -39,8 +43,6 @@ class TestLoadToolConfig:
         assert cfg.command == "opencode"
 
     def test_missing_tool(self, mock_dirs):
-        import pytest
-
         with pytest.raises(FileNotFoundError):
             load_tool_config("nonexistent")
 
@@ -54,8 +56,6 @@ class TestLoadRoboProfile:
         assert profile.escalation.notify is True
 
     def test_missing_profile(self, mock_dirs):
-        import pytest
-
         with pytest.raises(FileNotFoundError):
             load_robo_profile("nonexistent")
 
@@ -65,3 +65,91 @@ class TestAvailableTools:
         tools = available_tools()
         assert "claude" in tools
         assert "opencode" in tools
+
+
+class TestTemplates:
+    def test_available_templates_empty(self, mock_dirs):
+        assert available_templates() == []
+
+    def test_available_templates(self, mock_dirs):
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        templates.mkdir(parents=True, exist_ok=True)
+        (templates / "feature-dev.toml").write_text(
+            """
+[template]
+name = "feature-dev"
+tool = "opencode"
+
+[[windows]]
+name = "main"
+
+[[windows.panes]]
+split = "root"
+command = "opencode"
+"""
+        )
+
+        assert available_templates() == ["feature-dev"]
+
+    def test_load_template(self, mock_dirs):
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        templates.mkdir(parents=True, exist_ok=True)
+        (templates / "feature-dev.toml").write_text(
+            """
+[template]
+name = "feature-dev"
+description = "Feature workflow"
+tool = "opencode"
+
+[template.worktree]
+name = "feat/{slug}"
+create_branch = true
+
+[template.env]
+FOO = "bar"
+
+[[windows]]
+name = "dev"
+focus = true
+
+[[windows.panes]]
+split = "root"
+command = "nvim ."
+"""
+        )
+
+        template = load_template("feature-dev")
+        assert template.name == "feature-dev"
+        assert template.tool == "opencode"
+        assert template.worktree.create_branch is True
+        assert template.env["FOO"] == "bar"
+        assert len(template.windows) == 1
+        assert template.windows[0].panes[0].command == "nvim ."
+
+    def test_load_template_missing(self, mock_dirs):
+        with pytest.raises(FileNotFoundError):
+            load_template("nonexistent")
+
+    def test_load_template_invalid(self, mock_dirs):
+        from pydantic import ValidationError
+
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        templates.mkdir(parents=True, exist_ok=True)
+        (templates / "broken.toml").write_text(
+            """
+[template]
+name = "broken"
+
+[[windows]]
+name = "dev"
+
+[[windows.panes]]
+split = "root"
+"""
+        )
+
+        with pytest.raises(ValidationError):
+            load_template("broken")

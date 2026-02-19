@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import re
+import shlex
 from pathlib import Path
 from typing import Annotated
 
@@ -11,7 +13,7 @@ from rich.console import Console
 from rich.table import Table
 
 from shoal.core import git, tmux
-from shoal.core.config import config_dir, ensure_dirs, load_config, load_tool_config
+from shoal.core.config import config_dir, ensure_dirs, load_config, load_template, load_tool_config
 from shoal.core.db import with_db
 from shoal.core.state import (
     build_tmux_session_name,
@@ -39,6 +41,8 @@ from shoal.models.state import SessionStatus
 
 console = Console()
 
+ALLOWED_BRANCH_CATEGORIES = ("feat", "fix", "bug", "chore", "docs", "refactor", "test")
+
 
 def _infer_branch_name(worktree_name: str) -> str:
     """Infer branch name from worktree name.
@@ -57,22 +61,308 @@ def _infer_branch_name(worktree_name: str) -> str:
     return f"feat/{worktree_name}"
 
 
+def _validate_category_slug_branch(branch_name: str) -> None:
+    categories = "|".join(ALLOWED_BRANCH_CATEGORIES)
+    pattern = rf"^({categories})/[a-z0-9][a-z0-9-]*$"
+    if re.match(pattern, branch_name):
+        return
+    allowed = ", ".join(ALLOWED_BRANCH_CATEGORIES)
+    raise ValueError(
+        "Branch name must follow category/slug (for example: feat/my-change) "
+        f"with category in: {allowed}"
+    )
+
+
+def _branch_name_for_worktree(worktree_name: str) -> str:
+    branch_name = _infer_branch_name(worktree_name)
+    _validate_category_slug_branch(branch_name)
+    return branch_name
+
+
 def add(
     path: Annotated[str | None, typer.Argument(help="Project directory")] = None,
     tool: Annotated[str | None, typer.Option("-t", "--tool", help="AI tool to use")] = None,
+    template: Annotated[
+        str | None, typer.Option("--template", help="Session template name")
+    ] = None,
     worktree: Annotated[
         str | None, typer.Option("-w", "--worktree", help="Create a git worktree")
     ] = None,
     branch: Annotated[bool, typer.Option("-b", "--branch", help="Create a new branch")] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Preview without creating session")
+    ] = False,
     name: Annotated[str | None, typer.Option("-n", "--name", help="Session name")] = None,
 ) -> None:
     """Create a new session."""
-    asyncio.run(with_db(_add_impl(path, tool, worktree, branch, name)))
+    asyncio.run(with_db(_add_impl(path, tool, template, worktree, branch, dry_run, name)))
 
 
-async def _add_impl(path, tool, worktree, branch, name):
+def _split_percentage(size: str) -> int | None:
+    value = size.strip()
+    if not value:
+        return None
+    if value.endswith("%"):
+        value = value[:-1]
+    if not value.isdigit():
+        return None
+    parsed = int(value)
+    if 1 <= parsed <= 99:
+        return parsed
+    return None
+
+
+def _format_value(raw: str, context: dict[str, str], field_name: str) -> str:
+    try:
+        return raw.format(**context)
+    except KeyError as e:
+        raise ValueError(f"Missing template variable {e} in {field_name}: {raw}") from None
+
+
+def _run_default_startup_commands(
+    startup_commands: list[str],
+    *,
+    tool_command: str,
+    work_dir: str,
+    session_name: str,
+    tmux_session: str,
+) -> None:
+    for cmd in startup_commands:
+        try:
+            interpolated = cmd.format(
+                tool_command=tool_command,
+                work_dir=work_dir,
+                session_name=session_name,
+                tmux_session=tmux_session,
+            )
+        except KeyError as e:
+            console.print(
+                f"[yellow]Warning: Skipping startup command with missing variable {e}: {cmd}[/yellow]"
+            )
+            continue
+        tmux.run_command(interpolated)
+
+
+def _preview_default_startup_commands(
+    startup_commands: list[str],
+    *,
+    tool_command: str,
+    work_dir: str,
+    session_name: str,
+    tmux_session: str,
+) -> list[str]:
+    preview: list[str] = []
+    for cmd in startup_commands:
+        try:
+            interpolated = cmd.format(
+                tool_command=tool_command,
+                work_dir=work_dir,
+                session_name=session_name,
+                tmux_session=tmux_session,
+            )
+        except KeyError as e:
+            raise ValueError(f"Missing startup command variable {e} in: {cmd}") from None
+        preview.append(interpolated)
+    return preview
+
+
+def _run_template_startup(
+    template,
+    *,
+    tool_command: str,
+    work_dir: str,
+    root: str,
+    branch_name: str,
+    session_name: str,
+    tmux_session: str,
+    worktree_name: str,
+) -> None:
+    if not template.windows:
+        return
+
+    context = {
+        "tool_command": tool_command,
+        "work_dir": work_dir,
+        "git_root": root,
+        "session_name": session_name,
+        "tmux_session": tmux_session,
+        "branch_name": branch_name,
+        "worktree": worktree_name,
+        "template_name": template.name,
+    }
+
+    focus_window_target = ""
+
+    for window_index, window in enumerate(template.windows):
+        window_target = f"{tmux_session}:{window_index}"
+        window_name = _format_value(window.name, context, "window name") if window.name else ""
+        window_cwd = work_dir
+        if window.cwd:
+            window_cwd = _format_value(window.cwd, context, "window cwd")
+
+        if window_index == 0:
+            if window_name:
+                tmux.run_command(f"rename-window -t {window_target} {shlex.quote(window_name)}")
+        else:
+            cmd = f"new-window -t {tmux_session}"
+            if window_name:
+                cmd += f" -n {shlex.quote(window_name)}"
+            cmd += f" -c {shlex.quote(window_cwd)}"
+            tmux.run_command(cmd)
+
+        if window.focus and not focus_window_target:
+            focus_window_target = window_target
+
+        for pane_index, pane in enumerate(window.panes):
+            pane_target = f"{window_target}.{pane_index}"
+
+            if pane_index == 0:
+                if window_cwd and window_cwd != work_dir:
+                    tmux.send_keys(pane_target, f"cd {shlex.quote(window_cwd)}")
+            else:
+                split_type = pane.split
+                if split_type == "root":
+                    split_type = "down"
+
+                split_flag = "-h" if split_type == "right" else "-v"
+                cmd = f"split-window -t {window_target} {split_flag}"
+                percent = _split_percentage(pane.size)
+                if percent is not None:
+                    cmd += f" -p {percent}"
+                cmd += f" -c {shlex.quote(window_cwd)}"
+                tmux.run_command(cmd)
+
+            pane_command = _format_value(pane.command, context, "pane command")
+            tmux.send_keys(pane_target, pane_command)
+
+            if pane.title:
+                pane_title = _format_value(pane.title, context, "pane title")
+                tmux.set_pane_title(pane_target, pane_title)
+
+        if window.layout:
+            layout = _format_value(window.layout, context, "window layout")
+            tmux.run_command(f"select-layout -t {window_target} {shlex.quote(layout)}")
+
+    if focus_window_target:
+        tmux.run_command(f"select-window -t {focus_window_target}")
+
+
+def _preview_template_startup(
+    template,
+    *,
+    tool_command: str,
+    work_dir: str,
+    root: str,
+    branch_name: str,
+    session_name: str,
+    tmux_session: str,
+    worktree_name: str,
+) -> list[str]:
+    preview: list[str] = []
+    if not template.windows:
+        return preview
+
+    context = {
+        "tool_command": tool_command,
+        "work_dir": work_dir,
+        "git_root": root,
+        "session_name": session_name,
+        "tmux_session": tmux_session,
+        "branch_name": branch_name,
+        "worktree": worktree_name,
+        "template_name": template.name,
+    }
+
+    focus_window_target = ""
+
+    for window_index, window in enumerate(template.windows):
+        window_target = f"{tmux_session}:{window_index}"
+        window_name = _format_value(window.name, context, "window name") if window.name else ""
+        window_cwd = work_dir
+        if window.cwd:
+            window_cwd = _format_value(window.cwd, context, "window cwd")
+
+        if window_index == 0:
+            if window_name:
+                preview.append(f"rename-window -t {window_target} {shlex.quote(window_name)}")
+        else:
+            cmd = f"new-window -t {tmux_session}"
+            if window_name:
+                cmd += f" -n {shlex.quote(window_name)}"
+            cmd += f" -c {shlex.quote(window_cwd)}"
+            preview.append(cmd)
+
+        if window.focus and not focus_window_target:
+            focus_window_target = window_target
+
+        for pane_index, pane in enumerate(window.panes):
+            pane_target = f"{window_target}.{pane_index}"
+
+            if pane_index == 0:
+                if window_cwd and window_cwd != work_dir:
+                    preview.append(f"send-keys -t {pane_target} cd {shlex.quote(window_cwd)} Enter")
+            else:
+                split_type = pane.split
+                if split_type == "root":
+                    split_type = "down"
+                split_flag = "-h" if split_type == "right" else "-v"
+                cmd = f"split-window -t {window_target} {split_flag}"
+                percent = _split_percentage(pane.size)
+                if percent is not None:
+                    cmd += f" -p {percent}"
+                cmd += f" -c {shlex.quote(window_cwd)}"
+                preview.append(cmd)
+
+            pane_command = _format_value(pane.command, context, "pane command")
+            preview.append(f"send-keys -t {pane_target} {shlex.quote(pane_command)} Enter")
+
+            if pane.title:
+                pane_title = _format_value(pane.title, context, "pane title")
+                preview.append(f"select-pane -t {pane_target} -T {shlex.quote(pane_title)}")
+
+        if window.layout:
+            layout = _format_value(window.layout, context, "window layout")
+            preview.append(f"select-layout -t {window_target} {shlex.quote(layout)}")
+
+    if focus_window_target:
+        preview.append(f"select-window -t {focus_window_target}")
+
+    return preview
+
+
+async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
     ensure_dirs()
     cfg = load_config()
+    template_cfg = None
+
+    if template:
+        try:
+            template_cfg = load_template(template)
+        except FileNotFoundError:
+            console.print(f"[red]Error: Template '{template}' not found[/red]")
+            templates_dir = config_dir() / "templates"
+            console.print(f"[dim]Expected config at: {templates_dir / f'{template}.toml'}[/dim]")
+            raise typer.Exit(1) from None
+        except ValueError as e:
+            console.print(f"[red]Error: Invalid template '{template}'[/red]")
+            console.print(f"[dim]{e}[/dim]")
+            raise typer.Exit(1) from None
+
+        if not tool and template_cfg.tool:
+            tool = template_cfg.tool
+
+        if not worktree and template_cfg.worktree.name:
+            try:
+                worktree = template_cfg.worktree.name.format(template_name=template_cfg.name)
+            except KeyError as e:
+                console.print(f"[red]Error: Template worktree has unsupported variable {e}[/red]")
+                console.print(
+                    "[dim]Use --worktree for dynamic names or only {template_name} in template.worktree.name[/dim]"
+                )
+                raise typer.Exit(1) from None
+
+        if template_cfg.worktree.create_branch:
+            branch = True
 
     resolved_path = Path(path).resolve() if path else Path.cwd().resolve()
 
@@ -117,7 +407,7 @@ async def _add_impl(path, tool, worktree, branch, name):
     work_dir = str(resolved_path)
     branch_name = ""
 
-    # Worktree setup
+    wt_path = ""
     if worktree:
         wt_dir_name = worktree.replace("/", "-")
         wt_path = str(Path(root) / ".worktrees" / wt_dir_name)
@@ -132,14 +422,14 @@ async def _add_impl(path, tool, worktree, branch, name):
             console.print(f"  • Remove existing worktree: rm -rf {wt_path}")
             raise typer.Exit(1)
 
-        Path(root, ".worktrees").mkdir(parents=True, exist_ok=True)
-
         if branch:
-            branch_name = _infer_branch_name(worktree)
-            git.worktree_add(root, wt_path, branch=branch_name)
+            try:
+                branch_name = _branch_name_for_worktree(worktree)
+            except ValueError as e:
+                console.print(f"[red]Error: {e}[/red]")
+                raise typer.Exit(1) from None
         else:
-            git.worktree_add(root, wt_path)
-            branch_name = git.current_branch(wt_path)
+            branch_name = git.current_branch(str(resolved_path))
 
         work_dir = wt_path
     else:
@@ -165,15 +455,71 @@ async def _add_impl(path, tool, worktree, branch, name):
         console.print(f"  • Kill existing:      [bold]shoal kill {session_name}[/bold]")
         raise typer.Exit(1)
 
+    tool_cfg = load_tool_config(tool)
+    tmux_session = build_tmux_session_name(session_name)
+
+    if dry_run:
+        console.print("[bold cyan]Dry run: no changes applied[/bold cyan]")
+        console.print(f"  Session: {session_name}")
+        console.print(f"  Tool: {tool}")
+        console.print(f"  Branch: {branch_name}")
+        if worktree:
+            console.print(f"  Worktree: {work_dir}")
+            console.print(f"  Worktree dir name: {worktree.replace('/', '-')}")
+        else:
+            console.print(f"  Directory: {work_dir}")
+        console.print(f"  Tmux: {tmux_session}")
+        if template_cfg:
+            console.print(f"  Template: {template_cfg.name}")
+
+        try:
+            if template_cfg and template_cfg.windows:
+                startup_preview = _preview_template_startup(
+                    template_cfg,
+                    tool_command=tool_cfg.command,
+                    work_dir=work_dir,
+                    root=root,
+                    branch_name=branch_name,
+                    session_name=session_name,
+                    tmux_session=tmux_session,
+                    worktree_name=worktree or "",
+                )
+            else:
+                startup_preview = _preview_default_startup_commands(
+                    cfg.tmux.startup_commands,
+                    tool_command=tool_cfg.command,
+                    work_dir=work_dir,
+                    session_name=session_name,
+                    tmux_session=tmux_session,
+                )
+        except ValueError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            raise typer.Exit(1) from None
+
+        console.print()
+        console.print("[bold]Planned tmux actions:[/bold]")
+        if startup_preview:
+            for cmd in startup_preview:
+                console.print(f"  - tmux {cmd}")
+        else:
+            console.print("  - [dim](none)[/dim]")
+        return
+
+    if worktree:
+        Path(root, ".worktrees").mkdir(parents=True, exist_ok=True)
+        if branch:
+            git.worktree_add(root, wt_path, branch=branch_name)
+        else:
+            git.worktree_add(root, wt_path)
+            branch_name = git.current_branch(wt_path)
+
     # Create session state
     try:
         session = await create_session(session_name, tool, root, work_dir, branch_name)
     except ValueError as e:
         console.print(f"[red]Invalid session name: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
-    # Get tool command
-    tool_cfg = load_tool_config(tool)
     tmux_session = session.tmux_session
 
     # Create tmux session
@@ -194,20 +540,31 @@ async def _add_impl(path, tool, worktree, branch, name):
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
 
     # Run startup commands
-    for cmd in cfg.tmux.startup_commands:
-        try:
-            interpolated = cmd.format(
+    try:
+        if template_cfg and template_cfg.windows:
+            _run_template_startup(
+                template_cfg,
+                tool_command=tool_cfg.command,
+                work_dir=work_dir,
+                root=root,
+                branch_name=branch_name,
+                session_name=session_name,
+                tmux_session=tmux_session,
+                worktree_name=worktree or "",
+            )
+        else:
+            _run_default_startup_commands(
+                cfg.tmux.startup_commands,
                 tool_command=tool_cfg.command,
                 work_dir=work_dir,
                 session_name=session_name,
                 tmux_session=tmux_session,
             )
-        except KeyError as e:
-            console.print(
-                f"[yellow]Warning: Skipping startup command with missing variable {e}: {cmd}[/yellow]"
-            )
-            continue
-        tmux.run_command(interpolated)
+    except ValueError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        await delete_session(session.id)
+        tmux.kill_session(tmux_session)
+        raise typer.Exit(1) from None
 
     tmux.set_pane_title(tmux_session, f"shoal:{session.id}")
 
@@ -224,6 +581,8 @@ async def _add_impl(path, tool, worktree, branch, name):
     if worktree:
         console.print(f"  Worktree: {work_dir}")
         console.print(f"  Branch: {branch_name}")
+    if template_cfg:
+        console.print(f"  Template: {template_cfg.name}")
     console.print(f"  Tmux: {tmux_session}")
     console.print()
     console.print(f"Attach with: shoal attach {session_name}")
@@ -407,7 +766,11 @@ async def _fork_impl(session, name, no_worktree):
         # Create new worktree
         wt_dir_name = new_name.replace("/", "-")
         wt_path = str(Path(source.path) / ".worktrees" / wt_dir_name)
-        new_branch = _infer_branch_name(new_name)
+        try:
+            new_branch = _branch_name_for_worktree(new_name)
+        except ValueError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            raise typer.Exit(1) from None
 
         Path(source.path, ".worktrees").mkdir(parents=True, exist_ok=True)
         try:
