@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
+import shoal
 from shoal.cli import app
 
 runner = CliRunner()
@@ -14,7 +15,7 @@ class TestVersion:
     def test_version_command(self):
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "shoal 0.5.0" in result.output
+        assert f"shoal {shoal.__version__}" in result.output
 
 
 class TestLs:
