@@ -173,11 +173,12 @@ socat UNIX-LISTEN:/tmp/shoal/mcp-pool/memory.sock,fork \
 
 ### 5. **Status Detection via Tmux Pane Scraping**
 
-**Decision**: Detect agent status (Thinking, Waiting, Error, Idle) by parsing tmux pane output.
+**Decision**: Detect agent status (Thinking, Waiting, Error, Idle) by parsing tmux pane output from the session-tagged tool pane.
 
 **Why**:
 - **No Agent Modifications**: Works with any agent (Claude, OpenCode, Gemini)
-- **Real-Time**: Polls every 10 seconds via background watcher
+- **Stable Targeting**: Watcher follows pane title `shoal:<session_id>` so split panes and active-pane changes do not cause false routing
+- **Real-Time**: Polls every 5 seconds via background watcher
 - **Tool-Specific Patterns**: Configurable regex patterns per tool
 
 **Implementation**:
@@ -191,6 +192,12 @@ idle_patterns = ["$"]
 ```
 
 **Trade-off**: Requires tmux, limited to pattern matching, but universally compatible.
+
+**Runtime Contract**:
+- Session pane identity: `shoal:<session_id>` (tmux pane title)
+- Neovim socket identity: `/tmp/nvim-<session_id>-<window_id>.sock`
+- Socket ownership: interactive `nvim --listen` in the active tool pane
+- Tmux cleanup role: stale socket cleanup only (no headless Neovim ownership)
 
 ---
 
@@ -283,12 +290,12 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 
 ## Production Readiness
 
-### Current Status (v0.4.2)
+### Current Status (v0.7.x pre-v0.8.0)
 
-- ✅ **57% Test Coverage**: Core modules (config, db, models) at 94-100%
+- ✅ **77% Test Coverage**: Core modules and runtime paths are covered with targeted regression tests
 - ✅ **Type Safety**: Full type hints, Pydantic models, mypy-ready
 - ✅ **Error Handling**: Structured logging, exception tracking
-- ✅ **Database Lifecycle**: Connection pooling, WAL mode, async cleanup
+- ✅ **Database Lifecycle**: Single async SQLite connection with WAL mode and explicit lifecycle cleanup
 - ✅ **Used Daily**: Built for sustained personal use in terminal-heavy AI workflows
 
 ### Known Limitations
@@ -299,9 +306,9 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 
 ### Roadmap to v1.0
 
-- **v0.5.0**: Security audit, input validation, connection pooling
-- **v0.6.0**: Event-driven architecture (WebSocket updates)
-- **v0.7.0**: Advanced TUI dashboard (fzf preview panes)
+- **v0.8.0**: Session template MVP release and final contract documentation
+- **v0.9.x**: Runtime hardening, UX cleanup, and release automation maturity
+- **v1.0.0**: Stable public surface for personal-first workflows
 
 ---
 

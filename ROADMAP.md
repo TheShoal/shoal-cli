@@ -126,14 +126,25 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
   - ✅ Add `--debug` flag for verbose logging (global flag)
   - ✅ Create troubleshooting guide for common issues (docs/TROUBLESHOOTING.md)
 
-## v0.7.0: Fish-First Scope Consolidation
+## v0.7.0: Fish-First Scope Consolidation (Released: 2026-02-18)
 
 **Priority: Align product surface with personal workflow constraints.**
 
-- **Scope Reset**: Remove bash/zsh support claims from docs and examples.
-- **CLI Clarity**: Keep fish setup and fish completions as the single supported shell path.
-- **Demo Consistency**: Eliminate bash-dependent demo paths and scripts.
-- **Tool Priority**: Keep OpenCode-first UX with Claude/Gemini as secondary profiles.
+- ✅ **Scope Reset**: Removed bash/zsh support claims from docs and examples.
+- ✅ **CLI Clarity**: Kept fish setup and fish completions as the single supported shell path.
+- ✅ **Demo Consistency**: Eliminated bash-dependent demo paths and scripts.
+- ✅ **Tool Priority**: Kept OpenCode-first UX with Claude/Gemini as secondary profiles.
+- ✅ **Template Foundation**: Added global template management and template-driven session startup.
+
+## v0.7.1: Runtime Contract Stabilization (In Progress)
+
+**Priority: Stabilize tmux/Neovim/runtime behavior before v0.8.0 tagging.**
+
+- ✅ **Socket Contract Alignment**: Moved Neovim socket routing to tmux ID coordinates (`session_id`, `window_id`).
+- ✅ **Dynamic Resolution**: `shoal nvim` resolves socket paths at execution time to avoid stale metadata drift.
+- ✅ **Rename Stability**: Socket targeting now survives tmux/session-name changes.
+- ✅ **Watcher Stability**: Status watcher is pinned to the session-tagged pane (`shoal:<session_id>`) and ignores active-pane drift.
+- 🔄 **Release Hygiene**: Final docs and cleanup pass before v0.8.0.
 
 ## v0.8.0: Session Template MVP
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Neovim Socket Routing**: `shoal nvim` now resolves sockets dynamically from tmux IDs (`session_id`, `window_id`) instead of relying on static window-0 assumptions.
+- **Rename Stability**: Neovim socket targeting is stable across tmux/session renames because routing is ID-based.
+- **Watcher Pane Drift**: Status watcher and notifications now track only the session-tagged pane (`shoal:<session_id>`), preventing false waiting alerts when users split/switch panes.
+
+### Changed
+- **Runtime Metadata**: Session state now persists tmux coordinate metadata (`tmux_session_id`, `tmux_window`) and derives socket paths from that contract.
+- **Documentation Cleanup**: Archived completed handoff/refocus/review docs under `docs/archive/` and updated roadmap/architecture for pre-v0.8.0 state.
+
 ## [0.5.0] - 2026-02-16
 
 ### Added
