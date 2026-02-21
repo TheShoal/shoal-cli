@@ -146,14 +146,48 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - ✅ **Watcher Stability**: Status watcher is pinned to the session-tagged pane (`shoal:<session_id>`) and ignores active-pane drift.
 - 🔄 **Release Hygiene**: Final docs and cleanup pass before v0.8.0.
 
-## v0.8.0: Session Template MVP
+## v0.8.0: Session Template MVP + Safety Rails
 
-**Priority: tmux sessionizer-style workflows.**
+**Priority: ship template workflows while preventing state drift during setup failures.**
 
 - **Template Schema**: Add declarative templates for windows, panes, and startup commands.
 - **Profile Workflows**: Define reusable profiles for common project/task types.
 - **`shoal new --template`**: Create sessions/worktrees from a named template.
 - **Validation**: Add template validation and dry-run output before execution.
+- **Failure Compensation**: Ensure create/fork failures cleanly rollback DB rows, tmux sessions, and worktree artifacts.
+- **Startup Contract**: Unify startup command failure handling between CLI and API.
+- **Nvim Diagnostics Safety**: Replace fragile dynamic `luaeval` command composition with a safer invocation path.
+- **MCP Name Validation**: Enforce MCP name format consistently across API/CLI/proxy paths.
+
+## v0.8.1: Reliability and Error Taxonomy
+
+**Priority: make runtime failures diagnosable and deterministic.**
+
+- **Typed Errors**: Replace broad `except Exception` in watcher/API/session hot paths with scoped exception handling.
+- **Error Taxonomy**: Introduce shared tmux/git/mcp error types and map them to stable CLI/API responses.
+- **Structured Logging**: Add operation and session identifiers to create/fork/rename/kill logs.
+- **Failure-Path Tests**: Add targeted tests for tmux unavailable, startup command interpolation failures, and stale runtime artifacts.
+- **WebSocket Robustness**: Harden connection cleanup and broadcast failure handling with explicit metrics/log counters.
+
+## v0.8.2: Maintainability Refactor (Behavior Preserving)
+
+**Priority: reduce regression risk by extracting shared orchestration logic.**
+
+- **Lifecycle Service Layer**: Move create/fork/rename/kill orchestration into shared services used by both CLI and API.
+- **File Decomposition**: Split `cli/session.py` and `api/server.py` by concern (transport, orchestration, rendering).
+- **Template Execution Reuse**: Remove duplicated startup execution paths and keep one implementation.
+- **Parity Contract Tests**: Add tests proving CLI and API session lifecycle commands follow the same behavior contracts.
+- **Complexity Budget**: Reduce `session.py`/`server.py` size and cyclomatic complexity by at least 25%.
+
+## v0.8.3: Concurrency and Runtime Hardening
+
+**Priority: improve correctness under concurrent operations and runtime churn.**
+
+- **Async Safety for tmux/git Calls**: Move blocking subprocess calls off the event loop in API/watcher contexts.
+- **Session Update Concurrency**: Prevent lost updates for status/MCP/rename flows with optimistic or transactional update guards.
+- **Startup Reconciliation**: Add boot-time checks to reconcile stale DB rows, stale sockets, and missing tmux sessions.
+- **Concurrent Integration Tests**: Add stress tests for websocket status broadcasting and simultaneous lifecycle operations.
+- **Load Targets**: Define and track latency/error targets for API status and session creation endpoints under parallel load.
 
 ## Brain Dump
 

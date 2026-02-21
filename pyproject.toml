@@ -67,3 +67,8 @@ omit = ["*/tests/*", "*/__pycache__/*"]
 fail_under = 70
 show_missing = true
 skip_covered = false
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.38.1",
+]
