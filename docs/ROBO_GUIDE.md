@@ -34,7 +34,7 @@ This creates:
 shoal robo start default
 ```
 
-This launches a tmux session (`__default` by default) running your chosen AI tool (OpenCode, Claude, Gemini) with robo-specific instructions.
+This launches a tmux session (`__default` by default) running your chosen AI tool (OpenCode, Claude, Pi, Gemini) with robo-specific instructions.
 
 ### 3. Attach to the Robo
 
@@ -238,7 +238,7 @@ Otherwise Shoal inserts `_` between prefix and session name.
 
 [robo]
 name = "default"
-tool = "opencode"  # AI tool to run (opencode, claude, gemini)
+tool = "opencode"  # AI tool to run (opencode, claude, pi, gemini)
 auto_approve = false  # Auto-approve safe operations?
 
 [monitoring]

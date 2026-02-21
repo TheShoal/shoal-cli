@@ -102,6 +102,15 @@ class McpCreate(BaseModel):
     name: str
     command: str | None = None
 
+    @field_validator("name")
+    @classmethod
+    def validate_mcp_name(cls, v: str) -> str:
+        """Validate MCP server name."""
+        from shoal.services.mcp_pool import validate_mcp_name
+
+        validate_mcp_name(v)
+        return v
+
 
 class SendKeysRequest(BaseModel):
     """Request to send keys to a session."""
@@ -334,21 +343,41 @@ async def create_session_api(data: SessionCreate):
         tmux.new_session(tmux_session, cwd=work_dir)
     except Exception as e:
         await delete_session(session.id)
+        # Rollback worktree if we created one
+        if data.worktree and wt_path and Path(wt_path).exists():
+            try:
+                git.worktree_remove(root, wt_path, force=True)
+            except Exception:
+                pass
         raise HTTPException(status_code=500, detail=f"Failed to create tmux session: {e}")
 
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
 
-    # Run startup commands
+    # Run startup commands — rollback on failure
     cfg = load_config()
-    for cmd in cfg.tmux.startup_commands:
-        interpolated = cmd.format(
-            tool_command=tool_cfg.command,
-            work_dir=work_dir,
-            session_name=session_name,
-            tmux_session=tmux_session,
-        )
-        tmux.run_command(interpolated)
+    try:
+        for cmd in cfg.tmux.startup_commands:
+            try:
+                interpolated = cmd.format(
+                    tool_command=tool_cfg.command,
+                    work_dir=work_dir,
+                    session_name=session_name,
+                    tmux_session=tmux_session,
+                )
+            except KeyError as e:
+                raise ValueError(f"Missing startup command variable {e} in: {cmd}") from None
+            tmux.run_command(interpolated)
+    except (ValueError, Exception) as e:
+        # Rollback: kill tmux + delete DB row + remove worktree
+        tmux.kill_session(tmux_session)
+        await delete_session(session.id)
+        if data.worktree and wt_path and Path(wt_path).exists():
+            try:
+                git.worktree_remove(root, wt_path, force=True)
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail=f"Startup command failed: {e}")
 
     tmux.set_pane_title(tmux_session, f"shoal:{session.id}")
 
@@ -561,6 +590,13 @@ async def stop_mcp_server_api(name: str):
 @app.post("/sessions/{session_id}/mcp/{mcp_name}")
 async def attach_mcp_to_session(session_id: str, mcp_name: str):
     """Attach an MCP server to a session."""
+    from shoal.services.mcp_pool import validate_mcp_name
+
+    try:
+        validate_mcp_name(mcp_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")

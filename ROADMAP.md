@@ -136,7 +136,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - ✅ **Tool Priority**: Kept OpenCode-first UX with Claude/Gemini as secondary profiles.
 - ✅ **Template Foundation**: Added global template management and template-driven session startup.
 
-## v0.7.1: Runtime Contract Stabilization (In Progress)
+## v0.7.1: Runtime Contract Stabilization (Released: 2026-02-21)
 
 **Priority: Stabilize tmux/Neovim/runtime behavior before v0.8.0 tagging.**
 
@@ -144,20 +144,22 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - ✅ **Dynamic Resolution**: `shoal nvim` resolves socket paths at execution time to avoid stale metadata drift.
 - ✅ **Rename Stability**: Socket targeting now survives tmux/session-name changes.
 - ✅ **Watcher Stability**: Status watcher is pinned to the session-tagged pane (`shoal:<session_id>`) and ignores active-pane drift.
-- 🔄 **Release Hygiene**: Final docs and cleanup pass before v0.8.0.
+- ✅ **Release Hygiene**: Final docs and cleanup pass before v0.8.0.
+- ✅ **Pi Agent Support**: Added Pi coding agent tool config, detection patterns, and `pi-dev` session template.
+- ✅ **Fish Enhancements**: Added tool/template completions, `--tool`/`--template`/`--dry-run` flag completions for `shoal new`.
 
-## v0.8.0: Session Template MVP + Safety Rails
+## v0.8.0: Session Template MVP + Safety Rails (Released: 2026-02-21)
 
 **Priority: ship template workflows while preventing state drift during setup failures.**
 
-- **Template Schema**: Add declarative templates for windows, panes, and startup commands.
-- **Profile Workflows**: Define reusable profiles for common project/task types.
-- **`shoal new --template`**: Create sessions/worktrees from a named template.
-- **Validation**: Add template validation and dry-run output before execution.
-- **Failure Compensation**: Ensure create/fork failures cleanly rollback DB rows, tmux sessions, and worktree artifacts.
-- **Startup Contract**: Unify startup command failure handling between CLI and API.
-- **Nvim Diagnostics Safety**: Replace fragile dynamic `luaeval` command composition with a safer invocation path.
-- **MCP Name Validation**: Enforce MCP name format consistently across API/CLI/proxy paths.
+- ✅ **Template Schema**: Declarative templates for windows, panes, and startup commands with Pydantic validation.
+- ✅ **Profile Workflows**: Reusable profiles for common project/task types (opencode, claude, pi, gemini).
+- ✅ **`shoal new --template`**: Create sessions/worktrees from a named template (implemented in v0.7.0).
+- ✅ **Validation**: Template schema validation (name format, pane sizes, first-pane-is-root, requires windows) and dry-run output.
+- ✅ **Failure Compensation**: Create/fork failures cleanly rollback DB rows, tmux sessions, and worktree artifacts in both CLI and API.
+- ✅ **Startup Contract**: Unified startup command failure handling between CLI and API with full rollback.
+- ✅ **Nvim Diagnostics Safety**: Replaced fragile dynamic `luaeval` string composition with temp-file Lua script invocation.
+- ✅ **MCP Name Validation**: `validate_mcp_name()` enforced consistently across API `McpCreate`, CLI `mcp start`/`mcp attach`, and `start_mcp_server()`/`stop_mcp_server()`.
 
 ## v0.8.1: Reliability and Error Taxonomy
 

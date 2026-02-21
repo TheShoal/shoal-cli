@@ -1,0 +1,21 @@
+# Shoal — Pi coding agent tool definition
+# https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
+# Install: npm install -g @mariozechner/pi-coding-agent
+
+[tool]
+name = "pi"
+command = "pi"
+icon = "🥧"
+
+[detection]
+# Pi uses a TUI with differential rendering; detect from pane output
+busy_patterns = ["thinking", "generating", "executing", "reading", "writing", "editing"]
+waiting_patterns = ["❯", "permission", "confirm", "approve", "y/n"]
+error_patterns = ["Error:", "error:", "ERROR", "FAILED"]
+idle_patterns = ["❯"]
+
+[mcp]
+# Pi uses extensions for MCP, not built-in support
+config_cmd = ""
+config_file = ""
+socket_env = ""

@@ -69,6 +69,18 @@ def nvim_diagnostics(
     asyncio.run(with_db(_nvim_diagnostics_impl(session)))
 
 
+_DIAGNOSTICS_LUA = """\
+local diags = vim.diagnostic.get(0)
+local out = {}
+for _, d in ipairs(diags) do
+  local fname = vim.api.nvim_buf_get_name(d.bufnr)
+  local sev = vim.diagnostic.severity[d.severity] or "?"
+  table.insert(out, string.format("%s:%d: [%s] %s", fname, d.lnum + 1, sev, d.message))
+end
+return table.concat(out, "\\n")
+"""
+
+
 async def _nvim_diagnostics_impl(session):
     ensure_dirs()
     sid = await _resolve_session_interactive_impl(session)
@@ -90,22 +102,27 @@ async def _nvim_diagnostics_impl(session):
         console.print("[red]nvr not found — install with: pip install neovim-remote[/red]")
         raise typer.Exit(1)
 
-    lua_cmd = (
-        "local diags = vim.diagnostic.get(0); "
-        "local out = {}; "
-        "for _, d in ipairs(diags) do "
-        'table.insert(out, string.format("%s:%d: [%s] %s", '
-        "vim.api.nvim_buf_get_name(d.bufnr), d.lnum + 1, "
-        'vim.diagnostic.severity[d.severity] or "?", d.message)) end; '
-        'return table.concat(out, "\\n")'
-    )
+    # Write Lua to a temp file to avoid shell quoting issues with luaeval()
+    import tempfile
 
-    result = subprocess.run(
-        ["nvr", "--servername", socket, "--remote-expr", f"luaeval('{lua_cmd}')"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    lua_file = Path(tempfile.mktemp(suffix=".lua", prefix="shoal-diag-"))
+    try:
+        lua_file.write_text(_DIAGNOSTICS_LUA)
+        result = subprocess.run(
+            [
+                "nvr",
+                "--servername",
+                socket,
+                "--remote-expr",
+                f"luaeval('dofile([[{lua_file}]])')",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    finally:
+        lua_file.unlink(missing_ok=True)
 
     if not result.stdout.strip():
         console.print(f"No diagnostics for session '{s.name}'")

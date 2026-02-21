@@ -70,6 +70,26 @@ idle_patterns = ["│ >"]
 """
     )
 
+    (tools / "pi.toml").write_text(
+        """
+[tool]
+name = "pi"
+command = "pi"
+icon = "🥧"
+
+[detection]
+busy_patterns = ["thinking", "generating", "executing", "reading", "writing", "editing"]
+waiting_patterns = ["❯", "permission", "confirm", "approve", "y/n"]
+error_patterns = ["Error:", "error:", "ERROR", "FAILED"]
+idle_patterns = ["❯"]
+
+[mcp]
+config_cmd = ""
+config_file = ""
+socket_env = ""
+"""
+    )
+
     # Robo profile
     robo = config / "robo"
     robo.mkdir()

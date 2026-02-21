@@ -38,6 +38,7 @@ complete -c shoal -n "__fish_use_subcommand" -a "version" -d "Print version"
 complete -c shoal -n "__fish_use_subcommand" -a "serve" -d "Start API server"
 
 # Sub-groups
+complete -c shoal -n "__fish_use_subcommand" -a "template" -d "Template management"
 complete -c shoal -n "__fish_use_subcommand" -a "wt" -d "Worktree management"
 complete -c shoal -n "__fish_use_subcommand" -a "worktree" -d "Worktree management"
 complete -c shoal -n "__fish_use_subcommand" -a "mcp" -d "MCP server pool"
@@ -55,10 +56,27 @@ complete -c shoal -n "__fish_seen_subcommand_from logs" -a "(__shoal_sessions)" 
 complete -c shoal -n "__fish_seen_subcommand_from rename" -a "(__shoal_sessions)" -d "Session"
 complete -c shoal -n "__fish_seen_subcommand_from fork" -a "(__shoal_sessions)" -d "Session"
 
+# Helper function to get available tool names
+function __shoal_tools
+    for f in ~/.config/shoal/tools/*.toml
+        string replace -r '.*/(.*)\.toml$' '$1' -- $f
+    end
+end
+
+# Helper function to get available template names
+function __shoal_templates
+    for f in ~/.config/shoal/templates/*.toml
+        string replace -r '.*/(.*)\.toml$' '$1' -- $f
+    end
+end
+
 # Common flags for session creation
 complete -c shoal -n "__fish_seen_subcommand_from new fork" -l "worktree" -s "w" -d "Create in worktree"
 complete -c shoal -n "__fish_seen_subcommand_from new fork" -l "branch" -s "b" -d "Create branch"
 complete -c shoal -n "__fish_seen_subcommand_from new fork" -l "robo" -s "r" -d "Start with robo" -xa "(__shoal_robo_profiles)"
+complete -c shoal -n "__fish_seen_subcommand_from new" -l "tool" -s "t" -d "AI tool to use" -xa "(__shoal_tools)"
+complete -c shoal -n "__fish_seen_subcommand_from new" -l "template" -d "Session template" -xa "(__shoal_templates)"
+complete -c shoal -n "__fish_seen_subcommand_from new" -l "dry-run" -d "Preview without creating"
 
 # MCP subcommands
 complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "ls" -d "List MCP servers"
@@ -95,6 +113,13 @@ complete -c shoal -n "__fish_seen_subcommand_from demo; and not __fish_seen_subc
 
 # Setup subcommands
 complete -c shoal -n "__fish_seen_subcommand_from setup; and not __fish_seen_subcommand_from fish" -a "fish" -d "Install fish shell integration"
+
+# Template subcommands
+complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate" -a "ls" -d "List templates"
+complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate" -a "show" -d "Show template details"
+complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate" -a "validate" -d "Validate templates"
+complete -c shoal -n "__fish_seen_subcommand_from template; and __fish_seen_subcommand_from show" -a "(__shoal_templates)" -d "Template"
+complete -c shoal -n "__fish_seen_subcommand_from template; and __fish_seen_subcommand_from validate" -a "(__shoal_templates)" -d "Template"
 
 # Nvim subcommands
 complete -c shoal -n "__fish_seen_subcommand_from nvim; and not __fish_seen_subcommand_from send diagnostics" -a "send" -d "Send command to nvim"

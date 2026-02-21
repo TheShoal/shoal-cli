@@ -17,8 +17,8 @@ from rich.text import Text
 
 from shoal.core import git, tmux
 from shoal.core.config import load_tool_config
-from shoal.core.db import get_db, with_db
-from shoal.core.state import create_session, delete_session, list_sessions, update_session
+from shoal.core.db import with_db
+from shoal.core.state import create_session, delete_session, update_session
 from shoal.core.theme import Icons, create_panel
 
 console = Console()
@@ -184,12 +184,12 @@ def _render_demo_pane(
             Text("1) Run `shoal status` and identify any non-idle worker.", style="white")
         )
     else:
-        console.print(Text("1) In the LEFT pane, authenticate opencode if needed.", style="white"))
+        console.print(Text(f"1) In the LEFT pane, authenticate {tool} if needed.", style="white"))
 
     if worktree_note:
         console.print(Text("2) You are in an isolated worktree. Iterate freely.", style="white"))
     else:
-        console.print(Text("2) Ask opencode for a quick repo + branch summary.", style="white"))
+        console.print(Text(f"2) Ask {tool} for a quick repo + branch summary.", style="white"))
 
     console.print()
     console.print(Text("Guided Next Steps", style="bold yellow"))
@@ -317,18 +317,24 @@ async def _demo_start_impl(custom_dir: str | None):
 
     # Create demo project
     _create_demo_project(demo_dir)
-    console.print(f"  ✓ Created demo git repository")
+    console.print("  ✓ Created demo git repository")
 
     # Create marker file to track demo sessions
     session_ids = []
-    tool_cfg = load_tool_config("opencode")
+
+    # Use the configured default tool (falls back to opencode)
+    from shoal.core.config import load_config
+
+    cfg = load_config()
+    default_tool = cfg.general.default_tool or "opencode"
+    tool_cfg = load_tool_config(default_tool)
     tool_command = tool_cfg.command
 
     # Session 1: Main branch
     console.print("  ✓ Creating session: demo-main (main branch)")
     s1 = await create_session(
         name="demo-main",
-        tool="opencode",
+        tool=default_tool,
         git_root=str(demo_dir),
     )
     s1.tmux_session = await _pin_demo_tmux_name(s1.name, s1.id, s1.tmux_session)
@@ -338,7 +344,7 @@ async def _demo_start_impl(custom_dir: str | None):
     pane_command = _build_demo_pane_command(
         session_name="demo-main",
         session_id=s1.id,
-        tool="opencode",
+        tool=default_tool,
         branch="main",
         project_path=str(demo_dir).replace(str(Path.home()), "~"),
         tmux_session_name=s1.tmux_session,
@@ -359,7 +365,7 @@ async def _demo_start_impl(custom_dir: str | None):
 
     s2 = await create_session(
         name="demo-feature",
-        tool="opencode",
+        tool=default_tool,
         git_root=str(demo_dir),
         worktree=str(worktree_path),
         branch="feat/api-endpoint",
@@ -371,7 +377,7 @@ async def _demo_start_impl(custom_dir: str | None):
     pane_command = _build_demo_pane_command(
         session_name="demo-feature",
         session_id=s2.id,
-        tool="opencode",
+        tool=default_tool,
         branch="feat/api-endpoint",
         project_path=str(worktree_path).replace(str(Path.home()), "~"),
         tmux_session_name=s2.tmux_session,
@@ -388,7 +394,7 @@ async def _demo_start_impl(custom_dir: str | None):
     console.print("  ✓ Creating session: demo-robo (supervisor)")
     s3 = await create_session(
         name="demo-robo",
-        tool="opencode",
+        tool=default_tool,
         git_root=str(demo_dir),
     )
     s3.tmux_session = await _pin_demo_tmux_name(s3.name, s3.id, s3.tmux_session)
@@ -398,7 +404,7 @@ async def _demo_start_impl(custom_dir: str | None):
     pane_command = _build_demo_pane_command(
         session_name="demo-robo",
         session_id=s3.id,
-        tool="opencode",
+        tool=default_tool,
         branch="main",
         project_path=str(demo_dir).replace(str(Path.home()), "~"),
         tmux_session_name=s3.tmux_session,
@@ -486,7 +492,7 @@ async def _demo_stop_impl(custom_dir: str | None):
     # Remove demo directory
     if demo_dir.exists():
         shutil.rmtree(demo_dir)
-        console.print(f"  ✓ Removed demo directory")
+        console.print("  ✓ Removed demo directory")
 
     console.print()
     console.print("[bold green]Demo environment cleaned up![/bold green]")

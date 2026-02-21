@@ -535,6 +535,12 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
         console.print("  • Check if tmux server is responsive: tmux ls")
         console.print(f"  • Verify working directory exists: ls {work_dir}")
         await delete_session(session.id)
+        # Rollback worktree if we created one
+        if worktree and Path(wt_path).exists():
+            try:
+                git.worktree_remove(root, wt_path, force=True)
+            except Exception:
+                console.print(f"[yellow]Warning: Could not clean up worktree: {wt_path}[/yellow]")
         raise typer.Exit(1) from None
 
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
@@ -565,6 +571,12 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
         console.print(f"[red]Error: {e}[/red]")
         await delete_session(session.id)
         tmux.kill_session(tmux_session)
+        # Rollback worktree if we created one
+        if worktree and Path(wt_path).exists():
+            try:
+                git.worktree_remove(root, wt_path, force=True)
+            except Exception:
+                console.print(f"[yellow]Warning: Could not clean up worktree: {wt_path}[/yellow]")
         raise typer.Exit(1) from None
 
     tmux.set_pane_title(tmux_session, f"shoal:{session.id}")
@@ -810,6 +822,12 @@ async def _fork_impl(session, name, no_worktree):
         console.print("  • Check if tmux server is responsive: tmux ls")
         console.print(f"  • Verify working directory exists: ls {work_dir}")
         await delete_session(new_session.id)
+        # Rollback worktree if we created one
+        if wt_path and Path(wt_path).exists():
+            try:
+                git.worktree_remove(source.path, wt_path, force=True)
+            except Exception:
+                console.print(f"[yellow]Warning: Could not clean up worktree: {wt_path}[/yellow]")
         raise typer.Exit(1) from None
 
     tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", new_session.id)

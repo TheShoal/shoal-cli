@@ -30,7 +30,7 @@
 
 Shoal was originally designed for the **Fish Shell** environment (hence the name). The concept of a "shoal" of "robo-fish" came from the idea that multiple independent AI agents (the fish) can be coordinated by a single supervisor (the robo-fish) to move as a unified, self-directing unit.
 
-Shoal manages multiple AI coding agents (OpenCode first, with Claude Code and Gemini supported) in persistent, branch-aware tmux sessions. It provides a unified control plane with shared MCP servers, automated status detection, and a supervisor "robo-fish" workflow.
+Shoal manages multiple AI coding agents (OpenCode, Claude Code, Pi, and Gemini) in persistent, branch-aware tmux sessions. It provides a unified control plane with shared MCP servers, automated status detection, session templates, and a supervisor "robo-fish" workflow.
 
 ## The Analogy: A Robo-Fish in the Shoal
 
@@ -49,6 +49,7 @@ In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a g
 - 🌿 **Worktree-Native**: Automatically manages git worktrees for every session—keep your main branch clean.
 - 🔌 **MCP Pooling**: Shared MCP servers (Memory, Filesystem, GitHub) via a socket proxy—no more duplicate server overhead.
 - 🕵️ **Status Detection**: Real-time monitoring of agent states (Thinking, Waiting, Error, Idle) from tmux pane output.
+- 📋 **Session Templates**: Declarative TOML templates for reproducible window/pane layouts (e.g., `pi-dev`, `feature-dev`).
 - 🔔 **macOS Notifications**: Native `osascript` notifications tell you the second an agent needs your approval.
 - 🤖 **Robo Mode**: A supervisor agent that can "send keys" and "approve" tasks across your entire fleet of agents.
 - 🏠 **Environment-First**: Built for tmux. SSH in from your phone, attach to a session inside VS Code, or live in the terminal.
@@ -156,7 +157,7 @@ shoal attach feature-auth
 shoal wt finish feature-auth --pr
 ```
 
-`shoal new` defaults to `--tool opencode`. Pass `-t/--tool` to override.
+`shoal new` defaults to your configured `default_tool` (opencode by default). Pass `-t/--tool` to override (e.g., `-t pi`, `-t claude`, `-t gemini`).
 
 ### Flags Explained: `-w` vs `-b`
 
@@ -164,12 +165,23 @@ shoal wt finish feature-auth --pr
 - **`-b` (Branch)**: When used with `-w`, it explicitly creates a new branch (e.g., `feat/<name>`). Without `-b`, Shoal will use the current branch or default behavior of `git worktree add`.
 - **Using Both**: `shoal new -w fix-bug -b` creates a new directory AND a new branch, which is the recommended workflow for parallel tasks.
 
+### Template-Based Workflow
+
+```bash
+# Create a session from a template (e.g., pi-dev with 65/35 editor+terminal split)
+shoal new -t pi -w feat/new-feature -b --template pi-dev
+
+# List and validate available templates
+shoal template ls
+shoal template validate pi-dev
+```
+
 ### Robo Supervisor Workflow
 
 ```bash
 # Start 3 parallel agents
 shoal new -t claude -w feature-ui -b
-shoal new -t opencode -w feature-api -b
+shoal new -t pi -w feature-api -b
 shoal new -t gemini -w docs -b
 
 # Launch a supervisor to coordinate them
@@ -192,7 +204,7 @@ Work on frontend, backend, and docs simultaneously without context switching:
 
 ```bash
 shoal new -t claude -w feature-ui -b
-shoal new -t opencode -w feature-api -b
+shoal new -t pi -w feature-api -b --template pi-dev
 shoal new -t gemini -w feature-docs -b
 ```
 
@@ -204,7 +216,7 @@ Have one agent write code, another review it:
 
 ```bash
 shoal new -t claude -w implement-auth -b
-shoal new -t gemini -w review-auth -b
+shoal new -t pi -w review-auth -b
 # Reviewer can access implementer's worktree via shared filesystem MCP
 ```
 
@@ -245,6 +257,12 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed workflows.
 - `start/stop`: Manage pooled servers.
 - `attach`: Connect a session to a pooled server.
 
+### Templates (`shoal template`)
+
+- `ls`: List available session templates.
+- `show <name>`: Display a template's configuration.
+- `validate <name>`: Validate a template against the schema.
+
 ### Demo (`shoal demo`)
 
 - `start`: Spin up a full demo environment with example sessions.
@@ -273,13 +291,25 @@ Shoal is built on a modern async Python stack:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, [ROADMAP.md](ROADMAP.md) for upcoming features, and [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for versioning details.
 
-**Coverage**: Currently at 52% test coverage (baseline measured 2026-02-16).
+**Coverage**: 77% test coverage (292 tests, as of v0.8.0).
 
 ---
+
+## Supported Tools
+
+| Tool | Command | Status |
+|------|---------|--------|
+| OpenCode | `opencode` | Primary |
+| Claude Code | `claude` | Supported |
+| Pi | `pi` | Supported |
+| Gemini | `gemini` | Supported |
+
+Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection patterns for status monitoring.
 
 ## Documentation
 
 - [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) — Robo supervisor patterns and workflows
+- [docs/FISH_INTEGRATION.md](docs/FISH_INTEGRATION.md) — Fish shell integration guide
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Development setup and guidelines
 - [ROADMAP.md](ROADMAP.md) — Upcoming features and milestones
 - [RELEASE_PROCESS.md](RELEASE_PROCESS.md) — Versioning and release workflow

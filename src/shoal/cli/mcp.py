@@ -26,6 +26,7 @@ from shoal.services.mcp_pool import (
     read_pid,
     start_mcp_server,
     stop_mcp_server,
+    validate_mcp_name,
 )
 
 console = Console()
@@ -104,6 +105,12 @@ def mcp_start(
     """Start an MCP server in the pool."""
     ensure_dirs()
 
+    try:
+        validate_mcp_name(name)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from None
+
     if is_mcp_running(name):
         pid = read_pid(name)
         console.print(f"[red]Error: MCP server '{name}' is already running (pid: {pid})[/red]")
@@ -166,6 +173,13 @@ def mcp_attach(
 
 async def _mcp_attach_impl(session, mcp_name):
     ensure_dirs()
+
+    try:
+        validate_mcp_name(mcp_name)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from None
+
     sid = await _resolve_session_interactive_impl(session)
 
     socket = mcp_socket(mcp_name)
