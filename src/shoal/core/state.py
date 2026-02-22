@@ -277,15 +277,15 @@ async def _resolve_session_interactive_impl(name_or_id: str | None = None) -> st
         lines.append(f"{session.id}\t{icon} {session.name}\t{session.tool}\t{session.status.value}")
 
     try:
-        result = subprocess.run(
+        proc = subprocess.run(
             ["fzf", "--header=ID\tNAME\tTOOL\tSTATUS", "--delimiter=\t"],
             input="\n".join(lines),
             capture_output=True,
             text=True,
         )
-        if result.returncode != 0 or not result.stdout.strip():
+        if proc.returncode != 0 or not proc.stdout.strip():
             raise SystemExit(1)
-        return result.stdout.strip().split("\t")[0]
+        return proc.stdout.strip().split("\t")[0]
     except FileNotFoundError:
         print("fzf not found — provide a session name or ID", file=sys.stderr)
         raise SystemExit(1) from None

@@ -1,7 +1,7 @@
 """Async SQLite database for Shoal session and robo state."""
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -46,14 +46,14 @@ class ShoalDB:
         return cls._instance
 
     @classmethod
-    async def reset_instance(cls):
+    async def reset_instance(cls) -> None:
         """Reset singleton instance (primarily for testing)."""
         if cls._instance is not None:
             await cls._instance.close()
             cls._instance = None
             cls._initialized = False
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Establish database connection and initialize schema."""
         if self._conn is not None:
             return
@@ -66,7 +66,7 @@ class ShoalDB:
             await self._initialize_schema()
             self._initialized = True
 
-    async def _initialize_schema(self):
+    async def _initialize_schema(self) -> None:
         """Create tables if they don't exist."""
         if self._conn is None:
             raise RuntimeError("Database not connected")
@@ -90,7 +90,7 @@ class ShoalDB:
         """)
         await self._conn.commit()
 
-    async def close(self):
+    async def close(self) -> None:
         """Close database connection."""
         if self._conn is not None:
             await self._conn.close()
@@ -105,7 +105,7 @@ class ShoalDB:
             raise RuntimeError("Failed to establish database connection")
         yield self._conn
 
-    async def save_session(self, session: SessionState):
+    async def save_session(self, session: SessionState) -> None:
         """Save or update a session."""
         async with self._connection() as conn:
             await conn.execute(
@@ -157,13 +157,13 @@ class ShoalDB:
             await self.save_session(updated)
             return updated
 
-    async def delete_session(self, session_id: str):
+    async def delete_session(self, session_id: str) -> None:
         """Delete a session."""
         async with self._connection() as conn:
             await conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             await conn.commit()
 
-    async def save_robo(self, state: RoboState):
+    async def save_robo(self, state: RoboState) -> None:
         """Save or update robo state."""
         async with self._connection() as conn:
             await conn.execute(
@@ -203,7 +203,7 @@ async def get_db() -> ShoalDB:
     return await ShoalDB.get_instance()
 
 
-async def with_db(coro):
+async def with_db[T](coro: Coroutine[Any, Any, T]) -> T:
     """Run a coroutine and close the DB connection afterward.
 
     Use this to wrap coroutines passed to asyncio.run() in CLI

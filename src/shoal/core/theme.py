@@ -224,7 +224,7 @@ def create_table(**overrides: Any) -> Table:
         "padding": Layout.TABLE_PADDING,
     }
     defaults.update(overrides)
-    return Table(**defaults)
+    return Table(**defaults)  # type: ignore[arg-type]
 
 
 def create_panel(
@@ -257,7 +257,7 @@ def create_panel(
     if title:
         defaults["title"] = title
     defaults.update(overrides)
-    return Panel(content, **defaults)
+    return Panel(content, **defaults)  # type: ignore[arg-type]
 
 
 # ============================================================================
