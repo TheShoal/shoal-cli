@@ -147,7 +147,7 @@ class TestMcp:
 
 class TestRobo:
     def test_ls_empty(self, mock_dirs):
-        _, tmp_state = mock_dirs
+        _, _tmp_state = mock_dirs
         # Robo ls reads profiles from config dir, which has default.toml
         result = runner.invoke(app, ["robo", "ls"])
         assert result.exit_code == 0

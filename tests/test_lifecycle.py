@@ -596,7 +596,7 @@ class TestSessionExistsError:
 
         # has_session returns True to simulate tmux collision
         with (
-            pytest.raises(SessionExistsError, match="collides|already exists"),
+            pytest.raises(SessionExistsError, match=r"collides|already exists"),
             patch("shoal.core.tmux.has_session", return_value=True),
         ):
             await create_session_lifecycle(
@@ -616,7 +616,7 @@ class TestSessionExistsError:
 
         # has_session returns True to simulate tmux collision
         with (
-            pytest.raises(SessionExistsError, match="collides|already exists"),
+            pytest.raises(SessionExistsError, match=r"collides|already exists"),
             patch("shoal.core.tmux.has_session", return_value=True),
         ):
             await fork_session_lifecycle(
