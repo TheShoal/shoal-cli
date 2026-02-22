@@ -54,6 +54,32 @@ _DEFAULT_SERVERS: dict[str, str] = {
 KNOWN_SERVERS = _DEFAULT_SERVERS
 
 
+def mcp_log_dir() -> Path:
+    """Return the MCP pool log directory."""
+    return state_dir() / "mcp-pool" / "logs"
+
+
+def mcp_log_file(name: str) -> Path:
+    """Return the log file path for a named MCP server."""
+    return mcp_log_dir() / f"{name}.log"
+
+
+def _truncate_log(path: Path, max_bytes: int = 10 * 1024 * 1024) -> None:
+    """If *path* exceeds *max_bytes*, truncate to the last half."""
+    if not path.exists():
+        return
+    size = path.stat().st_size
+    if size <= max_bytes:
+        return
+    keep = max_bytes // 2
+    with open(path, "r+b") as f:
+        f.seek(size - keep)
+        tail = f.read()
+        f.seek(0)
+        f.write(tail)
+        f.truncate()
+
+
 def mcp_socket(name: str) -> Path:
     return state_dir() / "mcp-pool" / "sockets" / f"{name}.sock"
 
@@ -121,17 +147,26 @@ def start_mcp_server(name: str, command: str | None = None) -> tuple[int, Path, 
     socket.parent.mkdir(parents=True, exist_ok=True)
     pid_file.parent.mkdir(parents=True, exist_ok=True)
 
+    # Set up log file for stderr
+    log_dir = mcp_log_dir()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = mcp_log_file(name)
+    _truncate_log(log_path)
+
+    log_fh = open(log_path, "a")  # noqa: SIM115
+
     # Launch the pool server as a detached subprocess
     proc = subprocess.Popen(
         [sys.executable, "-m", "shoal.services.mcp_pool", name, command],
         start_new_session=True,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=log_fh,
     )
 
     # Wait briefly to see if it starts
     time.sleep(1)
     if proc.poll() is not None:
+        log_fh.close()
         socket.unlink(missing_ok=True)
         raise RuntimeError(f"Failed to start MCP server '{name}'")
 
@@ -176,17 +211,25 @@ async def _handle_client(
     client_reader: asyncio.StreamReader,
     client_writer: asyncio.StreamWriter,
     command: str,
+    log_path: Path | None = None,
 ) -> None:
     """Handle a single client connection by spawning the MCP command."""
     tokens = shlex.split(command)
+    log_fh = None
+    stderr_dest: int | None = asyncio.subprocess.DEVNULL
+    if log_path is not None:
+        with suppress(OSError):
+            log_fh = open(log_path, "a")  # noqa: SIM115
     try:
         proc = await asyncio.create_subprocess_exec(
             *tokens,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
+            stderr=log_fh if log_fh is not None else stderr_dest,
         )
     except Exception:
+        if log_fh is not None:
+            log_fh.close()
         client_writer.close()
         return
 
@@ -221,13 +264,16 @@ async def _handle_client(
             proc.kill()
         with suppress(Exception):
             client_writer.close()
+        if log_fh is not None:
+            with suppress(Exception):
+                log_fh.close()
 
 
-async def _serve(socket_path: str, command: str) -> None:
+async def _serve(socket_path: str, command: str, log_path: Path | None = None) -> None:
     """Run the Unix socket server loop."""
 
     async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await _handle_client(reader, writer, command)
+        await _handle_client(reader, writer, command, log_path=log_path)
 
     server = await asyncio.start_unix_server(_on_connect, path=socket_path)
     async with server:
@@ -244,12 +290,18 @@ def _pool_main() -> None:
     command = sys.argv[2]
     socket_path = str(mcp_socket(name))
 
+    # Set up log file
+    log_dir = mcp_log_dir()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = mcp_log_file(name)
+    _truncate_log(log_path)
+
     # Clean stale socket
     Path(socket_path).unlink(missing_ok=True)
     Path(socket_path).parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        asyncio.run(_serve(socket_path, command))
+        asyncio.run(_serve(socket_path, command, log_path=log_path))
     except KeyboardInterrupt:
         pass
     finally:

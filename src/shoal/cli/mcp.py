@@ -21,6 +21,7 @@ from shoal.core.state import (
 from shoal.core.theme import Icons, Symbols, create_panel, create_table
 from shoal.services.mcp_pool import (
     is_mcp_running,
+    mcp_log_file,
     mcp_socket,
     read_pid,
     start_mcp_server,
@@ -291,3 +292,19 @@ def mcp_status() -> None:
     if dead or orphaned:
         console.print("\n[yellow]󰀦 Stale entries detected.[/yellow]")
         console.print("[dim]Run 'shoal mcp stop <name>' to clean up.[/dim]")
+
+
+@app.command("logs")
+def mcp_logs(
+    name: Annotated[str, typer.Argument(help="MCP server name")],
+    tail: Annotated[int, typer.Option("--tail", "-n", help="Number of lines")] = 50,
+) -> None:
+    """Show logs for an MCP server."""
+    log_path = mcp_log_file(name)
+    if not log_path.exists():
+        console.print(f"[red]No log file for MCP server '{name}'[/red]")
+        raise typer.Exit(1) from None
+
+    lines = log_path.read_text().splitlines()
+    for line in lines[-tail:]:
+        console.print(line)

@@ -179,3 +179,50 @@ def test_start_mcp_server_already_running(tmp_path, mock_dirs):
 
     with patch("os.kill", return_value=None), pytest.raises(RuntimeError, match="already running"):
         mcp_pool.start_mcp_server("memory")
+
+
+def test_mcp_log_file_path(mock_dirs):
+    """Test mcp_log_file returns correct log path."""
+    result = mcp_pool.mcp_log_file("memory")
+    assert "mcp-pool/logs/memory.log" in str(result)
+
+
+def test_start_creates_log_file(mock_dirs):
+    """Test start_mcp_server creates log directory."""
+    with (
+        patch("shoal.services.mcp_pool.subprocess.Popen") as mock_popen,
+        patch("shoal.services.mcp_pool.time.sleep"),
+    ):
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.poll.return_value = None
+        mock_popen.return_value = mock_process
+
+        mcp_pool.start_mcp_server("memory", "echo test")
+
+        log_dir = mcp_pool.mcp_log_dir()
+        assert log_dir.exists()
+
+
+def test_truncate_log_small_file(tmp_path):
+    """Small files should not be truncated."""
+    log = tmp_path / "test.log"
+    log.write_text("small content")
+    original_size = log.stat().st_size
+
+    mcp_pool._truncate_log(log, max_bytes=1024)
+    assert log.stat().st_size == original_size
+
+
+def test_truncate_log_large_file(tmp_path):
+    """Large files should be truncated to last half of max_bytes."""
+    log = tmp_path / "test.log"
+    log.write_bytes(b"x" * 2000)
+
+    mcp_pool._truncate_log(log, max_bytes=1000)
+    assert log.stat().st_size == 500
+
+
+def test_truncate_log_missing_file(tmp_path):
+    """Missing files should be a no-op."""
+    mcp_pool._truncate_log(tmp_path / "nonexistent.log")

@@ -122,3 +122,39 @@ def test_mcp_attach_not_in_registry(mock_dirs, tmp_path):
         result = runner.invoke(app, ["attach", "test-s", "test-mcp"])
         assert result.exit_code == 1
         assert "is not running" in result.stdout
+
+
+def test_mcp_logs_shows_content(mock_dirs, tmp_path):
+    """Test mcp logs command shows log content."""
+    from shoal.services import mcp_pool
+
+    log_path = mcp_pool.mcp_log_file("test-server")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text("line1\nline2\nline3\n")
+
+    result = runner.invoke(app, ["logs", "test-server"])
+    assert result.exit_code == 0
+    assert "line1" in result.stdout
+    assert "line3" in result.stdout
+
+
+def test_mcp_logs_missing_file(mock_dirs):
+    """Test mcp logs command with no log file."""
+    result = runner.invoke(app, ["logs", "nonexistent"])
+    assert result.exit_code == 1
+    assert "No log file" in result.stdout
+
+
+def test_mcp_logs_tail(mock_dirs, tmp_path):
+    """Test mcp logs --tail flag limits output."""
+    from shoal.services import mcp_pool
+
+    log_path = mcp_pool.mcp_log_file("test-server")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [f"line{i}" for i in range(100)]
+    log_path.write_text("\n".join(lines) + "\n")
+
+    result = runner.invoke(app, ["logs", "test-server", "--tail", "5"])
+    assert result.exit_code == 0
+    assert "line95" in result.stdout
+    assert "line10" not in result.stdout
