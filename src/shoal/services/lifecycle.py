@@ -53,6 +53,14 @@ class SessionExistsError(LifecycleError):
     """Session name collision."""
 
 
+class DirtyWorktreeError(LifecycleError):
+    """Worktree has uncommitted changes."""
+
+    def __init__(self, message: str, *, session_id: str = "", dirty_files: str = "") -> None:
+        self.dirty_files = dirty_files
+        super().__init__(message, session_id=session_id, operation="kill")
+
+
 # ---------------------------------------------------------------------------
 # Rollback helper
 # ---------------------------------------------------------------------------
@@ -825,6 +833,7 @@ async def kill_session_lifecycle(
     git_root: str = "",
     branch: str = "",
     remove_worktree: bool = False,
+    force: bool = False,
 ) -> dict[str, bool]:
     """Kill a session and optionally remove its worktree.
 
@@ -833,6 +842,9 @@ async def kill_session_lifecycle(
 
     Returns a summary dict with keys: tmux_killed, worktree_removed,
     branch_deleted, db_deleted, mcp_stopped.
+
+    Raises DirtyWorktreeError if worktree has uncommitted changes and
+    force is False.
     """
     logger.info("[%s] kill: starting", session_id)
     summary: dict[str, bool] = {
@@ -855,6 +867,23 @@ async def kill_session_lifecycle(
 
     # 2. Optionally remove worktree + branch
     if remove_worktree and worktree and Path(worktree).is_dir():
+        # Check for dirty worktree
+        if await git.async_worktree_is_dirty(worktree):
+            if not force:
+                dirty_output = subprocess.run(
+                    ["git", "status", "--porcelain"],
+                    cwd=worktree,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                ).stdout.strip()
+                raise DirtyWorktreeError(
+                    f"Worktree has uncommitted changes: {worktree}",
+                    session_id=session_id,
+                    dirty_files=dirty_output,
+                )
+            logger.warning("[%s] kill: forcing removal of dirty worktree", session_id)
+
         if await git.async_worktree_remove(git_root, worktree, force=True):
             summary["worktree_removed"] = True
             logger.info("[%s] kill: worktree removed", session_id)

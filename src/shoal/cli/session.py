@@ -602,12 +602,17 @@ def kill(
     worktree: Annotated[
         bool, typer.Option("--worktree", help="Also remove the git worktree")
     ] = False,
+    force: Annotated[
+        bool, typer.Option("--force", "-f", help="Force kill even with dirty worktree")
+    ] = False,
 ) -> None:
     """Kill a session."""
-    asyncio.run(with_db(_kill_impl(session, worktree)))
+    asyncio.run(with_db(_kill_impl(session, worktree, force)))
 
 
-async def _kill_impl(session: str | None, worktree: bool) -> None:
+async def _kill_impl(session: str | None, worktree: bool, force: bool) -> None:
+    from shoal.services.lifecycle import DirtyWorktreeError
+
     ensure_dirs()
     sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)
@@ -616,14 +621,23 @@ async def _kill_impl(session: str | None, worktree: bool) -> None:
 
     icon = _get_tool_icon(s.tool)
 
-    summary = await kill_session_lifecycle(
-        session_id=s.id,
-        tmux_session=s.tmux_session,
-        worktree=s.worktree,
-        git_root=s.path,
-        branch=s.branch,
-        remove_worktree=worktree,
-    )
+    try:
+        summary = await kill_session_lifecycle(
+            session_id=s.id,
+            tmux_session=s.tmux_session,
+            worktree=s.worktree,
+            git_root=s.path,
+            branch=s.branch,
+            remove_worktree=worktree,
+            force=force,
+        )
+    except DirtyWorktreeError as exc:
+        console.print(f"[red]Worktree has uncommitted changes:[/red] {s.worktree}")
+        if exc.dirty_files:
+            for line in exc.dirty_files.splitlines()[:10]:
+                console.print(f"  {line}")
+        console.print("\n[yellow]Use --force to remove anyway[/yellow]")
+        raise typer.Exit(1) from None
 
     if summary["tmux_killed"]:
         console.print(f"{icon} Killed tmux session: {s.tmux_session}")

@@ -7,6 +7,7 @@ import pytest
 from shoal.core.state import create_session, get_session, update_session
 from shoal.models.state import SessionStatus
 from shoal.services.lifecycle import (
+    DirtyWorktreeError,
     _reconcile_mcp_pool,
     _rollback_async,
     create_session_lifecycle,
@@ -489,3 +490,90 @@ class TestStartupExceptionNarrowing:
                 tool_command="claude",
                 startup_commands=["send-keys -t {tmux_session} 'echo hi' Enter"],
             )
+
+
+@pytest.mark.asyncio
+class TestDirtyWorktreeProtection:
+    """Verify dirty worktree detection in kill_session_lifecycle."""
+
+    async def test_dirty_worktree_blocks_kill(self, mock_dirs):
+        """Dirty worktree should raise DirtyWorktreeError without force."""
+        s = await create_session("dirty-wt", "claude", "/tmp/repo", worktree="/tmp/wt")
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.git.worktree_is_dirty", return_value=True),
+            patch("pathlib.Path.is_dir", return_value=True),
+            patch("subprocess.run") as mock_run,
+            pytest.raises(DirtyWorktreeError, match="uncommitted"),
+        ):
+            mock_run.return_value.stdout = " M file.txt"
+            await kill_session_lifecycle(
+                session_id=s.id,
+                tmux_session=s.tmux_session,
+                worktree=s.worktree,
+                git_root=s.path,
+                remove_worktree=True,
+            )
+
+    async def test_clean_worktree_proceeds(self, mock_dirs):
+        """Clean worktree should proceed normally."""
+        s = await create_session("clean-wt", "claude", "/tmp/repo", worktree="/tmp/wt")
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.git.worktree_is_dirty", return_value=False),
+            patch("shoal.core.git.worktree_remove", return_value=True),
+            patch("pathlib.Path.is_dir", return_value=True),
+        ):
+            summary = await kill_session_lifecycle(
+                session_id=s.id,
+                tmux_session=s.tmux_session,
+                worktree=s.worktree,
+                git_root=s.path,
+                remove_worktree=True,
+            )
+            assert summary["worktree_removed"] is True
+
+    async def test_force_overrides_dirty_check(self, mock_dirs):
+        """Force flag should override dirty worktree check."""
+        s = await create_session("force-wt", "claude", "/tmp/repo", worktree="/tmp/wt")
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.git.worktree_is_dirty", return_value=True),
+            patch("shoal.core.git.worktree_remove", return_value=True),
+            patch("pathlib.Path.is_dir", return_value=True),
+        ):
+            summary = await kill_session_lifecycle(
+                session_id=s.id,
+                tmux_session=s.tmux_session,
+                worktree=s.worktree,
+                git_root=s.path,
+                remove_worktree=True,
+                force=True,
+            )
+            assert summary["worktree_removed"] is True
+
+    async def test_dirty_files_in_exception(self, mock_dirs):
+        """DirtyWorktreeError should contain dirty file list."""
+        s = await create_session("files-wt", "claude", "/tmp/repo", worktree="/tmp/wt")
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.git.worktree_is_dirty", return_value=True),
+            patch("pathlib.Path.is_dir", return_value=True),
+            patch("subprocess.run") as mock_run,
+        ):
+            mock_run.return_value.stdout = " M file.txt\n?? new.py"
+            try:
+                await kill_session_lifecycle(
+                    session_id=s.id,
+                    tmux_session=s.tmux_session,
+                    worktree=s.worktree,
+                    git_root=s.path,
+                    remove_worktree=True,
+                )
+            except DirtyWorktreeError as exc:
+                assert "file.txt" in exc.dirty_files
+                assert "new.py" in exc.dirty_files

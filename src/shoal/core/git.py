@@ -126,3 +126,13 @@ async def async_worktree_remove(repo: str, path: str, *, force: bool = False) ->
 
 async def async_branch_delete(repo: str, branch: str, *, force: bool = False) -> bool:
     return await asyncio.to_thread(branch_delete, repo, branch, force=force)
+
+
+def worktree_is_dirty(path: str) -> bool:
+    """Return True if the worktree at *path* has uncommitted changes."""
+    result = _run(["status", "--porcelain"], cwd=path, check=False)
+    return bool(result.stdout.strip())
+
+
+async def async_worktree_is_dirty(path: str) -> bool:
+    return await asyncio.to_thread(worktree_is_dirty, path)

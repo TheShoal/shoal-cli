@@ -29,6 +29,7 @@ from shoal.core.state import (
 )
 from shoal.models.state import SessionState, SessionStatus
 from shoal.services.lifecycle import (
+    DirtyWorktreeError,
     SessionExistsError,
     StartupCommandError,
     TmuxSetupError,
@@ -354,15 +355,30 @@ async def create_session_api(data: SessionCreate) -> SessionResponse:
 
 
 @app.delete("/sessions/{session_id}", status_code=204)
-async def delete_session_api(session_id: str) -> None:
+async def delete_session_api(
+    session_id: str,
+    remove_worktree: bool = False,
+    force: bool = False,
+) -> None:
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    await kill_session_lifecycle(
-        session_id=s.id,
-        tmux_session=s.tmux_session,
-    )
+    try:
+        await kill_session_lifecycle(
+            session_id=s.id,
+            tmux_session=s.tmux_session,
+            worktree=s.worktree,
+            git_root=s.path,
+            branch=s.branch,
+            remove_worktree=remove_worktree,
+            force=force,
+        )
+    except DirtyWorktreeError as e:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": str(e), "dirty_files": e.dirty_files},
+        ) from e
     await manager.broadcast({"type": "session_deleted", "session_id": session_id})
 
 

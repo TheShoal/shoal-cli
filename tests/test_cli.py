@@ -365,6 +365,7 @@ class TestKill:
 
         with (
             patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.git.worktree_is_dirty", return_value=False),
             patch("shoal.core.git.worktree_remove", return_value=True) as mock_wt_remove,
             patch("pathlib.Path.is_dir", return_value=True),
         ):
