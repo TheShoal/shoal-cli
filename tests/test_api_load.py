@@ -1,11 +1,12 @@
 """Load tests for Shoal API."""
 
 import asyncio
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
+
 from shoal.core.state import create_session
-from shoal.models.state import SessionStatus
-from unittest.mock import patch
 
 
 @pytest.mark.asyncio

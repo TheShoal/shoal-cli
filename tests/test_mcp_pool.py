@@ -1,7 +1,6 @@
 """Tests for services.mcp_pool module."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -85,7 +84,7 @@ def test_start_mcp_server(tmp_path, mock_dirs):
     """Test start_mcp_server launches a server."""
     with (
         patch("shoal.services.mcp_pool.subprocess.Popen") as mock_popen,
-        patch("shoal.services.mcp_pool.time.sleep") as mock_sleep,
+        patch("shoal.services.mcp_pool.time.sleep"),
     ):
         mock_process = MagicMock()
         mock_process.pid = 12345
@@ -115,7 +114,7 @@ def test_stop_mcp_server(tmp_path, mock_dirs):
 
     with (
         patch("os.kill") as mock_kill,
-        patch("time.sleep") as mock_sleep,
+        patch("time.sleep"),
     ):
         # Mock first kill succeeds, second kill (poll) finds process gone
         mock_kill.side_effect = [None, ProcessLookupError]

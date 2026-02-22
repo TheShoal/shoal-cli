@@ -5,11 +5,10 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 
-from shoal.core.theme import Colors, Icons, Symbols, create_panel, create_table
+from shoal.core.theme import Icons, Symbols, create_panel, create_table
 
 
 def get_template_dir() -> Path:
@@ -17,16 +16,13 @@ def get_template_dir() -> Path:
     return Path(__file__).parent / "templates"
 
 
-def get_fish_config_dir() -> Optional[Path]:
+def get_fish_config_dir() -> Path | None:
     """Get the user's fish configuration directory.
 
     Respects XDG_CONFIG_HOME if set, falling back to ~/.config/fish.
     """
     xdg_config = os.environ.get("XDG_CONFIG_HOME")
-    if xdg_config:
-        fish_config = Path(xdg_config) / "fish"
-    else:
-        fish_config = Path.home() / ".config" / "fish"
+    fish_config = Path(xdg_config) / "fish" if xdg_config else Path.home() / ".config" / "fish"
     return fish_config if fish_config.exists() or fish_config.parent.exists() else None
 
 
@@ -153,7 +149,8 @@ def install_fish_integration(force: bool = False) -> bool:
     skipped = [r for r in results if r[2] == "skipped"]
     if skipped and not force:
         console.print(
-            f"\n[yellow]Tip:[/yellow] Use [cyan]shoal setup fish --force[/cyan] to overwrite existing files."
+            "\n[yellow]Tip:[/yellow] Use [cyan]shoal setup fish --force[/cyan]"
+            " to overwrite existing files."
         )
 
     # Success message

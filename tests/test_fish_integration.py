@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 from shoal.integrations.fish.installer import (
     get_fish_config_dir,

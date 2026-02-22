@@ -1,11 +1,13 @@
 """Tests for dashboard/popup.py."""
 
-import pytest
 import asyncio
+
+import pytest
+
 from shoal.core.db import with_db
 from shoal.core.state import create_session, update_session
-from shoal.models.state import SessionStatus
 from shoal.dashboard.popup import _build_entries, print_popup_list
+from shoal.models.state import SessionStatus
 
 
 @pytest.mark.asyncio
@@ -46,8 +48,9 @@ async def test_build_entries_with_sessions(mock_dirs):
 
 def test_run_popup_success(mock_dirs, tmp_path):
     """Test run_popup handles selection using lookup."""
+    from unittest.mock import MagicMock, patch
+
     from shoal.dashboard.popup import run_popup
-    from unittest.mock import patch, MagicMock
 
     async def setup():
         await create_session("test-popup", "claude", "/tmp")
@@ -71,8 +74,9 @@ def test_run_popup_success(mock_dirs, tmp_path):
 
 def test_print_popup_list(mock_dirs, capsys):
     """Test print_popup_list output."""
-    from shoal.core.db import with_db
     import asyncio
+
+    from shoal.core.db import with_db
 
     async def setup():
         s = await create_session("test-print", "claude", "/tmp")

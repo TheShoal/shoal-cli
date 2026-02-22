@@ -7,19 +7,17 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
-from rich.table import Table
 
 from shoal.core.config import ensure_dirs, state_dir
 from shoal.core.db import with_db
 from shoal.core.state import (
+    _resolve_session_interactive_impl,
     add_mcp_to_session,
     get_session,
     list_sessions,
     remove_mcp_from_session,
-    resolve_session_interactive,
-    _resolve_session_interactive_impl,
 )
-from shoal.core.theme import Colors, Icons, Symbols, create_panel, create_table, get_status_icon
+from shoal.core.theme import Icons, Symbols, create_panel, create_table
 from shoal.services.mcp_pool import (
     is_mcp_running,
     mcp_socket,
@@ -84,8 +82,6 @@ async def _mcp_ls_impl():
 
         sessions_str = ", ".join(using) if using else "[dim]-(none)-[/dim]"
         table.add_row(f"[bold]{name}[/bold]", pid_str, mcp_status, sessions_str)
-
-    from rich.panel import Panel
 
     console.print()
     console.print(
@@ -197,7 +193,7 @@ async def _mcp_attach_impl(session, mcp_name):
         console.print()
         console.print("[yellow]Actionable suggestions:[/yellow]")
         console.print(
-            f"  • Restart the server: [bold]shoal mcp stop {mcp_name} && shoal mcp start {mcp_name}[/bold]"
+            f"  • Restart: [bold]shoal mcp stop {mcp_name} && shoal mcp start {mcp_name}[/bold]"
         )
         raise typer.Exit(1)
 
@@ -237,7 +233,6 @@ def mcp_status() -> None:
             else:
                 orphaned += 1
 
-    from rich.panel import Panel
     from rich.text import Text
 
     parts = []

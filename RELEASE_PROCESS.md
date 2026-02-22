@@ -61,7 +61,7 @@ git push origin main --tags
 - [ ] Add new `[Unreleased]` section to `CHANGELOG.md`:
   ```md
   ## [Unreleased]
-  
+
   ### Added
   ### Changed
   ### Fixed

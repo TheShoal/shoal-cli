@@ -1,7 +1,9 @@
 """Tests for cli/watcher.py."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from typer.testing import CliRunner
+
 from shoal.cli.watcher import app
 
 runner = CliRunner()
@@ -12,7 +14,7 @@ def test_watcher_start_foreground(mock_dirs):
     with (
         patch("shoal.cli.watcher._read_pid", return_value=None),
         patch("shoal.services.watcher.Watcher") as mock_watcher_class,
-        patch("shoal.core.db.with_db") as mock_with_db,
+        patch("shoal.core.db.with_db"),
         patch("asyncio.run") as mock_asyncio_run,
     ):
         mock_watcher_instance = MagicMock()

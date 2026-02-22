@@ -1,6 +1,7 @@
 """Tests for core/state.py — session CRUD (Async)."""
 
 import pytest
+
 from shoal.core.state import (
     add_mcp_to_session,
     create_session,

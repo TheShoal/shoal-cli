@@ -5,8 +5,8 @@ import pytest
 from shoal.core.config import (
     available_templates,
     available_tools,
-    load_robo_profile,
     load_config,
+    load_robo_profile,
     load_template,
     load_tool_config,
 )

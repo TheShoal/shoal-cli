@@ -19,7 +19,14 @@ from shoal.core import git, tmux
 from shoal.core.config import load_tool_config
 from shoal.core.db import with_db
 from shoal.core.state import create_session, delete_session, list_sessions, update_session
-from shoal.core.theme import Icons, Symbols, create_panel, create_table, get_status_icon, get_status_style
+from shoal.core.theme import (
+    Icons,
+    Symbols,
+    create_panel,
+    create_table,
+    get_status_icon,
+    get_status_style,
+)
 from shoal.models.state import SessionStatus
 
 console = Console()
@@ -331,7 +338,9 @@ def _render_demo_pane(
 
     console.print()
     console.print(Rule(style="dim"))
-    console.print(Text("Run 'shoal demo tour' for a guided feature walkthrough.", style="bold green"))
+    console.print(
+        Text("Run 'shoal demo tour' for a guided feature walkthrough.", style="bold green")
+    )
     console.print(Text("Cleanup: shoal demo stop", style="dim italic"))
 
 
@@ -600,8 +609,8 @@ async def _demo_start_impl(custom_dir: str | None):
   \u2022 Temporary git repository at [cyan]{demo_dir}[/cyan]
   \u2022 4 demo sessions with different features highlighted:
     [bold]demo-main[/bold]     [green]\u25cf running[/green]   main branch \u2014 session management
-    [bold]demo-feature[/bold]  [white]\u25cb idle[/white]      feat/api-endpoint worktree \u2014 isolation
-    [bold]demo-bugfix[/bold]   [yellow]\u25c9 waiting[/yellow]  fix/login-bug worktree \u2014 status detection
+    [bold]demo-feature[/bold]  [white]\u25cb idle[/white]      feat/api-endpoint \u2014 isolation
+    [bold]demo-bugfix[/bold]   [yellow]\u25c9 waiting[/yellow]  fix/login-bug \u2014 status
     [bold]demo-robo[/bold]     [green]\u25cf running[/green]   supervisor \u2014 agent coordination
 
 [bold]Try these commands:[/bold]
@@ -742,7 +751,9 @@ async def _demo_tour_impl():
             parts.append(f"{icon} {count} {status_val}")
         console.print(f"   Total: {len(sessions)} sessions \u2014 {', '.join(parts)}")
     else:
-        console.print("   [dim]No sessions found (run 'shoal demo start' for full experience)[/dim]")
+        console.print(
+            "   [dim]No sessions found (run 'shoal demo start' for full experience)[/dim]"
+        )
 
     console.print(f"   [green]{Symbols.CHECK} Session state queries work[/green]")
     passed += 1
@@ -795,7 +806,7 @@ async def _demo_tour_impl():
         short = content[:42].replace("\n", "\\n")
         console.print(
             f"   [{color}]{mark}[/{color}] [{style}]{icon} {result.value:8}[/{style}] "
-            f"\u2190 {tool.name}: \"{short}\""
+            f'\u2190 {tool.name}: "{short}"'
         )
         if not ok:
             detection_ok = False
@@ -853,7 +864,7 @@ async def _demo_tour_impl():
         console.print(f"   [red]{Symbols.CROSS} Should have rejected invalid name[/red]")
         template_ok = False
     except (ValidationError, ValueError):
-        console.print(f"   [green]{Symbols.CHECK}[/green] Rejected invalid name: \"bad name!\"")
+        console.print(f'   [green]{Symbols.CHECK}[/green] Rejected invalid name: "bad name!"')
 
     # Invalid: no windows
     try:
@@ -869,13 +880,11 @@ async def _demo_tour_impl():
         console.print(f"   [red]{Symbols.CROSS} Should have rejected invalid size[/red]")
         template_ok = False
     except (ValidationError, ValueError):
-        console.print(f"   [green]{Symbols.CHECK}[/green] Rejected invalid pane size: \"150%\"")
+        console.print(f'   [green]{Symbols.CHECK}[/green] Rejected invalid pane size: "150%"')
 
     # Invalid: first pane not root
     try:
-        TemplateWindowConfig(
-            name="bad", panes=[TemplatePaneConfig(split="right", command="echo")]
-        )
+        TemplateWindowConfig(name="bad", panes=[TemplatePaneConfig(split="right", command="echo")])
         console.print(f"   [red]{Symbols.CROSS} Should have rejected non-root first pane[/red]")
         template_ok = False
     except (ValidationError, ValueError):
@@ -907,18 +916,18 @@ async def _demo_tour_impl():
     for name in valid_mcp:
         try:
             validate_mcp_name(name)
-            console.print(f"   [green]{Symbols.CHECK}[/green] Accepted: \"{name}\"")
+            console.print(f'   [green]{Symbols.CHECK}[/green] Accepted: "{name}"')
         except ValueError:
-            console.print(f"   [red]{Symbols.CROSS}[/red] Should have accepted: \"{name}\"")
+            console.print(f'   [red]{Symbols.CROSS}[/red] Should have accepted: "{name}"')
             mcp_ok = False
 
     for name, display in invalid_mcp:
         try:
             validate_mcp_name(name)
-            console.print(f"   [red]{Symbols.CROSS}[/red] Should have rejected: \"{display}\"")
+            console.print(f'   [red]{Symbols.CROSS}[/red] Should have rejected: "{display}"')
             mcp_ok = False
         except ValueError:
-            console.print(f"   [green]{Symbols.CHECK}[/green] Rejected: \"{display}\"")
+            console.print(f'   [green]{Symbols.CHECK}[/green] Rejected: "{display}"')
 
     if mcp_ok:
         console.print(f"   [green]{Symbols.CHECK} MCP name validation works[/green]")
@@ -946,18 +955,18 @@ async def _demo_tour_impl():
     for name in valid_names:
         try:
             validate_session_name(name)
-            console.print(f"   [green]{Symbols.CHECK}[/green] Accepted: \"{name}\"")
+            console.print(f'   [green]{Symbols.CHECK}[/green] Accepted: "{name}"')
         except ValueError:
-            console.print(f"   [red]{Symbols.CROSS}[/red] Should have accepted: \"{name}\"")
+            console.print(f'   [red]{Symbols.CROSS}[/red] Should have accepted: "{name}"')
             name_ok = False
 
     for name, display in invalid_names:
         try:
             validate_session_name(name)
-            console.print(f"   [red]{Symbols.CROSS}[/red] Should have rejected: \"{display}\"")
+            console.print(f'   [red]{Symbols.CROSS}[/red] Should have rejected: "{display}"')
             name_ok = False
         except ValueError:
-            console.print(f"   [green]{Symbols.CHECK}[/green] Rejected: \"{display}\"")
+            console.print(f'   [green]{Symbols.CHECK}[/green] Rejected: "{display}"')
 
     if name_ok:
         console.print(f"   [green]{Symbols.CHECK} Session name validation works[/green]")
@@ -986,12 +995,9 @@ async def _demo_tour_impl():
     total = passed + failed
     console.print(Rule(style="cyan"))
     if failed == 0:
-        console.print(
-            f"[bold green]{Symbols.CHECK} All {total} feature areas passed![/bold green]"
-        )
+        console.print(f"[bold green]{Symbols.CHECK} All {total} feature areas passed![/bold green]")
     else:
         console.print(
-            f"[bold yellow]{passed}/{total} feature areas passed, "
-            f"{failed} failed[/bold yellow]"
+            f"[bold yellow]{passed}/{total} feature areas passed, {failed} failed[/bold yellow]"
         )
     console.print()

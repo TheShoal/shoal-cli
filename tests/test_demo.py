@@ -84,7 +84,7 @@ async def test_demo_start_happy_path(tmp_path, mock_dirs):
         patch("shoal.cli.demo.tmux.run_command") as mock_run_command,
         patch("shoal.cli.demo.tmux.send_keys") as mock_send_keys,
         patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add) as mock_worktree_add,
-        patch("shoal.cli.demo.console.print") as mock_print,
+        patch("shoal.cli.demo.console.print"),
         patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
     ):
         # Mock tool availability
@@ -151,10 +151,10 @@ async def test_demo_start_varied_statuses(tmp_path, mock_dirs):
     s3 = await get_session(session_ids[2])
     s4 = await get_session(session_ids[3])
 
-    assert s1.status.value == "running"   # demo-main
-    assert s2.status.value == "idle"      # demo-feature
-    assert s3.status.value == "waiting"   # demo-bugfix
-    assert s4.status.value == "running"   # demo-robo
+    assert s1.status.value == "running"  # demo-main
+    assert s2.status.value == "idle"  # demo-feature
+    assert s3.status.value == "waiting"  # demo-bugfix
+    assert s4.status.value == "running"  # demo-robo
 
 
 @pytest.mark.asyncio
@@ -172,7 +172,7 @@ async def test_demo_start_custom_dir(tmp_path, mock_dirs):
         patch("shoal.cli.demo.tmux.new_session") as mock_new_session,
         patch("shoal.cli.demo.tmux.run_command") as mock_run_command,
         patch("shoal.cli.demo.tmux.send_keys") as mock_send_keys,
-        patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add) as mock_worktree_add,
+        patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add),
     ):
         mock_which.return_value = "/usr/bin/tmux"
         mock_run.return_value = MagicMock(returncode=0)
@@ -314,7 +314,7 @@ async def test_demo_stop_partial_cleanup(tmp_path, mock_dirs):
         patch("shoal.cli.demo.tmux.has_session") as mock_has_session,
         patch("shoal.cli.demo.tmux.kill_session") as mock_kill_session,
         patch("shoal.cli.demo.shutil.rmtree") as mock_rmtree,
-        patch("shoal.cli.demo.console.print") as mock_print,
+        patch("shoal.cli.demo.console.print"),
     ):
         mock_has_session.return_value = True
 

@@ -1,12 +1,11 @@
 """Tests for cli/robo.py."""
 
-import pytest
-from unittest.mock import patch, MagicMock
-from typer.testing import CliRunner
-from shoal.cli.robo import app
-from shoal.core.state import create_session
 import asyncio
-from shoal.core.db import with_db
+from unittest.mock import patch
+
+from typer.testing import CliRunner
+
+from shoal.cli.robo import app
 
 runner = CliRunner()
 
@@ -32,7 +31,7 @@ def test_robo_start_success(mock_dirs):
         patch("shoal.core.tmux.has_session", return_value=False),
         patch("shoal.core.tmux.new_session") as mock_new,
         patch("shoal.core.tmux.send_keys") as mock_send,
-        patch("shoal.core.tmux.set_environment") as mock_env,
+        patch("shoal.core.tmux.set_environment"),
     ):
         result = runner.invoke(app, ["start", "start-me"])
         assert result.exit_code == 0
@@ -84,9 +83,10 @@ def test_robo_status_with_robos(mock_dirs):
     # so that state persists across multiple runner.invoke calls.
     # Alternatively, we can just use the DB directly to setup state.
 
-    from shoal.models.state import RoboState, SessionStatus
-    from shoal.core.db import get_db
     from datetime import UTC, datetime
+
+    from shoal.core.db import get_db
+    from shoal.models.state import RoboState, SessionStatus
 
     async def setup():
         db = await get_db()

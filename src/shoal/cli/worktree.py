@@ -8,21 +8,19 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
-from rich.table import Table
 
 from shoal.core import git, tmux
 from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
 from shoal.core.state import (
+    _resolve_session_interactive_impl,
     delete_session,
     get_session,
     get_status_style,
     list_sessions,
-    resolve_session_interactive,
     update_session,
-    _resolve_session_interactive_impl,
 )
-from shoal.core.theme import Colors, Icons, Symbols, create_panel, create_table
+from shoal.core.theme import Icons, Symbols, create_panel, create_table
 from shoal.models.state import SessionStatus
 
 console = Console()

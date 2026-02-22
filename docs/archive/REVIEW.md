@@ -387,10 +387,10 @@ def test_fish_templates_syntax():
    class ConnectionManager:
        def __init__(self):
            self.active_connections: set[WebSocket] = set()
-   
+
        def disconnect(self, websocket: WebSocket):
            self.active_connections.discard(websocket)
-   
+
        async def broadcast(self, message: dict):
            broken = []
            for conn in list(self.active_connections):

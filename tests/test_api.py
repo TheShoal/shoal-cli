@@ -57,8 +57,8 @@ class TestSessions:
             patch("shoal.api.server.git.is_git_repo", return_value=True),
             patch("shoal.api.server.git.git_root", return_value=str(test_dir)),
             patch("shoal.api.server.tmux.new_session") as mock_new_session,
-            patch("shoal.api.server.tmux.set_environment") as mock_set_env,
-            patch("shoal.api.server.tmux.send_keys") as mock_send_keys,
+            patch("shoal.api.server.tmux.set_environment"),
+            patch("shoal.api.server.tmux.send_keys"),
         ):
             response = await async_client.post(
                 "/sessions",
@@ -186,7 +186,7 @@ class TestSessions:
 
     async def test_rename_session_duplicate_name(self, async_client):
         """Test PUT /sessions/{id}/rename rejects duplicate names."""
-        s1 = await create_session("first", "claude", "/tmp/test")
+        await create_session("first", "claude", "/tmp/test")
         s2 = await create_session("second", "claude", "/tmp/test")
 
         with patch("shoal.api.server.tmux.has_session", return_value=False):
@@ -235,7 +235,6 @@ class TestMcp:
 
     async def test_list_mcp_avoids_n_plus_one(self, async_client, mock_dirs, tmp_path):
         """Test GET /mcp pre-fetches sessions to avoid N+1 queries."""
-        from unittest.mock import AsyncMock, call
         from shoal.core.state import list_sessions as real_list_sessions
 
         # Create a few sessions

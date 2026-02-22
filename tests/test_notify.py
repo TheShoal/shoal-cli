@@ -1,8 +1,8 @@
 """Tests for core/notify.py."""
 
-from unittest.mock import patch, MagicMock
-import sys
-from shoal.core.notify import notify, _escape_applescript_string
+from unittest.mock import patch
+
+from shoal.core.notify import _escape_applescript_string, notify
 
 
 def test_escape_applescript_string():

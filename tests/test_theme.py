@@ -2,17 +2,18 @@
 
 from rich.panel import Panel
 from rich.table import Table
+
 from shoal.core.theme import (
     STATUS_STYLES,
-    get_status_style,
-    get_status_icon,
-    get_status_tmux_color,
-    Icons,
-    Symbols,
     Colors,
+    Icons,
     Layout,
-    create_table,
+    Symbols,
     create_panel,
+    create_table,
+    get_status_icon,
+    get_status_style,
+    get_status_tmux_color,
     tmux_fg,
     tmux_status_segment,
 )

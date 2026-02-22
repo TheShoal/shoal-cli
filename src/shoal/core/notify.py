@@ -8,7 +8,7 @@ import sys
 
 def _escape_applescript_string(s: str) -> str:
     r"""Escape special characters for AppleScript string literals.
-    
+
     AppleScript strings use backslash escaping for quotes and backslashes.
     We escape:
     - Backslash (\) -> \\

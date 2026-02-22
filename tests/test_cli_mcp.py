@@ -1,13 +1,13 @@
 """Tests for cli/mcp.py."""
 
-import pytest
-from unittest.mock import patch, MagicMock
-from typer.testing import CliRunner
-from shoal.cli.mcp import app
-from shoal.core.state import create_session, update_session
-from shoal.models.state import SessionStatus
 import asyncio
+from unittest.mock import patch
+
+from typer.testing import CliRunner
+
+from shoal.cli.mcp import app
 from shoal.core.db import with_db
+from shoal.core.state import create_session, update_session
 
 runner = CliRunner()
 

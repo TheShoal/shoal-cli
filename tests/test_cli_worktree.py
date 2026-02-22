@@ -1,14 +1,13 @@
 """Tests for cli/worktree.py."""
 
-import pytest
-from unittest.mock import patch, MagicMock
-from typer.testing import CliRunner
-from shoal.cli.worktree import app
-from shoal.core.state import create_session, update_session
-from shoal.models.state import SessionStatus
 import asyncio
+from unittest.mock import patch
+
+from typer.testing import CliRunner
+
+from shoal.cli.worktree import app
 from shoal.core.db import with_db
-from pathlib import Path
+from shoal.core.state import create_session, update_session
 
 runner = CliRunner()
 
@@ -41,10 +40,10 @@ def test_wt_finish_success(mock_dirs):
         patch("shoal.core.tmux.has_session", return_value=True),
         patch("shoal.core.tmux.kill_session") as mock_kill,
         patch("shoal.core.git.main_branch", return_value="main"),
-        patch("shoal.core.git.checkout") as mock_checkout,
+        patch("shoal.core.git.checkout"),
         patch("shoal.core.git.merge", return_value=True) as mock_merge,
         patch("shoal.core.git.worktree_remove", return_value=True) as mock_wt_remove,
-        patch("shoal.core.git.branch_delete", return_value=True) as mock_branch_delete,
+        patch("shoal.core.git.branch_delete", return_value=True),
         patch("pathlib.Path.is_dir", return_value=True),
     ):
         result = runner.invoke(app, ["finish", "wt-fin"])

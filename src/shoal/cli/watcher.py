@@ -50,8 +50,8 @@ def watcher_start(
         console.print(f"[red]Error: Watcher already running (pid: {existing})[/red]")
         console.print()
         console.print("[yellow]Actionable suggestions:[/yellow]")
-        console.print(f"  • Check status: [bold]shoal watcher status[/bold]")
-        console.print(f"  • Stop watcher: [bold]shoal watcher stop[/bold]")
+        console.print("  • Check status: [bold]shoal watcher status[/bold]")
+        console.print("  • Stop watcher: [bold]shoal watcher stop[/bold]")
         raise typer.Exit(1)
 
     if foreground:
@@ -83,7 +83,7 @@ def watcher_stop() -> None:
         console.print("[red]Error: Watcher is not running[/red]")
         console.print()
         console.print("[yellow]Actionable suggestions:[/yellow]")
-        console.print(f"  • Start watcher: [bold]shoal watcher start[/bold]")
+        console.print("  • Start watcher: [bold]shoal watcher start[/bold]")
         raise typer.Exit(1)
 
     os.kill(pid, signal.SIGTERM)

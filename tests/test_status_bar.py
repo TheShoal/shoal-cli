@@ -1,6 +1,7 @@
 """Tests for services/status_bar.py."""
 
 import pytest
+
 from shoal.core.theme import Symbols
 from shoal.models.state import SessionStatus
 from shoal.services.status_bar import generate_status

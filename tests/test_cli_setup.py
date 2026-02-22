@@ -1,7 +1,9 @@
 """Tests for cli/setup.py."""
 
 from unittest.mock import patch
+
 from typer.testing import CliRunner
+
 from shoal.cli.setup import app
 
 runner = CliRunner()

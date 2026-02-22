@@ -6,8 +6,7 @@ import asyncio
 import subprocess
 
 from shoal.core import tmux
-from shoal.core.config import load_tool_config
-from shoal.core.state import get_session, list_sessions, _get_tool_icon
+from shoal.core.state import _get_tool_icon, list_sessions
 from shoal.core.theme import Symbols
 
 
@@ -21,10 +20,7 @@ async def _build_entries() -> tuple[list[str], dict[str, str]]:
         lookup[session.id] = session.tmux_session
 
         branch = session.branch or "-"
-        if session.last_activity:
-            last = session.last_activity.strftime("%H:%M")
-        else:
-            last = "-"
+        last = session.last_activity.strftime("%H:%M") if session.last_activity else "-"
         status = session.status.value
         entries.append(
             f"{session.id}\t{icon} {session.name}\t{session.tool}\t{status}\t{branch}\t{last}"

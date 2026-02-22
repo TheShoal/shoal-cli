@@ -9,8 +9,6 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
 
 from shoal.core import tmux
 from shoal.core.config import config_dir, ensure_dirs, load_config, load_robo_profile, state_dir
@@ -101,12 +99,13 @@ You are a robo-fish — a supervisory AI agent that leads and coordinates a shoa
 
 ## The Analogy
 
-In nature, researchers have shown that biomimetic robot fish can integrate into and lead schools of real fish 
-(see Marras & Porfiri 2012, Papaspyros et al. 2019). The robot alternates between following and leading to 
-gain social acceptance, then guides the group.
+In nature, researchers have shown that biomimetic robot fish can integrate
+into and lead schools of real fish (see Marras & Porfiri 2012,
+Papaspyros et al. 2019). The robot alternates between following and
+leading to gain social acceptance, then guides the group.
 
-In Shoal, you are that robo-fish. You monitor the shoal of AI coding agents, approve their actions, and 
-ensure the group stays on track.
+In Shoal, you are that robo-fish. You monitor the shoal of AI coding
+agents, approve their actions, and ensure the group stays on track.
 
 ## Your Responsibilities
 
@@ -185,7 +184,7 @@ async def _robo_start_impl(name):
             console.print("  [dim](none configured)[/dim]")
         console.print()
         console.print(f"[yellow]Create a profile:[/yellow] shoal robo setup {name}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     tmux_session = _build_robo_tmux_session(name)
 

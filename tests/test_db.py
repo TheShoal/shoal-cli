@@ -1,11 +1,10 @@
 """Tests for the async database layer (v0.4.0)."""
 
-import pytest
 import aiosqlite
-from pathlib import Path
+import pytest
+
 from shoal.core.db import ShoalDB
-from shoal.models.state import SessionState, SessionStatus, RoboState
-from datetime import datetime, UTC
+from shoal.models.state import RoboState, SessionState, SessionStatus
 
 
 @pytest.fixture
@@ -25,12 +24,14 @@ async def test_db_initialization(tmp_path):
     assert db_path.exists()
 
     # Check if table exists
-    async with aiosqlite.connect(db_path) as conn:
-        async with conn.execute(
+    async with (
+        aiosqlite.connect(db_path) as conn,
+        conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"
-        ) as cursor:
-            row = await cursor.fetchone()
-            assert row is not None
+        ) as cursor,
+    ):
+        row = await cursor.fetchone()
+        assert row is not None
 
     await db.close()
 

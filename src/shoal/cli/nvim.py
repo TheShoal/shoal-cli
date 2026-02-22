@@ -15,9 +15,9 @@ from rich.console import Console
 from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
 from shoal.core.state import (
+    _resolve_session_interactive_impl,
     get_session,
     resolve_nvim_socket,
-    _resolve_session_interactive_impl,
 )
 
 console = Console()
@@ -104,7 +104,9 @@ async def _nvim_diagnostics_impl(session):
         raise typer.Exit(1)
 
     # Write Lua to a temp file to avoid shell quoting issues with luaeval()
-    with tempfile.NamedTemporaryFile(suffix=".lua", prefix="shoal-diag-", mode="w", delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        suffix=".lua", prefix="shoal-diag-", mode="w", delete=False
+    ) as f:
         f.write(_DIAGNOSTICS_LUA)
         lua_file = Path(f.name)
     try:

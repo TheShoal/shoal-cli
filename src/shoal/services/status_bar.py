@@ -27,10 +27,7 @@ async def generate_status() -> str:
     segments = []
     for status_key in ["running", "idle", "waiting", "error", "inactive"]:
         count = counts[status_key]
-        if status_key == "inactive":
-            style = STATUS_STYLES["stopped"]  # Use stopped style for inactive
-        else:
-            style = STATUS_STYLES[status_key]
+        style = STATUS_STYLES["stopped"] if status_key == "inactive" else STATUS_STYLES[status_key]
         segment = tmux_status_segment(
             icon=style.icon,
             count=count,

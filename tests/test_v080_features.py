@@ -61,8 +61,12 @@ class TestPiStatusDetection:
             icon="🥧",
             detection=DetectionPatterns(
                 busy_patterns=[
-                    "thinking", "generating", "executing",
-                    "reading", "writing", "editing",
+                    "thinking",
+                    "generating",
+                    "executing",
+                    "reading",
+                    "writing",
+                    "editing",
                 ],
                 waiting_patterns=["permission", "confirm", "approve", "y/n"],
                 error_patterns=["Error:", "error:", "ERROR", "FAILED"],

@@ -3,8 +3,8 @@
 from datetime import UTC, datetime
 
 from shoal.models.config import (
-    RoboProfileConfig,
     DetectionPatterns,
+    RoboProfileConfig,
     ShoalConfig,
     ToolConfig,
 )

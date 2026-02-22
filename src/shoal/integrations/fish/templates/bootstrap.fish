@@ -21,7 +21,7 @@ abbr -a si shoal info
 function __shoal_bind_keys
     # Ctrl+S - Launch shoal popup dashboard
     bind \cs 'shoal popup; commandline -f repaint'
-    
+
     # Alt+A - Quick attach (using fzf if available)
     if type -q fzf
         bind \ea 'shoal-quick-attach; commandline -f repaint'
