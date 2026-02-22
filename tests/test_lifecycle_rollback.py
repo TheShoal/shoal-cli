@@ -58,7 +58,7 @@ class TestCreateRollback:
             patch("shoal.core.tmux.new_session"),
             patch("shoal.core.tmux.set_environment"),
             patch("shoal.core.tmux.kill_session") as mock_tmux_kill,
-            patch("shoal.core.tmux.run_command", side_effect=RuntimeError("bad cmd")),
+            patch("shoal.core.tmux.run_command", side_effect=ValueError("bad cmd")),
             patch("shoal.core.git.worktree_remove", return_value=True) as mock_wt_rm,
             pytest.raises(StartupCommandError, match="Startup command failed"),
         ):
@@ -130,7 +130,7 @@ class TestCreateRollback:
             patch("shoal.core.tmux.new_session"),
             patch("shoal.core.tmux.set_environment"),
             patch("shoal.core.tmux.kill_session"),
-            patch("shoal.core.tmux.run_command", side_effect=RuntimeError("bad cmd")),
+            patch("shoal.core.tmux.run_command", side_effect=ValueError("bad cmd")),
             patch("shoal.core.git.worktree_remove", side_effect=RuntimeError("wt stuck")),
             patch("shoal.services.lifecycle.logger") as mock_logger,
             pytest.raises(StartupCommandError),
@@ -220,7 +220,7 @@ class TestForkRollback:
             patch("shoal.core.tmux.new_session"),
             patch("shoal.core.tmux.set_environment"),
             patch("shoal.core.tmux.kill_session") as mock_tmux_kill,
-            patch("shoal.core.tmux.run_command", side_effect=RuntimeError("bad cmd")),
+            patch("shoal.core.tmux.run_command", side_effect=ValueError("bad cmd")),
             patch("shoal.core.git.worktree_remove", return_value=True) as mock_wt_rm,
             pytest.raises(StartupCommandError),
         ):

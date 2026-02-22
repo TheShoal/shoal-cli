@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import shlex
+import subprocess
 from pathlib import Path
 
 from shoal.core import git, tmux
@@ -639,7 +640,7 @@ async def create_session_lifecycle(
                 session_name=session_name,
                 tmux_session=tmux_session,
             )
-    except (ValueError, Exception) as exc:
+    except (ValueError, subprocess.CalledProcessError, TimeoutError) as exc:
         logger.warning("[%s] create: startup command failed: %s", session.id, exc)
         await _rollback_async(
             session_id=session.id,
@@ -770,7 +771,7 @@ async def fork_session_lifecycle(
                 session_name=session_name,
                 tmux_session=tmux_session,
             )
-    except (ValueError, Exception) as exc:
+    except (ValueError, subprocess.CalledProcessError, TimeoutError) as exc:
         logger.warning("[%s] fork: startup command failed: %s", session.id, exc)
         await _rollback_async(
             session_id=session.id,

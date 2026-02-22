@@ -456,3 +456,36 @@ class TestMcpCleanup:
             cleaned = _reconcile_mcp_pool()
         assert "orphan" in cleaned
         assert not (socket_dir / "orphan.sock").exists()
+
+
+@pytest.mark.asyncio
+class TestStartupExceptionNarrowing:
+    """Verify narrowed exception handling only catches expected types."""
+
+    async def test_runtime_error_propagates_uncaught(self, mock_dirs, tmp_path):
+        """RuntimeError from startup should propagate, not be wrapped."""
+        wt = tmp_path / "worktree"
+        wt.mkdir()
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.tmux.new_session"),
+            patch("shoal.core.tmux.set_environment"),
+            patch("shoal.core.tmux.kill_session"),
+            patch(
+                "shoal.core.tmux.run_command",
+                side_effect=RuntimeError("unexpected"),
+            ),
+            patch("shoal.core.git.worktree_remove", return_value=True),
+            pytest.raises(RuntimeError, match="unexpected"),
+        ):
+            await create_session_lifecycle(
+                session_name="narrow-test",
+                tool="claude",
+                git_root="/tmp/repo",
+                wt_path=str(wt),
+                work_dir=str(wt),
+                branch_name="feat/test",
+                tool_command="claude",
+                startup_commands=["send-keys -t {tmux_session} 'echo hi' Enter"],
+            )
