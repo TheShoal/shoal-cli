@@ -304,10 +304,10 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - ✅ **Branch protection**: Documented rules in CONTRIBUTING.md (CI pass required, review for external PRs, no force push to main).
 
 ### Tier 3 — Nice to have
-- [ ] **CodeQL or Semgrep**: SAST scanning on pull requests for deeper vulnerability detection.
-- [ ] **pytest-xdist**: Parallel test execution as the test suite grows beyond 300+ tests.
-- [ ] **`py.typed` marker**: Add `src/shoal/py.typed` to signal downstream consumers that this package exports type information.
-- [ ] **Renovate (alternative to Dependabot)**: Evaluate if grouped PRs and finer update control are worth the switch.
+- [x] **CodeQL or Semgrep**: CodeQL SAST scanning on PRs, main pushes, and weekly schedule.
+- [x] **pytest-xdist**: Added for parallel test execution (`pytest -n auto`).
+- [x] **`py.typed` marker**: Added `src/shoal/py.typed` with wheel inclusion for PEP 561.
+- [x] **Renovate (alternative to Dependabot)**: Evaluated — staying with Dependabot. Simpler for a single-maintainer project.
 
 ## v1.0.0: Stable Release
 
