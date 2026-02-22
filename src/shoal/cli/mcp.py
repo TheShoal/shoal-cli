@@ -308,3 +308,80 @@ def mcp_logs(
     lines = log_path.read_text().splitlines()
     for line in lines[-tail:]:
         console.print(line)
+
+
+@app.command("doctor")
+def mcp_doctor() -> None:
+    """Deep health check for MCP servers."""
+    import json
+    import time
+
+    ensure_dirs()
+    socket_dir = state_dir() / "mcp-pool" / "sockets"
+
+    if not socket_dir.exists() or not list(socket_dir.glob("*.sock")):
+        console.print("[yellow]No MCP servers to check[/yellow]")
+        return
+
+    table = create_table(padding=(0, 2))
+    table.add_column("NAME", width=16)
+    table.add_column("PID", width=12)
+    table.add_column("SOCKET", width=12)
+    table.add_column("JSON-RPC", width=12)
+    table.add_column("LATENCY", width=10)
+
+    for sock_path in sorted(socket_dir.glob("*.sock")):
+        name = sock_path.stem
+        pid = read_pid(name)
+
+        # PID check
+        pid_status = "[red]dead[/red]"
+        if pid is not None and is_mcp_running(name):
+            pid_status = f"[green]ok ({pid})[/green]"
+        elif pid is not None:
+            pid_status = f"[red]dead ({pid})[/red]"
+
+        # Socket + JSON-RPC check
+        sock_status = "[red]fail[/red]"
+        rpc_status = "[dim]-[/dim]"
+        latency_str = "[dim]-[/dim]"
+
+        try:
+            start = time.monotonic()
+            reader, writer = asyncio.run(
+                asyncio.wait_for(
+                    asyncio.open_unix_connection(str(sock_path)),
+                    timeout=5.0,
+                )
+            )
+            sock_status = "[green]ok[/green]"
+
+            # Try JSON-RPC initialize
+            rpc_msg = json.dumps({"jsonrpc": "2.0", "method": "initialize", "id": 1, "params": {}})
+            writer.write((rpc_msg + "\n").encode())
+            try:
+                data = asyncio.run(asyncio.wait_for(reader.read(4096), timeout=5.0))
+                elapsed = time.monotonic() - start
+                latency_str = f"{elapsed * 1000:.0f}ms"
+                if data and b"jsonrpc" in data:
+                    rpc_status = "[green]ok[/green]"
+                else:
+                    rpc_status = "[yellow]no response[/yellow]"
+            except TimeoutError:
+                rpc_status = "[red]timeout[/red]"
+            finally:
+                writer.close()
+        except (TimeoutError, OSError):
+            sock_status = "[red]fail[/red]"
+
+        name_col = f"[bold]{name}[/bold]"
+        table.add_row(name_col, pid_status, sock_status, rpc_status, latency_str)
+
+    console.print()
+    console.print(
+        create_panel(
+            table,
+            title=f"[bold blue]{Icons.MCP} MCP Doctor[/bold blue]",
+            title_align="left",
+        )
+    )

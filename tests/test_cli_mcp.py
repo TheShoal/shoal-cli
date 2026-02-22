@@ -158,3 +158,40 @@ def test_mcp_logs_tail(mock_dirs, tmp_path):
     assert result.exit_code == 0
     assert "line95" in result.stdout
     assert "line10" not in result.stdout
+
+
+def test_mcp_doctor_no_servers(mock_dirs):
+    """Test doctor with no servers."""
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "No MCP servers" in result.stdout
+
+
+def test_mcp_doctor_with_server(mock_dirs):
+    """Test doctor with a server present."""
+    from shoal.services import mcp_pool
+
+    socket_dir = mcp_pool.mcp_socket("test").parent
+    socket_dir.mkdir(parents=True, exist_ok=True)
+    (socket_dir / "test.sock").touch()
+
+    pid_path = mcp_pool.mcp_pid_file("test")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("99999")
+
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "test" in result.stdout
+
+
+def test_mcp_doctor_timeout(mock_dirs):
+    """Test doctor handles connection timeouts gracefully."""
+    from shoal.services import mcp_pool
+
+    socket_dir = mcp_pool.mcp_socket("timeout-server").parent
+    socket_dir.mkdir(parents=True, exist_ok=True)
+    (socket_dir / "timeout-server.sock").touch()
+
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "fail" in result.stdout
