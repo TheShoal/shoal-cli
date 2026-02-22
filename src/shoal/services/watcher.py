@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import signal
+import subprocess
 from datetime import UTC, datetime
 
 from shoal.core import tmux
@@ -56,6 +57,18 @@ class Watcher:
 
         logger.info("Watcher started (pid: %d)", os.getpid())
 
+        # Boot-time reconciliation: mark stale DB rows as stopped
+        from shoal.services.lifecycle import reconcile_sessions
+
+        try:
+            reconciled = await reconcile_sessions()
+            if reconciled:
+                logger.info("Reconciled %d stale session(s) at startup", len(reconciled))
+                for sid, name, action in reconciled:
+                    logger.info("  [%s] %s: %s", sid, name, action)
+        except Exception:
+            logger.exception("Boot-time reconciliation failed, continuing")
+
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, self._stop)
@@ -64,6 +77,8 @@ class Watcher:
             while self._running:
                 try:
                     await self._poll_cycle()
+                except (subprocess.CalledProcessError, TimeoutError) as exc:
+                    logger.warning("Poll cycle subprocess error: %s", exc)
                 except Exception:
                     logger.exception("Poll cycle failed, continuing")
                 await asyncio.sleep(self.poll_interval)
@@ -82,7 +97,7 @@ class Watcher:
                 continue
 
             # 1. Check if tmux session still exists
-            if not tmux.has_session(session.tmux_session):
+            if not await tmux.async_has_session(session.tmux_session):
                 if session.status.value != "stopped":
                     await update_session(
                         session.id, status=SessionStatus.stopped, last_activity=datetime.now(UTC)
@@ -94,17 +109,22 @@ class Watcher:
             try:
                 tool_config = load_tool_config(session.tool)
             except FileNotFoundError:
+                logger.warning(
+                    "[%s] Tool config missing for '%s', skipping",
+                    session.id,
+                    session.tool,
+                )
                 continue
 
             pane_title = f"shoal:{session.id}"
-            panes = tmux.list_panes(session.tmux_session)
+            panes = await tmux.async_list_panes(session.tmux_session)
             pane_target = _find_session_tool_pane(panes, pane_title)
             if not pane_target:
                 logger.debug("Session %s: no pane tagged '%s'", session.id, pane_title)
                 continue
 
             # 3. Verify PID if we have one
-            current_pane_pid = tmux.pane_pid(pane_target)
+            current_pane_pid = await tmux.async_pane_pid(pane_target)
             if session.pid and session.pid != current_pane_pid:
                 # PID changed (e.g. process restarted in same pane)
                 logger.info(
@@ -116,7 +136,7 @@ class Watcher:
                 await update_session(session.id, pid=current_pane_pid)
 
             # 4. Capture pane content
-            pane_content = tmux.capture_pane(pane_target, lines=20)
+            pane_content = await tmux.async_capture_pane(pane_target, lines=20)
             if not pane_content:
                 continue
 

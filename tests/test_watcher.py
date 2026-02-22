@@ -1,11 +1,10 @@
 """Tests for background watcher service."""
 
-import asyncio
 from unittest.mock import patch
 
 import pytest
 
-from shoal.core.state import create_session, update_session, get_session
+from shoal.core.state import create_session, get_session, update_session
 from shoal.models.state import SessionStatus
 from shoal.services.watcher import Watcher
 
@@ -145,7 +144,7 @@ class TestWatcherLogic:
         ):
             await watcher._poll_cycle()
 
-            mock_capture.assert_called_once_with("%1", lines=20)
+            mock_capture.assert_called_once_with("%1", 20, False)
             mock_detect.assert_called_once()
 
     async def test_watcher_ignores_active_pane_drift(self, mock_dirs):
@@ -170,4 +169,27 @@ class TestWatcherLogic:
         ):
             await watcher._poll_cycle()
 
-            mock_capture.assert_called_once_with("%1", lines=20)
+            mock_capture.assert_called_once_with("%1", 20, False)
+
+    async def test_watcher_warns_on_missing_tool_config(self, mock_dirs):
+        """Watcher should log a warning when tool config is missing."""
+        s = await create_session("test-session", "claude", "/tmp/repo")
+        await update_session(s.id, status=SessionStatus.running)
+
+        watcher = Watcher()
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch(
+                "shoal.services.watcher.load_tool_config",
+                side_effect=FileNotFoundError("no config"),
+            ),
+            patch("shoal.services.watcher.logger") as mock_logger,
+        ):
+            await watcher._poll_cycle()
+
+            # Verify warning was logged
+            mock_logger.warning.assert_called_once()
+            call_args = str(mock_logger.warning.call_args)
+            assert "Tool config missing" in call_args
+            assert s.id in call_args
