@@ -7,14 +7,126 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Neovim Socket Routing**: `shoal nvim` now resolves sockets dynamically from tmux IDs (`session_id`, `window_id`) instead of relying on static window-0 assumptions.
-- **Rename Stability**: Neovim socket targeting is stable across tmux/session renames because routing is ID-based.
-- **Watcher Pane Drift**: Status watcher and notifications now track only the session-tagged pane (`shoal:<session_id>`), preventing false waiting alerts when users split/switch panes.
+## [0.11.0] - 2026-02-22
+
+### Added
+- **Pre-commit Framework**: `.pre-commit-config.yaml` with ruff, gitlint, fish syntax check, trailing whitespace, YAML/TOML validation
+- **Conventional Commits**: Gitlint enforcement via `commit-msg` hook
+- **Dependabot**: `.github/dependabot.yml` for pip and GitHub Actions updates
+- **Task Runner**: `justfile` with targets: `just lint`, `just fmt`, `just test`, `just typecheck`, `just ci`, `just cov`, `just fish-check`
+- **`.editorconfig`**: 100-char line length, UTF-8, LF endings
+- **Parallel CI**: 5 concurrent jobs (lint, typecheck, test, fish-check, security)
+- **Bandit**: Python security linter in pre-commit and CI
+- **Release Automation**: `just release X.Y.Z` + GitHub Actions release workflow on tag push
+- **CodeQL**: SAST scanning on PRs, pushes, and weekly schedule
+- **pytest-xdist**: Parallel test execution (`pytest -n auto`)
+- **py.typed**: PEP 561 marker for type export signaling
+- **Coverage Reporting**: XML coverage upload to Codecov on main pushes
 
 ### Changed
-- **Runtime Metadata**: Session state now persists tmux coordinate metadata (`tmux_session_id`, `tmux_window`) and derives socket paths from that contract.
-- **Documentation Cleanup**: Archived completed handoff/refocus/review docs under `docs/archive/` and updated roadmap/architecture for pre-v0.8.0 state.
+- **mypy strict**: Added to pre-commit hooks (was only in `just typecheck`)
+- **Coverage Gate**: Raised from 70% to 80%
+
+### Fixed
+- 3 pre-existing mypy strict errors (StreamWriter protocol, unused type-ignore, bare dict annotation)
+
+### Removed
+- **Backward-compat aliases**: `conductor`, `cond`, `add` CLI commands removed
+- **Conductor fallbacks**: Config path fallback, `[conductor]` TOML section support, model aliases
+- **`get_status_style` re-export**: Removed from `core/state.py`; callers now import from `core/theme.py`
+
+## [0.10.1] - 2026-02-22
+
+### Added
+- **MCP Server Logging**: Per-server log files with 10MB rotation; `shoal mcp logs <name>` CLI command
+- **`shoal mcp doctor`**: Deep health check — PID liveness, socket connectivity, JSON-RPC probe, latency report
+- **Dirty Worktree Protection**: `kill_session_lifecycle()` checks for uncommitted changes; `DirtyWorktreeError` with `--force` override
+
+### Fixed
+- **Shell Injection**: Replaced `shell=True` with `shlex.split()` in `mcp_configure.py`
+- **Unified MCP Validation**: Removed duplicate regex from `mcp_proxy.py`, imported from `mcp_pool`
+- **Narrow Exception Handling**: Replaced catch-all `except Exception` in lifecycle startup paths
+
+### Changed
+- **Connection Timeouts**: 30s connect, 120s idle timeout on MCP socket connections
+- **Architecture Docs**: Rewrote ARCHITECTURE.md section 4 to describe per-connection spawning semantics
+
+## [0.10.0] - 2026-02-22
+
+### Added
+- **Pure Python MCP Bridge**: Replaced socat dependency with asyncio-based stdio-to-unix-socket bridge
+- **MCP Server Registry**: Configurable `~/.config/shoal/mcp-servers.toml` replacing hardcoded `KNOWN_SERVERS`
+- **Auto-configure on Attach**: `shoal mcp attach` runs tool config command automatically
+- **Auto-start on Attach**: Starts MCP server automatically if not running but in registry
+- **`--mcp` Flag**: `shoal new --mcp memory,github` starts and attaches MCP servers during session creation
+- **Template MCP Declarations**: `SessionTemplateConfig` gains `mcp: list[str]` field
+- **MCP Auto-cleanup**: Servers stopped when last session using them is killed; boot-time reconciliation
+
+## [0.9.0] - 2026-02-22
+
+### Added
+- **Lifecycle Service**: Extracted create/fork/kill orchestration into `services/lifecycle.py` with shared rollback
+- **Rollback Helpers**: Single `_rollback()` / `_rollback_async()` for CLI and API
+- **Startup Reconciliation**: Boot-time check to reconcile stale DB rows with tmux state
+- **Async Subprocess Wrappers**: `async_*` prefixed functions for non-blocking tmux/git calls
+- **Concurrent Update Guards**: `asyncio.Lock` in `ShoalDB.update_session`
+
+### Fixed
+- **Structured Logging**: Session ID and operation name in lifecycle log lines
+- **Scoped Exceptions**: Replaced broad `except Exception` in watcher with specific types
+- **WebSocket Cleanup**: Explicit connection cleanup on broadcast failure
+
+## [0.8.0] - 2026-02-21
+
+### Added
+- **Session Templates**: Declarative template schema with Pydantic validation (`--template` flag)
+- **Failure Compensation**: Create/fork failures cleanly rollback DB, tmux, and worktree artifacts
+- **Nvim Diagnostics Safety**: Temp-file Lua script invocation replacing fragile dynamic string composition
+- **MCP Name Validation**: `validate_mcp_name()` enforced across API, CLI, and pool/proxy
+- **`shoal demo tour`**: Guided walkthrough exercising 6 feature areas with live pass/fail results
+- **Worktree Param Fix**: Fixed `session.py` passing `work_dir` instead of `wt_path` to `create_session()`
+
+### Fixed
+- **Tempfile Race**: Replaced deprecated `tempfile.mktemp()` with `NamedTemporaryFile(delete=False)`
+- **Pi Detection**: Removed ambiguous `"❯"` from waiting patterns
+- **Fish Completion Safety**: Added `test -d` guards before globbing
+- **Overly Broad Catch**: Narrowed `except (ValueError, Exception)` in server.py
+
+## [0.7.1] - 2026-02-21
+
+### Changed
+- **Socket Contract**: Moved Neovim socket routing to tmux ID coordinates (`session_id`, `window_id`)
+- **Dynamic Resolution**: `shoal nvim` resolves socket paths at execution time
+- **Watcher Stability**: Status watcher pinned to session-tagged pane (`shoal:<session_id>`)
+
+### Added
+- **Pi Agent Support**: Tool config, detection patterns, and `pi-dev` session template
+- **Fish Enhancements**: Tool/template completions, `--tool`/`--template`/`--dry-run` flag completions
+
+## [0.7.0] - 2026-02-18
+
+### Changed
+- **Fish-First Scope**: Removed bash/zsh support claims; fish is the single supported shell
+- **OpenCode-First UX**: Claude/Gemini as secondary tool profiles
+- **Template Foundation**: Added global template management and template-driven session startup
+
+### Removed
+- Bash-dependent demo paths and scripts
+
+## [0.6.0] - 2026-02-17
+
+### Added
+- **Integration Tests**: Full workflows (new → fork → kill)
+- **Load Tests**: API server with concurrent requests
+- **Troubleshooting Guide**: `docs/TROUBLESHOOTING.md` for common issues
+- **`--debug` Flag**: Global flag for verbose logging
+
+### Changed
+- **Coverage Target**: Achieved 77% (was 59%)
+- **Database Optimization**: Reduced multiple DB connection cycles in popup.py
+
+### Fixed
+- **Error Messages**: Improved with actionable suggestions across CLI
 
 ## [0.5.0] - 2026-02-16
 

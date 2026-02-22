@@ -6,7 +6,7 @@
 
 <!-- Row 1 — Identity -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.10.1-beta-EED49F?style=flat-square" alt="v0.10.1 beta">
+  <img src="https://img.shields.io/badge/v0.11.0-beta-EED49F?style=flat-square" alt="v0.11.0 beta">
   <img src="https://img.shields.io/badge/status-beta-EED49F?style=flat-square" alt="Status: Beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
@@ -24,8 +24,8 @@
 
 <!-- Row 3 — Quality -->
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-292_passing-A6DA95?style=flat-square" alt="Tests: 292 passing">
-  <img src="https://img.shields.io/badge/coverage-77%25-8BD5CA?style=flat-square" alt="Coverage: 77%">
+  <img src="https://img.shields.io/badge/tests-543_passing-A6DA95?style=flat-square" alt="Tests: 543 passing">
+  <img src="https://img.shields.io/badge/coverage-81%25-8BD5CA?style=flat-square" alt="Coverage: 81%">
   <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
 </p>
 
