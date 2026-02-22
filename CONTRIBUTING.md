@@ -33,7 +33,7 @@ A [`justfile`](justfile) provides all common dev commands. Run `just --list` to 
 
 | Command | What it does |
 |---------|-------------|
-| `just ci` | Run all CI checks (lint, typecheck, test, fish-check) |
+| `just ci` | Run all CI checks (lint, typecheck, test, fish-check, security) |
 | `just lint` | Lint with ruff |
 | `just fmt` | Auto-format with ruff |
 | `just typecheck` | Type check with mypy |
@@ -41,6 +41,8 @@ A [`justfile`](justfile) provides all common dev commands. Run `just --list` to 
 | `just test-all` | Run all tests including integration |
 | `just cov` | Run tests with coverage report |
 | `just fish-check` | Validate fish template syntax |
+| `just security` | Run Bandit security scan |
+| `just release X.Y.Z` | Bump version, commit, and tag |
 | `just setup` | Install pre-commit hooks |
 
 ## Standards
@@ -97,6 +99,16 @@ feat: add session name validation at all entry points
 
 See [COMMIT_GUIDELINES.md](COMMIT_GUIDELINES.md) for full details and examples.
 
+## Branch Protection
+
+The `main` branch is protected with the following rules:
+
+- All CI checks must pass before merging
+- At least one review is required for PRs from external contributors
+- Force pushes to `main` are blocked
+
 ## Release Process
 
-For maintainers: see [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for versioning and release workflow.
+Releases are automated via `just release X.Y.Z`, which bumps the version in `pyproject.toml`, commits, and creates a git tag. Pushing the tag triggers a GitHub Actions workflow that creates a GitHub Release with auto-generated notes.
+
+For maintainers: see [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for full versioning details.
