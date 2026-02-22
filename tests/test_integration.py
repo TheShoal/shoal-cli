@@ -1,10 +1,11 @@
 """Integration tests for Shoal session lifecycle."""
 
+from unittest.mock import patch
+
 import pytest
-from shoal.core.state import create_session, get_session, delete_session, update_session
+
+from shoal.core.state import create_session, delete_session, get_session, update_session
 from shoal.models.state import SessionStatus
-import asyncio
-from unittest.mock import patch, MagicMock
 
 
 @pytest.mark.integration
@@ -60,6 +61,10 @@ async def test_fork_workflow_integration(mock_dirs):
         patch("shoal.core.tmux.new_session"),
         patch("shoal.core.tmux.run_command"),
         patch("shoal.core.tmux.set_environment"),
+        patch("shoal.core.tmux.set_pane_title"),
+        patch("shoal.core.tmux.preferred_pane", return_value="forked"),
+        patch("shoal.core.tmux.pane_pid", return_value=None),
+        patch("shoal.core.tmux.pane_coordinates", return_value=None),
         patch("shoal.core.git.worktree_add"),
         patch("shoal.core.git.current_branch", return_value="feat/fork"),
         patch("shoal.cli.session.console.print"),

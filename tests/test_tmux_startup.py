@@ -42,8 +42,11 @@ def test_add_session_executes_startup_commands(mock_dirs, mock_git_repo):
         patch("shoal.core.git.current_branch", return_value="main"),
         patch("shoal.core.tmux.new_session") as mock_new_session,
         patch("shoal.core.tmux.set_environment"),
+        patch("shoal.core.tmux.set_pane_title"),
+        patch("shoal.core.tmux.preferred_pane", return_value="_test-session"),
         patch("shoal.core.tmux.run_command") as mock_run_command,
         patch("shoal.core.tmux.pane_pid", return_value=123),
+        patch("shoal.core.tmux.pane_coordinates", return_value=None),
     ):
         result = runner.invoke(
             app,
@@ -96,8 +99,11 @@ def test_fork_session_executes_startup_commands(mock_dirs, mock_git_repo):
         ),
         patch("shoal.core.tmux.new_session"),
         patch("shoal.core.tmux.set_environment"),
+        patch("shoal.core.tmux.set_pane_title"),
+        patch("shoal.core.tmux.preferred_pane", return_value="_forked-session"),
         patch("shoal.core.tmux.run_command") as mock_run_command,
         patch("shoal.core.tmux.pane_pid", return_value=123),
+        patch("shoal.core.tmux.pane_coordinates", return_value=None),
     ):
         result = runner.invoke(app, ["fork", "source", "--name", "forked-session", "--no-worktree"])
 
@@ -151,7 +157,9 @@ command = "pytest -q"
         patch("shoal.core.tmux.run_command") as mock_run_command,
         patch("shoal.core.tmux.send_keys") as mock_send_keys,
         patch("shoal.core.tmux.set_pane_title") as mock_set_pane_title,
+        patch("shoal.core.tmux.preferred_pane", return_value="_templ-session"),
         patch("shoal.core.tmux.pane_pid", return_value=123),
+        patch("shoal.core.tmux.pane_coordinates", return_value=None),
     ):
         result = runner.invoke(
             app,

@@ -5,10 +5,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import subprocess
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncIterator
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,8 +21,6 @@ from shoal.core.db import ShoalDB, get_db
 from shoal.core.state import (
     add_mcp_to_session,
     build_tmux_session_name,
-    create_session,
-    delete_session,
     find_by_name,
     get_session,
     list_sessions,
@@ -30,6 +28,13 @@ from shoal.core.state import (
     update_session,
 )
 from shoal.models.state import SessionStatus
+from shoal.services.lifecycle import (
+    SessionExistsError,
+    StartupCommandError,
+    TmuxSetupError,
+    create_session_lifecycle,
+    kill_session_lifecycle,
+)
 from shoal.services.mcp_pool import (
     KNOWN_SERVERS,
     is_mcp_running,
@@ -150,6 +155,7 @@ class ConnectionManager:
             try:
                 await connection.send_json(message)
             except Exception:
+                logger.warning("WebSocket send failed, removing connection")
                 broken.append(connection)
         for conn in broken:
             self.active_connections.discard(conn)
@@ -195,10 +201,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     if status_poller_task:
         status_poller_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await status_poller_task
-        except asyncio.CancelledError:
-            pass
     await ShoalDB.reset_instance()  # Clean up DB connection
 
 
@@ -292,9 +296,9 @@ async def create_session_api(data: SessionCreate):
         tool = cfg.general.default_tool
 
     try:
-        load_tool_config(tool)
+        tool_cfg = load_tool_config(tool)
     except FileNotFoundError:
-        raise HTTPException(status_code=400, detail=f"Unknown tool: {tool}")
+        raise HTTPException(status_code=400, detail=f"Unknown tool: {tool}") from None
 
     root = git.git_root(resolved_path)
     work_dir = resolved_path
@@ -318,78 +322,34 @@ async def create_session_api(data: SessionCreate):
     session_name = data.name
     if not session_name:
         project_name = Path(root).name
-        if data.worktree:
-            session_name = f"{project_name}/{data.worktree}"
-        else:
-            session_name = project_name
-
-    # find_by_name is now async
-    from shoal.core.state import find_by_name
+        session_name = f"{project_name}/{data.worktree}" if data.worktree else project_name
 
     existing_id = await find_by_name(session_name)
     if existing_id:
         raise HTTPException(status_code=409, detail=f"Session '{session_name}' already exists")
 
     try:
-        session = await create_session(session_name, tool, root, work_dir, branch_name)
+        session = await create_session_lifecycle(
+            session_name=session_name,
+            tool=tool,
+            git_root=root,
+            wt_path=wt_path,
+            work_dir=work_dir,
+            branch_name=branch_name,
+            tool_command=tool_cfg.command,
+            startup_commands=cfg.tmux.startup_commands,
+        )
+    except SessionExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except TmuxSetupError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    except StartupCommandError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except ValueError as e:
-        # Validation error from create_session
-        raise HTTPException(status_code=400, detail=str(e))
-
-    tool_cfg = load_tool_config(tool)
-    tmux_session = session.tmux_session
-
-    try:
-        tmux.new_session(tmux_session, cwd=work_dir)
-    except Exception as e:
-        await delete_session(session.id)
-        # Rollback worktree if we created one
-        if data.worktree and wt_path and Path(wt_path).exists():
-            try:
-                git.worktree_remove(root, wt_path, force=True)
-            except Exception:
-                pass
-        raise HTTPException(status_code=500, detail=f"Failed to create tmux session: {e}")
-
-    tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
-    tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
-
-    # Run startup commands — rollback on failure
-    cfg = load_config()
-    try:
-        for cmd in cfg.tmux.startup_commands:
-            try:
-                interpolated = cmd.format(
-                    tool_command=tool_cfg.command,
-                    work_dir=work_dir,
-                    session_name=session_name,
-                    tmux_session=tmux_session,
-                )
-            except KeyError as e:
-                raise ValueError(f"Missing startup command variable {e} in: {cmd}") from None
-            tmux.run_command(interpolated)
-    except Exception as e:
-        logger.warning("Startup command failed for session %s: %s", session_name, e, exc_info=True)
-        # Rollback: kill tmux + delete DB row + remove worktree
-        tmux.kill_session(tmux_session)
-        await delete_session(session.id)
-        if data.worktree and wt_path and Path(wt_path).exists():
-            try:
-                git.worktree_remove(root, wt_path, force=True)
-            except Exception:
-                pass
-        raise HTTPException(status_code=500, detail=f"Startup command failed: {e}")
-
-    tmux.set_pane_title(tmux_session, f"shoal:{session.id}")
-
-    await update_session(session.id, status=SessionStatus.running)
-    pane = tmux.pane_pid(tmux.preferred_pane(tmux_session, f"shoal:{session.id}"))
-    if pane:
-        await update_session(session.id, pid=pane)
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     await manager.broadcast({"type": "session_created", "session_id": session.id})
-    updated_session = await get_session(session.id)
-    return _session_to_response(updated_session)
+    return _session_to_response(session)
 
 
 @app.delete("/sessions/{session_id}", status_code=204)
@@ -398,10 +358,10 @@ async def delete_session_api(session_id: str):
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    if tmux.has_session(s.tmux_session):
-        tmux.kill_session(s.tmux_session)
-
-    await delete_session(session_id)
+    await kill_session_lifecycle(
+        session_id=s.id,
+        tmux_session=s.tmux_session,
+    )
     await manager.broadcast({"type": "session_deleted", "session_id": session_id})
 
 
@@ -426,7 +386,9 @@ async def rename_session_api(session_id: str, body: RenameRequest):
         try:
             tmux.rename_session(old_tmux_name, new_tmux_name)
         except subprocess.CalledProcessError as e:
-            raise HTTPException(status_code=500, detail=f"Failed to rename tmux session: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to rename tmux session: {e}"
+            ) from e
 
     # Update the session in the database
     try:
@@ -444,7 +406,7 @@ async def rename_session_api(session_id: str, body: RenameRequest):
         return _session_to_response(updated)
     except ValueError as e:
         # Validation error from update_session
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.post("/sessions/{session_id}/attach")
@@ -474,6 +436,10 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.warning("WebSocket error, disconnecting", exc_info=True)
+    finally:
         manager.disconnect(websocket)
 
 
@@ -563,9 +529,9 @@ async def start_mcp_server_api(data: McpCreate):
     try:
         pid, socket_path, cmd = start_mcp_server(name, data.command)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     await manager.broadcast({"type": "mcp_started", "name": name, "pid": pid})
     return await _get_mcp_info(name)
@@ -577,7 +543,7 @@ async def stop_mcp_server_api(name: str):
     try:
         stop_mcp_server(name)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"MCP server '{name}' is not running")
+        raise HTTPException(status_code=404, detail=f"MCP server '{name}' is not running") from None
 
     # Remove MCP from any sessions that reference it
     all_sessions = await list_sessions()
@@ -596,7 +562,7 @@ async def attach_mcp_to_session(session_id: str, mcp_name: str):
     try:
         validate_mcp_name(mcp_name)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     s = await get_session(session_id)
     if not s:

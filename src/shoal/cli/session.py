@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-import shlex
 from pathlib import Path
 from typing import Annotated
 
@@ -16,16 +15,14 @@ from shoal.core import git, tmux
 from shoal.core.config import config_dir, ensure_dirs, load_config, load_template, load_tool_config
 from shoal.core.db import with_db
 from shoal.core.state import (
-    build_nvim_socket_path,
-    build_tmux_session_name,
     _get_tool_icon,
     _resolve_session_interactive_impl,
-    create_session,
+    build_tmux_session_name,
     delete_session,
     find_by_name,
-    is_shoal_tmux_session_name,
     get_session,
     get_status_style,
+    is_shoal_tmux_session_name,
     list_sessions,
     touch_session,
     update_session,
@@ -39,6 +36,16 @@ from shoal.core.theme import (
     get_status_icon,
 )
 from shoal.models.state import SessionStatus
+from shoal.services.lifecycle import (
+    SessionExistsError,
+    StartupCommandError,
+    TmuxSetupError,
+    _preview_default_startup_commands,
+    _preview_template_startup,
+    create_session_lifecycle,
+    fork_session_lifecycle,
+    kill_session_lifecycle,
+)
 
 console = Console()
 
@@ -48,7 +55,8 @@ ALLOWED_BRANCH_CATEGORIES = ("feat", "fix", "bug", "chore", "docs", "refactor", 
 def _infer_branch_name(worktree_name: str) -> str:
     """Infer branch name from worktree name.
 
-    If the worktree name contains a '/', use it as-is (assumes it has a prefix like fix/, feat/, chore/).
+    If the worktree name contains a '/', use it as-is
+    (assumes it has a prefix like fix/, feat/, chore/).
     Otherwise, prepend 'feat/' as the default prefix.
 
     Examples:
@@ -99,238 +107,6 @@ def add(
     asyncio.run(with_db(_add_impl(path, tool, template, worktree, branch, dry_run, name)))
 
 
-def _split_percentage(size: str) -> int | None:
-    value = size.strip()
-    if not value:
-        return None
-    if value.endswith("%"):
-        value = value[:-1]
-    if not value.isdigit():
-        return None
-    parsed = int(value)
-    if 1 <= parsed <= 99:
-        return parsed
-    return None
-
-
-def _format_value(raw: str, context: dict[str, str], field_name: str) -> str:
-    try:
-        return raw.format(**context)
-    except KeyError as e:
-        raise ValueError(f"Missing template variable {e} in {field_name}: {raw}") from None
-
-
-def _run_default_startup_commands(
-    startup_commands: list[str],
-    *,
-    tool_command: str,
-    work_dir: str,
-    session_name: str,
-    tmux_session: str,
-) -> None:
-    for cmd in startup_commands:
-        try:
-            interpolated = cmd.format(
-                tool_command=tool_command,
-                work_dir=work_dir,
-                session_name=session_name,
-                tmux_session=tmux_session,
-            )
-        except KeyError as e:
-            console.print(
-                f"[yellow]Warning: Skipping startup command with missing variable {e}: {cmd}[/yellow]"
-            )
-            continue
-        tmux.run_command(interpolated)
-
-
-def _preview_default_startup_commands(
-    startup_commands: list[str],
-    *,
-    tool_command: str,
-    work_dir: str,
-    session_name: str,
-    tmux_session: str,
-) -> list[str]:
-    preview: list[str] = []
-    for cmd in startup_commands:
-        try:
-            interpolated = cmd.format(
-                tool_command=tool_command,
-                work_dir=work_dir,
-                session_name=session_name,
-                tmux_session=tmux_session,
-            )
-        except KeyError as e:
-            raise ValueError(f"Missing startup command variable {e} in: {cmd}") from None
-        preview.append(interpolated)
-    return preview
-
-
-def _run_template_startup(
-    template,
-    *,
-    tool_command: str,
-    work_dir: str,
-    root: str,
-    branch_name: str,
-    session_name: str,
-    tmux_session: str,
-    worktree_name: str,
-) -> None:
-    if not template.windows:
-        return
-
-    context = {
-        "tool_command": tool_command,
-        "work_dir": work_dir,
-        "git_root": root,
-        "session_name": session_name,
-        "tmux_session": tmux_session,
-        "branch_name": branch_name,
-        "worktree": worktree_name,
-        "template_name": template.name,
-    }
-
-    focus_window_target = ""
-
-    for window_index, window in enumerate(template.windows):
-        window_target = f"{tmux_session}:{window_index}"
-        window_name = _format_value(window.name, context, "window name") if window.name else ""
-        window_cwd = work_dir
-        if window.cwd:
-            window_cwd = _format_value(window.cwd, context, "window cwd")
-
-        if window_index == 0:
-            if window_name:
-                tmux.run_command(f"rename-window -t {window_target} {shlex.quote(window_name)}")
-        else:
-            cmd = f"new-window -t {tmux_session}"
-            if window_name:
-                cmd += f" -n {shlex.quote(window_name)}"
-            cmd += f" -c {shlex.quote(window_cwd)}"
-            tmux.run_command(cmd)
-
-        if window.focus and not focus_window_target:
-            focus_window_target = window_target
-
-        for pane_index, pane in enumerate(window.panes):
-            pane_target = f"{window_target}.{pane_index}"
-
-            if pane_index == 0:
-                if window_cwd and window_cwd != work_dir:
-                    tmux.send_keys(pane_target, f"cd {shlex.quote(window_cwd)}")
-            else:
-                split_type = pane.split
-                if split_type == "root":
-                    split_type = "down"
-
-                split_flag = "-h" if split_type == "right" else "-v"
-                cmd = f"split-window -t {window_target} {split_flag}"
-                percent = _split_percentage(pane.size)
-                if percent is not None:
-                    cmd += f" -p {percent}"
-                cmd += f" -c {shlex.quote(window_cwd)}"
-                tmux.run_command(cmd)
-
-            pane_command = _format_value(pane.command, context, "pane command")
-            tmux.send_keys(pane_target, pane_command)
-
-            if pane.title:
-                pane_title = _format_value(pane.title, context, "pane title")
-                tmux.set_pane_title(pane_target, pane_title)
-
-        if window.layout:
-            layout = _format_value(window.layout, context, "window layout")
-            tmux.run_command(f"select-layout -t {window_target} {shlex.quote(layout)}")
-
-    if focus_window_target:
-        tmux.run_command(f"select-window -t {focus_window_target}")
-
-
-def _preview_template_startup(
-    template,
-    *,
-    tool_command: str,
-    work_dir: str,
-    root: str,
-    branch_name: str,
-    session_name: str,
-    tmux_session: str,
-    worktree_name: str,
-) -> list[str]:
-    preview: list[str] = []
-    if not template.windows:
-        return preview
-
-    context = {
-        "tool_command": tool_command,
-        "work_dir": work_dir,
-        "git_root": root,
-        "session_name": session_name,
-        "tmux_session": tmux_session,
-        "branch_name": branch_name,
-        "worktree": worktree_name,
-        "template_name": template.name,
-    }
-
-    focus_window_target = ""
-
-    for window_index, window in enumerate(template.windows):
-        window_target = f"{tmux_session}:{window_index}"
-        window_name = _format_value(window.name, context, "window name") if window.name else ""
-        window_cwd = work_dir
-        if window.cwd:
-            window_cwd = _format_value(window.cwd, context, "window cwd")
-
-        if window_index == 0:
-            if window_name:
-                preview.append(f"rename-window -t {window_target} {shlex.quote(window_name)}")
-        else:
-            cmd = f"new-window -t {tmux_session}"
-            if window_name:
-                cmd += f" -n {shlex.quote(window_name)}"
-            cmd += f" -c {shlex.quote(window_cwd)}"
-            preview.append(cmd)
-
-        if window.focus and not focus_window_target:
-            focus_window_target = window_target
-
-        for pane_index, pane in enumerate(window.panes):
-            pane_target = f"{window_target}.{pane_index}"
-
-            if pane_index == 0:
-                if window_cwd and window_cwd != work_dir:
-                    preview.append(f"send-keys -t {pane_target} cd {shlex.quote(window_cwd)} Enter")
-            else:
-                split_type = pane.split
-                if split_type == "root":
-                    split_type = "down"
-                split_flag = "-h" if split_type == "right" else "-v"
-                cmd = f"split-window -t {window_target} {split_flag}"
-                percent = _split_percentage(pane.size)
-                if percent is not None:
-                    cmd += f" -p {percent}"
-                cmd += f" -c {shlex.quote(window_cwd)}"
-                preview.append(cmd)
-
-            pane_command = _format_value(pane.command, context, "pane command")
-            preview.append(f"send-keys -t {pane_target} {shlex.quote(pane_command)} Enter")
-
-            if pane.title:
-                pane_title = _format_value(pane.title, context, "pane title")
-                preview.append(f"select-pane -t {pane_target} -T {shlex.quote(pane_title)}")
-
-        if window.layout:
-            layout = _format_value(window.layout, context, "window layout")
-            preview.append(f"select-layout -t {window_target} {shlex.quote(layout)}")
-
-    if focus_window_target:
-        preview.append(f"select-window -t {focus_window_target}")
-
-    return preview
-
-
 async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
     ensure_dirs()
     cfg = load_config()
@@ -358,7 +134,8 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
             except KeyError as e:
                 console.print(f"[red]Error: Template worktree has unsupported variable {e}[/red]")
                 console.print(
-                    "[dim]Use --worktree for dynamic names or only {template_name} in template.worktree.name[/dim]"
+                    "[dim]Use --worktree for dynamic names or only"
+                    " {template_name} in template.worktree.name[/dim]"
                 )
                 raise typer.Exit(1) from None
 
@@ -514,19 +291,24 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
             git.worktree_add(root, wt_path)
             branch_name = git.current_branch(wt_path)
 
-    # Create session state
+    # Delegate to lifecycle service
     try:
-        session = await create_session(session_name, tool, root, wt_path, branch_name)
-    except ValueError as e:
-        console.print(f"[red]Invalid session name: {e}[/red]")
+        session = await create_session_lifecycle(
+            session_name=session_name,
+            tool=tool,
+            git_root=root,
+            wt_path=wt_path,
+            work_dir=work_dir,
+            branch_name=branch_name,
+            tool_command=tool_cfg.command,
+            startup_commands=cfg.tmux.startup_commands,
+            template_cfg=template_cfg,
+            worktree_name=worktree or "",
+        )
+    except SessionExistsError as e:
+        console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
-
-    tmux_session = session.tmux_session
-
-    # Create tmux session
-    try:
-        tmux.new_session(tmux_session, cwd=work_dir)
-    except Exception as e:
+    except TmuxSetupError as e:
         console.print("[red]Error: Failed to create tmux session[/red]")
         console.print(f"[dim]{e}[/dim]")
         console.print()
@@ -534,67 +316,13 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
         console.print("  • Check if tmux is installed: which tmux")
         console.print("  • Check if tmux server is responsive: tmux ls")
         console.print(f"  • Verify working directory exists: ls {work_dir}")
-        await delete_session(session.id)
-        # Rollback worktree if we created one
-        if wt_path and Path(wt_path).exists():
-            try:
-                git.worktree_remove(root, wt_path, force=True)
-            except Exception:
-                console.print(f"[yellow]Warning: Could not clean up worktree: {wt_path}[/yellow]")
         raise typer.Exit(1) from None
-
-    tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
-    tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
-
-    # Run startup commands
-    try:
-        if template_cfg and template_cfg.windows:
-            _run_template_startup(
-                template_cfg,
-                tool_command=tool_cfg.command,
-                work_dir=work_dir,
-                root=root,
-                branch_name=branch_name,
-                session_name=session_name,
-                tmux_session=tmux_session,
-                worktree_name=worktree or "",
-            )
-        else:
-            _run_default_startup_commands(
-                cfg.tmux.startup_commands,
-                tool_command=tool_cfg.command,
-                work_dir=work_dir,
-                session_name=session_name,
-                tmux_session=tmux_session,
-            )
-    except ValueError as e:
+    except StartupCommandError as e:
         console.print(f"[red]Error: {e}[/red]")
-        await delete_session(session.id)
-        tmux.kill_session(tmux_session)
-        # Rollback worktree if we created one
-        if wt_path and Path(wt_path).exists():
-            try:
-                git.worktree_remove(root, wt_path, force=True)
-            except Exception:
-                console.print(f"[yellow]Warning: Could not clean up worktree: {wt_path}[/yellow]")
         raise typer.Exit(1) from None
-
-    tmux.set_pane_title(tmux_session, f"shoal:{session.id}")
-
-    # Update state
-    updates: dict[str, str | int | SessionStatus] = {"status": SessionStatus.running}
-    pane = tmux.pane_pid(tmux.preferred_pane(tmux_session, f"shoal:{session.id}"))
-    if pane:
-        updates["pid"] = pane
-
-    coordinates = tmux.pane_coordinates(tmux.preferred_pane(tmux_session, f"shoal:{session.id}"))
-    if coordinates:
-        tmux_session_id, tmux_window_id = coordinates
-        updates["tmux_session_id"] = tmux_session_id
-        updates["tmux_window"] = tmux_window_id
-        updates["nvim_socket"] = build_nvim_socket_path(tmux_session_id, tmux_window_id)
-
-    await update_session(session.id, **updates)
+    except ValueError as e:
+        console.print(f"[red]Invalid session name: {e}[/red]")
+        raise typer.Exit(1) from None
 
     console.print(
         f"{tool_cfg.icon} Session '{session_name}' created (id: {session.id}, tool: {tool})"
@@ -604,7 +332,7 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
         console.print(f"  Branch: {branch_name}")
     if template_cfg:
         console.print(f"  Template: {template_cfg.name}")
-    console.print(f"  Tmux: {tmux_session}")
+    console.print(f"  Tmux: {session.tmux_session}")
     console.print()
     console.print(f"Attach with: shoal attach {session_name}")
 
@@ -802,66 +530,32 @@ async def _fork_impl(session, name, no_worktree):
             raise typer.Exit(1) from None
         work_dir = wt_path
 
-    # Create new session
+    # Delegate to lifecycle service
     try:
-        new_session = await create_session(new_name, source.tool, source.path, wt_path, new_branch)
-    except ValueError as e:
-        console.print(f"[red]Invalid session name: {e}[/red]")
-        raise typer.Exit(1)
-
-    tmux_session = new_session.tmux_session
-
-    try:
-        tmux.new_session(tmux_session, cwd=work_dir)
-    except Exception as e:
+        new_session = await fork_session_lifecycle(
+            session_name=new_name,
+            source_tool=source.tool,
+            source_path=source.path,
+            source_branch=source.branch,
+            wt_path=wt_path,
+            work_dir=work_dir,
+            new_branch=new_branch,
+            tool_command=tool_cfg.command,
+            startup_commands=cfg.tmux.startup_commands,
+        )
+    except SessionExistsError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1) from None
+    except TmuxSetupError as e:
         console.print("[red]Error: Failed to create tmux session[/red]")
         console.print(f"[dim]{e}[/dim]")
-        console.print()
-        console.print("[yellow]Troubleshooting:[/yellow]")
-        console.print("  • Check if tmux is installed: which tmux")
-        console.print("  • Check if tmux server is responsive: tmux ls")
-        console.print(f"  • Verify working directory exists: ls {work_dir}")
-        await delete_session(new_session.id)
-        # Rollback worktree if we created one
-        if wt_path and Path(wt_path).exists():
-            try:
-                git.worktree_remove(source.path, wt_path, force=True)
-            except Exception:
-                console.print(f"[yellow]Warning: Could not clean up worktree: {wt_path}[/yellow]")
         raise typer.Exit(1) from None
-
-    tmux.set_environment(tmux_session, "SHOAL_SESSION_ID", new_session.id)
-    tmux.set_environment(tmux_session, "SHOAL_SESSION_NAME", new_name)
-
-    # Run startup commands
-    for cmd in cfg.tmux.startup_commands:
-        try:
-            interpolated = cmd.format(
-                tool_command=tool_cfg.command,
-                work_dir=work_dir,
-                session_name=new_name,
-                tmux_session=tmux_session,
-            )
-        except KeyError as e:
-            console.print(
-                f"[yellow]Warning: Skipping startup command with missing variable {e}: {cmd}[/yellow]"
-            )
-            continue
-        tmux.run_command(interpolated)
-
-    tmux.set_pane_title(tmux_session, f"shoal:{new_session.id}")
-
-    updates: dict[str, str | SessionStatus] = {"status": SessionStatus.running}
-    coordinates = tmux.pane_coordinates(
-        tmux.preferred_pane(tmux_session, f"shoal:{new_session.id}")
-    )
-    if coordinates:
-        tmux_session_id, tmux_window_id = coordinates
-        updates["tmux_session_id"] = tmux_session_id
-        updates["tmux_window"] = tmux_window_id
-        updates["nvim_socket"] = build_nvim_socket_path(tmux_session_id, tmux_window_id)
-
-    await update_session(new_session.id, **updates)
+    except StartupCommandError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1) from None
+    except ValueError as e:
+        console.print(f"[red]Invalid session name: {e}[/red]")
+        raise typer.Exit(1) from None
 
     console.print(f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})")
     if wt_path:
@@ -892,22 +586,21 @@ async def _kill_impl(session, worktree):
 
     icon = _get_tool_icon(s.tool)
 
-    # Kill tmux session
-    if tmux.has_session(s.tmux_session):
-        tmux.kill_session(s.tmux_session)
+    summary = await kill_session_lifecycle(
+        session_id=s.id,
+        tmux_session=s.tmux_session,
+        worktree=s.worktree,
+        git_root=s.path,
+        branch=s.branch,
+        remove_worktree=worktree,
+    )
+
+    if summary["tmux_killed"]:
         console.print(f"{icon} Killed tmux session: {s.tmux_session}")
-
-    # Optionally remove worktree
-    if worktree and s.worktree and Path(s.worktree).is_dir():
-        if git.worktree_remove(s.path, s.worktree, force=True):
-            console.print(f"  Removed worktree: {s.worktree}")
-        else:
-            console.print(f"  [yellow]Warning: Failed to remove worktree: {s.worktree}[/yellow]")
-
-        if s.branch and s.branch not in ("main", "master") and git.branch_delete(s.path, s.branch):
-            console.print(f"  Deleted branch: {s.branch}")
-
-    await delete_session(sid)
+    if summary["worktree_removed"]:
+        console.print(f"  Removed worktree: {s.worktree}")
+    if summary["branch_deleted"]:
+        console.print(f"  Deleted branch: {s.branch}")
     console.print(f"Session '{s.name}' ({sid}) removed")
 
 
@@ -1028,8 +721,9 @@ async def _status_impl(format):
         for s in sessions:
             if s.status.value == "waiting":
                 icon = _get_tool_icon(s.tool)
+                arrow = Symbols.ARROW
                 console.print(
-                    f"  {icon} [bold]{s.name}[/bold] [dim]{Symbols.ARROW} shoal attach {s.name}[/dim]"
+                    f"  {icon} [bold]{s.name}[/bold] [dim]{arrow} shoal attach {s.name}[/dim]"
                 )
 
     if counts["error"]:
@@ -1037,8 +731,9 @@ async def _status_impl(format):
         for s in sessions:
             if s.status.value == "error":
                 icon = _get_tool_icon(s.tool)
+                arrow = Symbols.ARROW
                 console.print(
-                    f"  {icon} [bold]{s.name}[/bold] [dim]{Symbols.ARROW} shoal attach {s.name}[/dim]"
+                    f"  {icon} [bold]{s.name}[/bold] [dim]{arrow} shoal attach {s.name}[/dim]"
                 )
 
     console.print("\n[dim]Use 'shoal ls' for a full list or 'shoal info <name>' for details.[/dim]")
@@ -1184,7 +879,7 @@ async def _rename_impl(old_name, new_name):
         validate_session_name(new_name)
     except ValueError as e:
         console.print(f"[red]Invalid session name: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     sid = await resolve_session(old_name)
     if not sid:

@@ -9,10 +9,9 @@ import secrets
 import subprocess
 import sys
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
-from shoal.core.config import ensure_dirs, load_config, load_tool_config, state_dir
+from shoal.core.config import load_config, load_tool_config
 from shoal.core.db import get_db
 from shoal.core.theme import Symbols
 from shoal.models.state import SessionState, SessionStatus
