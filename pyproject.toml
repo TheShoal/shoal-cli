@@ -73,6 +73,9 @@ skip_covered = false
 exclude_dirs = ["tests"]
 skips = ["B101", "B404", "B603", "B607", "B108"]
 
+[tool.uv]
+link-mode = "copy"
+
 [dependency-groups]
 dev = [
     "basedpyright>=1.38.1",

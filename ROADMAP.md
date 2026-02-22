@@ -365,3 +365,24 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - Fix the 3 pre-existing mypy errors (dict type-arg in mcp_configure, StreamWriter arg-type in mcp_proxy)
 - Start v0.11.0 remaining items: mypy in pre-commit, parallel CI jobs, coverage reporting, Bandit, release automation
 - Consider addressing Brain Dump items: regex detection upgrade, session.py decomposition
+
+### Session: 2026-02-22 — v0.11.0 Developer Tooling & CI/CD
+
+**What we did:**
+- Fixed 3 pre-existing mypy strict errors (StreamWriter protocol arg, unused type-ignore, bare dict annotation)
+- Added mypy strict to pre-commit hooks (completes Tier 1)
+- Split CI into 5 parallel jobs: lint, typecheck, test, fish-check, security
+- Added Bandit security linter to pre-commit and CI with pyproject.toml config
+- Added release automation: `just release X.Y.Z` + GitHub Actions release workflow on tag push
+- Updated CONTRIBUTING.md with security, release, and branch protection docs
+- Bumped version to 0.11.0, marked Tiers 1-2 complete in roadmap
+- Added `[tool.uv] link-mode = "copy"` to fix hardlink warnings on cross-filesystem venvs
+- 5 commits on `main`, 373 tests passing, mypy/ruff/bandit all clean
+
+**What to do next:**
+- Push 5 new commits to remote (`git push`)
+- Tag v0.11.0 (`git tag -a v0.11.0 -m "Release v0.11.0"` + `git push --tags`) to trigger release workflow
+- Fix `uv.lock` ownership (owned by `eli`, should be `nick:dev`) — `sudo chown nick:dev uv.lock`
+- Investigate missing `/shoal-handoff` skill — may be a GNU Stow / dotfiles symlink issue with `.claude/` config
+- v0.11.0 Tier 3 (nice-to-have): CodeQL/Semgrep, pytest-xdist, py.typed marker, Renovate
+- Consider starting v1.0.0 items: CLI/API parity tests, coverage gate, documentation audit

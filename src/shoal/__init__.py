@@ -1,4 +1,4 @@
 # SPDX-License-Identifier: LicenseRef-USMobile-Proprietary
 """Terminal-first orchestration for parallel AI coding agents."""
 
-__version__ = "0.10.1"
+__version__ = "0.11.0"
