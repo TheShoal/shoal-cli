@@ -536,7 +536,7 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
         console.print(f"  • Verify working directory exists: ls {work_dir}")
         await delete_session(session.id)
         # Rollback worktree if we created one
-        if worktree and Path(wt_path).exists():
+        if wt_path and Path(wt_path).exists():
             try:
                 git.worktree_remove(root, wt_path, force=True)
             except Exception:
@@ -572,7 +572,7 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
         await delete_session(session.id)
         tmux.kill_session(tmux_session)
         # Rollback worktree if we created one
-        if worktree and Path(wt_path).exists():
+        if wt_path and Path(wt_path).exists():
             try:
                 git.worktree_remove(root, wt_path, force=True)
             except Exception:
