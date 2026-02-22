@@ -7,32 +7,67 @@ on:
     branches: [ main ]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv pip install -e ".[dev]" --system
+      - name: Lint with ruff
+        run: ruff check .
+      - name: Check formatting
+        run: ruff format --check .
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv pip install -e ".[dev]" --system
+      - name: Check types with mypy
+        run: mypy --strict src/
+
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: uv pip install -e ".[dev]" --system
+      - name: Run tests with coverage
+        run: pytest -m "not integration" --cov --cov-report=term-missing --cov-report=xml
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
 
-      - name: Install dependencies
-        run: uv pip install -e ".[dev]" --system
+  fish-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install fish shell
+        run: sudo apt-get update && sudo apt-get install -y fish
+      - name: Validate fish templates
+        run: find src/shoal/integrations/fish/templates -name '*.fish' -exec fish -n {} +
 
-      - name: Lint with ruff
-        run: ruff check .
-
-      - name: Check types with mypy
-        run: mypy src/
-
-      - name: Run tests
-        run: pytest -m "not integration"
-
-      - name: Check fish syntax
-        run: |
-          sudo apt-get update && sudo apt-get install -y fish
-          find src/shoal/integrations/fish/templates -name '*.fish' -exec fish -n {} +
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv pip install bandit --system
+      - name: Security scan with Bandit
+        run: bandit -r src/shoal/ -c pyproject.toml

@@ -25,8 +25,12 @@ test:
 test-all:
     uv run pytest
 
+# Security scan with Bandit
+security:
+    uv run --with bandit bandit -r src/shoal/ -c pyproject.toml -ll
+
 # Run all CI checks sequentially
-ci: lint typecheck test fish-check
+ci: lint typecheck test fish-check security
 
 # Validate fish template syntax
 fish-check:
@@ -44,3 +48,18 @@ cov:
 setup:
     pre-commit install
     pre-commit install --hook-type commit-msg
+
+# Release a new version: just release 0.11.0
+release version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -n "$(git status --porcelain)" ]]; then
+        echo "Error: working tree is dirty" >&2; exit 1
+    fi
+    current=$(grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+    echo "Bumping version: $current → {{version}}"
+    sed -i "s/^version = \"$current\"/version = \"{{version}}\"/" pyproject.toml
+    git add pyproject.toml
+    git commit -m "chore: bump version to {{version}}"
+    git tag -a "v{{version}}" -m "Release v{{version}}"
+    echo "Tagged v{{version}}. Push with: git push && git push --tags"

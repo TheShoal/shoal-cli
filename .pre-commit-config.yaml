@@ -33,6 +33,13 @@ repos:
         pass_filenames: false
         files: \.py$
         types: [python]
+      - id: bandit
+        name: bandit security scan
+        entry: uv run --with bandit bandit -r src/shoal/ -c pyproject.toml -ll -q
+        language: system
+        pass_filenames: false
+        files: \.py$
+        types: [python]
       - id: fish-syntax
         name: fish syntax check
         entry: fish -n
