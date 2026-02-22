@@ -83,11 +83,12 @@ Shoal is a **control plane** for AI agents that:
 
 ### Data Flow
 
-1. **User Command** → CLI layer (Typer)
-2. **Business Logic** → Async core (`src/shoal/core/`)
-3. **State Persistence** → SQLite (WAL mode, async via `aiosqlite`)
-4. **Orchestration** → Tmux subprocess wrappers
-5. **Monitoring** → Status detection via tmux pane capture + regex patterns
+1. **User Command** → CLI layer (Typer) or API layer (FastAPI)
+2. **Lifecycle Orchestration** → `services/lifecycle.py` (create/fork/kill/reconcile with rollback)
+3. **Business Logic** → Async core (`src/shoal/core/`)
+4. **State Persistence** → SQLite (WAL mode, async via `aiosqlite`, update lock)
+5. **Subprocess Ops** → Tmux/Git wrappers (sync for CLI, `async_*` for API/watcher)
+6. **Monitoring** → Status detection via tmux pane capture + regex patterns
 
 ---
 
@@ -97,7 +98,7 @@ Shoal is a **control plane** for AI agents that:
 
 **Decision**: Build for tmux, SSH, and terminal workflows—not Electron or web UIs.
 
-**Why**: 
+**Why**:
 - Engineers already live in terminals
 - SSH accessibility is critical for remote work
 - Tmux provides battle-tested session persistence
@@ -252,7 +253,7 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 **SQLite**: Single file, zero configuration, ACID compliant
 
 **Alternative Considered**: Postgres, MySQL  
-**Decision**: 
+**Decision**:
 - No multi-machine deployments needed
 - Setup friction must be zero
 - WAL mode provides excellent concurrency for single-machine use
@@ -290,12 +291,14 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 
 ## Production Readiness
 
-### Current Status (v0.7.x pre-v0.8.0)
+### Current Status (v0.9.0)
 
-- ✅ **77% Test Coverage**: Core modules and runtime paths are covered with targeted regression tests
+- ✅ **324 Tests, 77%+ Coverage**: Core modules and runtime paths are covered with targeted regression tests
 - ✅ **Type Safety**: Full type hints, Pydantic models, mypy-ready
-- ✅ **Error Handling**: Structured logging, exception tracking
-- ✅ **Database Lifecycle**: Single async SQLite connection with WAL mode and explicit lifecycle cleanup
+- ✅ **Error Handling**: Structured logging with session IDs, scoped exception hierarchy (`LifecycleError` → `TmuxSetupError`, `StartupCommandError`, `SessionExistsError`)
+- ✅ **Database Lifecycle**: Single async SQLite connection with WAL mode, explicit lifecycle cleanup, and concurrent update guards (`asyncio.Lock`)
+- ✅ **Lifecycle Service**: Shared `services/lifecycle.py` orchestrates create/fork/kill/reconcile with full rollback, used by both CLI and API
+- ✅ **Async Correctness**: All tmux/git subprocess calls in async contexts use `asyncio.to_thread()` wrappers to avoid blocking the event loop
 - ✅ **Used Daily**: Built for sustained personal use in terminal-heavy AI workflows
 
 ### Known Limitations
@@ -306,8 +309,9 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 
 ### Roadmap to v1.0
 
-- **v0.8.0**: Session template MVP release and final contract documentation
-- **v0.9.x**: Runtime hardening, UX cleanup, and release automation maturity
+- **v0.8.0**: Session template MVP release and final contract documentation ✅
+- **v0.9.0**: Lifecycle hardening, async correctness, failure-path coverage ✅
+- **v0.10.0**: Developer tooling, CI/CD, pre-commit, release automation
 - **v1.0.0**: Stable public surface for personal-first workflows
 
 ---

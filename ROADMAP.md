@@ -161,7 +161,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - ✅ **Nvim Diagnostics Safety**: Replaced fragile dynamic `luaeval` string composition with temp-file Lua script invocation.
 - ✅ **MCP Name Validation**: `validate_mcp_name()` enforced consistently across API `McpCreate`, CLI `mcp start`/`mcp attach`, and `start_mcp_server()`/`stop_mcp_server()`.
 
-## v0.8.0a: Review-Driven Fixes
+## v0.8.0a: Review-Driven Fixes (Released: 2026-02-21)
 
 **Priority: address must-fix and should-fix issues from v0.8.0 code review before moving on.**
 
@@ -177,47 +177,110 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 ### Tests added
 - ✅ `test_pi_idle_at_prompt`: Verify Pi shows idle (not waiting) when pane content is just the prompt.
-- `test_rollback_worktree_on_tmux_failure`: Mock `tmux.new_session` to raise, verify DB + worktree cleaned up.
-- `test_rollback_on_startup_command_failure`: Mock bad `{missing_var}`, verify full rollback chain.
-- `test_mcp_name_validation_at_api_boundary`: POST to `/mcp` with `"../../../etc"`, verify 400.
 - ✅ `test_pane_size_non_numeric`: `TemplatePaneConfig(size="abc%")` should raise.
 
-## v0.8.1: Reliability and Error Taxonomy
+## v0.8.0b: Demo Expansion & Code Review Fixes (Released: 2026-02-22)
 
-**Priority: make runtime failures diagnosable and deterministic.**
+**Priority: comprehensive demo proving feature correctness, plus bug fix from code review.**
 
-- **Typed Errors**: Replace broad `except Exception` in watcher/API/session hot paths with scoped exception handling.
-- **Error Taxonomy**: Introduce shared tmux/git/mcp error types and map them to stable CLI/API responses.
-- **Structured Logging**: Add operation and session identifiers to create/fork/rename/kill logs.
-- **Failure-Path Tests**: Add targeted tests for tmux unavailable, startup command interpolation failures, and stale runtime artifacts.
-- **WebSocket Robustness**: Harden connection cleanup and broadcast failure handling with explicit metrics/log counters.
+### Bug fix
+- ✅ **Worktree Param Bug**: Fixed `session.py` `_add_impl()` passing `work_dir` instead of `wt_path` as the `worktree` parameter to `create_session()`. Non-worktree sessions incorrectly stored their git root as a worktree path, breaking `shoal ls` display.
 
-## v0.8.2: Maintainability Refactor (Behavior Preserving)
+### Demo enhancements
+- ✅ **`shoal demo tour` Command**: Guided walkthrough exercising 6 feature areas with live pass/fail results:
+  - Session state queries (list_sessions, status counts)
+  - Status detection engine (7 test cases across Claude and Pi tools)
+  - Template validation (valid templates, rejected bad names/sizes/structure)
+  - MCP server name validation (accepted/rejected patterns)
+  - Session name validation (tmux-safe, security-checked)
+  - Theme system (all 5 status styles with icons and colors)
+- ✅ **4th Demo Session**: Added `demo-bugfix` with `fix/login-bug` worktree, showing parallel worktree isolation.
+- ✅ **Varied Statuses**: Demo sessions get different statuses (running, idle, waiting, running) so `shoal status` shows a realistic dashboard.
+- ✅ **Feature-Focused Panes**: Each demo session's info pane teaches about a specific feature area (session management, worktree isolation, status detection, robo coordination).
+- ✅ **Richer Demo Project**: Added `pyproject.toml`, `api.py`, and enhanced `utils.py` with `add()` function.
+- ✅ **Better Start Banner**: Commands grouped by feature area with `shoal demo tour` prominently featured.
 
-**Priority: reduce regression risk by extracting shared orchestration logic.**
+### Tests added (302 total, 301 passing, 1 skipped)
+- ✅ `test_create_demo_project_content`: Verify new project files are well-formed.
+- ✅ `test_demo_start_varied_statuses`: Verify sessions get correct varied statuses.
+- ✅ `test_demo_tour_all_pass`: Verify all 6 tour feature areas pass.
+- ✅ `test_demo_tour_detection_engine`: Verify tour's detection tests match expected results.
+- ✅ `test_demo_tour_with_sessions`: Verify tour displays session data when sessions exist.
+- ✅ `test_demo_tour_no_failures`: Verify no tour checks produce failures.
+- Updated `test_demo_start_happy_path` and `test_demo_start_custom_dir` for 4 sessions, 2 worktrees, feature flags.
 
-- **Lifecycle Service Layer**: Move create/fork/rename/kill orchestration into shared services used by both CLI and API.
-- **File Decomposition**: Split `cli/session.py` and `api/server.py` by concern (transport, orchestration, rendering).
-- **Template Execution Reuse**: Remove duplicated startup execution paths and keep one implementation.
-- **Rollback Helper**: Extract the repeated rollback pattern (delete DB → kill tmux → remove worktree) into a shared helper used by both CLI and API.
-- **Parity Contract Tests**: Add tests proving CLI and API session lifecycle commands follow the same behavior contracts.
-- **Complexity Budget**: Reduce `session.py`/`server.py` size and cyclomatic complexity by at least 25%.
+---
 
-## v0.8.3: Concurrency and Runtime Hardening
+## Upcoming
 
-**Priority: improve correctness under concurrent operations and runtime churn.**
+## v0.9.0: Lifecycle Hardening (Released: 2026-02-22)
 
-- **Async Safety for tmux/git Calls**: Move blocking subprocess calls off the event loop in API/watcher contexts.
-- **Session Update Concurrency**: Prevent lost updates for status/MCP/rename flows with optimistic or transactional update guards.
-- **Startup Reconciliation**: Add boot-time checks to reconcile stale DB rows, stale sockets, and missing tmux sessions.
-- **Concurrent Integration Tests**: Add stress tests for websocket status broadcasting and simultaneous lifecycle operations.
-- **Load Targets**: Define and track latency/error targets for API status and session creation endpoints under parallel load.
+**Priority: make failure paths robust and code maintainable before v1.0.**
+
+This milestone combines the highest-value items from the previous v0.8.1–v0.8.3 plan into a single focused release.
+
+### Failure-path coverage (highest priority)
+- ✅ **Rollback integration tests**: Test that create/fork failures cleanly rollback DB + tmux + worktree when tmux.new_session raises or startup command interpolation fails.
+- ✅ **API boundary validation test**: POST to `/mcp` with path-traversal name (`../../../etc`), verify 400.
+- ✅ **Watcher resilience**: Log warning (not silently skip) when tool config is missing for a session.
+- ✅ **Startup reconciliation**: Add boot-time check to reconcile stale DB rows with actual tmux session state (mark stopped if tmux session is gone).
+
+### Lifecycle service extraction
+- ✅ **Shared orchestration layer**: Extract create/fork/kill orchestration from `cli/session.py` and `api/server.py` into `services/lifecycle.py`. Eliminates duplicated rollback logic and reduces both files by ~30%.
+- ✅ **Rollback helper**: Single `_rollback(session_id, tmux_name, wt_path, git_root)` function used by CLI and API, with async variant `_rollback_async()`.
+- ✅ **Template execution reuse**: Merge duplicated startup paths into one implementation (sync + async variants in lifecycle.py).
+
+### Error clarity
+- ✅ **Structured logging**: Add session ID and operation name to create/fork/rename/kill log lines.
+- ✅ **Scoped exceptions in watcher**: Replace broad `except Exception` with specific subprocess/config error handling.
+- ✅ **WebSocket cleanup**: Explicit connection cleanup on broadcast failure.
+
+### Async correctness
+- ✅ **Async subprocess calls**: Move blocking `tmux._run()` and `git._run()` off the event loop in API/watcher contexts via `asyncio.to_thread()` wrappers (`async_*` prefixed functions).
+- ✅ **Concurrent update guards**: Prevent lost status updates when watcher and user CLI both write to the same session row (asyncio.Lock in ShoalDB.update_session).
+
+## v0.10.0: Developer Tooling & CI/CD
+
+**Priority: enforce quality locally and in CI; make the repo feel like a proper 2026 Python project.**
+
+### Tier 1 — Local enforcement & dependency hygiene
+- [ ] **Pre-commit framework**: Add `.pre-commit-config.yaml` with ruff (lint + format), mypy, Fish syntax check (`fish -n`), trailing whitespace, end-of-file fixer, YAML validation.
+- [ ] **Commitlint**: Validate Conventional Commits format on `commit-msg` hook via pre-commit. Enforce the guidelines already documented in `COMMIT_GUIDELINES.md`.
+- [ ] **Dependabot**: Add `.github/dependabot.yml` for pip ecosystem and GitHub Actions version updates.
+- [ ] **Task runner**: Add `justfile` with common targets — `just lint`, `just fmt`, `just test`, `just typecheck`, `just ci` (all), `just release-check`.
+- [ ] **`.editorconfig`**: 100-char line length, UTF-8, LF endings, trim trailing whitespace, final newline. Match ruff's `line-length = 100`.
+
+### Tier 2 — CI improvements & security
+- [ ] **Parallel CI jobs**: Split `.github/workflows/ci.yml` into separate `lint`, `typecheck`, `test` jobs that run concurrently. Faster feedback, clearer failure signals.
+- [ ] **Coverage reporting**: Add `--cov-report=xml` to pytest and upload to Codecov. Add coverage badge to README.
+- [ ] **Bandit**: Add Python security linter to pre-commit and CI. Catches hardcoded secrets, unsafe `eval`, shell injection, etc.
+- [ ] **Release automation**: `just release X.Y.Z` command or GitHub Action that bumps `pyproject.toml` version, updates CHANGELOG, creates git tag, and drafts a GitHub Release.
+- [ ] **Branch protection**: Require CI to pass + 1 review before merge to main. Document rules in CONTRIBUTING.md.
+
+### Tier 3 — Nice to have
+- [ ] **CodeQL or Semgrep**: SAST scanning on pull requests for deeper vulnerability detection.
+- [ ] **pytest-xdist**: Parallel test execution as the test suite grows beyond 300+ tests.
+- [ ] **`py.typed` marker**: Add `src/shoal/py.typed` to signal downstream consumers that this package exports type information.
+- [ ] **Renovate (alternative to Dependabot)**: Evaluate if grouped PRs and finer update control are worth the switch.
+
+## v1.0.0: Stable Release
+
+**Priority: production-ready for daily personal use with confidence.**
+
+- [ ] **CLI/API parity tests**: Prove CLI and API session lifecycle commands follow identical behavior contracts.
+- [ ] **Coverage gate**: Maintain 80%+ test coverage with CI enforcement.
+- [ ] **Documentation audit**: Ensure README, ARCHITECTURE.md, and all guides reflect current behavior.
+- [ ] **Deprecation cleanup**: Remove backward-compat aliases (conductor, cond, add) and re-export shims.
+- [ ] **`get_status_style` re-export**: Remove backward-compat re-export in `state.py`; all callers should import from `theme.py` directly.
 
 ## Brain Dump
 
 - [x] Demo templates: Configure demo to start with two panes -- one for opencode and one for the current demo output
 - [x] Change demo output to list instead of boxes, and have it include examples of what to run in the opencode window (assumes they are logged in -- up to them to do so)
 - [x] Demo tmux naming: Keep demo tmux session names stable (`demo-main`, `demo-feature`, `demo-robo`) regardless of configured global session prefix.
+- [ ] Regex detection: Upgrade detection engine from substring matching to compiled regex patterns for more precise status detection.
+- [ ] Session.py decomposition: Split 700+ line file by concern (create, view, lifecycle) — currently tracked under v0.9.0 lifecycle extraction.
+- [ ] MCP socket cleanup: Add cleanup on reboot or `shoal init` for stale `/tmp/shoal/mcp-pool/*.sock` files.
 
 ## Future Considerations
 
