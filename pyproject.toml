@@ -67,7 +67,7 @@ source = ["src/shoal"]
 omit = ["*/tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 80
 show_missing = true
 skip_covered = false
 
