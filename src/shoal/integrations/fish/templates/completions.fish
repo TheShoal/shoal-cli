@@ -58,6 +58,7 @@ complete -c shoal -n "__fish_seen_subcommand_from fork" -a "(__shoal_sessions)" 
 
 # Helper function to get available tool names
 function __shoal_tools
+    test -d ~/.config/shoal/tools; or return
     for f in ~/.config/shoal/tools/*.toml
         string replace -r '.*/(.*)\.toml$' '$1' -- $f
     end
@@ -65,6 +66,7 @@ end
 
 # Helper function to get available template names
 function __shoal_templates
+    test -d ~/.config/shoal/templates; or return
     for f in ~/.config/shoal/templates/*.toml
         string replace -r '.*/(.*)\.toml$' '$1' -- $f
     end

@@ -161,6 +161,27 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - ✅ **Nvim Diagnostics Safety**: Replaced fragile dynamic `luaeval` string composition with temp-file Lua script invocation.
 - ✅ **MCP Name Validation**: `validate_mcp_name()` enforced consistently across API `McpCreate`, CLI `mcp start`/`mcp attach`, and `start_mcp_server()`/`stop_mcp_server()`.
 
+## v0.8.0a: Review-Driven Fixes
+
+**Priority: address must-fix and should-fix issues from v0.8.0 code review before moving on.**
+
+### Must-fix (blocking)
+- ✅ **Tempfile Race**: Replace deprecated `tempfile.mktemp()` in `cli/nvim.py` with `NamedTemporaryFile(delete=False)`. Move `import tempfile` to module top.
+- ✅ **Overly Broad Exception Catch**: `server.py:371` `except (ValueError, Exception)` catches all errors including programming bugs and converts them to a generic 500. Narrowed to `Exception` with `logger.warning` for startup failure diagnostics.
+
+### Should-fix (high priority)
+- ✅ **Pi Detection Ambiguity**: Removed `"❯"` from `waiting_patterns` and dead `idle_patterns` field so Pi prompt falls through to idle. Updated both `pi.toml` and `tests/conftest.py`.
+- ✅ **Rollback Guard Fragility**: Changed CLI guards in `session.py` to check `wt_path` truthiness, aligning with the API pattern.
+- ✅ **Fish Completion Glob Safety**: Added `test -d` guards before globbing in `__shoal_tools` and `__shoal_templates`.
+- ✅ **Remove `BRANCH_SUMMARY.md`**: Removed commit-planning artifact.
+
+### Tests added
+- ✅ `test_pi_idle_at_prompt`: Verify Pi shows idle (not waiting) when pane content is just the prompt.
+- `test_rollback_worktree_on_tmux_failure`: Mock `tmux.new_session` to raise, verify DB + worktree cleaned up.
+- `test_rollback_on_startup_command_failure`: Mock bad `{missing_var}`, verify full rollback chain.
+- `test_mcp_name_validation_at_api_boundary`: POST to `/mcp` with `"../../../etc"`, verify 400.
+- ✅ `test_pane_size_non_numeric`: `TemplatePaneConfig(size="abc%")` should raise.
+
 ## v0.8.1: Reliability and Error Taxonomy
 
 **Priority: make runtime failures diagnosable and deterministic.**
@@ -178,6 +199,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - **Lifecycle Service Layer**: Move create/fork/rename/kill orchestration into shared services used by both CLI and API.
 - **File Decomposition**: Split `cli/session.py` and `api/server.py` by concern (transport, orchestration, rendering).
 - **Template Execution Reuse**: Remove duplicated startup execution paths and keep one implementation.
+- **Rollback Helper**: Extract the repeated rollback pattern (delete DB → kill tmux → remove worktree) into a shared helper used by both CLI and API.
 - **Parity Contract Tests**: Add tests proving CLI and API session lifecycle commands follow the same behavior contracts.
 - **Complexity Budget**: Reduce `session.py`/`server.py` size and cyclomatic complexity by at least 25%.
 

@@ -39,7 +39,8 @@ class TestPiToolConfig:
         assert "thinking" in cfg.detection.busy_patterns
         assert "generating" in cfg.detection.busy_patterns
         assert "Error:" in cfg.detection.error_patterns
-        assert "❯" in cfg.detection.waiting_patterns
+        assert "permission" in cfg.detection.waiting_patterns
+        assert "❯" not in cfg.detection.waiting_patterns
 
     def test_pi_available_tools(self, mock_dirs):
         from shoal.core.config import available_tools
@@ -63,9 +64,8 @@ class TestPiStatusDetection:
                     "thinking", "generating", "executing",
                     "reading", "writing", "editing",
                 ],
-                waiting_patterns=["❯", "permission", "confirm", "approve", "y/n"],
+                waiting_patterns=["permission", "confirm", "approve", "y/n"],
                 error_patterns=["Error:", "error:", "ERROR", "FAILED"],
-                idle_patterns=["❯"],
             ),
         )
 
@@ -106,6 +106,16 @@ class TestPiStatusDetection:
         tool = self._pi_tool()
         content = "Error: permission denied\nDo you approve?"
         assert detect_status(content, tool) == SessionStatus.error
+
+    def test_pi_idle_at_prompt(self):
+        """Prompt character should be idle, not waiting (pattern fix)."""
+        tool = self._pi_tool()
+        assert detect_status("❯", tool) == SessionStatus.idle
+
+    def test_pi_waiting_only_on_explicit_prompts(self):
+        """Waiting should only trigger on explicit confirmation prompts."""
+        tool = self._pi_tool()
+        assert detect_status("permission denied — confirm?", tool) == SessionStatus.waiting
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +180,10 @@ class TestTemplateValidation:
     def test_pane_size_validation_empty(self):
         pane = TemplatePaneConfig(split="root", size="", command="echo")
         assert pane.size == ""
+
+    def test_pane_size_non_numeric(self):
+        with pytest.raises(ValidationError, match="1-99%"):
+            TemplatePaneConfig(split="root", size="abc%", command="echo")
 
     def test_pane_size_validation_invalid(self):
         with pytest.raises(ValidationError, match="1-99%"):
