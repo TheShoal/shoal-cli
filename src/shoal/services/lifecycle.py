@@ -969,14 +969,14 @@ async def reconcile_sessions() -> list[tuple[str, str, str]]:
             reconciled.append((session.id, session.name, action))
 
     # Reconcile MCP pool — clean dead sockets/PIDs
-    cleaned = _reconcile_mcp_pool()
+    cleaned = reconcile_mcp_pool()
     for name in cleaned:
         reconciled.append(("mcp", name, "cleaned dead MCP socket/PID"))
 
     return reconciled
 
 
-def _reconcile_mcp_pool() -> list[str]:
+def reconcile_mcp_pool() -> list[str]:
     """Scan MCP pool for dead processes and clean up stale files."""
     from shoal.services.mcp_pool import is_mcp_running, mcp_pid_file, mcp_socket, read_pid
 

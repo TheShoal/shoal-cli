@@ -12,20 +12,9 @@ from shoal.cli.demo import app as demo_app
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
 from shoal.cli.robo import app as robo_app
-from shoal.cli.session import (
-    add,
-    attach,
-    detach,
-    fork,
-    info,
-    kill,
-    logs,
-    ls,
-    popup,
-    prune,
-    rename,
-    status,
-)
+from shoal.cli.session import attach, detach, popup, prune, rename
+from shoal.cli.session_create import add, fork, kill
+from shoal.cli.session_view import info, logs, ls, status
 from shoal.cli.setup import app as setup_app
 from shoal.cli.template import app as template_app
 from shoal.cli.watcher import app as watcher_app
@@ -160,10 +149,20 @@ def init() -> None:
     from rich.console import Console
 
     from shoal.core.config import ensure_dirs
+    from shoal.services.lifecycle import reconcile_mcp_pool
 
+    console = Console()
     ensure_dirs()
+
+    # Clean stale MCP sockets/PIDs from reboots or crashes
+    cleaned = reconcile_mcp_pool()
+    if cleaned:
+        console.print(
+            f"[yellow]Cleaned {len(cleaned)} stale MCP socket(s): {', '.join(cleaned)}[/yellow]"
+        )
+
     _check_environment()
-    Console().print("\n[green]Shoal initialized successfully![/green]")
+    console.print("\n[green]Shoal initialized successfully![/green]")
 
 
 @app.command()

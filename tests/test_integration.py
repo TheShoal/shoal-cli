@@ -51,7 +51,7 @@ async def test_session_lifecycle_integration(mock_dirs):
 async def test_fork_workflow_integration(mock_dirs):
     """Test forking a session inherits properties and creates new state."""
     # This exercises the core logic used by the fork CLI command
-    from shoal.cli.session import _fork_impl
+    from shoal.cli.session_create import _fork_impl
 
     # Create source session
     s_source = await create_session("source", "claude", "/tmp/repo", branch="main")
@@ -67,7 +67,7 @@ async def test_fork_workflow_integration(mock_dirs):
         patch("shoal.core.tmux.pane_coordinates", return_value=None),
         patch("shoal.core.git.worktree_add"),
         patch("shoal.core.git.current_branch", return_value="feat/fork"),
-        patch("shoal.cli.session.console.print"),
+        patch("shoal.cli.session_create.console.print"),
     ):
         # We use _fork_impl to test the application logic
         await _fork_impl("source", "forked", no_worktree=True)

@@ -9,11 +9,11 @@ from shoal.models.state import SessionStatus
 from shoal.services.lifecycle import (
     DirtyWorktreeError,
     LifecycleError,
-    _reconcile_mcp_pool,
     _rollback_async,
     create_session_lifecycle,
     fork_session_lifecycle,
     kill_session_lifecycle,
+    reconcile_mcp_pool,
     reconcile_sessions,
 )
 
@@ -421,7 +421,7 @@ class TestMcpCleanup:
             patch("shoal.services.mcp_pool.state_dir", return_value=tmp_state),
             patch("shoal.services.mcp_pool.is_mcp_running", return_value=False),
         ):
-            cleaned = _reconcile_mcp_pool()
+            cleaned = reconcile_mcp_pool()
 
         assert "dead-server" in cleaned
         assert not (socket_dir / "dead-server.sock").exists()
@@ -441,7 +441,7 @@ class TestMcpCleanup:
             patch("shoal.services.mcp_pool.state_dir", return_value=tmp_state),
             patch("shoal.services.mcp_pool.is_mcp_running", return_value=True),
         ):
-            cleaned = _reconcile_mcp_pool()
+            cleaned = reconcile_mcp_pool()
 
         assert cleaned == []
         assert (socket_dir / "running-server.sock").exists()
@@ -456,7 +456,7 @@ class TestMcpCleanup:
         (socket_dir / "orphan.sock").touch()
 
         with patch("shoal.services.mcp_pool.state_dir", return_value=tmp_state):
-            cleaned = _reconcile_mcp_pool()
+            cleaned = reconcile_mcp_pool()
         assert "orphan" in cleaned
         assert not (socket_dir / "orphan.sock").exists()
 

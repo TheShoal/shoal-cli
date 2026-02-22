@@ -51,11 +51,11 @@ class TestLifecycleSharing:
     """Verify CLI and API share the same lifecycle functions."""
 
     def test_cli_imports_create_from_lifecycle(self):
-        """CLI session module imports create_session_lifecycle from services."""
-        from shoal.cli import session as cli_session
+        """CLI session_create module imports create_session_lifecycle from services."""
+        from shoal.cli import session_create as cli_create
 
-        assert hasattr(cli_session, "create_session_lifecycle")
-        assert cli_session.create_session_lifecycle.__module__ == "shoal.services.lifecycle"
+        assert hasattr(cli_create, "create_session_lifecycle")
+        assert cli_create.create_session_lifecycle.__module__ == "shoal.services.lifecycle"
 
     def test_api_imports_create_from_lifecycle(self):
         """API server module imports create_session_lifecycle from services."""
@@ -65,10 +65,10 @@ class TestLifecycleSharing:
         assert api_server.create_session_lifecycle.__module__ == "shoal.services.lifecycle"
 
     def test_cli_imports_kill_from_lifecycle(self):
-        """CLI session module imports kill_session_lifecycle from services."""
-        from shoal.cli import session as cli_session
+        """CLI session_create module imports kill_session_lifecycle from services."""
+        from shoal.cli import session_create as cli_create
 
-        assert hasattr(cli_session, "kill_session_lifecycle")
+        assert hasattr(cli_create, "kill_session_lifecycle")
 
     def test_api_imports_kill_from_lifecycle(self):
         """API server module imports kill_session_lifecycle from services."""
@@ -79,25 +79,25 @@ class TestLifecycleSharing:
     def test_both_use_same_create_function(self):
         """CLI and API reference the exact same create_session_lifecycle."""
         from shoal.api import server as api_server
-        from shoal.cli import session as cli_session
+        from shoal.cli import session_create as cli_create
 
-        assert cli_session.create_session_lifecycle is api_server.create_session_lifecycle
+        assert cli_create.create_session_lifecycle is api_server.create_session_lifecycle
 
     def test_both_use_same_kill_function(self):
         """CLI and API reference the exact same kill_session_lifecycle."""
         from shoal.api import server as api_server
-        from shoal.cli import session as cli_session
+        from shoal.cli import session_create as cli_create
 
-        assert cli_session.kill_session_lifecycle is api_server.kill_session_lifecycle
+        assert cli_create.kill_session_lifecycle is api_server.kill_session_lifecycle
 
     def test_both_use_same_exception_types(self):
         """CLI and API import the same exception classes."""
         from shoal.api import server as api_server
-        from shoal.cli import session as cli_session
+        from shoal.cli import session_create as cli_create
 
-        assert cli_session.SessionExistsError is api_server.SessionExistsError
-        assert cli_session.StartupCommandError is api_server.StartupCommandError
-        assert cli_session.TmuxSetupError is api_server.TmuxSetupError
+        assert cli_create.SessionExistsError is api_server.SessionExistsError
+        assert cli_create.StartupCommandError is api_server.StartupCommandError
+        assert cli_create.TmuxSetupError is api_server.TmuxSetupError
 
     def test_create_session_lifecycle_is_async(self):
         """create_session_lifecycle must be async (used with await in both CLI and API)."""
@@ -123,11 +123,11 @@ class TestErrorHandlingParity:
     def test_cli_handles_session_exists_error(self, mock_dirs, tmp_path):
         """CLI exits 1 on SessionExistsError."""
         with (
-            patch("shoal.cli.session.git.is_git_repo", return_value=True),
-            patch("shoal.cli.session.git.git_root", return_value=str(tmp_path)),
-            patch("shoal.cli.session.load_tool_config") as mock_tool,
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(tmp_path)),
+            patch("shoal.cli.session_create.load_tool_config") as mock_tool,
             patch(
-                "shoal.cli.session.create_session_lifecycle",
+                "shoal.cli.session_create.create_session_lifecycle",
                 side_effect=SessionExistsError("exists"),
             ),
         ):

@@ -50,7 +50,7 @@ class TestStatusWithSessions:
             _make_session("s5", "stopped"),
             _make_session("s6", "unknown"),
         ]
-        with patch("shoal.cli.session.list_sessions", return_value=sessions):
+        with patch("shoal.cli.session_view.list_sessions", return_value=sessions):
             result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
         assert "running" in result.output
@@ -66,7 +66,7 @@ class TestStatusWithSessions:
             _make_session("s2", "waiting"),
             _make_session("s3", "idle"),
         ]
-        with patch("shoal.cli.session.list_sessions", return_value=sessions):
+        with patch("shoal.cli.session_view.list_sessions", return_value=sessions):
             result = runner.invoke(app, ["status", "--format", "plain"])
         assert result.exit_code == 0
         assert "Total: 3" in result.output
@@ -76,14 +76,14 @@ class TestStatusWithSessions:
 
     def test_status_waiting_shows_attach_hints(self, mock_dirs):
         sessions = [_make_session("needs-input", "waiting")]
-        with patch("shoal.cli.session.list_sessions", return_value=sessions):
+        with patch("shoal.cli.session_view.list_sessions", return_value=sessions):
             result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
         assert "needs-input" in result.output
 
     def test_status_error_shows_error_hints(self, mock_dirs):
         sessions = [_make_session("broken", "error")]
-        with patch("shoal.cli.session.list_sessions", return_value=sessions):
+        with patch("shoal.cli.session_view.list_sessions", return_value=sessions):
             result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
         assert "broken" in result.output
@@ -99,11 +99,11 @@ class TestInfoCommand:
             return s.id
 
         with (
-            patch("shoal.cli.session.get_session", return_value=s),
+            patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session.tmux.has_session", return_value=False),
+            patch("shoal.cli.session_view.tmux.has_session", return_value=False),
             patch(
-                "shoal.cli.session.load_tool_config",
+                "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
             ),
         ):
@@ -118,13 +118,16 @@ class TestInfoCommand:
             return s.id
 
         with (
-            patch("shoal.cli.session.get_session", return_value=s),
+            patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session.tmux.has_session", return_value=True),
-            patch("shoal.cli.session.tmux.preferred_pane", return_value="_live-session:0.0"),
-            patch("shoal.cli.session.tmux.capture_pane", return_value="hello output\nline 2\n"),
+            patch("shoal.cli.session_view.tmux.has_session", return_value=True),
+            patch("shoal.cli.session_view.tmux.preferred_pane", return_value="_live-session:0.0"),
             patch(
-                "shoal.cli.session.load_tool_config",
+                "shoal.cli.session_view.tmux.capture_pane",
+                return_value="hello output\nline 2\n",
+            ),
+            patch(
+                "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
             ),
         ):
@@ -139,11 +142,11 @@ class TestInfoCommand:
             return s.id
 
         with (
-            patch("shoal.cli.session.get_session", return_value=s),
+            patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session.tmux.has_session", return_value=False),
+            patch("shoal.cli.session_view.tmux.has_session", return_value=False),
             patch(
-                "shoal.cli.session.load_tool_config",
+                "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
             ),
         ):
@@ -157,11 +160,11 @@ class TestInfoCommand:
             return s.id
 
         with (
-            patch("shoal.cli.session.get_session", return_value=s),
+            patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session.tmux.has_session", return_value=False),
+            patch("shoal.cli.session_view.tmux.has_session", return_value=False),
             patch(
-                "shoal.cli.session.load_tool_config",
+                "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
             ),
         ):
@@ -175,13 +178,13 @@ class TestInfoCommand:
             return s.id
 
         with (
-            patch("shoal.cli.session.get_session", return_value=s),
+            patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session.tmux.has_session", return_value=True),
-            patch("shoal.cli.session.tmux.preferred_pane", return_value="_empty-pane:0.0"),
-            patch("shoal.cli.session.tmux.capture_pane", return_value=""),
+            patch("shoal.cli.session_view.tmux.has_session", return_value=True),
+            patch("shoal.cli.session_view.tmux.preferred_pane", return_value="_empty-pane:0.0"),
+            patch("shoal.cli.session_view.tmux.capture_pane", return_value=""),
             patch(
-                "shoal.cli.session.load_tool_config",
+                "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
             ),
         ):

@@ -36,7 +36,7 @@ def test_add_session_executes_startup_commands(mock_dirs, mock_git_repo):
     ]
 
     with (
-        patch("shoal.cli.session.load_config", return_value=custom_config),
+        patch("shoal.cli.session_create.load_config", return_value=custom_config),
         patch("shoal.core.git.is_git_repo", return_value=True),
         patch("shoal.core.git.git_root", return_value=str(mock_git_repo)),
         patch("shoal.core.git.current_branch", return_value="main"),
@@ -92,9 +92,9 @@ def test_fork_session_executes_startup_commands(mock_dirs, mock_git_repo):
     ]
 
     with (
-        patch("shoal.cli.session.load_config", return_value=custom_config),
+        patch("shoal.cli.session_create.load_config", return_value=custom_config),
         patch(
-            "shoal.cli.session._resolve_session_interactive_impl",
+            "shoal.cli.session_create._resolve_session_interactive_impl",
             new=AsyncMock(return_value=source_session.id),
         ),
         patch("shoal.core.tmux.new_session"),
@@ -148,7 +148,7 @@ command = "pytest -q"
     custom_config.tmux.startup_commands = ["display-message 'fallback-startup'"]
 
     with (
-        patch("shoal.cli.session.load_config", return_value=custom_config),
+        patch("shoal.cli.session_create.load_config", return_value=custom_config),
         patch("shoal.core.git.is_git_repo", return_value=True),
         patch("shoal.core.git.git_root", return_value=str(mock_git_repo)),
         patch("shoal.core.git.current_branch", return_value="main"),
@@ -192,7 +192,7 @@ def test_add_session_dry_run_has_no_side_effects(mock_dirs, mock_git_repo):
     ]
 
     with (
-        patch("shoal.cli.session.load_config", return_value=custom_config),
+        patch("shoal.cli.session_create.load_config", return_value=custom_config),
         patch("shoal.core.git.is_git_repo", return_value=True),
         patch("shoal.core.git.git_root", return_value=str(mock_git_repo)),
         patch("shoal.core.git.current_branch", return_value="main"),
@@ -224,7 +224,7 @@ def test_add_session_invalid_branch_category_rejected(mock_dirs, mock_git_repo):
     custom_config = ShoalConfig()
 
     with (
-        patch("shoal.cli.session.load_config", return_value=custom_config),
+        patch("shoal.cli.session_create.load_config", return_value=custom_config),
         patch("shoal.core.git.is_git_repo", return_value=True),
         patch("shoal.core.git.git_root", return_value=str(mock_git_repo)),
         patch("shoal.core.git.current_branch", return_value="main"),

@@ -330,6 +330,33 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - [x] **`py.typed` marker**: Added `src/shoal/py.typed` with wheel inclusion for PEP 561.
 - [x] **Renovate (alternative to Dependabot)**: Evaluated — staying with Dependabot. Simpler for a single-maintainer project.
 
+## v0.12.0: Brain Dump Cleanup (Released: 2026-02-22)
+
+**Priority: clear tech debt backlog — regex detection, module decomposition, stale socket cleanup.**
+
+### Regex detection engine
+
+- ✅ **Compiled regex patterns**: `DetectionPatterns` model pre-compiles all pattern lists into `re.Pattern` objects via `model_validator(mode="after")`. Invalid regex fails fast at config load time.
+- ✅ **`re.search()` matching**: Detection engine uses `pattern.search(pane_content)` instead of `pattern in pane_content`. Enables word boundaries (`\bError\b`), anchors (`^thinking`), and alternation (`Allow|Deny`).
+- ✅ **Backward compatible**: Existing literal string patterns remain valid regex. No TOML config changes required.
+
+### Session CLI decomposition
+
+- ✅ **3-file split**: `session.py` (1,069 lines) decomposed into:
+    - `session.py` (~150 lines): simple commands — attach, detach, rename, prune, popup
+    - `session_create.py` (~320 lines): lifecycle commands — add, fork, kill + branch utilities
+    - `session_view.py` (~330 lines): read-only inspection — ls, status, info, logs
+- ✅ **Zero behavior change**: All 12 commands, aliases, and registrations preserved. Only import paths changed.
+
+### MCP socket cleanup on init
+
+- ✅ **`reconcile_mcp_pool()` public**: Renamed from `_reconcile_mcp_pool()` for use outside lifecycle module.
+- ✅ **`shoal init` cleanup**: Init now scans for and removes stale MCP sockets/PIDs from reboots or crashes. Reports cleaned sockets to the user.
+
+### Stats
+
+- 553 tests passing (10 new), ruff/mypy/bandit all clean.
+
 ## v1.0.0: Stable Release
 
 **Priority: production-ready for daily personal use with confidence.**
@@ -345,9 +372,9 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - [x] Demo templates: Configure demo to start with two panes -- one for opencode and one for the current demo output
 - [x] Change demo output to list instead of boxes, and have it include examples of what to run in the opencode window (assumes they are logged in -- up to them to do so)
 - [x] Demo tmux naming: Keep demo tmux session names stable (`demo-main`, `demo-feature`, `demo-robo`) regardless of configured global session prefix.
-- [ ] Regex detection: Upgrade detection engine from substring matching to compiled regex patterns for more precise status detection.
-- [ ] Session.py decomposition: Split 700+ line file by concern (create, view, lifecycle) — currently tracked under v0.9.0 lifecycle extraction.
-- [ ] MCP socket cleanup: Add cleanup on reboot or `shoal init` for stale `/tmp/shoal/mcp-pool/*.sock` files.
+- [x] Regex detection: Upgrade detection engine from substring matching to compiled regex patterns for more precise status detection.
+- [x] Session.py decomposition: Split 700+ line file by concern (create, view, lifecycle) — currently tracked under v0.9.0 lifecycle extraction.
+- [x] MCP socket cleanup: Add cleanup on reboot or `shoal init` for stale `/tmp/shoal/mcp-pool/*.sock` files.
 
 ## Future Considerations
 
@@ -411,3 +438,63 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - Investigate missing `/shoal-handoff` skill — may be a GNU Stow / dotfiles symlink issue with `.claude/` config
 - v0.11.0 Tier 3 (nice-to-have): CodeQL/Semgrep, pytest-xdist, py.typed marker, Renovate
 - Consider starting v1.0.0 items: CLI/API parity tests, coverage gate, documentation audit
+
+### Session: 2026-02-22 — v0.11.0 Tier 3 + v1.0.0 Prep
+
+**What we did:**
+
+- Synced `__init__.py` version to 0.11.0 (was stale at 0.10.1), created annotated `v0.11.0` tag
+- Completed all v0.11.0 Tier 3 items (4 commits):
+    - CodeQL SAST scanning (`.github/workflows/codeql.yml`)
+    - pytest-xdist added to dev deps for parallel test execution
+    - `src/shoal/py.typed` PEP 561 marker with wheel inclusion
+    - Renovate evaluated — staying with Dependabot
+- Removed all backward-compat shims (1 atomic commit, 9 files):
+    - `conductor`/`cond`/`add` CLI aliases, config fallback paths, Pydantic model aliases
+    - `get_status_style` re-export from `core/state.py` — imports moved to `core/theme.py`
+    - Removed 3 backward-compat tests; DB table name `conductors` retained for migration later
+- Boosted test coverage from 72% → 81% (156 new tests across 4 files):
+    - 31 API server tests (67% → 84%), 66 lifecycle tests (61% → 94%)
+    - 44 template/watcher/worktree tests, 15 session CLI tests
+    - Raised `fail_under` from 70 to 80 in `pyproject.toml`
+- Added 18 CLI/API parity tests (`tests/test_parity.py`):
+    - Structural: both import same lifecycle functions and exception types
+    - Behavioral: error handling, rename validation, fork is CLI-only by design
+- Backfilled CHANGELOG from v0.6.0 through v0.11.0 (was missing 7 releases)
+- Updated README badges (version v0.11.0, 543 tests, 81% coverage)
+- Marked all v1.0.0 checklist items complete in ROADMAP
+- 9 commits on `main` after v0.11.0 tag, 543 tests passing, all CI green
+
+**What to do next:**
+
+- Push all commits and tag to remote: `git push origin main && git push origin v0.11.0`
+- Verify GitHub Actions release workflow triggers on tag push
+- Clean up stale tmux sessions from test runs (`_collision`, `_test_cli_*`) — these cause flaky `test_state.py` failures
+- Brain Dump items remain: regex detection upgrade, session.py decomposition, MCP socket cleanup on reboot
+- Future: FastMCP integration, session templates v2, remote sessions
+
+### Session: 2026-02-22 — v0.12.0 Brain Dump Cleanup
+
+**What we did:**
+
+- Upgraded detection engine from substring matching to compiled regex patterns:
+    - `DetectionPatterns` pre-compiles patterns via `model_validator` with `PrivateAttr`
+    - `detect_status()` uses `re.search()` instead of `in` operator
+    - Added 5 regex-specific tests (word boundaries, anchors, alternation, invalid regex, compiled access)
+- Decomposed `session.py` (1,069 lines) into 3 focused modules:
+    - `session.py` (~150 lines): attach, detach, rename, prune, popup
+    - `session_create.py` (~320 lines): add, fork, kill + branch utilities
+    - `session_view.py` (~330 lines): ls, status, info, logs
+    - Updated `__init__.py` imports and all test patch paths (8 test files)
+- Added MCP socket cleanup to `shoal init`:
+    - Renamed `_reconcile_mcp_pool` → `reconcile_mcp_pool` (public API)
+    - Init calls reconciliation after `ensure_dirs()`, reports cleaned sockets
+    - Added 2 tests for init cleanup behavior
+- Bumped version to 0.12.0, marked all Brain Dump items complete
+- 553 tests passing, ruff/mypy/bandit all clean
+
+**What to do next:**
+
+- Commit, tag v0.12.0
+- Brain Dump is now empty — consider adding new items or starting Future Considerations
+- Future: FastMCP integration, session templates v2, remote sessions, ruff lint expansion

@@ -406,3 +406,22 @@ class TestInit:
         result = runner.invoke(app, ["init"])
         assert result.exit_code == 0
         assert "Shoal initialized successfully" in result.output
+
+    def test_init_cleans_stale_mcp_sockets(self, mock_dirs):
+        """Init should clean up stale MCP sockets and report them."""
+        with patch(
+            "shoal.services.lifecycle.reconcile_mcp_pool", return_value=["memory", "github"]
+        ):
+            result = runner.invoke(app, ["init"])
+        assert result.exit_code == 0
+        assert "Cleaned 2 stale MCP socket(s)" in result.output
+        assert "memory" in result.output
+        assert "github" in result.output
+
+    def test_init_no_stale_sockets_no_output(self, mock_dirs):
+        """Init should not mention MCP cleanup when nothing to clean."""
+        with patch("shoal.services.lifecycle.reconcile_mcp_pool", return_value=[]):
+            result = runner.invoke(app, ["init"])
+        assert result.exit_code == 0
+        assert "stale MCP" not in result.output
+        assert "Shoal initialized successfully" in result.output

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
 
 
 class GeneralConfig(BaseModel):
@@ -59,6 +59,29 @@ class DetectionPatterns(BaseModel):
     waiting_patterns: list[str] = Field(default_factory=list)
     error_patterns: list[str] = Field(default_factory=list)
     idle_patterns: list[str] = Field(default_factory=list)
+
+    _compiled_error: list[re.Pattern[str]] = PrivateAttr(default_factory=list)
+    _compiled_waiting: list[re.Pattern[str]] = PrivateAttr(default_factory=list)
+    _compiled_busy: list[re.Pattern[str]] = PrivateAttr(default_factory=list)
+
+    @model_validator(mode="after")
+    def compile_patterns(self) -> DetectionPatterns:
+        """Pre-compile all pattern lists as regex for efficient matching."""
+        self._compiled_error = _compile_patterns(self.error_patterns)
+        self._compiled_waiting = _compile_patterns(self.waiting_patterns)
+        self._compiled_busy = _compile_patterns(self.busy_patterns)
+        return self
+
+
+def _compile_patterns(patterns: list[str]) -> list[re.Pattern[str]]:
+    """Compile string patterns into regex Pattern objects."""
+    compiled: list[re.Pattern[str]] = []
+    for p in patterns:
+        try:
+            compiled.append(re.compile(p))
+        except re.error as e:
+            raise ValueError(f"Invalid regex pattern '{p}': {e}") from e
+    return compiled
 
 
 class MCPToolConfig(BaseModel):

@@ -155,7 +155,7 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
         state_dir_patch,
         runtime_dir_patch,
         # Patch imported references in all modules that import these
-        patch("shoal.cli.session.config_dir", return_value=tmp_config),
+        patch("shoal.cli.session_create.config_dir", return_value=tmp_config),
         patch("shoal.cli.mcp.state_dir", return_value=tmp_state),
         patch("shoal.cli.robo.config_dir", return_value=tmp_config),
         patch("shoal.cli.robo.state_dir", return_value=tmp_state),
