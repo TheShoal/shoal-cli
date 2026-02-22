@@ -45,7 +45,7 @@ def mcp_ls() -> None:
     asyncio.run(with_db(_mcp_ls_impl()))
 
 
-async def _mcp_ls_impl():
+async def _mcp_ls_impl() -> None:
     ensure_dirs()
     socket_dir = state_dir() / "mcp-pool" / "sockets"
     if not socket_dir.exists():
@@ -141,7 +141,7 @@ def mcp_stop(
     asyncio.run(with_db(_mcp_stop_impl(name)))
 
 
-async def _mcp_stop_impl(name):
+async def _mcp_stop_impl(name: str) -> None:
     ensure_dirs()
     try:
         stop_mcp_server(name)
@@ -167,7 +167,7 @@ def mcp_attach(
     asyncio.run(with_db(_mcp_attach_impl(session, mcp_name)))
 
 
-async def _mcp_attach_impl(session, mcp_name):
+async def _mcp_attach_impl(session: str, mcp_name: str) -> None:
     ensure_dirs()
 
     try:

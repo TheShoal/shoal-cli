@@ -34,7 +34,7 @@ def nvim_send(
     asyncio.run(with_db(_nvim_send_impl(session, command)))
 
 
-async def _nvim_send_impl(session, command):
+async def _nvim_send_impl(session: str, command: str) -> None:
     ensure_dirs()
     sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)
@@ -82,7 +82,7 @@ return table.concat(out, "\\n")
 """
 
 
-async def _nvim_diagnostics_impl(session):
+async def _nvim_diagnostics_impl(session: str) -> None:
     ensure_dirs()
     sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)

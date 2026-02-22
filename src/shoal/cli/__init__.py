@@ -141,13 +141,13 @@ def _check_environment() -> None:
     dir_info.add_column(style="bold cyan")
     dir_info.add_column()
 
-    for name, path in [
+    for dir_name, dir_path in [
         ("Config", config_dir()),
         ("State", state_dir()),
         ("Runtime", runtime_dir()),
     ]:
-        exists = "[green]exists[/green]" if path.exists() else "[yellow]not created[/yellow]"
-        dir_info.add_row(name, f"{path} [dim]({exists})[/dim]")
+        exists = "[green]exists[/green]" if dir_path.exists() else "[yellow]not created[/yellow]"
+        dir_info.add_row(dir_name, f"{dir_path} [dim]({exists})[/dim]")
 
     console.print(
         create_panel(
@@ -196,7 +196,7 @@ def popup_list() -> None:
 def session_json(session_id: str) -> None:
     """Dump session JSON for debugging/preview (used by popup)."""
 
-    async def _impl():
+    async def _impl() -> None:
         sid = session_id
         if not sid:
             return

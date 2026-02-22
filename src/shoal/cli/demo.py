@@ -436,7 +436,7 @@ def demo_start(
     asyncio.run(with_db(_demo_start_impl(dir)))
 
 
-async def _demo_start_impl(custom_dir: str | None):
+async def _demo_start_impl(custom_dir: str | None) -> None:
     demo_dir = Path(custom_dir) if custom_dir else _demo_dir()
 
     # Check prerequisites
@@ -649,7 +649,7 @@ def demo_stop(
     asyncio.run(with_db(_demo_stop_impl(dir)))
 
 
-async def _demo_stop_impl(custom_dir: str | None):
+async def _demo_stop_impl(custom_dir: str | None) -> None:
     demo_dir = Path(custom_dir) if custom_dir else _demo_dir()
     marker_file = demo_dir / ".shoal-demo"
 
@@ -696,7 +696,7 @@ def demo_tour() -> None:
     asyncio.run(with_db(_demo_tour_impl()))
 
 
-async def _demo_tour_impl():
+async def _demo_tour_impl() -> None:
     from pydantic import ValidationError
 
     from shoal.core.detection import detect_status
@@ -981,10 +981,10 @@ async def _demo_tour_impl():
     console.print("[dim]   Centralized status icons and colors for CLI + tmux.[/dim]")
     console.print()
 
-    for status_name, style in STATUS_STYLES.items():
+    for status_name, status_style in STATUS_STYLES.items():
         console.print(
-            f"   [{style.rich}]{style.icon} {status_name:10}[/{style.rich}] "
-            f"tmux: {style.tmux:8} nerd: {style.nerd}"
+            f"   [{status_style.rich}]{status_style.icon} {status_name:10}[/{status_style.rich}] "
+            f"tmux: {status_style.tmux:8} nerd: {status_style.nerd}"
         )
 
     console.print(f"   [green]{Symbols.CHECK} Theme system works[/green]")

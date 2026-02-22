@@ -162,7 +162,7 @@ def robo_start(
     asyncio.run(with_db(_robo_start_impl(name)))
 
 
-async def _robo_start_impl(name):
+async def _robo_start_impl(name: str | None) -> None:
     ensure_dirs()
     name = name or "default"
 
@@ -243,7 +243,7 @@ def robo_stop(
     asyncio.run(with_db(_robo_stop_impl(name)))
 
 
-async def _robo_stop_impl(name):
+async def _robo_stop_impl(name: str | None) -> None:
     ensure_dirs()
     name = name or "default"
 
@@ -276,7 +276,7 @@ def robo_send(
     asyncio.run(with_db(_robo_send_impl(session, keys)))
 
 
-async def _robo_send_impl(session_name_or_id: str, keys: str):
+async def _robo_send_impl(session_name_or_id: str, keys: str) -> None:
     ensure_dirs()
     from shoal.core.state import get_session, resolve_session
 
@@ -311,7 +311,7 @@ def robo_status() -> None:
     asyncio.run(with_db(_robo_status_impl()))
 
 
-async def _robo_status_impl():
+async def _robo_status_impl() -> None:
     ensure_dirs()
     db = await get_db()
     robos = await db.list_robos()
@@ -345,7 +345,7 @@ def robo_ls() -> None:
     asyncio.run(with_db(_robo_ls_impl()))
 
 
-async def _robo_ls_impl():
+async def _robo_ls_impl() -> None:
     ensure_dirs()
     db = await get_db()
 

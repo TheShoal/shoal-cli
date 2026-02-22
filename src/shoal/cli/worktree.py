@@ -41,7 +41,7 @@ def wt_ls() -> None:
     asyncio.run(with_db(_wt_ls_impl()))
 
 
-async def _wt_ls_impl():
+async def _wt_ls_impl() -> None:
     ensure_dirs()
     sessions = await list_sessions()
 
@@ -99,7 +99,7 @@ def wt_finish(
     asyncio.run(with_db(_wt_finish_impl(session, pr, no_merge)))
 
 
-async def _wt_finish_impl(session, pr, no_merge):
+async def _wt_finish_impl(session: str | None, pr: bool, no_merge: bool) -> None:
     ensure_dirs()
     sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)
@@ -172,7 +172,7 @@ def wt_cleanup() -> None:
     asyncio.run(with_db(_wt_cleanup_impl()))
 
 
-async def _wt_cleanup_impl():
+async def _wt_cleanup_impl() -> None:
     ensure_dirs()
 
     # Collect tracked worktrees
@@ -192,9 +192,9 @@ async def _wt_cleanup_impl():
     if stale:
         console.print("Stale sessions (tmux session gone):")
         for sid in stale:
-            s = await get_session(sid)
-            if s:
-                console.print(f"  {s.name} ({sid}) — marking as stopped")
+            stale_s = await get_session(sid)
+            if stale_s:
+                console.print(f"  {stale_s.name} ({sid}) — marking as stopped")
                 await update_session(sid, status=SessionStatus.stopped)
         console.print()
 

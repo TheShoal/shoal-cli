@@ -107,7 +107,15 @@ def add(
     asyncio.run(with_db(_add_impl(path, tool, template, worktree, branch, dry_run, name)))
 
 
-async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
+async def _add_impl(
+    path: str | None,
+    tool: str | None,
+    template: str | None,
+    worktree: str | None,
+    branch: bool,
+    dry_run: bool,
+    name: str | None,
+) -> None:
     ensure_dirs()
     cfg = load_config()
     template_cfg = None
@@ -351,7 +359,7 @@ def ls(
     asyncio.run(with_db(_ls_impl(format)))
 
 
-async def _ls_impl(format):
+async def _ls_impl(format: str | None) -> None:
     ensure_dirs()
     sessions = await list_sessions()
 
@@ -443,7 +451,7 @@ def attach(
     asyncio.run(with_db(_attach_impl(session)))
 
 
-async def _attach_impl(session_name_or_id):
+async def _attach_impl(session_name_or_id: str | None) -> None:
     ensure_dirs()
     sid = await _resolve_session_interactive_impl(session_name_or_id)
     s = await get_session(sid)
@@ -490,7 +498,7 @@ def fork(
     asyncio.run(with_db(_fork_impl(session, name, no_worktree)))
 
 
-async def _fork_impl(session, name, no_worktree):
+async def _fork_impl(session: str | None, name: str | None, no_worktree: bool) -> None:
     ensure_dirs()
     cfg = load_config()
     source_id = await _resolve_session_interactive_impl(session)
@@ -577,7 +585,7 @@ def kill(
     asyncio.run(with_db(_kill_impl(session, worktree)))
 
 
-async def _kill_impl(session, worktree):
+async def _kill_impl(session: str | None, worktree: bool) -> None:
     ensure_dirs()
     sid = await _resolve_session_interactive_impl(session)
     s = await get_session(sid)
@@ -613,7 +621,7 @@ def prune(
     asyncio.run(with_db(_prune_impl(force)))
 
 
-async def _prune_impl(force):
+async def _prune_impl(force: bool) -> None:
     ensure_dirs()
     sessions = await list_sessions()
     stopped = [s for s in sessions if s.status.value == "stopped"]
@@ -649,7 +657,7 @@ def status(
     asyncio.run(with_db(_status_impl(format)))
 
 
-async def _status_impl(format):
+async def _status_impl(format: str | None) -> None:
     ensure_dirs()
     sessions = await list_sessions()
     if not sessions:
@@ -793,7 +801,9 @@ def logs(
     asyncio.run(with_db(_logs_impl(session, lines, tail, color_setting)))
 
 
-async def _logs_impl(session_name_or_id, lines, tail, color_setting):
+async def _logs_impl(
+    session_name_or_id: str | None, lines: int, tail: bool, color_setting: str
+) -> None:
     ensure_dirs()
     from shoal.core.state import resolve_session
 
@@ -870,7 +880,7 @@ async def _logs_impl(session_name_or_id, lines, tail, color_setting):
             pass
 
 
-async def _rename_impl(old_name, new_name):
+async def _rename_impl(old_name: str, new_name: str) -> None:
     ensure_dirs()
     from shoal.core.state import resolve_session, validate_session_name
 
@@ -908,7 +918,7 @@ async def _rename_impl(old_name, new_name):
     console.print(f"Renamed session: {s.name} → {new_name}")
 
 
-async def _info_impl(session_name_or_id, color_setting):
+async def _info_impl(session_name_or_id: str | None, color_setting: str) -> None:
     ensure_dirs()
     from shoal.core.state import resolve_session
 
@@ -1004,6 +1014,7 @@ async def _info_impl(session_name_or_id, color_setting):
                 lines = lines[:-skip_lines]
             lines = lines[-preview_lines:]
             preview = "\n".join(lines)
+            preview_renderable: str | Text
             if include_ansi:
                 from rich.text import Text
 
