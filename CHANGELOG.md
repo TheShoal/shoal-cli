@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-02-22
+
+### Added
+- **Shoal MCP Server**: FastMCP-based MCP server (`shoal-orchestrator`) exposing 6 orchestration tools: `list_sessions`, `session_status`, `session_info`, `send_keys`, `create_session`, `kill_session`
+- **`shoal-mcp-server`**: New console script entry point for the MCP server (stdio transport)
+- **Optional `mcp` dependency**: `pip install shoal[mcp]` installs `fastmcp>=3.0.0`
+- **Pool registration**: `shoal-orchestrator` added to default MCP server registry — `shoal mcp start shoal-orchestrator` works out of the box
+- **`shoal-orchestrator` mixin**: Additive mixin for any template to gain orchestration MCP tools
+- **`robo-orchestrator` template**: Pre-configured Claude template with Shoal MCP for robo supervisor workflows
+
+### Stats
+- 618 tests (26 new), ruff/mypy all clean
+
 ## [0.14.0] - 2026-02-22
 
 ### Added

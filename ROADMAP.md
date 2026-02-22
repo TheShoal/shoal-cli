@@ -2,7 +2,7 @@
 
 This roadmap outlines the planned development for Shoal as a fish-first, personal workflow tool that may still be useful to others.
 
-> **Release history**: See [CHANGELOG.md](CHANGELOG.md) for completed releases (v0.4.0–v0.14.0).
+> **Release history**: See [CHANGELOG.md](CHANGELOG.md) for completed releases (v0.4.0–v0.15.0).
 
 ## v0.15.0: FastMCP Integration
 
@@ -10,10 +10,10 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 ### Phase 1 — Shoal MCP server
 
-- [ ] Add `fastmcp>=3.0.0` as optional dependency
-- [ ] Create `mcp_shoal_server.py` with tools: list_sessions, send_keys, create_session, kill_session, session_status, session_info
-- [ ] Register `shoal-orchestrator` in default MCP server registry
-- [ ] Template support for robo workflows
+- [x] Add `fastmcp>=3.0.0` as optional dependency
+- [x] Create `mcp_shoal_server.py` with tools: list_sessions, send_keys, create_session, kill_session, session_status, session_info
+- [x] Register `shoal-orchestrator` in default MCP server registry
+- [x] Template support for robo workflows
 
 ### Phase 2 — Protocol-aware health checks
 
@@ -189,4 +189,28 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 - v0.14.0: Session Templates v2 (extends + mixins)
 - v0.15.0: FastMCP Integration (Shoal-as-MCP-server for robo supervisors)
+- v0.16.0: Remote Sessions (SSH tunnel + HTTP client)
+
+### Session: 2026-02-22 — v0.15.0 FastMCP Integration (Phase 1)
+
+**What we did:**
+
+- Added `fastmcp>=3.0.0` as optional dependency (`shoal[mcp]`) and to dev deps
+- Created `src/shoal/services/mcp_shoal_server.py` — FastMCP server with 6 tools:
+    - `list_sessions`: list all sessions with status (readOnly)
+    - `session_status`: aggregate status counts (readOnly)
+    - `session_info`: full session details by name or ID (readOnly)
+    - `send_keys`: send keystrokes to a session's tmux pane (destructive)
+    - `create_session`: create session with template/worktree/MCP support (destructive)
+    - `kill_session`: kill session with dirty-worktree protection (destructive)
+- Registered `shoal-mcp-server` console script and `shoal-orchestrator` in default MCP pool
+- Added `shoal-orchestrator` mixin and `robo-orchestrator` template for robo workflows
+- 26 new tests in `test_mcp_shoal_server.py`, 618 total tests passing, ruff/mypy clean
+- Bumped version to 0.15.0
+
+**What to do next:**
+
+- v0.15.0 Phase 2: Replace manual JSON-RPC probe in `mcp doctor` with FastMCP Client
+- v0.15.0 Phase 3: Transport evaluation spike (HTTP vs UDS performance)
+- Consider extracting shared `create_session` resolution logic from API server + MCP server into lifecycle helper
 - v0.16.0: Remote Sessions (SSH tunnel + HTTP client)

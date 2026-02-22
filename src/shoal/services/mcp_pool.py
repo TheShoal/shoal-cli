@@ -48,6 +48,7 @@ _DEFAULT_SERVERS: dict[str, str] = {
     "filesystem": "npx -y @modelcontextprotocol/server-filesystem",
     "github": "npx -y @modelcontextprotocol/server-github",
     "fetch": "npx -y @modelcontextprotocol/server-fetch",
+    "shoal-orchestrator": "shoal-mcp-server",
 }
 
 # Public alias kept for backward compatibility in tests / direct imports.

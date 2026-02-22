@@ -1,0 +1,13 @@
+# Shoal — Robo supervisor template with MCP orchestration
+# Creates a Claude agent with native Shoal MCP tools for managing sessions.
+# Usage: shoal new --template robo-orchestrator -n my-robo
+
+[template]
+name = "robo-orchestrator"
+description = "Robo supervisor with Shoal orchestration via MCP"
+extends = "base-dev"
+mixins = ["shoal-orchestrator"]
+tool = "claude"
+
+[template.env]
+SHOAL_ROBO = "1"

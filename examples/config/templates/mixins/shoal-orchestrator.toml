@@ -1,0 +1,8 @@
+# Shoal — Shoal orchestrator MCP mixin
+# Add to any template via: mixins = ["shoal-orchestrator"]
+# Gives the agent native MCP access to Shoal session management.
+
+[mixin]
+name = "shoal-orchestrator"
+description = "Adds Shoal orchestration MCP server"
+mcp = ["shoal-orchestrator"]
