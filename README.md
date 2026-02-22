@@ -6,7 +6,7 @@
 
 <!-- Row 1 — Identity -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.8.0-beta-EED49F?style=flat-square" alt="v0.8.0 beta">
+  <img src="https://img.shields.io/badge/v0.10.1-beta-EED49F?style=flat-square" alt="v0.10.1 beta">
   <img src="https://img.shields.io/badge/status-beta-EED49F?style=flat-square" alt="Status: Beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
@@ -268,7 +268,7 @@ Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection
 
 | Milestone | Focus | Status |
 | --------- | ----- | ------ |
-| **v0.8.0** | MCP pooling, session templates, robo mode | Current |
+| **v0.10.1** | MCP pooling, session templates, robo mode | Current |
 | **v0.9.0** | Lifecycle hardening, type annotations, dev tooling | Complete |
 | **v1.0.0** | Pi agent integration, stability, docs | In Progress |
 
