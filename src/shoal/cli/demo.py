@@ -1,4 +1,4 @@
-"""Demo environment commands: start, stop."""
+"""Demo environment commands: start, stop, tour."""
 
 from __future__ import annotations
 
@@ -18,8 +18,9 @@ from rich.text import Text
 from shoal.core import git, tmux
 from shoal.core.config import load_tool_config
 from shoal.core.db import with_db
-from shoal.core.state import create_session, delete_session, update_session
-from shoal.core.theme import Icons, create_panel
+from shoal.core.state import create_session, delete_session, list_sessions, update_session
+from shoal.core.theme import Icons, Symbols, create_panel, create_table, get_status_icon, get_status_style
+from shoal.models.state import SessionStatus
 
 console = Console()
 
@@ -32,7 +33,7 @@ def _demo_dir() -> Path:
 
 
 def _create_demo_project(demo_dir: Path) -> None:
-    """Create a fake Python project with git branches."""
+    """Create a sample Python project with git branches."""
     # Remove existing demo dir to ensure clean state
     if demo_dir.exists():
         shutil.rmtree(demo_dir)
@@ -62,7 +63,20 @@ This is a temporary demo project created by `shoal demo start`.
 It demonstrates how Shoal orchestrates multiple AI coding sessions:
 - Parallel sessions on different branches
 - Isolated worktrees for conflict-free development
+- Real-time status detection across agents
 - A robo-fish supervisor to monitor the shoal
+"""
+    )
+
+    (demo_dir / "pyproject.toml").write_text(
+        """[project]
+name = "shoal-demo"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fastapi", "uvicorn"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 """
     )
 
@@ -85,6 +99,26 @@ if __name__ == "__main__":
 
 def greet(name: str) -> None:
     print(f"Hello, {name}!")
+
+def add(a: int, b: int) -> int:
+    return a + b
+"""
+    )
+
+    (demo_dir / "api.py").write_text(
+        """\"\"\"REST API endpoints.\"\"\"
+
+from fastapi import FastAPI
+
+app = FastAPI(title="Shoal Demo API")
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/greet/{name}")
+def greet_endpoint(name: str):
+    return {"message": f"Hello, {name}!"}
 """
     )
 
@@ -93,12 +127,15 @@ def greet(name: str) -> None:
     (tests_dir / "test_utils.py").write_text(
         """\"\"\"Tests for utils module.\"\"\"
 
-from utils import greet
+from utils import greet, add
 
 def test_greet(capsys):
     greet("World")
     captured = capsys.readouterr()
     assert "Hello, World!" in captured.out
+
+def test_add():
+    assert add(2, 3) == 5
 """
     )
 
@@ -122,6 +159,7 @@ def _build_demo_pane_command(
     *,
     worktree_note: bool = False,
     is_robo: bool = False,
+    feature: str = "",
 ) -> str:
     """Build shell command to render demo pane via Typer/Rich."""
     parts = [
@@ -145,7 +183,94 @@ def _build_demo_pane_command(
         parts.append("--worktree-note")
     if is_robo:
         parts.append("--robo")
+    if feature:
+        parts.extend(["--feature", feature])
     return " ".join(shlex.quote(part) for part in parts)
+
+
+# ============================================================================
+# Pane rendering — feature-focused content for each demo session
+# ============================================================================
+
+
+def _render_sessions_pane_content() -> None:
+    """Session management feature showcase."""
+    console.print(Text("Session Management Commands", style="bold green"))
+    console.print()
+    cmds = Table.grid(padding=(0, 1), expand=True)
+    cmds.add_column(style="bold yellow", width=32)
+    cmds.add_column(style="white")
+    cmds.add_row("shoal ls", "List sessions grouped by project")
+    cmds.add_row("shoal status", "Quick status summary")
+    cmds.add_row("shoal info demo-main", "Detailed session info")
+    cmds.add_row("shoal logs demo-main", "Recent pane output")
+    cmds.add_row("shoal attach demo-main", "Attach to this session")
+    cmds.add_row("shoal fork demo-main", "Fork into new worktree")
+    cmds.add_row("shoal demo tour", "Guided feature walkthrough")
+    console.print(cmds)
+
+
+def _render_worktrees_pane_content() -> None:
+    """Worktree isolation feature showcase."""
+    console.print(Text("Worktree Isolation", style="bold green"))
+    console.print(Text("This session runs in an isolated git worktree.", style="white"))
+    console.print(Text("Files here are independent from other sessions.", style="white"))
+    console.print()
+    cmds = Table.grid(padding=(0, 1), expand=True)
+    cmds.add_column(style="bold yellow", width=34)
+    cmds.add_column(style="white")
+    cmds.add_row("shoal wt ls", "List active worktrees")
+    cmds.add_row("shoal wt finish demo-feature", "Merge worktree back")
+    cmds.add_row("shoal wt cleanup", "Remove orphaned worktrees")
+    cmds.add_row("shoal new -w fix/my-bug -b", "Create session + worktree")
+    console.print(cmds)
+
+
+def _render_detection_pane_content() -> None:
+    """Status detection feature showcase."""
+    console.print(Text("Status Detection", style="bold green"))
+    console.print(Text("Shoal monitors pane output for tool-specific patterns:", style="white"))
+    console.print()
+    from shoal.core.theme import STATUS_STYLES
+
+    for status_name in ["running", "waiting", "error", "idle", "stopped"]:
+        style = STATUS_STYLES[status_name]
+        desc = {
+            "running": "Agent is actively working",
+            "waiting": "Agent needs human input",
+            "error": "Something went wrong",
+            "idle": "Agent is ready for a task",
+            "stopped": "Session is not running",
+        }[status_name]
+        console.print(f"  [{style.rich}]{style.icon} {status_name:10}[/{style.rich}] {desc}")
+    console.print()
+    console.print(Text("Try: shoal status  — see varied statuses in action", style="bold yellow"))
+
+
+def _render_robo_pane_content() -> None:
+    """Robo supervisor feature showcase."""
+    console.print(Text("Supervisor Commands", style="bold green"))
+    console.print()
+    cmds = Table.grid(padding=(0, 1), expand=True)
+    cmds.add_column(style="bold yellow", width=42)
+    cmds.add_column(style="white")
+    cmds.add_row("shoal status", "Check all agent statuses")
+    cmds.add_row("shoal ls", "List all sessions")
+    cmds.add_row("shoal robo ls", "View robo profiles")
+    cmds.add_row("shoal logs demo-feature", "Check a worker's output")
+    cmds.add_row("shoal robo approve demo-feature", "Approve an action")
+    cmds.add_row("shoal robo send demo-main 'pytest'", "Send command to worker")
+    console.print(cmds)
+
+
+def _render_default_pane_content(tool: str, worktree_note: bool) -> None:
+    """Fallback pane content."""
+    console.print(Text("Start Here", style="bold green"))
+    console.print(Text(f"1) Authenticate {tool} if needed.", style="white"))
+    if worktree_note:
+        console.print(Text("2) You are in an isolated worktree. Iterate freely.", style="white"))
+    else:
+        console.print(Text(f"2) Ask {tool} for a quick repo + branch summary.", style="white"))
 
 
 def _render_demo_pane(
@@ -158,16 +283,30 @@ def _render_demo_pane(
     *,
     worktree_note: bool,
     robo: bool,
+    feature: str,
 ) -> None:
-    """Render borderless, guided demo output with Rich."""
-    header_style = "bold white on magenta" if robo else "bold black on cyan"
-    header = " ROBO SUPERVISOR " if robo else " SHOAL WORKER "
+    """Render feature-focused demo pane output with Rich."""
+    if robo:
+        header_style = "bold white on magenta"
+        header = " ROBO SUPERVISOR "
+        subtitle = "Agent Coordination"
+        accent = "magenta"
+    else:
+        header_style = "bold black on cyan"
+        header = " SHOAL WORKER "
+        subtitle = {
+            "sessions": "Session Management",
+            "worktrees": "Worktree Isolation",
+            "detection": "Status Detection",
+        }.get(feature, "AI Agent")
+        accent = "cyan"
 
-    console.print(Text(header, style=header_style))
+    console.print(Text(f"{header}\u2014 {subtitle}", style=header_style))
     console.print(Text(f"session: {session_name}", style="bold white"))
     console.print(Text(f"project: {project_path}", style="dim"))
-    console.print(Rule(style="magenta" if robo else "cyan"))
+    console.print(Rule(style=accent))
 
+    # Session details
     details = Table.grid(padding=(0, 1), expand=True)
     details.add_column(style="bold", width=11)
     details.add_column(style="white")
@@ -178,40 +317,22 @@ def _render_demo_pane(
     console.print(details)
     console.print()
 
-    console.print(Text("Start Here", style="bold green"))
+    # Feature-specific content
     if robo:
-        console.print(
-            Text("1) Run `shoal status` and identify any non-idle worker.", style="white")
-        )
+        _render_robo_pane_content()
+    elif feature == "sessions":
+        _render_sessions_pane_content()
+    elif feature == "worktrees":
+        _render_worktrees_pane_content()
+    elif feature == "detection":
+        _render_detection_pane_content()
     else:
-        console.print(Text(f"1) In the LEFT pane, authenticate {tool} if needed.", style="white"))
-
-    if worktree_note:
-        console.print(Text("2) You are in an isolated worktree. Iterate freely.", style="white"))
-    else:
-        console.print(Text(f"2) Ask {tool} for a quick repo + branch summary.", style="white"))
-
-    console.print()
-    console.print(Text("Guided Next Steps", style="bold yellow"))
-    steps = Table.grid(padding=(0, 1), expand=True)
-    steps.add_column(style="dim", width=2)
-    steps.add_column(style="white")
-    if robo:
-        steps.add_row("3", "Review workers: `shoal ls` and `shoal logs demo-feature`")
-        steps.add_row("4", "Approve only when needed: `shoal robo approve demo-feature`")
-        steps.add_row("5", "Dispatch work: `shoal robo send demo-main 'uv run pytest -q'`")
-    else:
-        steps.add_row("3", "Implement one tiny change and show `git diff`")
-        steps.add_row("4", "Run `uv run pytest -q` and report result")
-        steps.add_row("5", "Draft the next commit message before committing")
-    console.print(steps)
+        _render_default_pane_content(tool, worktree_note)
 
     console.print()
     console.print(Rule(style="dim"))
-    console.print(
-        Text("Success signal: clear output + passing tests + clean plan.", style="bold green")
-    )
-    console.print(Text("Cleanup when done: `shoal demo stop`", style="dim italic"))
+    console.print(Text("Run 'shoal demo tour' for a guided feature walkthrough.", style="bold green"))
+    console.print(Text("Cleanup: shoal demo stop", style="dim italic"))
 
 
 @app.command("pane", hidden=True)
@@ -226,6 +347,7 @@ def demo_pane(
         bool, typer.Option("--worktree-note", help="Show worktree note")
     ] = False,
     robo: Annotated[bool, typer.Option("--robo", help="Render robo supervisor pane")] = False,
+    feature: Annotated[str, typer.Option("--feature", help="Feature area focus")] = "",
 ) -> None:
     """Render the demo sidebar pane output."""
     _render_demo_pane(
@@ -237,7 +359,13 @@ def demo_pane(
         tmux_session_name,
         worktree_note=worktree_note,
         robo=robo,
+        feature=feature,
     )
+
+
+# ============================================================================
+# Tmux session helpers
+# ============================================================================
 
 
 def _sanitize_demo_tmux_name(name: str) -> str:
@@ -283,6 +411,11 @@ def _start_demo_tmux_session(
     tmux.run_command(f"select-pane -t {quoted_session} -L")
 
 
+# ============================================================================
+# Demo start / stop
+# ============================================================================
+
+
 @app.command("start")
 def demo_start(
     dir: Annotated[
@@ -317,9 +450,8 @@ async def _demo_start_impl(custom_dir: str | None):
 
     # Create demo project
     _create_demo_project(demo_dir)
-    console.print("  ✓ Created demo git repository")
+    console.print("  \u2713 Created demo git repository")
 
-    # Create marker file to track demo sessions
     session_ids = []
 
     # Use the configured default tool (falls back to opencode)
@@ -329,9 +461,10 @@ async def _demo_start_impl(custom_dir: str | None):
     default_tool = cfg.general.default_tool or "opencode"
     tool_cfg = load_tool_config(default_tool)
     tool_command = tool_cfg.command
+    display_path = str(demo_dir).replace(str(Path.home()), "~")
 
-    # Session 1: Main branch
-    console.print("  ✓ Creating session: demo-main (main branch)")
+    # ── Session 1: Main branch (feature: session management) ──
+    console.print("  \u2713 Creating session: demo-main (main branch)")
     s1 = await create_session(
         name="demo-main",
         tool=default_tool,
@@ -340,15 +473,14 @@ async def _demo_start_impl(custom_dir: str | None):
     s1.tmux_session = await _pin_demo_tmux_name(s1.name, s1.id, s1.tmux_session)
     session_ids.append(s1.id)
 
-    # Create tmux session with tool + info panes
     pane_command = _build_demo_pane_command(
         session_name="demo-main",
         session_id=s1.id,
         tool=default_tool,
         branch="main",
-        project_path=str(demo_dir).replace(str(Path.home()), "~"),
+        project_path=display_path,
         tmux_session_name=s1.tmux_session,
-        worktree_note=False,
+        feature="sessions",
     )
     _start_demo_tmux_session(
         s1.tmux_session,
@@ -357,8 +489,8 @@ async def _demo_start_impl(custom_dir: str | None):
         info_command=pane_command,
     )
 
-    # Session 2: Feature branch with worktree
-    console.print("  ✓ Creating session: demo-feature (feat/api-endpoint worktree)")
+    # ── Session 2: Feature branch with worktree (feature: worktrees) ──
+    console.print("  \u2713 Creating session: demo-feature (feat/api-endpoint worktree)")
     worktree_path = demo_dir / ".worktrees" / "feat-api-endpoint"
     (demo_dir / ".worktrees").mkdir(parents=True, exist_ok=True)
     git.worktree_add(str(demo_dir), str(worktree_path), branch="feat/api-endpoint")
@@ -373,15 +505,16 @@ async def _demo_start_impl(custom_dir: str | None):
     s2.tmux_session = await _pin_demo_tmux_name(s2.name, s2.id, s2.tmux_session)
     session_ids.append(s2.id)
 
-    # Create tmux session with tool + info panes
+    wt_display = str(worktree_path).replace(str(Path.home()), "~")
     pane_command = _build_demo_pane_command(
         session_name="demo-feature",
         session_id=s2.id,
         tool=default_tool,
         branch="feat/api-endpoint",
-        project_path=str(worktree_path).replace(str(Path.home()), "~"),
+        project_path=wt_display,
         tmux_session_name=s2.tmux_session,
         worktree_note=True,
+        feature="worktrees",
     )
     _start_demo_tmux_session(
         s2.tmux_session,
@@ -390,33 +523,70 @@ async def _demo_start_impl(custom_dir: str | None):
         info_command=pane_command,
     )
 
-    # Session 3: Robo session
-    console.print("  ✓ Creating session: demo-robo (supervisor)")
+    # ── Session 3: Bugfix branch with worktree (feature: detection) ──
+    console.print("  \u2713 Creating session: demo-bugfix (fix/login-bug worktree)")
+    bugfix_path = demo_dir / ".worktrees" / "fix-login-bug"
+    git.worktree_add(str(demo_dir), str(bugfix_path), branch="fix/login-bug")
+
     s3 = await create_session(
-        name="demo-robo",
+        name="demo-bugfix",
         tool=default_tool,
         git_root=str(demo_dir),
+        worktree=str(bugfix_path),
+        branch="fix/login-bug",
     )
     s3.tmux_session = await _pin_demo_tmux_name(s3.name, s3.id, s3.tmux_session)
     session_ids.append(s3.id)
 
-    # Create tmux session with tool + info panes
+    bugfix_display = str(bugfix_path).replace(str(Path.home()), "~")
     pane_command = _build_demo_pane_command(
-        session_name="demo-robo",
+        session_name="demo-bugfix",
         session_id=s3.id,
         tool=default_tool,
-        branch="main",
-        project_path=str(demo_dir).replace(str(Path.home()), "~"),
+        branch="fix/login-bug",
+        project_path=bugfix_display,
         tmux_session_name=s3.tmux_session,
-        worktree_note=False,
-        is_robo=True,
+        worktree_note=True,
+        feature="detection",
     )
     _start_demo_tmux_session(
         s3.tmux_session,
+        bugfix_path,
+        tool_command=tool_command,
+        info_command=pane_command,
+    )
+
+    # ── Session 4: Robo supervisor ──
+    console.print("  \u2713 Creating session: demo-robo (supervisor)")
+    s4 = await create_session(
+        name="demo-robo",
+        tool=default_tool,
+        git_root=str(demo_dir),
+    )
+    s4.tmux_session = await _pin_demo_tmux_name(s4.name, s4.id, s4.tmux_session)
+    session_ids.append(s4.id)
+
+    pane_command = _build_demo_pane_command(
+        session_name="demo-robo",
+        session_id=s4.id,
+        tool=default_tool,
+        branch="main",
+        project_path=display_path,
+        tmux_session_name=s4.tmux_session,
+        is_robo=True,
+    )
+    _start_demo_tmux_session(
+        s4.tmux_session,
         demo_dir,
         tool_command=tool_command,
         info_command=pane_command,
     )
+
+    # ── Set varied statuses to demonstrate detection ──
+    await update_session(s1.id, status=SessionStatus.running)
+    await update_session(s2.id, status=SessionStatus.idle)
+    await update_session(s3.id, status=SessionStatus.waiting)
+    await update_session(s4.id, status=SessionStatus.running)
 
     # Write marker file
     marker_file.write_text("\n".join(session_ids))
@@ -427,22 +597,30 @@ async def _demo_start_impl(custom_dir: str | None):
             f"""[bold green]Demo environment ready![/bold green]
 
 [bold]What was created:[/bold]
-  • Temporary git repository: [cyan]{demo_dir}[/cyan]
-  • 3 demo sessions:
-    - [bold]demo-main[/bold] (main branch)
-    - [bold]demo-feature[/bold] (feat/api-endpoint worktree)
-    - [bold]demo-robo[/bold] (supervisor)
+  \u2022 Temporary git repository at [cyan]{demo_dir}[/cyan]
+  \u2022 4 demo sessions with different features highlighted:
+    [bold]demo-main[/bold]     [green]\u25cf running[/green]   main branch \u2014 session management
+    [bold]demo-feature[/bold]  [white]\u25cb idle[/white]      feat/api-endpoint worktree \u2014 isolation
+    [bold]demo-bugfix[/bold]   [yellow]\u25c9 waiting[/yellow]  fix/login-bug worktree \u2014 status detection
+    [bold]demo-robo[/bold]     [green]\u25cf running[/green]   supervisor \u2014 agent coordination
 
 [bold]Try these commands:[/bold]
-  [yellow]shoal ls[/yellow]              — See all sessions grouped by project
-  [yellow]shoal status[/yellow]          — Check agent statuses
-  [yellow]shoal attach demo-main[/yellow] — Attach to the main session
-  [yellow]shoal wt ls[/yellow]           — See managed worktrees
-  [yellow]shoal robo ls[/yellow]         — View robo profiles
-  [yellow]shoal popup[/yellow]           — Open interactive dashboard
+  [dim]Session management[/dim]
+    [yellow]shoal ls[/yellow]                \u2014 Sessions grouped by project
+    [yellow]shoal status[/yellow]            \u2014 Status summary (see varied statuses!)
+    [yellow]shoal info demo-main[/yellow]    \u2014 Detailed session info
+    [yellow]shoal attach demo-main[/yellow]  \u2014 Attach to a session
+  [dim]Worktree isolation[/dim]
+    [yellow]shoal wt ls[/yellow]             \u2014 Active worktrees
+  [dim]Supervisor[/dim]
+    [yellow]shoal robo ls[/yellow]           \u2014 Robo profiles
+  [dim]Dashboard[/dim]
+    [yellow]shoal popup[/yellow]             \u2014 Interactive fzf dashboard
+  [dim]Feature tour[/dim]
+    [yellow]shoal demo tour[/yellow]         \u2014 Guided walkthrough proving all features work
 
 [bold]Cleanup:[/bold]
-  [yellow]shoal demo stop[/yellow]       — Remove all demo sessions and files
+  [yellow]shoal demo stop[/yellow]           \u2014 Remove all demo sessions and files
 """,
             title=f"[bold blue]{Icons.DASHBOARD} Shoal Demo Started[/bold blue]",
             title_align="left",
@@ -485,14 +663,335 @@ async def _demo_stop_impl(custom_dir: str | None):
         if s:
             if tmux.has_session(s.tmux_session):
                 tmux.kill_session(s.tmux_session)
-                console.print(f"  ✓ Killed tmux session: {s.name}")
+                console.print(f"  \u2713 Killed tmux session: {s.name}")
             await delete_session(sid)
-            console.print(f"  ✓ Deleted session: {s.name}")
+            console.print(f"  \u2713 Deleted session: {s.name}")
 
     # Remove demo directory
     if demo_dir.exists():
         shutil.rmtree(demo_dir)
-        console.print("  ✓ Removed demo directory")
+        console.print("  \u2713 Removed demo directory")
 
     console.print()
     console.print("[bold green]Demo environment cleaned up![/bold green]")
+
+
+# ============================================================================
+# Demo tour — guided walkthrough proving features work
+# ============================================================================
+
+
+@app.command("tour")
+def demo_tour() -> None:
+    """Guided tour demonstrating Shoal features with live examples."""
+    asyncio.run(with_db(_demo_tour_impl()))
+
+
+async def _demo_tour_impl():
+    from pydantic import ValidationError
+
+    from shoal.core.detection import detect_status
+    from shoal.core.state import validate_session_name
+    from shoal.core.theme import STATUS_STYLES
+    from shoal.models.config import (
+        DetectionPatterns,
+        SessionTemplateConfig,
+        TemplatePaneConfig,
+        TemplateWindowConfig,
+        ToolConfig,
+    )
+    from shoal.services.mcp_pool import validate_mcp_name
+
+    console.print()
+    console.print(Rule("[bold cyan]SHOAL FEATURE TOUR[/bold cyan]", style="cyan"))
+    console.print("[dim]Live tests proving each feature area works correctly.[/dim]")
+    console.print()
+
+    passed = 0
+    failed = 0
+
+    # ── 1. Session State ──────────────────────────────────────────────────
+    console.print("[bold]1. Session Management[/bold]")
+    console.print("[dim]   Sessions track AI agents in tmux with git context.[/dim]")
+    console.print()
+
+    sessions = await list_sessions()
+    if sessions:
+        table = create_table(padding=(0, 1))
+        table.add_column("Name", width=16)
+        table.add_column("Tool", width=10)
+        table.add_column("Status", width=12)
+        table.add_column("Branch", width=22)
+        table.add_column("Worktree")
+        for s in sessions:
+            style = get_status_style(s.status.value)
+            icon = get_status_icon(s.status.value)
+            status_text = f"[{style}]{icon} {s.status.value}[/{style}]"
+            wt = Path(s.worktree).name if s.worktree else "(root)"
+            table.add_row(s.name, s.tool, status_text, s.branch or "main", wt)
+        console.print(table)
+        console.print()
+
+        # Status breakdown
+        counts: dict[str, int] = {}
+        for s in sessions:
+            counts[s.status.value] = counts.get(s.status.value, 0) + 1
+        parts = []
+        for status_val, count in sorted(counts.items()):
+            icon = get_status_icon(status_val)
+            parts.append(f"{icon} {count} {status_val}")
+        console.print(f"   Total: {len(sessions)} sessions \u2014 {', '.join(parts)}")
+    else:
+        console.print("   [dim]No sessions found (run 'shoal demo start' for full experience)[/dim]")
+
+    console.print(f"   [green]{Symbols.CHECK} Session state queries work[/green]")
+    passed += 1
+    console.print()
+
+    # ── 2. Status Detection Engine ─────────────────────────────────────────
+    console.print("[bold]2. Status Detection Engine[/bold]")
+    console.print("[dim]   Pane content matched against tool-specific patterns.[/dim]")
+    console.print()
+
+    claude_tool = ToolConfig(
+        name="claude",
+        command="claude",
+        icon="\U0001f916",
+        detection=DetectionPatterns(
+            busy_patterns=["\u280b", "thinking"],
+            waiting_patterns=["Yes/No", "Allow"],
+            error_patterns=["Error:", "ERROR"],
+        ),
+    )
+    pi_tool = ToolConfig(
+        name="pi",
+        command="pi",
+        icon="\U0001f967",
+        detection=DetectionPatterns(
+            busy_patterns=["thinking", "generating", "executing"],
+            waiting_patterns=["permission", "approve", "y/n"],
+            error_patterns=["Error:", "FAILED"],
+        ),
+    )
+
+    test_cases = [
+        ("thinking about the code...", claude_tool, SessionStatus.running),
+        ("Do you Allow this? Yes/No", claude_tool, SessionStatus.waiting),
+        ("Error: file not found", claude_tool, SessionStatus.error),
+        ("$ ls\nfile.py", claude_tool, SessionStatus.idle),
+        ("generating response...", pi_tool, SessionStatus.running),
+        ("Please approve the edit", pi_tool, SessionStatus.waiting),
+        ("Build FAILED with 3 errors", pi_tool, SessionStatus.error),
+    ]
+
+    detection_ok = True
+    for content, tool, expected in test_cases:
+        result = detect_status(content, tool)
+        ok = result == expected
+        icon = get_status_icon(result.value)
+        style = get_status_style(result.value)
+        mark = Symbols.CHECK if ok else Symbols.CROSS
+        color = "green" if ok else "red"
+        short = content[:42].replace("\n", "\\n")
+        console.print(
+            f"   [{color}]{mark}[/{color}] [{style}]{icon} {result.value:8}[/{style}] "
+            f"\u2190 {tool.name}: \"{short}\""
+        )
+        if not ok:
+            detection_ok = False
+
+    if detection_ok:
+        console.print(f"   [green]{Symbols.CHECK} All detection tests passed[/green]")
+        passed += 1
+    else:
+        console.print(f"   [red]{Symbols.CROSS} Some detection tests failed[/red]")
+        failed += 1
+    console.print()
+
+    # ── 3. Template Validation ─────────────────────────────────────────────
+    console.print("[bold]3. Template Validation[/bold]")
+    console.print("[dim]   Schema-validated session layouts with pane configuration.[/dim]")
+    console.print()
+
+    template_ok = True
+
+    # Valid template
+    try:
+        t = SessionTemplateConfig(
+            name="pi-dev",
+            description="Pi agent with terminal pane",
+            tool="pi",
+            windows=[
+                TemplateWindowConfig(
+                    name="editor",
+                    panes=[
+                        TemplatePaneConfig(split="root", size="65%", command="{tool_command}"),
+                        TemplatePaneConfig(split="right", size="35%", command="echo terminal"),
+                    ],
+                ),
+            ],
+        )
+        console.print(
+            f"   [green]{Symbols.CHECK}[/green] Valid: {t.name} "
+            f"({len(t.windows)} window, "
+            f"{sum(len(w.panes) for w in t.windows)} panes)"
+        )
+    except Exception as e:
+        console.print(f"   [red]{Symbols.CROSS} Valid template rejected: {e}[/red]")
+        template_ok = False
+
+    # Invalid: bad name
+    try:
+        SessionTemplateConfig(
+            name="bad name!",
+            windows=[
+                TemplateWindowConfig(
+                    name="w", panes=[TemplatePaneConfig(split="root", command="echo")]
+                )
+            ],
+        )
+        console.print(f"   [red]{Symbols.CROSS} Should have rejected invalid name[/red]")
+        template_ok = False
+    except (ValidationError, ValueError):
+        console.print(f"   [green]{Symbols.CHECK}[/green] Rejected invalid name: \"bad name!\"")
+
+    # Invalid: no windows
+    try:
+        SessionTemplateConfig(name="empty", windows=[])
+        console.print(f"   [red]{Symbols.CROSS} Should have rejected empty windows[/red]")
+        template_ok = False
+    except (ValidationError, ValueError):
+        console.print(f"   [green]{Symbols.CHECK}[/green] Rejected template with no windows")
+
+    # Invalid: bad pane size
+    try:
+        TemplatePaneConfig(split="root", size="150%", command="echo")
+        console.print(f"   [red]{Symbols.CROSS} Should have rejected invalid size[/red]")
+        template_ok = False
+    except (ValidationError, ValueError):
+        console.print(f"   [green]{Symbols.CHECK}[/green] Rejected invalid pane size: \"150%\"")
+
+    # Invalid: first pane not root
+    try:
+        TemplateWindowConfig(
+            name="bad", panes=[TemplatePaneConfig(split="right", command="echo")]
+        )
+        console.print(f"   [red]{Symbols.CROSS} Should have rejected non-root first pane[/red]")
+        template_ok = False
+    except (ValidationError, ValueError):
+        console.print(f"   [green]{Symbols.CHECK}[/green] Rejected non-root first pane")
+
+    if template_ok:
+        console.print(f"   [green]{Symbols.CHECK} Template validation works[/green]")
+        passed += 1
+    else:
+        console.print(f"   [red]{Symbols.CROSS} Template validation issues[/red]")
+        failed += 1
+    console.print()
+
+    # ── 4. MCP Name Validation ─────────────────────────────────────────────
+    console.print("[bold]4. MCP Server Name Validation[/bold]")
+    console.print("[dim]   Names validated for file paths and environment variables.[/dim]")
+    console.print()
+
+    mcp_ok = True
+    valid_mcp = ["memory", "filesystem", "my-server", "test_123"]
+    invalid_mcp = [
+        ("bad/name", "bad/name"),
+        ("$(whoami)", "$(whoami)"),
+        ("", "(empty)"),
+        ("-leading", "-leading"),
+        ("a" * 65, "a" * 20 + "..."),
+    ]
+
+    for name in valid_mcp:
+        try:
+            validate_mcp_name(name)
+            console.print(f"   [green]{Symbols.CHECK}[/green] Accepted: \"{name}\"")
+        except ValueError:
+            console.print(f"   [red]{Symbols.CROSS}[/red] Should have accepted: \"{name}\"")
+            mcp_ok = False
+
+    for name, display in invalid_mcp:
+        try:
+            validate_mcp_name(name)
+            console.print(f"   [red]{Symbols.CROSS}[/red] Should have rejected: \"{display}\"")
+            mcp_ok = False
+        except ValueError:
+            console.print(f"   [green]{Symbols.CHECK}[/green] Rejected: \"{display}\"")
+
+    if mcp_ok:
+        console.print(f"   [green]{Symbols.CHECK} MCP name validation works[/green]")
+        passed += 1
+    else:
+        console.print(f"   [red]{Symbols.CROSS} MCP validation issues[/red]")
+        failed += 1
+    console.print()
+
+    # ── 5. Session Name Validation ─────────────────────────────────────────
+    console.print("[bold]5. Session Name Validation[/bold]")
+    console.print("[dim]   Names validated for tmux compatibility and security.[/dim]")
+    console.print()
+
+    name_ok = True
+    valid_names = ["my-session", "project/feature", "test.v2", "a_b-c"]
+    invalid_names = [
+        ("", "(empty)"),
+        ("a" * 101, "a" * 20 + "..."),
+        ("$(whoami)", "$(whoami)"),
+        ("..", ".."),
+        ("bad name", "bad name"),
+    ]
+
+    for name in valid_names:
+        try:
+            validate_session_name(name)
+            console.print(f"   [green]{Symbols.CHECK}[/green] Accepted: \"{name}\"")
+        except ValueError:
+            console.print(f"   [red]{Symbols.CROSS}[/red] Should have accepted: \"{name}\"")
+            name_ok = False
+
+    for name, display in invalid_names:
+        try:
+            validate_session_name(name)
+            console.print(f"   [red]{Symbols.CROSS}[/red] Should have rejected: \"{display}\"")
+            name_ok = False
+        except ValueError:
+            console.print(f"   [green]{Symbols.CHECK}[/green] Rejected: \"{display}\"")
+
+    if name_ok:
+        console.print(f"   [green]{Symbols.CHECK} Session name validation works[/green]")
+        passed += 1
+    else:
+        console.print(f"   [red]{Symbols.CROSS} Name validation issues[/red]")
+        failed += 1
+    console.print()
+
+    # ── 6. Theme System ────────────────────────────────────────────────────
+    console.print("[bold]6. Theme & UI System[/bold]")
+    console.print("[dim]   Centralized status icons and colors for CLI + tmux.[/dim]")
+    console.print()
+
+    for status_name, style in STATUS_STYLES.items():
+        console.print(
+            f"   [{style.rich}]{style.icon} {status_name:10}[/{style.rich}] "
+            f"tmux: {style.tmux:8} nerd: {style.nerd}"
+        )
+
+    console.print(f"   [green]{Symbols.CHECK} Theme system works[/green]")
+    passed += 1
+    console.print()
+
+    # ── Summary ────────────────────────────────────────────────────────────
+    total = passed + failed
+    console.print(Rule(style="cyan"))
+    if failed == 0:
+        console.print(
+            f"[bold green]{Symbols.CHECK} All {total} feature areas passed![/bold green]"
+        )
+    else:
+        console.print(
+            f"[bold yellow]{passed}/{total} feature areas passed, "
+            f"{failed} failed[/bold yellow]"
+        )
+    console.print()

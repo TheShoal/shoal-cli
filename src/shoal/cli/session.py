@@ -516,7 +516,7 @@ async def _add_impl(path, tool, template, worktree, branch, dry_run, name):
 
     # Create session state
     try:
-        session = await create_session(session_name, tool, root, work_dir, branch_name)
+        session = await create_session(session_name, tool, root, wt_path, branch_name)
     except ValueError as e:
         console.print(f"[red]Invalid session name: {e}[/red]")
         raise typer.Exit(1) from None

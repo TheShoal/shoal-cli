@@ -5,7 +5,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from shoal.cli.demo import _create_demo_project, _demo_start_impl, _demo_stop_impl
+from shoal.cli.demo import (
+    _create_demo_project,
+    _demo_start_impl,
+    _demo_stop_impl,
+    _demo_tour_impl,
+)
 
 
 def test_create_demo_project(tmp_path):
@@ -21,8 +26,10 @@ def test_create_demo_project(tmp_path):
 
         # Should create files
         assert (demo_dir / "README.md").exists()
+        assert (demo_dir / "pyproject.toml").exists()
         assert (demo_dir / "main.py").exists()
         assert (demo_dir / "utils.py").exists()
+        assert (demo_dir / "api.py").exists()
         assert (demo_dir / "tests" / "test_utils.py").exists()
 
         # Should init git repo
@@ -31,6 +38,34 @@ def test_create_demo_project(tmp_path):
         # Should create initial commit
         git_add_call = [c for c in mock_run.call_args_list if c[0][0][:2] == ["git", "add"]]
         assert len(git_add_call) > 0
+
+
+def test_create_demo_project_content(tmp_path):
+    """Test demo project file contents are well-formed."""
+    demo_dir = tmp_path / "demo"
+
+    with patch("shoal.cli.demo.subprocess.run"):
+        _create_demo_project(demo_dir)
+
+    # pyproject.toml has valid content
+    pyproject = (demo_dir / "pyproject.toml").read_text()
+    assert "shoal-demo" in pyproject
+    assert "requires-python" in pyproject
+
+    # api.py has valid content
+    api_content = (demo_dir / "api.py").read_text()
+    assert "FastAPI" in api_content
+    assert "health" in api_content
+
+    # utils.py has both functions
+    utils_content = (demo_dir / "utils.py").read_text()
+    assert "def greet" in utils_content
+    assert "def add" in utils_content
+
+    # test file tests both functions
+    test_content = (demo_dir / "tests" / "test_utils.py").read_text()
+    assert "test_greet" in test_content
+    assert "test_add" in test_content
 
 
 @pytest.mark.asyncio
@@ -61,28 +96,65 @@ async def test_demo_start_happy_path(tmp_path, mock_dirs):
         # Run demo start
         await _demo_start_impl(None)
 
-        # Verify tmux sessions were created (3 sessions)
-        assert mock_new_session.call_count == 3
+        # Verify tmux sessions were created (4 sessions)
+        assert mock_new_session.call_count == 4
 
         # Demo sessions should use stable names (no global prefix)
         created_names = {call.args[0] for call in mock_new_session.call_args_list}
-        assert created_names == {"demo-main", "demo-feature", "demo-robo"}
+        assert created_names == {"demo-main", "demo-feature", "demo-bugfix", "demo-robo"}
 
         # Each session has 2 panes: tool + info script
-        assert mock_send_keys.call_count == 6
+        assert mock_send_keys.call_count == 8
 
         # Verify pane split commands were issued
         split_commands = [call.args[0] for call in mock_run_command.call_args_list]
-        assert sum("split-window" in cmd for cmd in split_commands) == 3
+        assert sum("split-window" in cmd for cmd in split_commands) == 4
 
-        # Verify worktree was created for feature session
-        mock_worktree_add.assert_called_once()
+        # Verify worktrees were created (feature + bugfix)
+        assert mock_worktree_add.call_count == 2
 
         # Verify marker file was created
         marker_file = demo_dir / ".shoal-demo"
         assert marker_file.exists()
         session_ids = marker_file.read_text().strip().split("\n")
-        assert len(session_ids) == 3
+        assert len(session_ids) == 4
+
+
+@pytest.mark.asyncio
+async def test_demo_start_varied_statuses(tmp_path, mock_dirs):
+    """Test demo start sets varied statuses on sessions."""
+    demo_dir = tmp_path / "demo-test"
+
+    def mock_wt_add(root, path, **kwargs):
+        Path(path).mkdir(parents=True, exist_ok=True)
+
+    with (
+        patch("shoal.cli.demo.shutil.which", return_value="/usr/bin/tmux"),
+        patch("shoal.cli.demo.subprocess.run", return_value=MagicMock(returncode=0)),
+        patch("shoal.cli.demo.tmux.has_session", return_value=False),
+        patch("shoal.cli.demo.tmux.new_session"),
+        patch("shoal.cli.demo.tmux.run_command"),
+        patch("shoal.cli.demo.tmux.send_keys"),
+        patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add),
+        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
+    ):
+        await _demo_start_impl(None)
+
+    # Read session IDs and verify their statuses
+    from shoal.core.state import get_session
+
+    marker_file = demo_dir / ".shoal-demo"
+    session_ids = marker_file.read_text().strip().split("\n")
+
+    s1 = await get_session(session_ids[0])
+    s2 = await get_session(session_ids[1])
+    s3 = await get_session(session_ids[2])
+    s4 = await get_session(session_ids[3])
+
+    assert s1.status.value == "running"   # demo-main
+    assert s2.status.value == "idle"      # demo-feature
+    assert s3.status.value == "waiting"   # demo-bugfix
+    assert s4.status.value == "running"   # demo-robo
 
 
 @pytest.mark.asyncio
@@ -114,14 +186,19 @@ async def test_demo_start_custom_dir(tmp_path, mock_dirs):
         # Verify pane render commands are sent through Typer/Rich command path
         actual_commands = [call.args[1] for call in mock_send_keys.call_args_list]
         pane_commands = [cmd for cmd in actual_commands if "shoal demo pane" in cmd]
-        assert len(pane_commands) == 3
+        assert len(pane_commands) == 4
         assert any("--session-name demo-main" in cmd for cmd in pane_commands)
         assert any("--session-name demo-feature" in cmd for cmd in pane_commands)
+        assert any("--session-name demo-bugfix" in cmd for cmd in pane_commands)
         assert any("--session-name demo-robo" in cmd for cmd in pane_commands)
         assert any("--worktree-note" in cmd for cmd in pane_commands)
         assert any("--robo" in cmd for cmd in pane_commands)
-        assert mock_new_session.call_count == 3
-        assert mock_run_command.call_count >= 3
+        # Verify feature flags
+        assert any("--feature sessions" in cmd for cmd in pane_commands)
+        assert any("--feature worktrees" in cmd for cmd in pane_commands)
+        assert any("--feature detection" in cmd for cmd in pane_commands)
+        assert mock_new_session.call_count == 4
+        assert mock_run_command.call_count >= 4
 
 
 @pytest.mark.asyncio
@@ -275,3 +352,89 @@ async def test_demo_stop_without_tmux_sessions(tmp_path, mock_dirs):
 
         assert await get_session(s1.id) is None
         assert await get_session(s2.id) is None
+
+
+# ============================================================================
+# Demo tour tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_demo_tour_all_pass(mock_dirs):
+    """Test demo tour runs and all feature checks pass."""
+    with patch("shoal.cli.demo.console.print") as mock_print:
+        await _demo_tour_impl()
+
+    all_output = " ".join(str(c) for c in mock_print.call_args_list)
+    # All 6 feature areas should pass
+    assert "All 6 feature areas passed" in all_output
+
+
+@pytest.mark.asyncio
+async def test_demo_tour_detection_engine(mock_dirs):
+    """Test tour's detection engine exercises real detect_status()."""
+    from shoal.core.detection import detect_status
+    from shoal.models.config import DetectionPatterns, ToolConfig
+    from shoal.models.state import SessionStatus
+
+    # The same test cases used by the tour
+    claude = ToolConfig(
+        name="claude",
+        command="claude",
+        icon="\U0001f916",
+        detection=DetectionPatterns(
+            busy_patterns=["\u280b", "thinking"],
+            waiting_patterns=["Yes/No", "Allow"],
+            error_patterns=["Error:", "ERROR"],
+        ),
+    )
+    pi = ToolConfig(
+        name="pi",
+        command="pi",
+        icon="\U0001f967",
+        detection=DetectionPatterns(
+            busy_patterns=["thinking", "generating", "executing"],
+            waiting_patterns=["permission", "approve", "y/n"],
+            error_patterns=["Error:", "FAILED"],
+        ),
+    )
+
+    assert detect_status("thinking about the code...", claude) == SessionStatus.running
+    assert detect_status("Do you Allow this? Yes/No", claude) == SessionStatus.waiting
+    assert detect_status("Error: file not found", claude) == SessionStatus.error
+    assert detect_status("$ ls\nfile.py", claude) == SessionStatus.idle
+    assert detect_status("generating response...", pi) == SessionStatus.running
+    assert detect_status("Please approve the edit", pi) == SessionStatus.waiting
+    assert detect_status("Build FAILED with 3 errors", pi) == SessionStatus.error
+
+
+@pytest.mark.asyncio
+async def test_demo_tour_with_sessions(mock_dirs):
+    """Test tour displays session data when sessions exist."""
+    from shoal.core.state import create_session
+
+    with patch("shoal.cli.demo.tmux.has_session", return_value=False):
+        await create_session("test-session", "claude", "/tmp/test")
+
+    with patch("shoal.cli.demo.console.print") as mock_print:
+        await _demo_tour_impl()
+
+    all_output = " ".join(str(c) for c in mock_print.call_args_list)
+    # Session data is rendered in a Rich Table object; verify tour still passes
+    assert "All 6 feature areas passed" in all_output
+    # Verify session count is shown (1 session exists)
+    assert "1 sessions" in all_output
+
+
+@pytest.mark.asyncio
+async def test_demo_tour_no_failures(mock_dirs):
+    """Test that no tour checks produce failures."""
+    with patch("shoal.cli.demo.console.print") as mock_print:
+        await _demo_tour_impl()
+
+    all_output = " ".join(str(c) for c in mock_print.call_args_list)
+    # All 6 checks should pass
+    assert "All 6 feature areas passed" in all_output
+    # Should not contain explicit test failure messages
+    assert "Should have rejected" not in all_output
+    assert "Should have accepted" not in all_output
