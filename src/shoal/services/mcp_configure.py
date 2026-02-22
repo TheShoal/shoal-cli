@@ -12,6 +12,7 @@ import logging
 import shlex
 import subprocess
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ def _configure_via_command(config_cmd: str, mcp_name: str, work_dir: str) -> str
 def _configure_via_file(config_file: str, mcp_name: str, work_dir: str) -> str:
     """Merge an MCP entry into a tool's JSON config file."""
     path = Path(work_dir) / config_file
-    data: dict = {}
+    data: dict[str, Any] = {}
 
     if path.exists():
         try:

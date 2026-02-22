@@ -49,12 +49,14 @@ async def _run_bridge(socket_path: str) -> None:
     protocol = asyncio.StreamReaderProtocol(stdin_reader)
     await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
 
-    stdout_transport, _ = await loop.connect_write_pipe(asyncio.BaseProtocol, sys.stdout.buffer)
+    stdout_transport, stdout_protocol = await loop.connect_write_pipe(
+        asyncio.BaseProtocol, sys.stdout.buffer
+    )
     stdout_writer = asyncio.StreamWriter(
         stdout_transport,
-        None,
+        stdout_protocol,
         stdin_reader,
-        loop,  # type: ignore[arg-type]
+        loop,
     )
 
     # Bridge both directions concurrently; when either side closes, cancel the other
