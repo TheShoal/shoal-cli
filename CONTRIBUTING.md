@@ -19,28 +19,52 @@ cd shoal
 uv pip install -e ".[dev]"
 ```
 
+### Quick Start
+
+After installing, set up the local development hooks:
+
+```bash
+# Install pre-commit hooks (or: just setup)
+pre-commit install
+pre-commit install --hook-type commit-msg
+```
+
+A [`justfile`](justfile) provides all common dev commands. Run `just --list` to see them:
+
+| Command | What it does |
+|---------|-------------|
+| `just ci` | Run all CI checks (lint, typecheck, test, fish-check) |
+| `just lint` | Lint with ruff |
+| `just fmt` | Auto-format with ruff |
+| `just typecheck` | Type check with mypy |
+| `just test` | Run tests (exclude integration) |
+| `just test-all` | Run all tests including integration |
+| `just cov` | Run tests with coverage report |
+| `just fish-check` | Validate fish template syntax |
+| `just setup` | Install pre-commit hooks |
+
 ## Standards
 
 ### Code Style
-We use `ruff` for linting and formatting. Please run it before submitting changes:
+We use `ruff` for linting and formatting:
 
 ```bash
-ruff check .
-ruff format .
+just lint
+just fmt
 ```
 
 ### Type Checking
 We use `mypy` for static type analysis:
 
 ```bash
-mypy src/
+just typecheck
 ```
 
 ### Testing
 All new features should include tests. Run the test suite with:
 
 ```bash
-pytest
+just test
 ```
 
 ## Workflow
@@ -58,7 +82,7 @@ pytest
 
 ### Commit Messages
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages.
+We follow [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages. Commit messages are validated by `gitlint` via pre-commit hooks.
 
 **Format**: `<type>: <description>`
 

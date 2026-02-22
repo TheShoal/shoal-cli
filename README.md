@@ -80,7 +80,8 @@ uv tool install .
 ```bash
 git clone git@github.com:usm-ricardoroche/shoal.git
 cd shoal
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
+just setup  # install pre-commit + commit-msg hooks
 ```
 
 ## Fish Integration
@@ -289,7 +290,20 @@ Shoal is built on a modern async Python stack:
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, [ROADMAP.md](ROADMAP.md) for upcoming features, and [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for versioning details.
+A [`justfile`](justfile) provides all common dev commands:
+
+```bash
+just ci          # run all CI checks (lint, typecheck, test, fish-check)
+just lint        # lint with ruff
+just fmt         # auto-format with ruff
+just test        # run tests (exclude integration)
+just cov         # tests with coverage report
+just setup       # install pre-commit hooks
+```
+
+Pre-commit hooks enforce trailing whitespace, YAML/TOML validity, ruff lint+format, fish syntax, and [conventional commit](COMMIT_GUIDELINES.md) messages (via gitlint) on every commit.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions, [ROADMAP.md](ROADMAP.md) for upcoming features, and [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for versioning details.
 
 **Coverage**: 77% test coverage (292 tests, as of v0.8.0).
 

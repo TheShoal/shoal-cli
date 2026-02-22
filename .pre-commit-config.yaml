@@ -1,0 +1,34 @@
+repos:
+  # Standard file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+
+  # Ruff — lint + format check (uses pre-commit mirror, no Python env needed)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.7
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Commit message validation
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
+
+  # Local hooks
+  - repo: local
+    hooks:
+      - id: fish-syntax
+        name: fish syntax check
+        entry: fish -n
+        language: system
+        files: \.fish$
+        types: [file]
