@@ -294,14 +294,14 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - ✅ **Dependabot**: `.github/dependabot.yml` for pip ecosystem and GitHub Actions version updates.
 - ✅ **Task runner**: `justfile` with common targets — `just lint`, `just fmt`, `just test`, `just typecheck`, `just ci` (all), `just cov`, `just fish-check`.
 - ✅ **`.editorconfig`**: 100-char line length, UTF-8, LF endings, trim trailing whitespace, final newline.
-- [ ] **mypy in pre-commit**: Add mypy hook to pre-commit (currently only run via `just typecheck`).
+- ✅ **mypy in pre-commit**: Add mypy hook to pre-commit (currently only run via `just typecheck`).
 
 ### Tier 2 — CI improvements & security
-- [ ] **Parallel CI jobs**: Split `.github/workflows/ci.yml` into separate `lint`, `typecheck`, `test` jobs that run concurrently. Faster feedback, clearer failure signals.
-- [ ] **Coverage reporting**: Add `--cov-report=xml` to pytest and upload to Codecov. Add coverage badge to README.
-- [ ] **Bandit**: Add Python security linter to pre-commit and CI. Catches hardcoded secrets, unsafe `eval`, shell injection, etc.
-- [ ] **Release automation**: `just release X.Y.Z` command or GitHub Action that bumps `pyproject.toml` version, updates CHANGELOG, creates git tag, and drafts a GitHub Release.
-- [ ] **Branch protection**: Require CI to pass + 1 review before merge to main. Document rules in CONTRIBUTING.md.
+- ✅ **Parallel CI jobs**: Split `.github/workflows/ci.yml` into 5 concurrent jobs: `lint`, `typecheck`, `test`, `fish-check`, `security`.
+- ✅ **Coverage reporting**: Add `--cov-report=xml` to pytest and upload to Codecov on main branch pushes.
+- ✅ **Bandit**: Python security linter in pre-commit (medium+ severity) and CI. Configured in `pyproject.toml`.
+- ✅ **Release automation**: `just release X.Y.Z` bumps version, commits, tags. GitHub Actions workflow creates Release on tag push.
+- ✅ **Branch protection**: Documented rules in CONTRIBUTING.md (CI pass required, review for external PRs, no force push to main).
 
 ### Tier 3 — Nice to have
 - [ ] **CodeQL or Semgrep**: SAST scanning on pull requests for deeper vulnerability detection.
