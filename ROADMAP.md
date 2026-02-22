@@ -239,33 +239,62 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - ✅ **Async subprocess calls**: Move blocking `tmux._run()` and `git._run()` off the event loop in API/watcher contexts via `asyncio.to_thread()` wrappers (`async_*` prefixed functions).
 - ✅ **Concurrent update guards**: Prevent lost status updates when watcher and user CLI both write to the same session row (asyncio.Lock in ShoalDB.update_session).
 
-## v0.10.0: MCP Streamlining
+## v0.10.0: MCP Streamlining (Released: 2026-02-22)
 
 **Priority: make MCP servers zero-friction by eliminating manual steps, external dependencies, and hardcoded configuration.**
 
 ### Foundation
-- [x] **Pure Python bridge**: Replace socat dependency with asyncio-based stdio↔unix-socket bridge in `mcp_proxy.py` and `mcp_pool.py`. Eliminates system dependency and shell injection surface.
-- [x] **Configurable server registry**: Replace hardcoded `KNOWN_SERVERS` with `~/.config/shoal/mcp-servers.toml`. Built-in defaults preserved as fallback.
+- ✅ **Pure Python bridge**: Replace socat dependency with asyncio-based stdio↔unix-socket bridge in `mcp_proxy.py` and `mcp_pool.py`. Eliminates system dependency and shell injection surface.
+- ✅ **Configurable server registry**: Replace hardcoded `KNOWN_SERVERS` with `~/.config/shoal/mcp-servers.toml`. Built-in defaults preserved as fallback.
 
 ### Core UX
-- [x] **Auto-configure on attach**: `shoal mcp attach` runs the tool's config command or merges into config file automatically. Falls back to manual hint if tool has no config method.
-- [x] **Auto-start on attach**: If MCP server is not running but is in registry, start it automatically before attaching.
+- ✅ **Auto-configure on attach**: `shoal mcp attach` runs the tool's config command or merges into config file automatically. Falls back to manual hint if tool has no config method.
+- ✅ **Auto-start on attach**: If MCP server is not running but is in registry, start it automatically before attaching.
 
 ### Lifecycle Integration
-- [x] **`--mcp` flag**: `shoal new --mcp memory,github` starts, attaches, and configures MCP servers during session creation. MCP failures warn but don't block session creation.
-- [x] **Template MCP declarations**: `SessionTemplateConfig` gains `mcp: list[str]`. Merged with `--mcp` flag (union, deduped).
-- [x] **Auto-cleanup and reconciliation**: MCP servers stopped when last session using them is killed. Boot-time reconciliation cleans orphaned sockets/PIDs.
+- ✅ **`--mcp` flag**: `shoal new --mcp memory,github` starts, attaches, and configures MCP servers during session creation. MCP failures warn but don't block session creation.
+- ✅ **Template MCP declarations**: `SessionTemplateConfig` gains `mcp: list[str]`. Merged with `--mcp` flag (union, deduped).
+- ✅ **Auto-cleanup and reconciliation**: MCP servers stopped when last session using them is killed. Boot-time reconciliation cleans orphaned sockets/PIDs.
+
+## v0.10.1: MCP Stability & Observability (Released: 2026-02-22)
+
+**Priority: harden MCP gaps from v0.10.0, add diagnostics, fix data-loss risk in kill.**
+
+### Security & validation
+- ✅ **Unified MCP name validation**: Remove duplicate regex from `mcp_proxy.py`, import `validate_mcp_name` from `mcp_pool` for consistent rules across pool and proxy.
+- ✅ **Shell injection fix**: Replace `shell=True` with `shlex.split()` + `shell=False` in `mcp_configure.py`. Names with shell metacharacters no longer cause injection.
+- ✅ **Narrow exception handling**: Replace `except (ValueError, Exception)` catch-all in lifecycle startup paths with specific types (`ValueError`, `CalledProcessError`, `TimeoutError`). Unexpected errors now propagate for debugging.
+
+### Observability
+- ✅ **MCP server logging**: Per-server log files in `~/.local/state/shoal/mcp-pool/logs/`. Pool server stderr and spawned MCP command stderr both captured. Log rotation truncates at 10MB.
+- ✅ **`shoal mcp logs <name>`**: CLI command to view MCP server logs with `--tail` flag.
+- ✅ **`shoal mcp doctor`**: Deep health check — probes PID liveness, socket connectivity, JSON-RPC initialize, and reports latency in a Rich table.
+
+### Reliability
+- ✅ **Connection timeouts**: 30s connect timeout on Unix socket connections in both proxy and pool. 120s idle timeout on read operations. Prevents hung connections from consuming resources.
+- ✅ **Dirty worktree protection**: `kill_session_lifecycle()` checks for uncommitted changes before worktree removal. Raises `DirtyWorktreeError` unless `--force` is passed. CLI shows dirty files, API returns 409 Conflict.
+
+### Documentation
+- ✅ **Architecture corrections**: Rewrote ARCHITECTURE.md section 4 to describe per-connection spawning (not shared state). Removed socat references. Updated README MCP descriptions.
+
+### Stats
+- 351 tests passing, 9 commits, 0 regressions.
+
+---
+
+## Upcoming
 
 ## v0.11.0: Developer Tooling & CI/CD
 
 **Priority: enforce quality locally and in CI; make the repo feel like a proper 2026 Python project.**
 
 ### Tier 1 — Local enforcement & dependency hygiene
-- [ ] **Pre-commit framework**: Add `.pre-commit-config.yaml` with ruff (lint + format), mypy, Fish syntax check (`fish -n`), trailing whitespace, end-of-file fixer, YAML validation.
-- [ ] **Commitlint**: Validate Conventional Commits format on `commit-msg` hook via pre-commit. Enforce the guidelines already documented in `COMMIT_GUIDELINES.md`.
-- [ ] **Dependabot**: Add `.github/dependabot.yml` for pip ecosystem and GitHub Actions version updates.
-- [ ] **Task runner**: Add `justfile` with common targets — `just lint`, `just fmt`, `just test`, `just typecheck`, `just ci` (all), `just release-check`.
-- [ ] **`.editorconfig`**: 100-char line length, UTF-8, LF endings, trim trailing whitespace, final newline. Match ruff's `line-length = 100`.
+- ✅ **Pre-commit framework**: `.pre-commit-config.yaml` with ruff (lint + format), gitlint, Fish syntax check (`fish -n`), trailing whitespace, end-of-file fixer, YAML/TOML validation.
+- ✅ **Commitlint**: Conventional Commits validated via gitlint on `commit-msg` hook.
+- ✅ **Dependabot**: `.github/dependabot.yml` for pip ecosystem and GitHub Actions version updates.
+- ✅ **Task runner**: `justfile` with common targets — `just lint`, `just fmt`, `just test`, `just typecheck`, `just ci` (all), `just cov`, `just fish-check`.
+- ✅ **`.editorconfig`**: 100-char line length, UTF-8, LF endings, trim trailing whitespace, final newline.
+- [ ] **mypy in pre-commit**: Add mypy hook to pre-commit (currently only run via `just typecheck`).
 
 ### Tier 2 — CI improvements & security
 - [ ] **Parallel CI jobs**: Split `.github/workflows/ci.yml` into separate `lint`, `typecheck`, `test` jobs that run concurrently. Faster feedback, clearer failure signals.
@@ -305,3 +334,34 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - **Session Templates v2**: Advanced inheritance/composition after MVP stabilizes.
 - **Remote Sessions**: Support managing sessions on remote machines via SSH.
 - **Ruff Lint Expansion**: Enforce stricter async and security linting rules.
+
+---
+
+## Handoff
+
+> This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
+
+### Session: 2026-02-22 — v0.10.1 MCP Stability & Observability
+
+**What we did:**
+- Implemented the full v0.10.1 plan (9 items, 5 phases) as 9 atomic commits on `feat/pi-agent-integration`:
+  1. Version bump to 0.10.1
+  2. Unified MCP name validation (removed duplicate regex from proxy)
+  3. Shell injection fix in mcp_configure (shlex.split + shell=False)
+  4. Narrowed exception handling in lifecycle startup paths
+  5. MCP server logging with 10MB rotation + `shoal mcp logs` command
+  6. `shoal mcp doctor` command (PID, socket, JSON-RPC health probing)
+  7. Connection/idle timeouts (30s connect, 120s idle) in proxy and pool
+  8. Architecture docs corrected to per-connection spawning semantics
+  9. Dirty worktree protection on session kill (DirtyWorktreeError, --force, API 409)
+- All 351 tests passing, ruff lint clean, ruff format clean
+- 3 pre-existing mypy errors remain (mcp_configure.py:90, mcp_proxy.py:55,57) — not introduced by this work
+- Updated ROADMAP with v0.10.1 completion and corrected v0.11.0 Tier 1 status
+- Created `/shoal-handoff` skill for session continuity
+- Tagged v0.10.1
+
+**What to do next:**
+- Merge `feat/pi-agent-integration` to `main` (or open PR for review)
+- Fix the 3 pre-existing mypy errors (dict type-arg in mcp_configure, StreamWriter arg-type in mcp_proxy)
+- Start v0.11.0 remaining items: mypy in pre-commit, parallel CI jobs, coverage reporting, Bandit, release automation
+- Consider addressing Brain Dump items: regex detection upgrade, session.py decomposition
