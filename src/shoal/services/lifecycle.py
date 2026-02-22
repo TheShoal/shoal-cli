@@ -20,6 +20,7 @@ from shoal.core.state import (
     list_sessions,
     update_session,
 )
+from shoal.models.config import SessionTemplateConfig
 from shoal.models.state import SessionState, SessionStatus
 
 logger = logging.getLogger("shoal.lifecycle")
@@ -180,7 +181,7 @@ async def _run_default_startup_commands_async(
 
 
 async def _run_template_startup_async(
-    template,
+    template: SessionTemplateConfig,
     *,
     tool_command: str,
     work_dir: str,
@@ -335,7 +336,7 @@ def _preview_default_startup_commands(
 
 
 def _run_template_startup(
-    template,
+    template: SessionTemplateConfig,
     *,
     tool_command: str,
     work_dir: str,
@@ -416,7 +417,7 @@ def _run_template_startup(
 
 
 def _preview_template_startup(
-    template,
+    template: SessionTemplateConfig,
     *,
     tool_command: str,
     work_dir: str,
@@ -513,7 +514,7 @@ async def create_session_lifecycle(
     branch_name: str,
     tool_command: str,
     startup_commands: list[str],
-    template_cfg=None,
+    template_cfg: SessionTemplateConfig | None = None,
     worktree_name: str = "",
 ) -> SessionState:
     """Create a session with full rollback on failure.
@@ -600,7 +601,7 @@ async def create_session_lifecycle(
     await tmux.async_set_pane_title(tmux_session, f"shoal:{session.id}")
 
     # 6. Capture PID + tmux coordinates + nvim socket
-    updates: dict = {"status": SessionStatus.running}
+    updates: dict[str, object] = {"status": SessionStatus.running}
 
     pane_target = await tmux.async_preferred_pane(tmux_session, f"shoal:{session.id}")
     pid = await tmux.async_pane_pid(pane_target)
@@ -619,7 +620,9 @@ async def create_session_lifecycle(
     logger.info("[%s] create: complete (tmux=%s)", session.id, tmux_session)
 
     # Re-fetch to return fully-updated state
-    return await get_session(session.id)
+    result = await get_session(session.id)
+    assert result is not None
+    return result
 
 
 async def fork_session_lifecycle(
@@ -633,7 +636,7 @@ async def fork_session_lifecycle(
     new_branch: str,
     tool_command: str,
     startup_commands: list[str],
-    template_cfg=None,
+    template_cfg: SessionTemplateConfig | None = None,
     worktree_name: str = "",
 ) -> SessionState:
     """Fork a session with full rollback on failure.
@@ -722,7 +725,7 @@ async def fork_session_lifecycle(
     await tmux.async_set_pane_title(tmux_session, f"shoal:{session.id}")
 
     # 6. Capture coordinates
-    updates: dict = {"status": SessionStatus.running}
+    updates: dict[str, object] = {"status": SessionStatus.running}
 
     pane_target = await tmux.async_preferred_pane(tmux_session, f"shoal:{session.id}")
     pid = await tmux.async_pane_pid(pane_target)
@@ -739,7 +742,9 @@ async def fork_session_lifecycle(
     await update_session(session.id, **updates)
 
     logger.info("[%s] fork: complete (tmux=%s)", session.id, tmux_session)
-    return await get_session(session.id)
+    result = await get_session(session.id)
+    assert result is not None
+    return result
 
 
 async def kill_session_lifecycle(
@@ -750,14 +755,14 @@ async def kill_session_lifecycle(
     git_root: str = "",
     branch: str = "",
     remove_worktree: bool = False,
-) -> dict:
+) -> dict[str, bool]:
     """Kill a session and optionally remove its worktree.
 
     Returns a summary dict with keys: tmux_killed, worktree_removed,
     branch_deleted, db_deleted.
     """
     logger.info("[%s] kill: starting", session_id)
-    summary: dict = {
+    summary: dict[str, bool] = {
         "tmux_killed": False,
         "worktree_removed": False,
         "branch_deleted": False,

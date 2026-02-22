@@ -27,7 +27,7 @@ from shoal.core.state import (
     remove_mcp_from_session,
     update_session,
 )
-from shoal.models.state import SessionStatus
+from shoal.models.state import SessionState, SessionStatus
 from shoal.services.lifecycle import (
     SessionExistsError,
     StartupCommandError,
@@ -139,17 +139,17 @@ class RenameRequest(BaseModel):
 
 
 class ConnectionManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.active_connections: set[WebSocket] = set()
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
         self.active_connections.add(websocket)
 
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(self, websocket: WebSocket) -> None:
         self.active_connections.discard(websocket)
 
-    async def broadcast(self, message: dict):
+    async def broadcast(self, message: dict[str, object]) -> None:
         broken: list[WebSocket] = []
         for connection in list(self.active_connections):
             try:
@@ -162,10 +162,10 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
-status_poller_task: asyncio.Task | None = None
+status_poller_task: asyncio.Task[None] | None = None
 
 
-async def poll_status_changes():
+async def poll_status_changes() -> None:
     """Background task to broadcast status changes."""
     previous_status: dict[str, str] = {}
     while True:
@@ -222,7 +222,7 @@ app.add_middleware(
 )
 
 
-def _session_to_response(s) -> SessionResponse:
+def _session_to_response(s: SessionState) -> SessionResponse:
     return SessionResponse(
         id=s.id,
         name=s.name,
@@ -240,17 +240,17 @@ def _session_to_response(s) -> SessionResponse:
 
 
 @app.get("/", response_model=dict)
-async def root():
+async def root() -> dict[str, str]:
     return {"service": "shoal", "version": shoal.__version__}
 
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
 @app.get("/status", response_model=StatusResponse)
-async def get_status():
+async def get_status() -> StatusResponse:
     sessions = await list_sessions()
     counts = {"running": 0, "waiting": 0, "error": 0, "idle": 0, "stopped": 0, "unknown": 0}
     for s in sessions:
@@ -268,14 +268,14 @@ async def get_status():
 
 
 @app.get("/sessions", response_model=list[SessionResponse])
-async def list_sessions_api():
+async def list_sessions_api() -> list[SessionResponse]:
     ensure_dirs()
     sessions = await list_sessions()
     return [_session_to_response(s) for s in sessions]
 
 
 @app.get("/sessions/{session_id}", response_model=SessionResponse)
-async def get_session_api(session_id: str):
+async def get_session_api(session_id: str) -> SessionResponse:
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -283,7 +283,7 @@ async def get_session_api(session_id: str):
 
 
 @app.post("/sessions", response_model=SessionResponse, status_code=201)
-async def create_session_api(data: SessionCreate):
+async def create_session_api(data: SessionCreate) -> SessionResponse:
     ensure_dirs()
     cfg = load_config()
 
@@ -353,7 +353,7 @@ async def create_session_api(data: SessionCreate):
 
 
 @app.delete("/sessions/{session_id}", status_code=204)
-async def delete_session_api(session_id: str):
+async def delete_session_api(session_id: str) -> None:
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -366,7 +366,7 @@ async def delete_session_api(session_id: str):
 
 
 @app.put("/sessions/{session_id}/rename", response_model=SessionResponse)
-async def rename_session_api(session_id: str, body: RenameRequest):
+async def rename_session_api(session_id: str, body: RenameRequest) -> SessionResponse:
     """Rename a session."""
     # Get the session
     s = await get_session(session_id)
@@ -410,7 +410,7 @@ async def rename_session_api(session_id: str, body: RenameRequest):
 
 
 @app.post("/sessions/{session_id}/attach")
-async def attach_session_api(session_id: str):
+async def attach_session_api(session_id: str) -> dict[str, str]:
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -421,7 +421,7 @@ async def attach_session_api(session_id: str):
 
 
 @app.post("/sessions/{session_id}/send")
-async def send_keys_api(session_id: str, body: SendKeysRequest):
+async def send_keys_api(session_id: str, body: SendKeysRequest) -> dict[str, str]:
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -430,7 +430,7 @@ async def send_keys_api(session_id: str, body: SendKeysRequest):
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket) -> None:
     await manager.connect(websocket)
     try:
         while True:
@@ -448,7 +448,7 @@ async def websocket_endpoint(websocket: WebSocket):
 # =============================================================================
 
 
-async def _get_mcp_info(name: str, all_sessions: list | None = None) -> McpResponse:
+async def _get_mcp_info(name: str, all_sessions: list[SessionState] | None = None) -> McpResponse:
     """Get MCP server status and associated sessions.
 
     Args:
@@ -481,7 +481,7 @@ async def _get_mcp_info(name: str, all_sessions: list | None = None) -> McpRespo
 
 
 @app.get("/mcp", response_model=list[McpResponse])
-async def list_mcp_servers():
+async def list_mcp_servers() -> list[McpResponse]:
     """List all MCP servers in the pool."""
     ensure_dirs()
     socket_dir = mcp_socket("").parent
@@ -499,13 +499,13 @@ async def list_mcp_servers():
 
 
 @app.get("/mcp/known")
-async def list_known_servers():
+async def list_known_servers() -> list[dict[str, str]]:
     """List known MCP server commands."""
     return [{"name": k, "command": v} for k, v in KNOWN_SERVERS.items()]
 
 
 @app.get("/mcp/{name}", response_model=McpResponse)
-async def get_mcp_server(name: str):
+async def get_mcp_server(name: str) -> McpResponse:
     """Get details of a specific MCP server."""
     socket = mcp_socket(name)
     if not socket.exists() and not read_pid(name):
@@ -514,7 +514,7 @@ async def get_mcp_server(name: str):
 
 
 @app.post("/mcp", response_model=McpResponse, status_code=201)
-async def start_mcp_server_api(data: McpCreate):
+async def start_mcp_server_api(data: McpCreate) -> McpResponse:
     """Start an MCP server in the pool."""
     ensure_dirs()
     name = data.name
@@ -538,7 +538,7 @@ async def start_mcp_server_api(data: McpCreate):
 
 
 @app.delete("/mcp/{name}", status_code=204)
-async def stop_mcp_server_api(name: str):
+async def stop_mcp_server_api(name: str) -> None:
     """Stop an MCP server and clean up sessions."""
     try:
         stop_mcp_server(name)
@@ -555,7 +555,7 @@ async def stop_mcp_server_api(name: str):
 
 
 @app.post("/sessions/{session_id}/mcp/{mcp_name}")
-async def attach_mcp_to_session(session_id: str, mcp_name: str):
+async def attach_mcp_to_session(session_id: str, mcp_name: str) -> dict[str, str]:
     """Attach an MCP server to a session."""
     from shoal.services.mcp_pool import validate_mcp_name
 
@@ -584,7 +584,7 @@ async def attach_mcp_to_session(session_id: str, mcp_name: str):
 
 
 @app.delete("/sessions/{session_id}/mcp/{mcp_name}", status_code=204)
-async def detach_mcp_from_session(session_id: str, mcp_name: str):
+async def detach_mcp_from_session(session_id: str, mcp_name: str) -> None:
     """Detach an MCP server from a session."""
     s = await get_session(session_id)
     if not s:
