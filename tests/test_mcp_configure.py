@@ -21,8 +21,22 @@ class TestConfigureViaCommand:
         assert "Configured via command" in result
         mock_run.assert_called_once()
         call_args = mock_run.call_args
-        assert "claude mcp add memory -- shoal-mcp-proxy memory" in call_args[0][0]
+        cmd_list = call_args[0][0]
+        assert isinstance(cmd_list, list)
+        assert cmd_list == ["claude", "mcp", "add", "memory", "--", "shoal-mcp-proxy", "memory"]
+        assert call_args[1]["shell"] is False
         assert call_args[1]["cwd"] == "/tmp/work"
+
+    def test_shell_metacharacters_safe(self, mock_dirs):
+        """Shell metacharacters in names should not cause injection."""
+        with patch("shoal.services.mcp_configure.subprocess.run") as mock_run:
+            configure_mcp_for_tool("claude", "test$(whoami)", "/tmp/work")
+
+        call_args = mock_run.call_args
+        cmd_list = call_args[0][0]
+        # The name is passed as a single list element, not interpreted by shell
+        assert "test$(whoami)" in cmd_list
+        assert call_args[1]["shell"] is False
 
     def test_command_not_found(self, mock_dirs):
         """Should raise McpConfigureError when config command is not found."""

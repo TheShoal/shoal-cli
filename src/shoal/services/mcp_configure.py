@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -59,11 +60,12 @@ def configure_mcp_for_tool(
 
 def _configure_via_command(config_cmd: str, mcp_name: str, work_dir: str) -> str:
     """Run a tool's config command to register the MCP proxy."""
-    cmd = f"{config_cmd} {mcp_name} -- shoal-mcp-proxy {mcp_name}"
+    cmd = [*shlex.split(config_cmd), mcp_name, "--", "shoal-mcp-proxy", mcp_name]
+    cmd_display = " ".join(cmd)
     try:
         subprocess.run(
             cmd,
-            shell=True,
+            shell=False,
             check=True,
             capture_output=True,
             text=True,
@@ -71,15 +73,15 @@ def _configure_via_command(config_cmd: str, mcp_name: str, work_dir: str) -> str
             timeout=30,
         )
     except FileNotFoundError as exc:
-        raise McpConfigureError(f"Config command not found: {config_cmd.split()[0]}") from exc
+        raise McpConfigureError(f"Config command not found: {cmd[0]}") from exc
     except subprocess.CalledProcessError as exc:
         raise McpConfigureError(
-            f"Config command failed (exit {exc.returncode}): {cmd}\n{exc.stderr}"
+            f"Config command failed (exit {exc.returncode}): {cmd_display}\n{exc.stderr}"
         ) from exc
     except subprocess.TimeoutExpired as exc:
-        raise McpConfigureError(f"Config command timed out: {cmd}") from exc
+        raise McpConfigureError(f"Config command timed out: {cmd_display}") from exc
 
-    return f"Configured via command: {cmd}"
+    return f"Configured via command: {cmd_display}"
 
 
 def _configure_via_file(config_file: str, mcp_name: str, work_dir: str) -> str:
