@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <defs>
+    <style>
+      @media (prefers-color-scheme: dark) {
+        .bg { fill: #1E2030; }
+        .box-fill { fill: #363A4F; }
+        .box-stroke { stroke: #494D64; }
+        .text-primary { fill: #CAD3F5; }
+        .text-secondary { fill: #A5ADCB; }
+        .text-dim { fill: #6E738D; }
+        .line-color { stroke: #494D64; }
+      }
+      @media (prefers-color-scheme: light) {
+        .bg { fill: #EFF1F5; }
+        .box-fill { fill: #DCE0E8; }
+        .box-stroke { stroke: #BCC0CC; }
+        .text-primary { fill: #4C4F69; }
+        .text-secondary { fill: #5C5F77; }
+        .text-dim { fill: #9CA0B0; }
+        .line-color { stroke: #BCC0CC; }
+      }
+      /* Default to dark */
+      .bg { fill: #1E2030; }
+      .box-fill { fill: #363A4F; }
+      .box-stroke { stroke: #494D64; }
+      .text-primary { fill: #CAD3F5; }
+      .text-secondary { fill: #A5ADCB; }
+      .text-dim { fill: #6E738D; }
+      .line-color { stroke: #494D64; }
+
+      .label { font-family: 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace; font-size: 14px; font-weight: 600; }
+      .sublabel { font-family: 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace; font-size: 11px; }
+      .tiny { font-family: 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace; font-size: 10px; }
+
+      @keyframes pulseAgent1 {
+        0%, 100% { fill: #A6DA95; }
+        50% { fill: #8BD5CA; }
+      }
+      @keyframes pulseAgent2 {
+        0%, 100% { fill: #EED49F; }
+        50% { fill: #F5A97F; }
+      }
+      @keyframes pulseAgent3 {
+        0%, 100% { fill: #8AADF4; }
+        50% { fill: #C6A0F6; }
+      }
+    </style>
+
+    <!-- Pulse circles for data flow -->
+    <circle id="pulse" r="4" fill="#8BD5CA" opacity="0.9"/>
+  </defs>
+
+  <!-- Background -->
+  <rect class="bg" width="800" height="500" rx="12"/>
+
+  <!-- === CLI Box (top center) === -->
+  <rect class="box-fill box-stroke" x="310" y="24" width="180" height="52" rx="8" stroke-width="1.5"/>
+  <text class="label text-primary" x="400" y="46" text-anchor="middle">Shoal CLI</text>
+  <text class="sublabel text-dim" x="400" y="62" text-anchor="middle">typer + fastapi</text>
+
+  <!-- === Connection lines: CLI → Agents === -->
+  <line class="line-color" x1="355" y1="76" x2="140" y2="140" stroke-width="1.5"/>
+  <line class="line-color" x1="400" y1="76" x2="400" y2="140" stroke-width="1.5"/>
+  <line class="line-color" x1="445" y1="76" x2="660" y2="140" stroke-width="1.5"/>
+
+  <!-- Pulse: CLI → Agent 1 -->
+  <use href="#pulse" fill="#A6DA95">
+    <animateMotion dur="3s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear">
+      <mpath href="#pathToA1"/>
+    </animateMotion>
+  </use>
+  <path id="pathToA1" d="M355,76 L140,140" fill="none" stroke="none"/>
+
+  <!-- Pulse: CLI → Agent 2 -->
+  <use href="#pulse" fill="#EED49F">
+    <animateMotion dur="3s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear" begin="1s">
+      <mpath href="#pathToA2"/>
+    </animateMotion>
+  </use>
+  <path id="pathToA2" d="M400,76 L400,140" fill="none" stroke="none"/>
+
+  <!-- Pulse: CLI → Agent 3 -->
+  <use href="#pulse" fill="#8AADF4">
+    <animateMotion dur="3s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear" begin="2s">
+      <mpath href="#pathToA3"/>
+    </animateMotion>
+  </use>
+  <path id="pathToA3" d="M445,76 L660,140" fill="none" stroke="none"/>
+
+  <!-- === Agent Boxes === -->
+  <!-- Agent 1: Claude -->
+  <rect class="box-fill box-stroke" x="50" y="140" width="180" height="64" rx="8" stroke-width="1.5"/>
+  <circle cx="72" cy="164" r="5" style="animation: pulseAgent1 2s ease-in-out infinite;"/>
+  <text class="label text-primary" x="140" y="168" text-anchor="middle">Claude Code</text>
+  <text class="sublabel text-dim" x="140" y="188" text-anchor="middle">session: auth</text>
+
+  <!-- Agent 2: Pi -->
+  <rect class="box-fill box-stroke" x="310" y="140" width="180" height="64" rx="8" stroke-width="1.5"/>
+  <circle cx="332" cy="164" r="5" style="animation: pulseAgent2 3s ease-in-out infinite;"/>
+  <text class="label text-primary" x="400" y="168" text-anchor="middle">Pi Agent</text>
+  <text class="sublabel text-dim" x="400" y="188" text-anchor="middle">session: api</text>
+
+  <!-- Agent 3: Gemini -->
+  <rect class="box-fill box-stroke" x="570" y="140" width="180" height="64" rx="8" stroke-width="1.5"/>
+  <circle cx="592" cy="164" r="5" style="animation: pulseAgent3 2.5s ease-in-out infinite;"/>
+  <text class="label text-primary" x="660" y="168" text-anchor="middle">Gemini</text>
+  <text class="sublabel text-dim" x="660" y="188" text-anchor="middle">session: docs</text>
+
+  <!-- === Connection lines: Agents → Worktrees === -->
+  <line class="line-color" x1="140" y1="204" x2="140" y2="272" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line class="line-color" x1="400" y1="204" x2="400" y2="272" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line class="line-color" x1="660" y1="204" x2="660" y2="272" stroke-width="1.5" stroke-dasharray="4 4"/>
+
+  <!-- === Worktree Boxes === -->
+  <rect class="box-fill box-stroke" x="62" y="272" width="156" height="52" rx="8" stroke-width="1"/>
+  <text class="sublabel text-secondary" x="140" y="294" text-anchor="middle">worktree</text>
+  <text class="tiny text-dim" x="140" y="310" text-anchor="middle">feat/auth</text>
+
+  <rect class="box-fill box-stroke" x="322" y="272" width="156" height="52" rx="8" stroke-width="1"/>
+  <text class="sublabel text-secondary" x="400" y="294" text-anchor="middle">worktree</text>
+  <text class="tiny text-dim" x="400" y="310" text-anchor="middle">feat/api-v2</text>
+
+  <rect class="box-fill box-stroke" x="582" y="272" width="156" height="52" rx="8" stroke-width="1"/>
+  <text class="sublabel text-secondary" x="660" y="294" text-anchor="middle">worktree</text>
+  <text class="tiny text-dim" x="660" y="310" text-anchor="middle">feat/docs</text>
+
+  <!-- === Connection lines: Agents → MCP Pool === -->
+  <line class="line-color" x1="140" y1="204" x2="400" y2="388" stroke-width="1" opacity="0.5"/>
+  <line class="line-color" x1="400" y1="204" x2="400" y2="388" stroke-width="1" opacity="0.5"/>
+  <line class="line-color" x1="660" y1="204" x2="400" y2="388" stroke-width="1" opacity="0.5"/>
+
+  <!-- Pulse: Agent1 → MCP -->
+  <use href="#pulse" fill="#C6A0F6" opacity="0.7">
+    <animateMotion dur="4s" repeatCount="indefinite" begin="0.5s">
+      <mpath href="#pathMCP1"/>
+    </animateMotion>
+  </use>
+  <path id="pathMCP1" d="M140,204 L400,388" fill="none" stroke="none"/>
+
+  <!-- Pulse: Agent2 → MCP -->
+  <use href="#pulse" fill="#C6A0F6" opacity="0.7">
+    <animateMotion dur="4s" repeatCount="indefinite" begin="1.5s">
+      <mpath href="#pathMCP2"/>
+    </animateMotion>
+  </use>
+  <path id="pathMCP2" d="M400,204 L400,388" fill="none" stroke="none"/>
+
+  <!-- Pulse: Agent3 → MCP -->
+  <use href="#pulse" fill="#C6A0F6" opacity="0.7">
+    <animateMotion dur="4s" repeatCount="indefinite" begin="2.5s">
+      <mpath href="#pathMCP3"/>
+    </animateMotion>
+  </use>
+  <path id="pathMCP3" d="M660,204 L400,388" fill="none" stroke="none"/>
+
+  <!-- === MCP Pool Box (bottom center) === -->
+  <rect class="box-fill box-stroke" x="230" y="388" width="340" height="80" rx="10" stroke-width="1.5"/>
+  <text class="label text-primary" x="400" y="414" text-anchor="middle">Shared MCP Pool</text>
+
+  <!-- MCP server pills -->
+  <rect x="262" y="426" width="72" height="26" rx="6" fill="#363A4F" stroke="#A6DA95" stroke-width="1"/>
+  <text class="tiny" x="298" y="443" text-anchor="middle" fill="#A6DA95">Memory</text>
+
+  <rect x="346" y="426" width="100" height="26" rx="6" fill="#363A4F" stroke="#8AADF4" stroke-width="1"/>
+  <text class="tiny" x="396" y="443" text-anchor="middle" fill="#8AADF4">Filesystem</text>
+
+  <rect x="458" y="426" width="72" height="26" rx="6" fill="#363A4F" stroke="#EED49F" stroke-width="1"/>
+  <text class="tiny" x="494" y="443" text-anchor="middle" fill="#EED49F">GitHub</text>
+
+  <!-- === SQLite state store (right side) === -->
+  <rect class="box-fill box-stroke" x="650" y="400" width="120" height="48" rx="8" stroke-width="1"/>
+  <text class="sublabel text-secondary" x="710" y="420" text-anchor="middle">SQLite WAL</text>
+  <text class="tiny text-dim" x="710" y="436" text-anchor="middle">state store</text>
+
+  <line class="line-color" x1="570" y1="428" x2="650" y2="424" stroke-width="1" opacity="0.5"/>
+</svg>

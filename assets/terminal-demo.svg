@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="900" height="500">
+  <defs>
+    <style>
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+      }
+      @keyframes typeL1 {
+        0%, 8% { width: 0; }
+        15% { width: 168px; }
+        100% { width: 168px; }
+      }
+      @keyframes typeL2 {
+        0%, 22% { width: 0; }
+        30% { width: 192px; }
+        100% { width: 192px; }
+      }
+      @keyframes showOutput1 {
+        0%, 18% { opacity: 0; }
+        19% { opacity: 1; }
+        100% { opacity: 1; }
+      }
+      @keyframes showOutput2 {
+        0%, 33% { opacity: 0; }
+        34% { opacity: 1; }
+        100% { opacity: 1; }
+      }
+      @keyframes cursorL1 {
+        0%, 8% { transform: translateX(0); }
+        15% { transform: translateX(168px); }
+        22% { transform: translateX(168px); }
+        22.1% { transform: translateX(0); opacity: 0; }
+        100% { opacity: 0; }
+      }
+      @keyframes cursorL2 {
+        0%, 22% { opacity: 0; transform: translateX(0); }
+        22.1% { opacity: 1; transform: translateX(0); }
+        30% { transform: translateX(192px); }
+        100% { transform: translateX(192px); }
+      }
+      @keyframes pulseGreen {
+        0%, 100% { fill: #A6DA95; }
+        50% { fill: #8BD5CA; }
+      }
+      @keyframes pulseYellow {
+        0%, 100% { fill: #EED49F; }
+        50% { fill: #F5A97F; }
+      }
+      .terminal-bg { fill: #1E2030; }
+      .terminal-border { fill: #363A4F; }
+      .text-dim { fill: #6E738D; }
+      .text-main { fill: #CAD3F5; }
+      .text-green { fill: #A6DA95; }
+      .text-blue { fill: #8AADF4; }
+      .text-mauve { fill: #C6A0F6; }
+      .text-yellow { fill: #EED49F; }
+      .text-peach { fill: #F5A97F; }
+      .text-teal { fill: #8BD5CA; }
+      .cursor { animation: blink 1s step-end infinite; }
+      .cmd-font { font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace; font-size: 14px; }
+      .title-font { font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace; font-size: 13px; fill: #CAD3F5; }
+      .header-font { font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace; font-size: 12px; fill: #6E738D; }
+    </style>
+  </defs>
+
+  <!-- Window chrome -->
+  <rect class="terminal-border" x="0" y="0" width="900" height="500" rx="12"/>
+  <rect class="terminal-bg" x="1" y="38" width="898" height="461" rx="0 0 12 12"/>
+  <rect class="terminal-border" x="0" y="0" width="900" height="38" rx="12 12 0 0" ry="12 12 0 0"/>
+
+  <!-- Window dots -->
+  <circle cx="24" cy="19" r="7" fill="#ED8796"/>
+  <circle cx="48" cy="19" r="7" fill="#EED49F"/>
+  <circle cx="72" cy="19" r="7" fill="#A6DA95"/>
+
+  <!-- Title bar -->
+  <text x="450" y="24" text-anchor="middle" class="title-font">shoal — fish</text>
+
+  <!-- Line 1: prompt + command -->
+  <g transform="translate(24, 72)">
+    <text class="cmd-font text-blue">~/projects</text>
+    <text class="cmd-font text-mauve" x="112"> ❯ </text>
+    <g style="animation: typeL1 18s linear infinite;">
+      <clipPath id="clip1">
+        <rect x="0" y="-16" height="22" style="animation: typeL1 18s linear infinite;"/>
+      </clipPath>
+      <text class="cmd-font text-main" x="0" clip-path="url(#clip1)">shoal new -w auth -b</text>
+    </g>
+    <g transform="translate(142, 0)">
+      <rect class="cursor" x="0" y="-13" width="9" height="17" fill="#CAD3F5" style="animation: cursorL1 18s linear infinite, blink 1s step-end infinite;"/>
+    </g>
+  </g>
+
+  <!-- Output block 1 -->
+  <g transform="translate(24, 100)" style="animation: showOutput1 18s linear infinite;">
+    <text class="cmd-font text-green" y="0">✓ Created worktree .worktrees/auth</text>
+    <text class="cmd-font text-green" y="22">✓ Branch feat/auth created</text>
+    <text class="cmd-font text-teal" y="44">✓ Session auth started (claude)</text>
+    <text class="cmd-font text-dim" y="66">  MCP pool: memory, filesystem, github</text>
+  </g>
+
+  <!-- Line 2: prompt + command -->
+  <g transform="translate(24, 210)" style="animation: showOutput2 18s linear infinite;">
+    <text class="cmd-font text-blue">~/projects</text>
+    <text class="cmd-font text-mauve" x="112"> ❯ </text>
+    <g>
+      <clipPath id="clip2">
+        <rect x="0" y="-16" height="22" style="animation: typeL2 18s linear infinite;"/>
+      </clipPath>
+      <text class="cmd-font text-main" x="0" clip-path="url(#clip2)">shoal status --compact</text>
+    </g>
+    <g transform="translate(142, 0)">
+      <rect class="cursor" x="0" y="-13" width="9" height="17" fill="#CAD3F5" style="animation: cursorL2 18s linear infinite, blink 1s step-end infinite;"/>
+    </g>
+  </g>
+
+  <!-- Status table output -->
+  <g transform="translate(24, 250)" style="animation: showOutput2 18s linear infinite;">
+    <!-- Header -->
+    <text class="header-font" y="0">SESSION          TOOL      BRANCH            STATUS      WORKTREE</text>
+    <line x1="0" y1="8" x2="700" y2="8" stroke="#363A4F" stroke-width="1"/>
+
+    <!-- Row 1 -->
+    <text class="cmd-font text-main" y="28">auth</text>
+    <text class="cmd-font text-mauve" x="144" y="28">claude</text>
+    <text class="cmd-font text-teal" x="240" y="28">feat/auth</text>
+    <circle cx="390" cy="24" r="5" fill="#A6DA95" style="animation: pulseGreen 2s ease-in-out infinite;"/>
+    <text class="cmd-font text-green" x="402" y="28">Thinking</text>
+    <text class="cmd-font text-dim" x="504" y="28">.worktrees/auth</text>
+
+    <!-- Row 2 -->
+    <text class="cmd-font text-main" y="54">api-refactor</text>
+    <text class="cmd-font text-peach" x="144" y="54">pi</text>
+    <text class="cmd-font text-teal" x="240" y="54">feat/api-v2</text>
+    <circle cx="390" cy="50" r="5" fill="#EED49F" style="animation: pulseYellow 3s ease-in-out infinite;"/>
+    <text class="cmd-font text-yellow" x="402" y="54">Waiting</text>
+    <text class="cmd-font text-dim" x="504" y="54">.worktrees/api-refactor</text>
+
+    <!-- Row 3 -->
+    <text class="cmd-font text-main" y="80">docs-update</text>
+    <text class="cmd-font text-blue" x="144" y="80">gemini</text>
+    <text class="cmd-font text-teal" x="240" y="80">feat/docs</text>
+    <circle cx="390" cy="76" r="5" fill="#A6DA95" style="animation: pulseGreen 2.5s ease-in-out infinite;"/>
+    <text class="cmd-font text-green" x="402" y="80">Thinking</text>
+    <text class="cmd-font text-dim" x="504" y="80">.worktrees/docs-update</text>
+
+    <!-- Row 4 -->
+    <text class="cmd-font text-main" y="106">robo-default</text>
+    <text class="cmd-font text-main" x="144" y="106">opencode</text>
+    <text class="cmd-font text-dim" x="240" y="106">main</text>
+    <circle cx="390" cy="102" r="5" fill="#A6DA95" style="animation: pulseGreen 1.8s ease-in-out infinite;"/>
+    <text class="cmd-font text-green" x="402" y="106">Thinking</text>
+    <text class="cmd-font text-dim" x="504" y="106">—</text>
+  </g>
+
+  <!-- Footer -->
+  <g transform="translate(24, 418)" style="animation: showOutput2 18s linear infinite;">
+    <line x1="0" y1="0" x2="700" y2="0" stroke="#363A4F" stroke-width="1"/>
+    <text class="cmd-font text-dim" y="22">4 sessions · 3 worktrees · MCP pool active (3 servers)</text>
+  </g>
+
+  <!-- Bottom prompt -->
+  <g transform="translate(24, 462)" style="animation: showOutput2 18s linear infinite;">
+    <text class="cmd-font text-blue">~/projects</text>
+    <text class="cmd-font text-mauve" x="112"> ❯ </text>
+    <rect class="cursor" x="142" y="-13" width="9" height="17" fill="#CAD3F5"/>
+  </g>
+</svg>

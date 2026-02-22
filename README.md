@@ -4,204 +4,144 @@
 
 # <p align="center">Shoal</p>
 
+<!-- Row 1 — Identity -->
 <p align="center">
-  <a href="https://github.com/usm-ricardoroche/shoal"><img src="https://img.shields.io/badge/status-beta-yellow" alt="Status: Beta"></a>
-  <a href="https://github.com/usm-ricardoroche/shoal"><img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="Platform: macOS"></a>
-  <a href="https://github.com/usm-ricardoroche/shoal"><img src="https://img.shields.io/badge/license-Proprietary-red" alt="License: Proprietary"></a>
-  <a href="https://github.com/usm-ricardoroche/shoal"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python: 3.12+"></a>
+  <img src="https://img.shields.io/badge/v0.8.0-beta-EED49F?style=flat-square" alt="v0.8.0 beta">
+  <img src="https://img.shields.io/badge/status-beta-EED49F?style=flat-square" alt="Status: Beta">
+  <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
+  <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
+</p>
+
+<!-- Row 2 — Stack -->
+<p align="center">
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/SQLite_WAL-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite WAL">
+  <img src="https://img.shields.io/badge/tmux-1BB91F?style=flat-square&logo=tmux&logoColor=white" alt="tmux">
+  <img src="https://img.shields.io/badge/Fish_Shell-4AAE46?style=flat-square&logo=gnubash&logoColor=white" alt="Fish Shell">
+  <img src="https://img.shields.io/badge/Pydantic_v2-E92063?style=flat-square&logo=pydantic&logoColor=white" alt="Pydantic v2">
+  <img src="https://img.shields.io/badge/Ruff-D7FF64?style=flat-square&logo=ruff&logoColor=black" alt="Ruff">
+</p>
+
+<!-- Row 3 — Quality -->
+<p align="center">
+  <img src="https://img.shields.io/badge/tests-292_passing-A6DA95?style=flat-square" alt="Tests: 292 passing">
+  <img src="https://img.shields.io/badge/coverage-77%25-8BD5CA?style=flat-square" alt="Coverage: 77%">
+  <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
 </p>
 
 <p align="center">
-  <strong>Fish-first orchestration for my personal AI coding workflow.</strong>
+  <strong>Terminal-first orchestration for parallel AI coding agents.</strong><br>
+  <em>Run multiple AI agents in isolated worktrees, coordinate them through a shared control plane, and never context-switch again.</em>
+</p>
+
+<p align="center">
+  <img src="assets/status-pulse.svg" width="600" alt="Agent status indicators">
 </p>
 
 ---
 
 ## TL;DR
 
-<!-- TODO: add this section on what the tool does and why one would use it-->
+You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. You want them working in parallel without stomping on each other's files. You need to know when they're thinking, when they're waiting for approval, and when they've errored out.
 
-## Demo
-
-> [!TIP]
-> **Coming Soon**: An interactive VHS/Video showing `shoal popup` and the tmux status bar in action.
-
-## Why Shoal?
-
-Shoal was originally designed for the **Fish Shell** environment (hence the name). The concept of a "shoal" of "robo-fish" came from the idea that multiple independent AI agents (the fish) can be coordinated by a single supervisor (the robo-fish) to move as a unified, self-directing unit.
-
-Shoal manages multiple AI coding agents (OpenCode, Claude Code, Pi, and Gemini) in persistent, branch-aware tmux sessions. It provides a unified control plane with shared MCP servers, automated status detection, session templates, and a supervisor "robo-fish" workflow.
-
-## The Analogy: A Robo-Fish in the Shoal
-
-In nature, a shoal of fish moves as a single, self-directing unit. Researchers have demonstrated that biomimetic robot fish can integrate into and even lead schools of real fish by alternating between following and leading behaviors ([Marras & Porfiri 2012](https://royalsocietypublishing.org/doi/10.1098/rsif.2012.0084), [Papaspyros et al. 2019](https://doi.org/10.1371/journal.pone.0220559)).
-
-In your terminal, **Shoal** is the orchestrator—the "robo-fish" that leads a group of independent agent sessions.
-
-- **The Robo**: A supervisory agent that monitors the group, approves actions, and ensures the "shoal" stays on track. Just like the robot fish in research labs that guide real fish schools.
-- **The Sessions**: Parallel agents (the fish) working in dedicated git worktrees, synchronized by a shared state and MCP pool.
+**Shoal is `docker-compose` for AI coding agents.** You declare sessions, Shoal gives each one a git worktree, a tmux session, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all.
 
 ---
 
-## Features
+## See It in Action
 
-- 🔄 **Parallel Agent Loops**: Run multiple coding agents simultaneously without context switching.
-- 🌿 **Worktree-Native**: Automatically manages git worktrees for every session—keep your main branch clean.
-- 🔌 **MCP Pooling**: Shared MCP servers (Memory, Filesystem, GitHub) via a socket proxy—no more duplicate server overhead.
-- 🕵️ **Status Detection**: Real-time monitoring of agent states (Thinking, Waiting, Error, Idle) from tmux pane output.
-- 📋 **Session Templates**: Declarative TOML templates for reproducible window/pane layouts (e.g., `pi-dev`, `feature-dev`).
-- 🔔 **macOS Notifications**: Native `osascript` notifications tell you the second an agent needs your approval.
-- 🤖 **Robo Mode**: A supervisor agent that can "send keys" and "approve" tasks across your entire fleet of agents.
-- 🏠 **Environment-First**: Built for tmux. SSH in from your phone, attach to a session inside VS Code, or live in the terminal.
-- 🎓 **Interactive Demo**: Try `shoal demo start` to spin up a full environment and learn Shoal hands-on.
+<p align="center">
+  <img src="assets/terminal-demo.svg" width="800" alt="Shoal terminal workflow demo">
+</p>
 
 ---
 
-## Status
+## What You Get
 
-Shoal is currently in **Beta** and intentionally optimized for a single maintainer workflow.
+**Parallel agent loops** let you run multiple coding agents simultaneously. Each agent works in its own tmux session with its own context — no shared terminal, no conflicts.
 
-- **Target Platform**: macOS + tmux 3.3+.
-- **Support Policy**: Fish shell only. Bash/Zsh are out of scope for now.
-- **Stability**: CLI surface is stabilizing; config keys may change until v1.0.
+**Worktree isolation** gives every session a dedicated git worktree. Agents work on separate branches in separate directories. Your main branch stays clean.
 
----
+**Shared MCP pool** runs MCP servers once and shares them across all agents via socket proxy. Memory, Filesystem, and GitHub servers — no duplicate overhead.
 
-## Install
+**Real-time status detection** watches tmux pane output and reports each agent's state: Thinking, Waiting, Error, or Idle. You always know who needs attention.
 
-### Recommended (uv)
+**Session templates** define window layouts, pane splits, and tool configs in TOML. Reproduce your preferred setup with a single flag.
 
-```bash
-uv tool install .
-```
-
-### From source (dev)
-
-```bash
-git clone git@github.com:usm-ricardoroche/shoal.git
-cd shoal
-uv pip install -e ".[dev]"
-just setup  # install pre-commit + commit-msg hooks
-```
-
-## Fish Integration
-
-Shoal is fish-first and provides native fish integration with completions, key bindings, abbreviations, and helper functions:
-
-```fish
-shoal setup fish
-```
-
-This installs:
-
-- **Tab completions** for all commands and dynamic session names
-- **Key bindings**: `Ctrl+S` for popup dashboard, `Alt+A` for quick attach
-- **Abbreviations**: `sa` (attach), `sl` (ls), `ss` (status), `sp` (popup), etc.
-- **Helper functions**: `shoal-quick-attach`, `shoal-dashboard`
-
-See [Fish Integration Guide](docs/FISH_INTEGRATION.md) for full documentation.
-
-For completions only (without helper functions and keybindings):
-
-```fish
-shoal --install-completion fish
-```
+**Robo supervisor mode** gives a coordinating agent access to the Shoal CLI. It monitors the fleet, sends keystrokes, approves actions, and routes tasks — your agents managing agents.
 
 ---
 
-## Concepts
+## How It Works
 
-### Sessions & Worktrees
+<p align="center">
+  <img src="assets/architecture-flow.svg" width="700" alt="Shoal architecture diagram">
+</p>
 
-A **Session** is a tmux session tied to a specific tool and directory. If a **Worktree** name is provided, Shoal manages the git worktree and branch lifecycle for you, ensuring that parallel agents never stomp on each other's files.
+1. **You run `shoal new`** — Shoal creates a tmux session, optionally provisions a git worktree and branch, and launches your chosen AI tool inside it.
 
-### MCP Pooling
+2. **Each agent gets isolation** — Separate worktree, separate branch, separate tmux session. Agents cannot interfere with each other's files.
 
-Instead of every agent starting its own instance of an MCP server, Shoal runs them in a **Pool**. Agents connect via `shoal-mcp-proxy`, allowing them to share state (like a shared Memory server) and reduce resource usage.
+3. **MCP servers are pooled** — Instead of each agent spawning its own MCP servers, Shoal runs a shared pool. Agents connect through `shoal-mcp-proxy`, sharing memory and filesystem access.
 
-### Robo Mode
+4. **Status is tracked continuously** — A background monitor reads tmux pane output, matches patterns against tool-specific configs, and writes state to a SQLite WAL database. The FastAPI server exposes this via a local API.
 
-The **Robo** is a supervisory "super-session." It runs an agent with a specialized prompt (`AGENTS.md`) and access to the Shoal CLI. It can monitor the status of all other agents and interact with them directly—like a robo-fish leading the shoal.
+5. **You control everything from one CLI** — `shoal status` shows all agents. `shoal popup` opens a TUI dashboard. `shoal attach` jumps into any session. `shoal robo` launches a supervisor to automate the whole fleet.
 
 ---
 
 ## Quick Start
 
-### Try the Interactive Demo
+### Install
 
 ```bash
-# Launch a guided demo environment
-shoal demo start
+# Recommended
+uv tool install .
 
-# When done:
-shoal demo stop
+# From source (dev)
+git clone git@github.com:usm-ricardoroche/shoal.git
+cd shoal && uv pip install -e ".[dev]"
+just setup  # install pre-commit + commit-msg hooks
 ```
 
-### Basic Workflow
+### Try the Demo
 
 ```bash
-# 1. Create a new agent session in a dedicated worktree
-# Use -w to create a worktree, add -b to create a new branch
-shoal new -w feature-auth -b
-
-# 2. Open the interactive dashboard to see all sessions
-shoal popup
-
-# 3. Check status of running agents
-shoal status
-
-# 4. Attach to a session
-shoal attach feature-auth
-# Or use the picker: shoal attach
-
-# 5. When done, merge and cleanup
-shoal wt finish feature-auth --pr
+shoal demo start   # guided demo environment
+shoal demo stop    # tear down when done
 ```
 
-`shoal new` defaults to your configured `default_tool` (opencode by default). Pass `-t/--tool` to override (e.g., `-t pi`, `-t claude`, `-t gemini`).
-
-### Flags Explained: `-w` vs `-b`
-
-- **`-w <name>` (Worktree)**: Creates a dedicated git worktree in `.worktrees/<name>`. This keeps your main directory clean and allows parallel agents to work on different files without conflicts.
-- **`-b` (Branch)**: When used with `-w`, it explicitly creates a new branch (e.g., `feat/<name>`). Without `-b`, Shoal will use the current branch or default behavior of `git worktree add`.
-- **Using Both**: `shoal new -w fix-bug -b` creates a new directory AND a new branch, which is the recommended workflow for parallel tasks.
-
-### Template-Based Workflow
+### 60-Second Workflow
 
 ```bash
-# Create a session from a template (e.g., pi-dev with 65/35 editor+terminal split)
-shoal new -t pi -w feat/new-feature -b --template pi-dev
-
-# List and validate available templates
-shoal template ls
-shoal template validate pi-dev
-```
-
-### Robo Supervisor Workflow
-
-```bash
-# Start 3 parallel agents
-shoal new -t claude -w feature-ui -b
-shoal new -t pi -w feature-api -b
+# Create 3 parallel agents, each in its own worktree
+shoal new -t claude -w auth -b
+shoal new -t pi -w api-refactor -b
 shoal new -t gemini -w docs -b
 
-# Launch a supervisor to coordinate them
-shoal robo setup default --tool opencode
-shoal robo start default
+# Check on everyone
+shoal status
 
-# The robo monitors all sessions and can approve actions
-shoal robo approve feature-ui
+# Open the dashboard
+shoal popup
+
+# Attach to a session
+shoal attach auth
+
+# When done, merge and clean up
+shoal wt finish auth --pr
 ```
 
-See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for advanced robo patterns.
+`shoal new` defaults to your configured `default_tool`. Pass `-t/--tool` to override.
 
 ---
 
 ## Use Cases
 
-### Parallel Feature Development
+<details>
+<summary><strong>Parallel Feature Development</strong></summary>
 
-Work on frontend, backend, and docs simultaneously without context switching:
+Work on frontend, backend, and docs simultaneously:
 
 ```bash
 shoal new -t claude -w feature-ui -b
@@ -209,21 +149,27 @@ shoal new -t pi -w feature-api -b --template pi-dev
 shoal new -t gemini -w feature-docs -b
 ```
 
-Each agent works in its own worktree, with shared MCP servers for memory and filesystem access.
+Each agent works in its own worktree with shared MCP servers for memory and filesystem access.
 
-### Code Review Automation
+</details>
+
+<details>
+<summary><strong>Code Review Automation</strong></summary>
 
 Have one agent write code, another review it:
 
 ```bash
 shoal new -t claude -w implement-auth -b
 shoal new -t pi -w review-auth -b
-# Reviewer can access implementer's worktree via shared filesystem MCP
+# Reviewer accesses implementer's worktree via shared filesystem MCP
 ```
 
-### Overnight Batch Processing
+</details>
 
-Set up multiple agents with a robo supervisor to route tasks:
+<details>
+<summary><strong>Overnight Batch Processing</strong></summary>
+
+Set up agents with a robo supervisor to route tasks:
 
 ```bash
 shoal robo setup batch --tool opencode
@@ -231,11 +177,13 @@ shoal robo start batch
 # Robo monitors agents and assigns tasks from a backlog
 ```
 
-See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed workflows.
+See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
+
+</details>
 
 ---
 
-## Command Reference
+## Commands
 
 ### Session Management
 
@@ -249,81 +197,107 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed workflows.
 
 ### Worktrees (`shoal wt`)
 
-- `ls`: List managed worktrees.
-- `finish`: Merge, delete branch, and remove worktree.
-- `cleanup`: Remove orphaned worktrees.
+| Command    | Description                               |
+| ---------- | ----------------------------------------- |
+| `ls`       | List managed worktrees                    |
+| `finish`   | Merge, delete branch, and remove worktree |
+| `cleanup`  | Remove orphaned worktrees                 |
 
 ### MCP Pool (`shoal mcp`)
 
-- `start/stop`: Manage pooled servers.
-- `attach`: Connect a session to a pooled server.
+| Command        | Description                           |
+| -------------- | ------------------------------------- |
+| `start/stop`   | Manage pooled servers                 |
+| `attach`       | Connect a session to a pooled server  |
 
 ### Templates (`shoal template`)
 
-- `ls`: List available session templates.
-- `show <name>`: Display a template's configuration.
-- `validate <name>`: Validate a template against the schema.
+| Command          | Description                              |
+| ---------------- | ---------------------------------------- |
+| `ls`             | List available session templates         |
+| `show <name>`    | Display a template's configuration       |
+| `validate <name>`| Validate a template against the schema   |
 
 ### Demo (`shoal demo`)
 
-- `start`: Spin up a full demo environment with example sessions.
-- `stop`: Tear down the demo environment.
+| Command  | Description                                        |
+| -------- | -------------------------------------------------- |
+| `start`  | Spin up a full demo environment with example sessions |
+| `stop`   | Tear down the demo environment                     |
 
 ### Robo Supervisor (`shoal robo`)
 
-- `start`: Launch the supervisor agent.
-- `approve`: Send "Enter" to a waiting agent.
-- `send`: Send arbitrary keys to a child session.
+| Command   | Description                           |
+| --------- | ------------------------------------- |
+| `start`   | Launch the supervisor agent           |
+| `approve` | Send "Enter" to a waiting agent       |
+| `send`    | Send arbitrary keys to a child session|
 
 ---
 
-## Architecture
+## Fish Shell Integration
 
-Shoal is built on a modern async Python stack:
-
-- **FastAPI/Uvicorn**: Provides a local API for state monitoring.
-- **SQLite (WAL)**: Concurrent, persistent state management.
-- **Typer**: Type-safe CLI interface.
-- **Pydantic**: Strict data modeling for configs and state.
-
----
-
-## Development
-
-A [`justfile`](justfile) provides all common dev commands:
-
-```bash
-just ci          # run all CI checks (lint, typecheck, test, fish-check)
-just lint        # lint with ruff
-just fmt         # auto-format with ruff
-just test        # run tests (exclude integration)
-just cov         # tests with coverage report
-just setup       # install pre-commit hooks
+```fish
+shoal setup fish
 ```
 
-Pre-commit hooks enforce trailing whitespace, YAML/TOML validity, ruff lint+format, fish syntax, and [conventional commit](COMMIT_GUIDELINES.md) messages (via gitlint) on every commit.
+Installs tab completions, key bindings (`Ctrl+S` popup, `Alt+A` attach), abbreviations (`sa`, `sl`, `ss`, `sp`), and helper functions. See [Fish Integration Guide](docs/FISH_INTEGRATION.md) for details.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions, [ROADMAP.md](ROADMAP.md) for upcoming features, and [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for versioning details.
+For completions only:
 
-**Coverage**: 77% test coverage (292 tests, as of v0.8.0).
+```fish
+shoal --install-completion fish
+```
 
 ---
 
 ## Supported Tools
 
-| Tool | Command | Status |
-|------|---------|--------|
-| OpenCode | `opencode` | Primary |
-| Claude Code | `claude` | Supported |
-| Pi | `pi` | Supported |
-| Gemini | `gemini` | Supported |
+| Tool       | Command    | Status    |
+| ---------- | ---------- | --------- |
+| OpenCode   | `opencode` | Primary   |
+| Claude Code| `claude`   | Supported |
+| Pi         | `pi`       | Supported |
+| Gemini     | `gemini`   | Supported |
 
-Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection patterns for status monitoring.
+Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection patterns.
+
+---
+
+## Status
+
+| Milestone | Focus | Status |
+| --------- | ----- | ------ |
+| **v0.8.0** | MCP pooling, session templates, robo mode | Current |
+| **v0.9.0** | Lifecycle hardening, type annotations, dev tooling | Complete |
+| **v1.0.0** | Pi agent integration, stability, docs | In Progress |
+
+See [ROADMAP.md](ROADMAP.md) for the full plan.
+
+---
+
+## Development
+
+```bash
+just ci          # all CI checks (lint, typecheck, test, fish-check)
+just lint        # lint with ruff
+just fmt         # auto-format with ruff
+just test        # tests (exclude integration)
+just cov         # tests with coverage report
+just setup       # install pre-commit hooks
+```
+
+**292 tests** | **77% coverage** | **pre-commit enforced** | **conventional commits**
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
+
+---
 
 ## Documentation
 
 - [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) — Robo supervisor patterns and workflows
 - [docs/FISH_INTEGRATION.md](docs/FISH_INTEGRATION.md) — Fish shell integration guide
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System design and concepts
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Development setup and guidelines
 - [ROADMAP.md](ROADMAP.md) — Upcoming features and milestones
 - [RELEASE_PROCESS.md](RELEASE_PROCESS.md) — Versioning and release workflow
