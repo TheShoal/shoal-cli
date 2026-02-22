@@ -205,6 +205,8 @@ def stop_mcp_server(name: str) -> None:
 # ---------------------------------------------------------------------------
 
 _CHUNK_SIZE = 65536
+_CONNECT_TIMEOUT = 30  # seconds — max wait for first data after accept
+_IDLE_TIMEOUT = 120  # seconds — max silence between reads
 
 
 async def _handle_client(
@@ -241,12 +243,12 @@ async def _handle_client(
     ) -> None:
         try:
             while True:
-                data = await reader.read(_CHUNK_SIZE)
+                data = await asyncio.wait_for(reader.read(_CHUNK_SIZE), timeout=_IDLE_TIMEOUT)
                 if not data:
                     break
                 writer.write(data)
                 await writer.drain()
-        except (ConnectionResetError, BrokenPipeError):
+        except (ConnectionResetError, BrokenPipeError, TimeoutError):
             pass
 
     try:

@@ -14,18 +14,20 @@ from shoal.core.config import state_dir
 from shoal.services.mcp_pool import validate_mcp_name
 
 _CHUNK_SIZE = 65536
+_CONNECT_TIMEOUT = 30  # seconds — max wait for socket connection
+_IDLE_TIMEOUT = 120  # seconds — max silence between reads
 
 
 async def _bridge(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    """Copy from *reader* to *writer* until EOF."""
+    """Copy from *reader* to *writer* until EOF, with idle timeout."""
     try:
         while True:
-            data = await reader.read(_CHUNK_SIZE)
+            data = await asyncio.wait_for(reader.read(_CHUNK_SIZE), timeout=_IDLE_TIMEOUT)
             if not data:
                 break
             writer.write(data)
             await writer.drain()
-    except (ConnectionResetError, BrokenPipeError):
+    except (ConnectionResetError, BrokenPipeError, TimeoutError):
         pass
     finally:
         with suppress(Exception):
@@ -36,8 +38,11 @@ async def _run_bridge(socket_path: str) -> None:
     """Open a connection to *socket_path* and bridge stdio ↔ socket."""
     loop = asyncio.get_running_loop()
 
-    # Connect to the MCP server's Unix socket
-    sock_reader, sock_writer = await asyncio.open_unix_connection(socket_path)
+    # Connect to the MCP server's Unix socket with timeout
+    sock_reader, sock_writer = await asyncio.wait_for(
+        asyncio.open_unix_connection(socket_path),
+        timeout=_CONNECT_TIMEOUT,
+    )
 
     # Wrap stdin/stdout as asyncio streams
     stdin_reader = asyncio.StreamReader()

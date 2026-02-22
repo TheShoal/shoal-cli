@@ -87,3 +87,11 @@ def test_mcp_proxy_rejects_long_name(capsys):
         assert exc_info.value.code == 1
         captured = capsys.readouterr()
         assert "Invalid MCP name" in captured.err
+
+
+def test_proxy_timeout_constants():
+    """Verify timeout constants are set."""
+    from shoal.services import mcp_proxy
+
+    assert mcp_proxy._CONNECT_TIMEOUT == 30
+    assert mcp_proxy._IDLE_TIMEOUT == 120

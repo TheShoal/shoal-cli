@@ -226,3 +226,9 @@ def test_truncate_log_large_file(tmp_path):
 def test_truncate_log_missing_file(tmp_path):
     """Missing files should be a no-op."""
     mcp_pool._truncate_log(tmp_path / "nonexistent.log")
+
+
+def test_pool_timeout_constants():
+    """Verify timeout constants are set."""
+    assert mcp_pool._CONNECT_TIMEOUT == 30
+    assert mcp_pool._IDLE_TIMEOUT == 120
