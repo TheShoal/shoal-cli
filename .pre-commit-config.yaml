@@ -26,6 +26,13 @@ repos:
   # Local hooks
   - repo: local
     hooks:
+      - id: mypy
+        name: mypy strict
+        entry: uv run mypy --strict src/shoal/
+        language: system
+        pass_filenames: false
+        files: \.py$
+        types: [python]
       - id: fish-syntax
         name: fish syntax check
         entry: fish -n
