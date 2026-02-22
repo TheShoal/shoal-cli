@@ -1,15 +1,12 @@
 # Shoal — Pi coding agent development template
-# Two-window layout: pi agent + terminal/build runner
-# Designed for pi-tmux workflows with fish shell
+# Extends base-dev with a second window for build/test runner.
+# Designed for pi-tmux workflows with fish shell.
 
 [template]
 name = "pi-dev"
 description = "Pi coding agent with terminal pane for pi-tmux workflows"
+extends = "base-dev"
 tool = "pi"
-
-[template.worktree]
-name = "feat/{template_name}"
-create_branch = true
 
 [template.env]
 SHOAL_TOOL = "pi"

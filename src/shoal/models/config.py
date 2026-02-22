@@ -173,6 +173,8 @@ class TemplateWindowConfig(BaseModel):
 class SessionTemplateConfig(BaseModel):
     name: str
     description: str = ""
+    extends: str | None = None
+    mixins: list[str] = Field(default_factory=list)
     tool: str = "opencode"
     worktree: TemplateWorktreeConfig = Field(default_factory=TemplateWorktreeConfig)
     env: dict[str, str] = Field(default_factory=dict)
@@ -188,6 +190,23 @@ class SessionTemplateConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_has_windows(self) -> SessionTemplateConfig:
-        if not self.windows:
-            raise ValueError("Template must define at least one window")
+        if not self.windows and not self.extends:
+            raise ValueError("Template must define at least one window or use 'extends'")
         return self
+
+
+class TemplateMixinConfig(BaseModel):
+    """A mixin template fragment: additive env, mcp, and windows."""
+
+    name: str
+    description: str = ""
+    env: dict[str, str] = Field(default_factory=dict)
+    mcp: list[str] = Field(default_factory=list)
+    windows: list[TemplateWindowConfig] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v or not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$", v):
+            raise ValueError(f"Mixin name '{v}' must be alphanumeric with dashes/underscores")
+        return v

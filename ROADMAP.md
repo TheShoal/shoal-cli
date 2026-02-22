@@ -394,25 +394,29 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - [x] Remove Bandit from `.pre-commit-config.yaml` and CI (ruff S rules replace it)
 - [x] Update CI security job to use `ruff check --select S`
 
-## v0.14.0: Session Templates v2
+## v0.14.0: Session Templates v2 (Released: 2026-02-22)
 
 **Priority: template inheritance and composition to eliminate duplication.**
 
 ### Phase 1 — `extends` (single inheritance)
 
-- [ ] Add `extends` field to `SessionTemplateConfig`
-- [ ] Recursive resolution with cycle detection in `load_template()`
-- [ ] Merge semantics: scalars override, `env` merges, `mcp` unions, `windows` replaces-if-present
-- [ ] Update `template show/ls/validate` commands
-- [ ] Ship built-in base templates demonstrating inheritance
+- [x] Add `extends` field to `SessionTemplateConfig`
+- [x] Recursive resolution with cycle detection in `load_template()`
+- [x] Merge semantics: scalars override, `env` merges, `mcp` unions, `windows` replaces-if-present
+- [x] Update `template show/ls/validate` commands
+- [x] Ship built-in base templates demonstrating inheritance
 
 ### Phase 2 — `mixins` (additive composition)
 
-- [ ] Create `TemplateMixinConfig` Pydantic model
-- [ ] Mixin files in `~/.config/shoal/templates/mixins/`
-- [ ] Additive merge: `mcp` union, `env` merge, `windows` append
-- [ ] Resolution order: extends → mixins → CLI flags
-- [ ] Ship built-in mixins (e.g., `mcp-memory`, `with-tests`)
+- [x] Create `TemplateMixinConfig` Pydantic model
+- [x] Mixin files in `~/.config/shoal/templates/mixins/`
+- [x] Additive merge: `mcp` union, `env` merge, `windows` append
+- [x] Resolution order: extends → mixins → CLI flags
+- [x] Ship built-in mixins (e.g., `mcp-memory`, `with-tests`)
+
+### Stats
+
+- 589 tests passing (39 new), ruff/mypy all clean.
 
 ## v0.15.0: FastMCP Integration
 
@@ -462,6 +466,8 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()`.
 - **Project-Local Templates**: `.shoal/templates/` search path in git root.
 - **Oh-My-Pi (omp) Integration**: Add `omp.toml` tool definition and `omp-dev` session template mirroring existing pi support. Key opportunities: omp has native MCP (`omp plugin` system) enabling direct socket sharing with Shoal's MCP pool; detection patterns need tuning for omp's extended TUI (subagent/LSP status indicators beyond pi's base patterns); universal config discovery (reads `.claude/`, `.codex/`, `.gemini/` alongside `.omp/`) enables cross-agent workflow sharing.
+- Expose hooks for configuration and runtime scripting
+- Documentation catchup!! A lot will have changed by v0.16.0
 
 ---
 
@@ -586,11 +592,11 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - Researched all 4 Future Considerations (FastMCP, Templates v2, Remote Sessions, Ruff Lint)
 - Converted Future Considerations into concrete v0.13.0–v0.16.0 milestones in ROADMAP
 - Implemented v0.13.0 Ruff Lint Expansion:
-  - Added 10 new ruff rule sets: ASYNC, PERF, RUF, LOG, G, C4, PIE, DTZ, RET, RSE, S
-  - Fixed 29 violations including 1 genuine event-loop-blocking bug in lifecycle.py
-  - Wrapped 6 blocking subprocess.run() calls in asyncio.to_thread()
-  - Consolidated Bandit security scanning into ruff S rules
-  - Removed Bandit from pre-commit and CI (replaced by ruff --select S)
+    - Added 10 new ruff rule sets: ASYNC, PERF, RUF, LOG, G, C4, PIE, DTZ, RET, RSE, S
+    - Fixed 29 violations including 1 genuine event-loop-blocking bug in lifecycle.py
+    - Wrapped 6 blocking subprocess.run() calls in asyncio.to_thread()
+    - Consolidated Bandit security scanning into ruff S rules
+    - Removed Bandit from pre-commit and CI (replaced by ruff --select S)
 - 553 tests passing, ruff/mypy all clean, 0 new violations
 
 **What to do next:**

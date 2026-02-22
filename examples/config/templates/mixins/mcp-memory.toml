@@ -1,0 +1,7 @@
+# Shoal — MCP memory server mixin
+# Add to any template via: mixins = ["mcp-memory"]
+
+[mixin]
+name = "mcp-memory"
+description = "Adds MCP memory server"
+mcp = ["memory"]

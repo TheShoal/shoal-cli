@@ -1,0 +1,12 @@
+# Shoal — Claude development template
+# Inherits base-dev layout, overrides tool to Claude, adds MCP memory.
+
+[template]
+name = "claude-dev"
+description = "Claude agent with MCP memory"
+extends = "base-dev"
+tool = "claude"
+mcp = ["memory"]
+
+[template.env]
+CLAUDE_MODEL = "opus"

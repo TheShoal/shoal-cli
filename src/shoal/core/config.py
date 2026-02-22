@@ -5,6 +5,7 @@ from __future__ import annotations
 import tomllib
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from shoal.models.config import (
     DetectionPatterns,
@@ -12,6 +13,7 @@ from shoal.models.config import (
     RoboProfileConfig,
     SessionTemplateConfig,
     ShoalConfig,
+    TemplateMixinConfig,
     TemplateWorktreeConfig,
     ToolConfig,
 )
@@ -35,7 +37,7 @@ def runtime_dir() -> Path:
 def ensure_dirs() -> None:
     """Create all required state and runtime directories."""
     cfg = config_dir()
-    for subdir in ("templates",):
+    for subdir in ("templates", "templates/mixins"):
         (cfg / subdir).mkdir(parents=True, exist_ok=True)
 
     base = state_dir()
@@ -143,26 +145,33 @@ def load_mcp_registry() -> dict[str, str]:
     return registry
 
 
-def load_template(name: str) -> SessionTemplateConfig:
-    """Load a session template TOML.
+def mixins_dir() -> Path:
+    """Return ~/.config/shoal/templates/mixins."""
+    return templates_dir() / "mixins"
 
-    Expected shape:
-      [template]
-      name, description, tool
-      [template.worktree]
-      name, create_branch
-      [template.env]
-      ...
-      [[windows]]
-      [[windows.panes]]
-    """
+
+def available_mixins() -> list[str]:
+    """List available mixin names from templates/mixins/*.toml."""
+    dir_path = mixins_dir()
+    if not dir_path.exists():
+        return []
+    return sorted(p.stem for p in dir_path.glob("*.toml"))
+
+
+def _load_template_raw(name: str) -> dict[str, Any]:
+    """Load raw TOML data for a template without resolving inheritance."""
     path = templates_dir() / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No template config: {path}")
-
     with open(path, "rb") as f:
-        data = tomllib.load(f)
+        return tomllib.load(f)
 
+
+def _parse_template_data(
+    data: dict[str, Any],
+    name: str,
+) -> SessionTemplateConfig:
+    """Parse raw TOML dict into SessionTemplateConfig."""
     template_section = data.get("template", {})
     worktree_section = template_section.get("worktree", {})
     env_section = template_section.get("env", {})
@@ -172,9 +181,124 @@ def load_template(name: str) -> SessionTemplateConfig:
     return SessionTemplateConfig(
         name=template_section.get("name", name),
         description=template_section.get("description", ""),
+        extends=template_section.get("extends"),
+        mixins=template_section.get("mixins", []),
         tool=template_section.get("tool", "opencode"),
         worktree=TemplateWorktreeConfig.model_validate(worktree_section),
         env=env_section,
         mcp=mcp_section,
         windows=windows_section,
     )
+
+
+def _merge_templates(
+    parent: SessionTemplateConfig,
+    child: SessionTemplateConfig,
+    child_raw: dict[str, Any],
+) -> SessionTemplateConfig:
+    """Merge child template over parent.
+
+    Merge rules:
+    - scalars (description, tool): child wins if explicitly set in TOML
+    - worktree: child wins if [template.worktree] present in TOML
+    - env: parent | child (child wins on conflicts)
+    - mcp: union, deduplicated, sorted
+    - windows: child replaces parent entirely if child defines any
+    """
+    child_tmpl = child_raw.get("template", {})
+
+    description = child.description if "description" in child_tmpl else parent.description
+    tool = child.tool if "tool" in child_tmpl else parent.tool
+    worktree = child.worktree if "worktree" in child_tmpl else parent.worktree
+    merged_env = {**parent.env, **child.env}
+    merged_mcp = sorted(set(parent.mcp) | set(child.mcp))
+    merged_windows = child.windows if child.windows else parent.windows
+
+    return SessionTemplateConfig(
+        name=child.name,
+        description=description,
+        extends=None,
+        mixins=child.mixins,
+        tool=tool,
+        worktree=worktree,
+        env=merged_env,
+        mcp=merged_mcp,
+        windows=merged_windows,
+    )
+
+
+def resolve_template(
+    name: str,
+    _chain: set[str] | None = None,
+) -> SessionTemplateConfig:
+    """Load and fully resolve a template: extends -> mixins -> final.
+
+    Raises ValueError on inheritance cycles or unknown mixins.
+    """
+    if _chain is None:
+        _chain = set()
+
+    if name in _chain:
+        cycle = " -> ".join(_chain) + f" -> {name}"
+        raise ValueError(f"Template inheritance cycle detected: {cycle}")
+    _chain.add(name)
+
+    raw = _load_template_raw(name)
+    child = _parse_template_data(raw, name)
+
+    # 1. Resolve extends chain
+    if child.extends is not None:
+        parent = resolve_template(child.extends, _chain)
+        child = _merge_templates(parent, child, raw)
+
+    # 2. Apply mixins in order
+    for mixin_name in child.mixins:
+        mixin = load_mixin(mixin_name)
+        child = _apply_mixin(child, mixin)
+
+    return child
+
+
+def load_mixin(name: str) -> TemplateMixinConfig:
+    """Load a template mixin TOML from templates/mixins/."""
+    path = mixins_dir() / f"{name}.toml"
+    if not path.exists():
+        raise FileNotFoundError(f"No mixin config: {path}")
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+
+    mixin_section = data.get("mixin", {})
+    windows_section = data.get("windows", [])
+
+    return TemplateMixinConfig(
+        name=mixin_section.get("name", name),
+        description=mixin_section.get("description", ""),
+        env=mixin_section.get("env", {}),
+        mcp=mixin_section.get("mcp", []),
+        windows=windows_section,
+    )
+
+
+def _apply_mixin(
+    template: SessionTemplateConfig,
+    mixin: TemplateMixinConfig,
+) -> SessionTemplateConfig:
+    """Apply a mixin additively to a resolved template.
+
+    Additive rules:
+    - env: mixin values merge in (mixin wins on conflict)
+    - mcp: union, deduplicated, sorted
+    - windows: mixin windows appended
+    """
+    return template.model_copy(
+        update={
+            "env": {**template.env, **mixin.env},
+            "mcp": sorted(set(template.mcp) | set(mixin.mcp)),
+            "windows": list(template.windows) + list(mixin.windows),
+        }
+    )
+
+
+def load_template(name: str) -> SessionTemplateConfig:
+    """Load a session template TOML with full inheritance resolution."""
+    return resolve_template(name)

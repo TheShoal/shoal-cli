@@ -1,4 +1,4 @@
-"""Session template commands: ls, show, validate."""
+"""Session template commands: ls, show, validate, mixins."""
 
 from __future__ import annotations
 
@@ -8,7 +8,15 @@ import typer
 from pydantic import ValidationError
 from rich.console import Console
 
-from shoal.core.config import available_templates, load_template, templates_dir
+from shoal.core.config import (
+    _load_template_raw,
+    available_mixins,
+    available_templates,
+    load_mixin,
+    load_template,
+    mixins_dir,
+    templates_dir,
+)
 from shoal.core.theme import create_table
 
 console = Console()
@@ -32,23 +40,39 @@ def template_ls() -> None:
         console.print(f"[dim]Directory: {templates_dir()}[/dim]")
         return
 
-    table = create_table(padding=(0, 2))
+    table = create_table(padding=(0, 1))
     table.add_column("NAME", style="bold")
-    table.add_column("TOOL", width=12)
-    table.add_column("WINDOWS", width=8, justify="right")
-    table.add_column("PANES", width=8, justify="right")
-    table.add_column("DESCRIPTION")
+    table.add_column("EXTENDS")
+    table.add_column("MIX", justify="right")
+    table.add_column("TOOL")
+    table.add_column("WIN", justify="right")
+    table.add_column("PANES", justify="right")
+    table.add_column("DESCRIPTION", no_wrap=False)
 
     for name in names:
         try:
+            raw = _load_template_raw(name)
+            raw_tmpl = raw.get("template", {})
+            extends_name = raw_tmpl.get("extends", "")
+            mixins_list = raw_tmpl.get("mixins", [])
             template = load_template(name)
-        except (ValidationError, ValueError, TypeError):
-            table.add_row(name, "-", "-", "-", "[red]invalid template[/red]")
+        except (ValidationError, ValueError, TypeError, FileNotFoundError):
+            table.add_row(
+                name,
+                "-",
+                "-",
+                "-",
+                "-",
+                "-",
+                "[red]invalid template[/red]",
+            )
             continue
 
         pane_count = sum(len(w.panes) for w in template.windows)
         table.add_row(
             template.name,
+            extends_name or "[dim]-[/dim]",
+            str(len(mixins_list)) if mixins_list else "[dim]-[/dim]",
             template.tool,
             str(len(template.windows)),
             str(pane_count),
@@ -62,10 +86,17 @@ def template_ls() -> None:
 @app.command("show")
 def template_show(
     name: Annotated[str, typer.Argument(help="Template name")],
+    raw: Annotated[bool, typer.Option("--raw", help="Show unresolved template")] = False,
 ) -> None:
-    """Show a template as JSON."""
+    """Show a template as JSON (resolved by default)."""
     try:
-        template = load_template(name)
+        if raw:
+            from shoal.core.config import _parse_template_data
+
+            raw_data = _load_template_raw(name)
+            template = _parse_template_data(raw_data, name)
+        else:
+            template = load_template(name)
     except FileNotFoundError:
         console.print(f"[red]Template not found: {name}[/red]")
         available = available_templates()
@@ -95,7 +126,15 @@ def template_validate(
     for template_name in names:
         try:
             load_template(template_name)
-            console.print(f"[green]OK[/green] {template_name}")
+            extends_info = ""
+            try:
+                raw = _load_template_raw(template_name)
+                extends_name = raw.get("template", {}).get("extends")
+                if extends_name:
+                    extends_info = f" [dim](extends {extends_name})[/dim]"
+            except FileNotFoundError:
+                pass
+            console.print(f"[green]OK[/green] {template_name}{extends_info}")
         except FileNotFoundError:
             console.print(f"[red]MISSING[/red] {template_name}")
             errors += 1
@@ -106,3 +145,36 @@ def template_validate(
 
     if errors:
         raise typer.Exit(1)
+
+
+@app.command("mixins")
+def template_mixins_cmd() -> None:
+    """List available template mixins."""
+    names = available_mixins()
+    if not names:
+        console.print("[yellow]No mixins found[/yellow]")
+        console.print(f"[dim]Directory: {mixins_dir()}[/dim]")
+        return
+
+    table = create_table(padding=(0, 2))
+    table.add_column("NAME", style="bold")
+    table.add_column("MCP", width=20)
+    table.add_column("WINDOWS", width=8, justify="right")
+    table.add_column("DESCRIPTION")
+
+    for name in names:
+        try:
+            m = load_mixin(name)
+        except (ValidationError, ValueError, TypeError, FileNotFoundError):
+            table.add_row(name, "-", "-", "[red]invalid mixin[/red]")
+            continue
+
+        table.add_row(
+            m.name,
+            ", ".join(m.mcp) if m.mcp else "[dim]-[/dim]",
+            str(len(m.windows)) if m.windows else "[dim]-[/dim]",
+            m.description or "[dim]-[/dim]",
+        )
+
+    console.print()
+    console.print(table)

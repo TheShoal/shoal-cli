@@ -117,9 +117,10 @@ complete -c shoal -n "__fish_seen_subcommand_from demo; and not __fish_seen_subc
 complete -c shoal -n "__fish_seen_subcommand_from setup; and not __fish_seen_subcommand_from fish" -a "fish" -d "Install fish shell integration"
 
 # Template subcommands
-complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate" -a "ls" -d "List templates"
-complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate" -a "show" -d "Show template details"
-complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate" -a "validate" -d "Validate templates"
+complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate mixins" -a "ls" -d "List templates"
+complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate mixins" -a "show" -d "Show template details"
+complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate mixins" -a "validate" -d "Validate templates"
+complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate mixins" -a "mixins" -d "List template mixins"
 complete -c shoal -n "__fish_seen_subcommand_from template; and __fish_seen_subcommand_from show" -a "(__shoal_templates)" -d "Template"
 complete -c shoal -n "__fish_seen_subcommand_from template; and __fish_seen_subcommand_from validate" -a "(__shoal_templates)" -d "Template"
 
