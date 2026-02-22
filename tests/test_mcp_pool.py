@@ -1,5 +1,6 @@
 """Tests for services.mcp_pool module."""
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -81,7 +82,7 @@ def test_is_mcp_running_no_pid(tmp_path, mock_dirs):
 
 
 def test_start_mcp_server(tmp_path, mock_dirs):
-    """Test start_mcp_server launches a server."""
+    """Test start_mcp_server launches a Python subprocess server."""
     with (
         patch("shoal.services.mcp_pool.subprocess.Popen") as mock_popen,
         patch("shoal.services.mcp_pool.time.sleep"),
@@ -93,13 +94,37 @@ def test_start_mcp_server(tmp_path, mock_dirs):
 
         mcp_pool.start_mcp_server("memory", "npx -y @modelcontextprotocol/server-memory")
 
-        # Verify Popen was called
+        # Verify Popen was called with sys.executable module invocation
         mock_popen.assert_called_once()
+        call_args = mock_popen.call_args
+        cmd = call_args[0][0]
+        assert cmd[0] == sys.executable
+        assert cmd[1] == "-m"
+        assert cmd[2] == "shoal.services.mcp_pool"
+        assert cmd[3] == "memory"
+        assert cmd[4] == "npx -y @modelcontextprotocol/server-memory"
 
         # Verify PID file was written
         pid_path = mcp_pool.mcp_pid_file("memory")
         assert pid_path.exists()
         assert pid_path.read_text() == "12345"
+
+
+def test_start_mcp_server_uses_default(tmp_path, mock_dirs):
+    """Test start_mcp_server resolves default command from _DEFAULT_SERVERS."""
+    with (
+        patch("shoal.services.mcp_pool.subprocess.Popen") as mock_popen,
+        patch("shoal.services.mcp_pool.time.sleep"),
+    ):
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.poll.return_value = None
+        mock_popen.return_value = mock_process
+
+        pid, socket, cmd = mcp_pool.start_mcp_server("memory")
+
+        assert cmd == "npx -y @modelcontextprotocol/server-memory"
+        assert pid == 12345
 
 
 def test_stop_mcp_server(tmp_path, mock_dirs):
@@ -134,3 +159,23 @@ def test_stop_mcp_server_not_running(tmp_path, mock_dirs):
     """Test stop_mcp_server when server isn't running."""
     with pytest.raises(FileNotFoundError):
         mcp_pool.stop_mcp_server("nonexistent")
+
+
+def test_start_mcp_server_unknown(tmp_path, mock_dirs):
+    """Test start_mcp_server with unknown name and no command."""
+    with pytest.raises(ValueError, match="Unknown MCP server"):
+        mcp_pool.start_mcp_server("custom-server")
+
+
+def test_start_mcp_server_already_running(tmp_path, mock_dirs):
+    """Test start_mcp_server when server is already running."""
+    socket_path = mcp_pool.mcp_socket("memory")
+    socket_path.parent.mkdir(parents=True, exist_ok=True)
+    socket_path.touch()
+
+    pid_path = mcp_pool.mcp_pid_file("memory")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("12345")
+
+    with patch("os.kill", return_value=None), pytest.raises(RuntimeError, match="already running"):
+        mcp_pool.start_mcp_server("memory")

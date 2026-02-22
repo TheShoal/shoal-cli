@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from typing import Annotated
 
 import typer
@@ -179,37 +180,63 @@ async def _mcp_attach_impl(session: str, mcp_name: str) -> None:
     sid = await _resolve_session_interactive_impl(session)
 
     socket = mcp_socket(mcp_name)
-    if not socket.exists():
-        console.print(f"[red]Error: MCP server '{mcp_name}' is not running[/red]")
-        console.print()
-        console.print("[yellow]Actionable suggestions:[/yellow]")
-        console.print(f"  • Start the server: [bold]shoal mcp start {mcp_name}[/bold]")
-        raise typer.Exit(1)
+    if not socket.exists() or not is_mcp_running(mcp_name):
+        # Auto-start: look up registry and start if known
+        from shoal.core.config import load_mcp_registry
 
-    if not is_mcp_running(mcp_name):
-        console.print(
-            f"[red]Error: MCP server '{mcp_name}' has a stale socket (process dead)[/red]"
-        )
-        console.print()
-        console.print("[yellow]Actionable suggestions:[/yellow]")
-        console.print(
-            f"  • Restart: [bold]shoal mcp stop {mcp_name} && shoal mcp start {mcp_name}[/bold]"
-        )
-        raise typer.Exit(1)
+        registry = load_mcp_registry()
+        command = registry.get(mcp_name)
+
+        if not command:
+            console.print(f"[red]Error: MCP server '{mcp_name}' is not running[/red]")
+            console.print()
+            console.print("[yellow]Actionable suggestions:[/yellow]")
+            console.print(
+                f"  • Start with command: [bold]shoal mcp start {mcp_name} -c '<command>'[/bold]"
+            )
+            console.print("  • Add to registry:   [bold]~/.config/shoal/mcp-servers.toml[/bold]")
+            raise typer.Exit(1)
+
+        # Clean up stale socket if needed
+        if socket.exists() and not is_mcp_running(mcp_name):
+            with suppress(FileNotFoundError):
+                stop_mcp_server(mcp_name)
+
+        try:
+            pid, socket, _cmd = start_mcp_server(mcp_name, command)
+            console.print(f"Auto-started MCP server '{mcp_name}' (pid: {pid})")
+        except (ValueError, RuntimeError) as e:
+            console.print(f"[red]Error: Failed to auto-start MCP server: {e}[/red]")
+            raise typer.Exit(1) from None
 
     await add_mcp_to_session(sid, mcp_name)
 
     s = await get_session(sid)
     name = s.name if s else sid
     tool = s.tool if s else "unknown"
+    work_dir = (s.worktree or s.path) if s else ""
 
     console.print(f"Attached MCP '{mcp_name}' to session '{name}'")
     console.print(f"  Socket: {socket}")
-    console.print()
-    console.print(f"Note: You may need to configure {tool} to use this socket.")
-    console.print(
-        f"For Claude Code: claude mcp add {mcp_name} -- socat STDIO UNIX-CONNECT:{socket}"
-    )
+
+    # Auto-configure tool to use this MCP server
+    from shoal.services.mcp_configure import McpConfigureError, configure_mcp_for_tool
+
+    try:
+        result = configure_mcp_for_tool(tool, mcp_name, work_dir)
+        if result:
+            console.print(f"  {result}")
+        else:
+            console.print()
+            console.print(f"[yellow]Note: No auto-config available for {tool}.[/yellow]")
+            console.print(
+                f"  Configure manually: claude mcp add {mcp_name} -- shoal-mcp-proxy {mcp_name}"
+            )
+    except McpConfigureError as e:
+        console.print(f"\n[yellow]Warning: Auto-configure failed: {e}[/yellow]")
+        console.print(
+            f"  Configure manually: claude mcp add {mcp_name} -- shoal-mcp-proxy {mcp_name}"
+        )
 
 
 @app.command("status")
@@ -259,7 +286,7 @@ def mcp_status() -> None:
 
     if total == 0:
         console.print("\n[dim]Start one with: [bold]shoal mcp start <name>[/bold][/dim]")
-        console.print("[dim]Known servers: memory, filesystem, github, fetch[/dim]")
+        console.print("[dim]Configure servers in ~/.config/shoal/mcp-servers.toml[/dim]")
 
     if dead or orphaned:
         console.print("\n[yellow]󰀦 Stale entries detected.[/yellow]")

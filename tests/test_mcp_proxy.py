@@ -1,7 +1,7 @@
 """Tests for MCP proxy stdio-to-socket bridge."""
 
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -39,22 +39,28 @@ def test_mcp_proxy_socket_not_found(tmp_path, capsys):
         assert "shoal mcp start test-server" in captured.err
 
 
-def test_mcp_proxy_execvp_called(tmp_path):
-    """Proxy should exec socat with correct args when socket exists."""
+def test_mcp_proxy_runs_bridge(tmp_path):
+    """Proxy should call asyncio.run with _run_bridge when socket exists."""
     state = tmp_path / "state"
     socket_path = state / "mcp-pool" / "sockets" / "test-server.sock"
     socket_path.parent.mkdir(parents=True)
     socket_path.touch()
 
-    mock_execvp = MagicMock()
-
     with (
         patch.object(sys, "argv", ["shoal-mcp-proxy", "test-server"]),
         patch("shoal.services.mcp_proxy.state_dir", return_value=state),
-        patch("os.execvp", mock_execvp),
+        patch("shoal.services.mcp_proxy.asyncio.run") as mock_run,
     ):
         main()
+        mock_run.assert_called_once()
 
-        mock_execvp.assert_called_once_with(
-            "socat", ["socat", "STDIO", f"UNIX-CONNECT:{socket_path}"]
-        )
+
+def test_mcp_proxy_invalid_name(capsys):
+    """Proxy should reject invalid MCP names."""
+    with patch.object(sys, "argv", ["shoal-mcp-proxy", "bad;name"]):
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "Invalid MCP server name" in captured.err

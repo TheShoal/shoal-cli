@@ -67,6 +67,7 @@ def test_mcp_attach_success(mock_dirs, tmp_path):
         patch("shoal.cli.mcp.mcp_socket", return_value=socket_path),
         patch("shoal.cli.mcp.is_mcp_running", return_value=True),
         patch("shoal.cli.mcp.add_mcp_to_session") as mock_add,
+        patch("shoal.services.mcp_configure.subprocess.run"),
     ):
         result = runner.invoke(app, ["attach", "test-s", "test-mcp"])
         assert result.exit_code == 0
@@ -74,8 +75,37 @@ def test_mcp_attach_success(mock_dirs, tmp_path):
         mock_add.assert_called_once()
 
 
-def test_mcp_attach_not_running(mock_dirs, tmp_path):
-    """Test attaching an MCP server that is not running."""
+def test_mcp_attach_auto_start(mock_dirs, tmp_path):
+    """Test attaching auto-starts a server from registry."""
+    socket_path = tmp_path / "mcp.sock"
+    # socket doesn't exist initially
+
+    async def setup():
+        await create_session("test-s", "claude", "/tmp")
+
+    asyncio.run(with_db(setup()))
+
+    with (
+        patch("shoal.cli.mcp.mcp_socket", return_value=socket_path),
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch(
+            "shoal.core.config.load_mcp_registry",
+            return_value={"memory": "npx -y @modelcontextprotocol/server-memory"},
+        ),
+        patch(
+            "shoal.cli.mcp.start_mcp_server",
+            return_value=(1234, socket_path, "npx -y @modelcontextprotocol/server-memory"),
+        ),
+        patch("shoal.cli.mcp.add_mcp_to_session"),
+        patch("shoal.services.mcp_configure.subprocess.run"),
+    ):
+        result = runner.invoke(app, ["attach", "test-s", "memory"])
+        assert result.exit_code == 0
+        assert "Auto-started" in result.stdout
+
+
+def test_mcp_attach_not_in_registry(mock_dirs, tmp_path):
+    """Test attaching an MCP server that is not running and not in registry."""
     socket_path = tmp_path / "mcp.sock"
     # socket doesn't exist
 
@@ -84,7 +114,11 @@ def test_mcp_attach_not_running(mock_dirs, tmp_path):
 
     asyncio.run(with_db(setup()))
 
-    with patch("shoal.cli.mcp.mcp_socket", return_value=socket_path):
+    with (
+        patch("shoal.cli.mcp.mcp_socket", return_value=socket_path),
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch("shoal.core.config.load_mcp_registry", return_value={}),
+    ):
         result = runner.invoke(app, ["attach", "test-s", "test-mcp"])
         assert result.exit_code == 1
         assert "is not running" in result.stdout

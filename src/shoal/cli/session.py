@@ -102,9 +102,14 @@ def add(
         bool, typer.Option("--dry-run", help="Preview without creating session")
     ] = False,
     name: Annotated[str | None, typer.Option("-n", "--name", help="Session name")] = None,
+    mcp: Annotated[
+        str | None,
+        typer.Option("--mcp", help="MCP servers to provision (comma-separated)"),
+    ] = None,
 ) -> None:
     """Create a new session."""
-    asyncio.run(with_db(_add_impl(path, tool, template, worktree, branch, dry_run, name)))
+    mcp_list = [s.strip() for s in mcp.split(",") if s.strip()] if mcp else []
+    asyncio.run(with_db(_add_impl(path, tool, template, worktree, branch, dry_run, name, mcp_list)))
 
 
 async def _add_impl(
@@ -115,6 +120,7 @@ async def _add_impl(
     branch: bool,
     dry_run: bool,
     name: str | None,
+    mcp_servers: list[str] | None = None,
 ) -> None:
     ensure_dirs()
     cfg = load_config()
@@ -149,6 +155,11 @@ async def _add_impl(
 
         if template_cfg.worktree.create_branch:
             branch = True
+
+        # Merge template MCP declarations with --mcp flag (union, deduped)
+        if template_cfg.mcp:
+            merged = set(mcp_servers or []) | set(template_cfg.mcp)
+            mcp_servers = sorted(merged)
 
     resolved_path = Path(path).resolve() if path else Path.cwd().resolve()
 
@@ -312,6 +323,7 @@ async def _add_impl(
             startup_commands=cfg.tmux.startup_commands,
             template_cfg=template_cfg,
             worktree_name=worktree or "",
+            mcp_servers=mcp_servers or None,
         )
     except SessionExistsError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -340,6 +352,8 @@ async def _add_impl(
         console.print(f"  Branch: {branch_name}")
     if template_cfg:
         console.print(f"  Template: {template_cfg.name}")
+    if session.mcp_servers:
+        console.print(f"  MCP: {', '.join(session.mcp_servers)}")
     console.print(f"  Tmux: {session.tmux_session}")
     console.print()
     console.print(f"Attach with: shoal attach {session_name}")
@@ -493,12 +507,19 @@ def fork(
     no_worktree: Annotated[
         bool, typer.Option("--no-worktree", help="Fork without creating a worktree")
     ] = False,
+    mcp: Annotated[
+        str | None,
+        typer.Option("--mcp", help="MCP servers to provision (comma-separated)"),
+    ] = None,
 ) -> None:
     """Fork a session into a new worktree (or standalone session with --no-worktree)."""
-    asyncio.run(with_db(_fork_impl(session, name, no_worktree)))
+    mcp_list = [s.strip() for s in mcp.split(",") if s.strip()] if mcp else []
+    asyncio.run(with_db(_fork_impl(session, name, no_worktree, mcp_list)))
 
 
-async def _fork_impl(session: str | None, name: str | None, no_worktree: bool) -> None:
+async def _fork_impl(
+    session: str | None, name: str | None, no_worktree: bool, mcp_servers: list[str] | None = None
+) -> None:
     ensure_dirs()
     cfg = load_config()
     source_id = await _resolve_session_interactive_impl(session)
@@ -550,6 +571,7 @@ async def _fork_impl(session: str | None, name: str | None, no_worktree: bool) -
             new_branch=new_branch,
             tool_command=tool_cfg.command,
             startup_commands=cfg.tmux.startup_commands,
+            mcp_servers=mcp_servers or None,
         )
     except SessionExistsError as e:
         console.print(f"[red]Error: {e}[/red]")

@@ -233,6 +233,29 @@ class TestMcp:
         response = await async_client.delete("/sessions/nonexistent/mcp/memory")
         assert response.status_code == 404
 
+    async def test_attach_mcp_auto_start(self, async_client):
+        """Test POST /sessions/{id}/mcp/{name} auto-starts a registered server."""
+        s = await create_session("auto-start-test", "claude", "/tmp/test")
+
+        with (
+            patch("shoal.api.server.mcp_socket") as mock_socket,
+            patch("shoal.api.server.is_mcp_running", return_value=False),
+            patch(
+                "shoal.core.config.load_mcp_registry",
+                return_value={"memory": "npx -y @modelcontextprotocol/server-memory"},
+            ),
+            patch(
+                "shoal.api.server.start_mcp_server",
+                return_value=(1234, "/tmp/mcp.sock", "npx cmd"),
+            ),
+            patch("shoal.services.mcp_configure.subprocess.run"),
+        ):
+            mock_socket.return_value = type("P", (), {"exists": lambda self: False})()
+            response = await async_client.post(f"/sessions/{s.id}/mcp/memory")
+            assert response.status_code == 200
+            data = response.json()
+            assert "Attached" in data["message"]
+
     async def test_list_mcp_avoids_n_plus_one(self, async_client, mock_dirs, tmp_path):
         """Test GET /mcp pre-fetches sessions to avoid N+1 queries."""
         from shoal.core.state import list_sessions as real_list_sessions

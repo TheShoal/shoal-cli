@@ -117,7 +117,6 @@ def _check_environment() -> None:
         ("tmux", "Required for session management"),
         ("git", "Required for project/worktree management"),
         ("fzf", "Required for interactive picking"),
-        ("socat", "Required for MCP pooling"),
         ("gh", "Optional: for 'wt finish --pr'"),
         ("nvr", "Optional: for neovim integration"),
     ]

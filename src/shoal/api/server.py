@@ -36,7 +36,6 @@ from shoal.services.lifecycle import (
     kill_session_lifecycle,
 )
 from shoal.services.mcp_pool import (
-    KNOWN_SERVERS,
     is_mcp_running,
     mcp_socket,
     read_pid,
@@ -53,6 +52,7 @@ class SessionCreate(BaseModel):
     worktree: str | None = None
     branch: bool = False
     name: str | None = None
+    mcp: list[str] | None = None
 
     @field_validator("name")
     @classmethod
@@ -338,6 +338,7 @@ async def create_session_api(data: SessionCreate) -> SessionResponse:
             branch_name=branch_name,
             tool_command=tool_cfg.command,
             startup_commands=cfg.tmux.startup_commands,
+            mcp_servers=data.mcp,
         )
     except SessionExistsError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
@@ -500,8 +501,11 @@ async def list_mcp_servers() -> list[McpResponse]:
 
 @app.get("/mcp/known")
 async def list_known_servers() -> list[dict[str, str]]:
-    """List known MCP server commands."""
-    return [{"name": k, "command": v} for k, v in KNOWN_SERVERS.items()]
+    """List known MCP server commands (from registry + built-in defaults)."""
+    from shoal.core.config import load_mcp_registry
+
+    registry = load_mcp_registry()
+    return [{"name": k, "command": v} for k, v in registry.items()]
 
 
 @app.get("/mcp/{name}", response_model=McpResponse)
@@ -555,7 +559,7 @@ async def stop_mcp_server_api(name: str) -> None:
 
 
 @app.post("/sessions/{session_id}/mcp/{mcp_name}")
-async def attach_mcp_to_session(session_id: str, mcp_name: str) -> dict[str, str]:
+async def attach_mcp_to_session(session_id: str, mcp_name: str) -> dict[str, str | bool]:
     """Attach an MCP server to a session."""
     from shoal.services.mcp_pool import validate_mcp_name
 
@@ -569,18 +573,50 @@ async def attach_mcp_to_session(session_id: str, mcp_name: str) -> dict[str, str
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
     socket = mcp_socket(mcp_name)
-    if not socket.exists():
-        raise HTTPException(status_code=400, detail=f"MCP server '{mcp_name}' is not running")
+    if not socket.exists() or not is_mcp_running(mcp_name):
+        # Auto-start: look up registry and start if known
+        from shoal.core.config import load_mcp_registry
 
-    if not is_mcp_running(mcp_name):
-        raise HTTPException(status_code=400, detail=f"MCP server '{mcp_name}' has a stale socket")
+        registry = load_mcp_registry()
+        command = registry.get(mcp_name)
+
+        if not command:
+            raise HTTPException(
+                status_code=400,
+                detail=f"MCP server '{mcp_name}' is not running and not in registry",
+            )
+
+        # Clean up stale socket if needed
+        if socket.exists() and not is_mcp_running(mcp_name):
+            with suppress(FileNotFoundError):
+                stop_mcp_server(mcp_name)
+
+        try:
+            start_mcp_server(mcp_name, command)
+        except (ValueError, RuntimeError) as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to auto-start MCP server: {e}"
+            ) from e
 
     await add_mcp_to_session(session_id, mcp_name)
-    return {
+
+    # Auto-configure tool to use this MCP server
+    configured: str | None = None
+    work_dir = s.worktree or s.path
+    from shoal.services.mcp_configure import McpConfigureError, configure_mcp_for_tool
+
+    with suppress(McpConfigureError):
+        configured = configure_mcp_for_tool(s.tool, mcp_name, work_dir)
+
+    result: dict[str, str | bool] = {
         "message": f"Attached MCP '{mcp_name}' to session '{s.name}'",
         "socket": str(socket),
-        "configure_command": f"socat STDIO UNIX-CONNECT:{socket}",
+        "configure_command": f"shoal-mcp-proxy {mcp_name}",
+        "configured": configured is not None,
     }
+    if configured:
+        result["configure_detail"] = configured
+    return result
 
 
 @app.delete("/sessions/{session_id}/mcp/{mcp_name}", status_code=204)

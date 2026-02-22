@@ -239,7 +239,24 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - ✅ **Async subprocess calls**: Move blocking `tmux._run()` and `git._run()` off the event loop in API/watcher contexts via `asyncio.to_thread()` wrappers (`async_*` prefixed functions).
 - ✅ **Concurrent update guards**: Prevent lost status updates when watcher and user CLI both write to the same session row (asyncio.Lock in ShoalDB.update_session).
 
-## v0.10.0: Developer Tooling & CI/CD
+## v0.10.0: MCP Streamlining
+
+**Priority: make MCP servers zero-friction by eliminating manual steps, external dependencies, and hardcoded configuration.**
+
+### Foundation
+- [x] **Pure Python bridge**: Replace socat dependency with asyncio-based stdio↔unix-socket bridge in `mcp_proxy.py` and `mcp_pool.py`. Eliminates system dependency and shell injection surface.
+- [x] **Configurable server registry**: Replace hardcoded `KNOWN_SERVERS` with `~/.config/shoal/mcp-servers.toml`. Built-in defaults preserved as fallback.
+
+### Core UX
+- [x] **Auto-configure on attach**: `shoal mcp attach` runs the tool's config command or merges into config file automatically. Falls back to manual hint if tool has no config method.
+- [x] **Auto-start on attach**: If MCP server is not running but is in registry, start it automatically before attaching.
+
+### Lifecycle Integration
+- [x] **`--mcp` flag**: `shoal new --mcp memory,github` starts, attaches, and configures MCP servers during session creation. MCP failures warn but don't block session creation.
+- [x] **Template MCP declarations**: `SessionTemplateConfig` gains `mcp: list[str]`. Merged with `--mcp` flag (union, deduped).
+- [x] **Auto-cleanup and reconciliation**: MCP servers stopped when last session using them is killed. Boot-time reconciliation cleans orphaned sockets/PIDs.
+
+## v0.11.0: Developer Tooling & CI/CD
 
 **Priority: enforce quality locally and in CI; make the repo feel like a proper 2026 Python project.**
 

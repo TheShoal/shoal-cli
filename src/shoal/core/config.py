@@ -126,6 +126,31 @@ def available_templates() -> list[str]:
     return sorted(p.stem for p in dir_path.glob("*.toml"))
 
 
+def load_mcp_registry() -> dict[str, str]:
+    """Load MCP server registry: user file merged over built-in defaults.
+
+    Reads ``~/.config/shoal/mcp-servers.toml``.  Each top-level key is a
+    server name whose value is a table with a ``command`` key.  Built-in
+    defaults are used as a fallback for servers not overridden by the user.
+
+    Returns:
+        Mapping of server name → command string.
+    """
+    from shoal.services.mcp_pool import _DEFAULT_SERVERS
+
+    registry: dict[str, str] = dict(_DEFAULT_SERVERS)
+
+    user_file = config_dir() / "mcp-servers.toml"
+    if user_file.exists():
+        with open(user_file, "rb") as f:
+            data = tomllib.load(f)
+        for name, entry in data.items():
+            if isinstance(entry, dict) and "command" in entry:
+                registry[name] = entry["command"]
+
+    return registry
+
+
 def load_template(name: str) -> SessionTemplateConfig:
     """Load a session template TOML.
 
@@ -149,6 +174,7 @@ def load_template(name: str) -> SessionTemplateConfig:
     template_section = data.get("template", {})
     worktree_section = template_section.get("worktree", {})
     env_section = template_section.get("env", {})
+    mcp_section = template_section.get("mcp", [])
     windows_section = data.get("windows", [])
 
     return SessionTemplateConfig(
@@ -157,5 +183,6 @@ def load_template(name: str) -> SessionTemplateConfig:
         tool=template_section.get("tool", "opencode"),
         worktree=TemplateWorktreeConfig.model_validate(worktree_section),
         env=env_section,
+        mcp=mcp_section,
         windows=windows_section,
     )

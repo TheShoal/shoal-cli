@@ -161,6 +161,7 @@ class SessionTemplateConfig(BaseModel):
     tool: str = "opencode"
     worktree: TemplateWorktreeConfig = Field(default_factory=TemplateWorktreeConfig)
     env: dict[str, str] = Field(default_factory=dict)
+    mcp: list[str] = Field(default_factory=list)
     windows: list[TemplateWindowConfig] = Field(default_factory=list)
 
     @field_validator("name")

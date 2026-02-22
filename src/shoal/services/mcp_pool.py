@@ -1,13 +1,22 @@
-"""MCP server lifecycle management (socat start/stop/health)."""
+"""MCP server lifecycle management (pure Python, no socat dependency).
+
+Each MCP server is a long-lived process that listens on a Unix domain
+socket.  When a client connects, the pool spawns a fresh instance of the
+MCP command and bridges the client's connection to the command's
+stdin/stdout.  This replaces the former socat-based approach.
+"""
 
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import shlex
 import signal
 import subprocess
+import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 
 from shoal.core.config import state_dir
@@ -33,13 +42,16 @@ def validate_mcp_name(name: str) -> None:
         )
 
 
-# Well-known MCP server commands
-KNOWN_SERVERS: dict[str, str] = {
+# Well-known MCP server commands (kept as private fallback; prefer registry)
+_DEFAULT_SERVERS: dict[str, str] = {
     "memory": "npx -y @modelcontextprotocol/server-memory",
     "filesystem": "npx -y @modelcontextprotocol/server-filesystem",
     "github": "npx -y @modelcontextprotocol/server-github",
     "fetch": "npx -y @modelcontextprotocol/server-fetch",
 }
+
+# Public alias kept for backward compatibility in tests / direct imports.
+KNOWN_SERVERS = _DEFAULT_SERVERS
 
 
 def mcp_socket(name: str) -> Path:
@@ -74,6 +86,10 @@ def is_mcp_running(name: str) -> bool:
 def start_mcp_server(name: str, command: str | None = None) -> tuple[int, Path, str]:
     """Start an MCP server. Returns (pid, socket_path, command_used).
 
+    The server is a Python subprocess that runs an asyncio Unix socket
+    listener.  Each client connection spawns the MCP command and bridges
+    the socket I/O to the command's stdin/stdout.
+
     Raises ValueError if name is invalid or command can't be determined.
     Raises RuntimeError if server fails to start.
     """
@@ -89,26 +105,25 @@ def start_mcp_server(name: str, command: str | None = None) -> tuple[int, Path, 
     # Clean up stale socket
     socket.unlink(missing_ok=True)
 
-    # Resolve command
+    # Resolve command via configurable registry
     if not command:
-        command = KNOWN_SERVERS.get(name)
+        from shoal.core.config import load_mcp_registry
+
+        registry = load_mcp_registry()
+        command = registry.get(name)
         if not command:
             raise ValueError(
                 f"Unknown MCP server: {name}\n"
-                "Provide --command or use a known server: " + ", ".join(KNOWN_SERVERS)
+                "Provide --command or add it to ~/.config/shoal/mcp-servers.toml\n"
+                "Known servers: " + ", ".join(registry)
             )
 
     socket.parent.mkdir(parents=True, exist_ok=True)
     pid_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Start socat proxy — quote command to prevent shell injection via config values
-    safe_command = " ".join(shlex.quote(tok) for tok in shlex.split(command))
+    # Launch the pool server as a detached subprocess
     proc = subprocess.Popen(
-        [
-            "socat",
-            f"UNIX-LISTEN:{socket},fork,reuseaddr",
-            f"EXEC:{safe_command},pipes",
-        ],
+        [sys.executable, "-m", "shoal.services.mcp_pool", name, command],
         start_new_session=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -148,3 +163,98 @@ def stop_mcp_server(name: str) -> None:
 
     pid_file.unlink(missing_ok=True)
     socket.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Async server entry point (invoked as ``python -m shoal.services.mcp_pool``)
+# ---------------------------------------------------------------------------
+
+_CHUNK_SIZE = 65536
+
+
+async def _handle_client(
+    client_reader: asyncio.StreamReader,
+    client_writer: asyncio.StreamWriter,
+    command: str,
+) -> None:
+    """Handle a single client connection by spawning the MCP command."""
+    tokens = shlex.split(command)
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *tokens,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+    except Exception:
+        client_writer.close()
+        return
+
+    assert proc.stdin is not None
+    assert proc.stdout is not None
+
+    async def _copy(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter | asyncio.StreamWriter
+    ) -> None:
+        try:
+            while True:
+                data = await reader.read(_CHUNK_SIZE)
+                if not data:
+                    break
+                writer.write(data)
+                await writer.drain()
+        except (ConnectionResetError, BrokenPipeError):
+            pass
+
+    try:
+        done, pending = await asyncio.wait(
+            [
+                asyncio.ensure_future(_copy(client_reader, proc.stdin)),
+                asyncio.ensure_future(_copy(proc.stdout, client_writer)),
+            ],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+    finally:
+        with suppress(Exception):
+            proc.kill()
+        with suppress(Exception):
+            client_writer.close()
+
+
+async def _serve(socket_path: str, command: str) -> None:
+    """Run the Unix socket server loop."""
+
+    async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await _handle_client(reader, writer, command)
+
+    server = await asyncio.start_unix_server(_on_connect, path=socket_path)
+    async with server:
+        await server.serve_forever()
+
+
+def _pool_main() -> None:
+    """Entry point when invoked as ``python -m shoal.services.mcp_pool <name> <command>``."""
+    if len(sys.argv) < 3:
+        print("Usage: python -m shoal.services.mcp_pool <name> <command>", file=sys.stderr)
+        sys.exit(1)
+
+    name = sys.argv[1]
+    command = sys.argv[2]
+    socket_path = str(mcp_socket(name))
+
+    # Clean stale socket
+    Path(socket_path).unlink(missing_ok=True)
+    Path(socket_path).parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        asyncio.run(_serve(socket_path, command))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        Path(socket_path).unlink(missing_ok=True)
+
+
+if __name__ == "__main__":
+    _pool_main()

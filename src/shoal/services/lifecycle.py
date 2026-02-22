@@ -500,6 +500,61 @@ def _preview_template_startup(
 
 
 # ---------------------------------------------------------------------------
+# MCP provisioning helper
+# ---------------------------------------------------------------------------
+
+
+async def _provision_mcp_servers(
+    mcp_names: list[str],
+    session_id: str,
+    tool: str,
+    work_dir: str,
+) -> list[str]:
+    """Best-effort MCP provisioning.  Failures warn but don't block.
+
+    For each server name:
+    1. Start it if not already running (via registry lookup).
+    2. Add it to the session's MCP list.
+    3. Auto-configure the tool (if supported).
+
+    Returns the list of successfully provisioned server names.
+    """
+    from shoal.core.config import load_mcp_registry
+    from shoal.services.mcp_configure import McpConfigureError, configure_mcp_for_tool
+    from shoal.services.mcp_pool import is_mcp_running, start_mcp_server
+
+    registry = load_mcp_registry()
+    provisioned: list[str] = []
+
+    for name in mcp_names:
+        try:
+            # Start if not running
+            if not is_mcp_running(name):
+                command = registry.get(name)
+                if not command:
+                    logger.warning("[%s] mcp: skipping '%s' — not in registry", session_id, name)
+                    continue
+                start_mcp_server(name, command)
+
+            # Attach to session
+            from shoal.core.state import add_mcp_to_session
+
+            await add_mcp_to_session(session_id, name)
+
+            # Auto-configure tool
+            try:
+                configure_mcp_for_tool(tool, name, work_dir)
+            except McpConfigureError as e:
+                logger.warning("[%s] mcp: configure '%s' failed: %s", session_id, name, e)
+
+            provisioned.append(name)
+        except Exception as e:
+            logger.warning("[%s] mcp: failed to provision '%s': %s", session_id, name, e)
+
+    return provisioned
+
+
+# ---------------------------------------------------------------------------
 # Lifecycle operations
 # ---------------------------------------------------------------------------
 
@@ -516,6 +571,7 @@ async def create_session_lifecycle(
     startup_commands: list[str],
     template_cfg: SessionTemplateConfig | None = None,
     worktree_name: str = "",
+    mcp_servers: list[str] | None = None,
 ) -> SessionState:
     """Create a session with full rollback on failure.
 
@@ -597,6 +653,12 @@ async def create_session_lifecycle(
             operation="create",
         ) from exc
 
+    # 4.5. Provision MCP servers (failures warn, don't block)
+    if mcp_servers:
+        provisioned = await _provision_mcp_servers(mcp_servers, session.id, tool, work_dir)
+        if provisioned:
+            logger.info("[%s] create: MCP provisioned: %s", session.id, provisioned)
+
     # 5. Set pane title
     await tmux.async_set_pane_title(tmux_session, f"shoal:{session.id}")
 
@@ -638,6 +700,7 @@ async def fork_session_lifecycle(
     startup_commands: list[str],
     template_cfg: SessionTemplateConfig | None = None,
     worktree_name: str = "",
+    mcp_servers: list[str] | None = None,
 ) -> SessionState:
     """Fork a session with full rollback on failure.
 
@@ -721,6 +784,12 @@ async def fork_session_lifecycle(
             operation="fork",
         ) from exc
 
+    # 4.5. Provision MCP servers (failures warn, don't block)
+    if mcp_servers:
+        provisioned = await _provision_mcp_servers(mcp_servers, session.id, source_tool, work_dir)
+        if provisioned:
+            logger.info("[%s] fork: MCP provisioned: %s", session.id, provisioned)
+
     # 5. Set pane title
     await tmux.async_set_pane_title(tmux_session, f"shoal:{session.id}")
 
@@ -758,8 +827,11 @@ async def kill_session_lifecycle(
 ) -> dict[str, bool]:
     """Kill a session and optionally remove its worktree.
 
+    After killing the session, checks if any MCP servers used by this
+    session have no remaining users and stops them.
+
     Returns a summary dict with keys: tmux_killed, worktree_removed,
-    branch_deleted, db_deleted.
+    branch_deleted, db_deleted, mcp_stopped.
     """
     logger.info("[%s] kill: starting", session_id)
     summary: dict[str, bool] = {
@@ -767,7 +839,12 @@ async def kill_session_lifecycle(
         "worktree_removed": False,
         "branch_deleted": False,
         "db_deleted": False,
+        "mcp_stopped": False,
     }
+
+    # Snapshot MCP servers before deleting the session
+    session = await get_session(session_id)
+    mcp_names = list(session.mcp_servers) if session else []
 
     # 1. Kill tmux
     if await tmux.async_has_session(tmux_session):
@@ -794,14 +871,46 @@ async def kill_session_lifecycle(
     summary["db_deleted"] = True
     logger.info("[%s] kill: DB row deleted", session_id)
 
+    # 4. Stop orphaned MCP servers (no remaining sessions using them)
+    if mcp_names:
+        stopped = await _cleanup_orphaned_mcp_servers(mcp_names, session_id)
+        if stopped:
+            summary["mcp_stopped"] = True
+            logger.info("[%s] kill: stopped orphaned MCP servers: %s", session_id, stopped)
+
     return summary
+
+
+async def _cleanup_orphaned_mcp_servers(mcp_names: list[str], killed_session_id: str) -> list[str]:
+    """Stop MCP servers that have no remaining sessions using them."""
+    from shoal.services.mcp_pool import is_mcp_running, stop_mcp_server
+
+    remaining_sessions = await list_sessions()
+    stopped: list[str] = []
+
+    for name in mcp_names:
+        # Check if any remaining session still uses this MCP
+        still_used = any(
+            name in s.mcp_servers for s in remaining_sessions if s.id != killed_session_id
+        )
+
+        if not still_used and is_mcp_running(name):
+            try:
+                stop_mcp_server(name)
+                stopped.append(name)
+            except Exception as e:
+                logger.warning("Failed to stop orphaned MCP '%s': %s", name, e)
+
+    return stopped
 
 
 async def reconcile_sessions() -> list[tuple[str, str, str]]:
     """Boot-time stale-DB reconciliation.
 
-    Iterates non-stopped sessions and marks any whose tmux session has
-    disappeared as stopped.
+    1. Iterates non-stopped sessions and marks any whose tmux session has
+       disappeared as stopped.
+    2. Scans MCP pool sockets for dead processes and cleans up stale
+       socket/PID files.
 
     Returns a list of ``(session_id, name, action)`` tuples for each
     reconciled session.
@@ -829,4 +938,38 @@ async def reconcile_sessions() -> list[tuple[str, str, str]]:
             )
             reconciled.append((session.id, session.name, action))
 
+    # Reconcile MCP pool — clean dead sockets/PIDs
+    cleaned = _reconcile_mcp_pool()
+    for name in cleaned:
+        reconciled.append(("mcp", name, "cleaned dead MCP socket/PID"))
+
     return reconciled
+
+
+def _reconcile_mcp_pool() -> list[str]:
+    """Scan MCP pool for dead processes and clean up stale files."""
+    from shoal.services.mcp_pool import is_mcp_running, mcp_pid_file, mcp_socket, read_pid
+
+    # Use mcp_socket to get the socket dir (consistent with mcp_pool's state_dir)
+    socket_dir = mcp_socket("").parent
+    if not socket_dir.exists():
+        return []
+
+    cleaned: list[str] = []
+    for sock_path in socket_dir.glob("*.sock"):
+        name = sock_path.stem
+        pid = read_pid(name)
+
+        if pid is not None and not is_mcp_running(name):
+            # Process is dead — clean up
+            sock_path.unlink(missing_ok=True)
+            mcp_pid_file(name).unlink(missing_ok=True)
+            cleaned.append(name)
+            logger.info("reconcile: cleaned dead MCP '%s' (pid: %d)", name, pid)
+        elif pid is None:
+            # Orphaned socket with no PID file
+            sock_path.unlink(missing_ok=True)
+            cleaned.append(name)
+            logger.info("reconcile: cleaned orphaned MCP socket '%s'", name)
+
+    return cleaned
