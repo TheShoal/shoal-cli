@@ -150,25 +150,30 @@ async with get_db() as db:
 
 ---
 
-### 4. **MCP Server Pooling via Socat**
+### 4. **MCP Server Pool with Per-Connection Spawning**
 
-**Decision**: Run one MCP server instance per type (memory, filesystem, GitHub), proxy connections via Unix sockets.
+**Decision**: Run a pool server per MCP type that listens on a Unix socket and spawns a fresh MCP command instance for each client connection.
 
 **Why**:
-- **Resource Efficiency**: One `npx @modelcontextprotocol/server-memory` instead of 10
-- **Shared State**: All agents share the same memory context
+- **Resource Efficiency**: One listener process per MCP type, shared socket infrastructure
 - **Standard Protocol**: Works with any MCP-compatible client (Claude, OpenCode, etc.)
+- **No External Dependencies**: Pure Python asyncio server, no socat required
 
 **Implementation**:
-```bash
-# Shoal starts:
-socat UNIX-LISTEN:/tmp/shoal/mcp-pool/memory.sock,fork \
-      EXEC:"npx -y @modelcontextprotocol/server-memory"
-
-# Agents connect to: /tmp/shoal/mcp-pool/memory.sock
+```python
+# Pool server listens on Unix socket:
+#   ~/.local/state/shoal/mcp-pool/sockets/memory.sock
+#
+# Each client connection spawns:
+#   npx -y @modelcontextprotocol/server-memory
+#
+# Client I/O is bridged to the spawned command's stdin/stdout.
+# The shoal-mcp-proxy binary handles the stdio-to-socket bridge.
 ```
 
-**Trade-off**: Requires socat, but provides massive resource savings.
+**Known limitation**: Because each connection spawns a fresh MCP process, memory state is **not shared** between agents. An agent writing to MCP memory cannot be read by another agent's session. True multiplexing with shared state is a future goal.
+
+**Trade-off**: Simpler architecture and no runtime dependencies, but no cross-agent state sharing.
 
 ---
 

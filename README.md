@@ -62,7 +62,7 @@ You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. Yo
 
 **Worktree isolation** gives every session a dedicated git worktree. Agents work on separate branches in separate directories. Your main branch stays clean.
 
-**Shared MCP pool** runs MCP servers once and shares them across all agents via socket proxy. Memory, Filesystem, and GitHub servers — no duplicate overhead.
+**MCP server pool** provides shared infrastructure for MCP servers via Unix socket proxying. Each agent connection spawns a fresh MCP process — no duplicate listener overhead.
 
 **Real-time status detection** watches tmux pane output and reports each agent's state: Thinking, Waiting, Error, or Idle. You always know who needs attention.
 
@@ -82,7 +82,7 @@ You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. Yo
 
 2. **Each agent gets isolation** — Separate worktree, separate branch, separate tmux session. Agents cannot interfere with each other's files.
 
-3. **MCP servers are pooled** — Instead of each agent spawning its own MCP servers, Shoal runs a shared pool. Agents connect through `shoal-mcp-proxy`, sharing memory and filesystem access.
+3. **MCP servers are pooled** — Instead of each agent spawning its own MCP servers, Shoal runs a shared pool. Agents connect through `shoal-mcp-proxy` for shared infrastructure (each connection spawns a fresh MCP process).
 
 4. **Status is tracked continuously** — A background monitor reads tmux pane output, matches patterns against tool-specific configs, and writes state to a SQLite WAL database. The FastAPI server exposes this via a local API.
 
@@ -149,7 +149,7 @@ shoal new -t pi -w feature-api -b --template pi-dev
 shoal new -t gemini -w feature-docs -b
 ```
 
-Each agent works in its own worktree with shared MCP servers for memory and filesystem access.
+Each agent works in its own worktree with pooled MCP server infrastructure.
 
 </details>
 
