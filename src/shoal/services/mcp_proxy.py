@@ -7,14 +7,11 @@ to bridge stdin/stdout to a pooled MCP server's Unix domain socket.
 from __future__ import annotations
 
 import asyncio
-import re
 import sys
 from contextlib import suppress
 
 from shoal.core.config import state_dir
-
-# MCP server names must be plain identifiers (letters, digits, dash, underscore)
-_VALID_MCP_NAME = re.compile(r"^[a-zA-Z0-9_-]+$")
+from shoal.services.mcp_pool import validate_mcp_name
 
 _CHUNK_SIZE = 65536
 
@@ -75,13 +72,12 @@ def main() -> None:
 
     name = sys.argv[1]
 
-    if not _VALID_MCP_NAME.match(name):
-        print(
-            f"Error: Invalid MCP server name: {name!r}\n"
-            "Names must contain only letters, digits, dashes, and underscores.",
-            file=sys.stderr,
-        )
+    try:
+        validate_mcp_name(name)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
     socket = state_dir() / "mcp-pool" / "sockets" / f"{name}.sock"
 
     if not socket.exists():

@@ -63,4 +63,27 @@ def test_mcp_proxy_invalid_name(capsys):
 
         assert exc_info.value.code == 1
         captured = capsys.readouterr()
-        assert "Invalid MCP server name" in captured.err
+        assert "Invalid MCP name" in captured.err
+
+
+def test_mcp_proxy_rejects_underscore_prefix(capsys):
+    """Proxy should reject names starting with underscore."""
+    with patch.object(sys, "argv", ["shoal-mcp-proxy", "_bad"]):
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "Invalid MCP name" in captured.err
+
+
+def test_mcp_proxy_rejects_long_name(capsys):
+    """Proxy should reject names longer than 64 characters."""
+    long_name = "a" * 65
+    with patch.object(sys, "argv", ["shoal-mcp-proxy", long_name]):
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "Invalid MCP name" in captured.err
