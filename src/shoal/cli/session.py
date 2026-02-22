@@ -21,7 +21,6 @@ from shoal.core.state import (
     delete_session,
     find_by_name,
     get_session,
-    get_status_style,
     is_shoal_tmux_session_name,
     list_sessions,
     touch_session,
@@ -34,6 +33,7 @@ from shoal.core.theme import (
     create_panel,
     create_table,
     get_status_icon,
+    get_status_style,
 )
 from shoal.models.state import SessionStatus
 from shoal.services.lifecycle import (

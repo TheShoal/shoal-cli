@@ -65,7 +65,6 @@ app.command("status")(status)
 app.command("popup")(popup)
 
 # Aliases (hidden)
-app.command("add", hidden=True)(add)  # Backward compat
 app.command("i", hidden=True)(info)
 app.command("mv", hidden=True)(rename)
 app.command("l", hidden=True)(logs)
@@ -80,8 +79,6 @@ app.add_typer(wt_app, name="wt", help="Worktree management.")
 app.add_typer(wt_app, name="worktree", hidden=True)
 app.add_typer(mcp_app, name="mcp", help="MCP server pool.")
 app.add_typer(robo_app, name="robo", help="Robo (supervisory agent).")
-app.add_typer(robo_app, name="conductor", hidden=True)  # Backward compat
-app.add_typer(robo_app, name="cond", hidden=True)  # Backward compat
 app.add_typer(nvim_app, name="nvim", help="Neovim integration.")
 app.add_typer(watcher_app, name="watcher", help="Background status watcher.")
 app.add_typer(demo_app, name="demo", help="Demo environment.")

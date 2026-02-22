@@ -16,11 +16,10 @@ from shoal.core.state import (
     _resolve_session_interactive_impl,
     delete_session,
     get_session,
-    get_status_style,
     list_sessions,
     update_session,
 )
-from shoal.core.theme import Icons, Symbols, create_panel, create_table
+from shoal.core.theme import Icons, Symbols, create_panel, create_table, get_status_style
 from shoal.models.state import SessionStatus
 
 console = Console()

@@ -192,11 +192,6 @@ class ShoalDB:
             rows = await cursor.fetchall()
             return [RoboState.model_validate_json(row[0]) for row in rows]
 
-    # Backward compatibility aliases
-    save_conductor = save_robo
-    get_conductor = get_robo
-    list_conductors = list_robos
-
 
 async def get_db() -> ShoalDB:
     """Get the global database instance."""

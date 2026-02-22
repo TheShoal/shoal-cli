@@ -104,12 +104,6 @@ class TestNew:
         assert result.exit_code == 1
         assert "Unknown tool" in result.output
 
-    def test_add_alias(self, mock_dirs, tmp_path):
-        """Test that 'add' still works as a hidden alias for backward compatibility."""
-        result = runner.invoke(app, ["add", str(tmp_path)])
-        assert result.exit_code == 1
-        assert "Not a git repository" in result.output
-
     def test_unknown_template(self, mock_dirs, tmp_path):
         result = runner.invoke(app, ["new", str(tmp_path), "--template", "nonexistent"])
         assert result.exit_code == 1
@@ -156,16 +150,6 @@ class TestRobo:
         _, tmp_state = mock_dirs
         # Robo ls reads profiles from config dir, which has default.toml
         result = runner.invoke(app, ["robo", "ls"])
-        assert result.exit_code == 0
-
-    def test_conductor_alias(self, mock_dirs):
-        """Test that 'conductor' still works as a hidden alias for backward compatibility."""
-        result = runner.invoke(app, ["conductor", "ls"])
-        assert result.exit_code == 0
-
-    def test_cond_alias(self, mock_dirs):
-        """Test that 'cond' still works as a hidden alias for backward compatibility."""
-        result = runner.invoke(app, ["cond", "ls"])
         assert result.exit_code == 0
 
     def test_send(self, mock_dirs):

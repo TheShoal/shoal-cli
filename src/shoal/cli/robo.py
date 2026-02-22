@@ -168,7 +168,6 @@ async def _robo_start_impl(name: str | None) -> None:
 
     runtime_dir = _robo_runtime_dir(name)
 
-    # Check if profile exists (backward compat with old conductor path)
     try:
         profile = load_robo_profile(name)
         tool = profile.tool
@@ -349,25 +348,11 @@ async def _robo_ls_impl() -> None:
     ensure_dirs()
     db = await get_db()
 
-    # Check both new and old paths for backward compat
     profiles_dir = config_dir() / "robo"
-    old_profiles_dir = config_dir() / "conductor"
 
-    profiles = []
-    if profiles_dir.exists():
-        profiles.extend(sorted(profiles_dir.glob("*.toml")))
-    if old_profiles_dir.exists():
-        profiles.extend(sorted(old_profiles_dir.glob("*.toml")))
+    profiles = sorted(profiles_dir.glob("*.toml")) if profiles_dir.exists() else []
 
-    # Deduplicate by name
-    seen_names = set()
-    unique_profiles = []
-    for p in profiles:
-        if p.stem not in seen_names:
-            seen_names.add(p.stem)
-            unique_profiles.append(p)
-
-    if not unique_profiles:
+    if not profiles:
         console.print("No robo profiles")
         console.print("Create one with: shoal robo setup <name>")
         return
@@ -379,7 +364,7 @@ async def _robo_ls_impl() -> None:
     table.add_column("STATUS", width=10)
     table.add_column("STARTED")
 
-    for profile_path in unique_profiles:
+    for profile_path in profiles:
         name = profile_path.stem
         try:
             profile = load_robo_profile(name)

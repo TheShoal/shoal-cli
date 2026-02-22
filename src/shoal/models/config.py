@@ -41,10 +41,6 @@ class RoboGlobalConfig(BaseModel):
     session_prefix: str = "__"
 
 
-# Backward compatibility alias
-ConductorGlobalConfig = RoboGlobalConfig
-
-
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
 
@@ -52,7 +48,7 @@ class ShoalConfig(BaseModel):
     tmux: TmuxConfig = Field(default_factory=TmuxConfig)
     status_bar: StatusBarConfig = Field(default_factory=StatusBarConfig)
     notifications: NotificationsConfig = Field(default_factory=NotificationsConfig)
-    robo: RoboGlobalConfig = Field(default_factory=RoboGlobalConfig, alias="conductor")
+    robo: RoboGlobalConfig = Field(default_factory=RoboGlobalConfig)
 
 
 # --- Tool config models (tools/<name>.toml) ---
@@ -107,10 +103,6 @@ class RoboProfileConfig(BaseModel):
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
     escalation: EscalationConfig = Field(default_factory=EscalationConfig)
     tasks: TasksConfig = Field(default_factory=TasksConfig)
-
-
-# Backward compatibility alias
-ConductorProfileConfig = RoboProfileConfig
 
 
 # --- Session template models (templates/<name>.toml) ---

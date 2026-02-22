@@ -80,17 +80,13 @@ def load_tool_config(name: str) -> ToolConfig:
 
 def load_robo_profile(name: str) -> RoboProfileConfig:
     """Load a robo profile TOML."""
-    # Try new location first, fall back to old conductor path for backward compat
     path = config_dir() / "robo" / f"{name}.toml"
-    if not path.exists():
-        path = config_dir() / "conductor" / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No robo profile: {name}")
     with open(path, "rb") as f:
         data = tomllib.load(f)
 
-    # Support both [robo] and [conductor] section names
-    robo_section = data.get("robo", data.get("conductor", {}))
+    robo_section = data.get("robo", {})
     return RoboProfileConfig(
         name=robo_section.get("name", name),
         tool=robo_section.get("tool", "opencode"),
@@ -99,10 +95,6 @@ def load_robo_profile(name: str) -> RoboProfileConfig:
         escalation=data.get("escalation", {}),
         tasks=data.get("tasks", {}),
     )
-
-
-# Backward compatibility alias
-load_conductor_profile = load_robo_profile
 
 
 def available_tools() -> list[str]:

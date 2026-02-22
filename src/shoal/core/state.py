@@ -298,13 +298,3 @@ def _get_tool_icon(tool: str) -> str:
         return cfg.icon
     except FileNotFoundError:
         return Symbols.BULLET_FILLED
-
-
-def get_status_style(status: str) -> str:
-    """Get Rich style for a session status.
-
-    This is a re-export from theme module for backwards compatibility.
-    """
-    from shoal.core.theme import get_status_style as _get_status_style
-
-    return _get_status_style(status)
