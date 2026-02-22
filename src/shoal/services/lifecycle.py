@@ -7,6 +7,7 @@ sequence and startup-command execution path.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import shlex
 import subprocess
@@ -153,7 +154,8 @@ async def _rollback_async(
             logger.warning(msg)
             warnings.append(msg)
 
-    if wt_path and Path(wt_path).exists():
+    wt_exists = bool(wt_path and await asyncio.to_thread(lambda: Path(wt_path).exists()))
+    if wt_exists:
         try:
             root = git_root or ""
             if root:
@@ -866,17 +868,19 @@ async def kill_session_lifecycle(
         logger.info("[%s] kill: tmux session killed", session_id)
 
     # 2. Optionally remove worktree + branch
-    if remove_worktree and worktree and Path(worktree).is_dir():
+    if remove_worktree and worktree and await asyncio.to_thread(lambda: Path(worktree).is_dir()):
         # Check for dirty worktree
         if await git.async_worktree_is_dirty(worktree):
             if not force:
-                dirty_output = subprocess.run(
+                result = await asyncio.to_thread(
+                    subprocess.run,
                     ["git", "status", "--porcelain"],
                     cwd=worktree,
                     capture_output=True,
                     text=True,
                     check=False,
-                ).stdout.strip()
+                )
+                dirty_output = result.stdout.strip()
                 raise DirtyWorktreeError(
                     f"Worktree has uncommitted changes: {worktree}",
                     session_id=session_id,
@@ -970,8 +974,7 @@ async def reconcile_sessions() -> list[tuple[str, str, str]]:
 
     # Reconcile MCP pool — clean dead sockets/PIDs
     cleaned = reconcile_mcp_pool()
-    for name in cleaned:
-        reconciled.append(("mcp", name, "cleaned dead MCP socket/PID"))
+    reconciled.extend(("mcp", name, "cleaned dead MCP socket/PID") for name in cleaned)
 
     return reconciled
 

@@ -547,7 +547,7 @@ async def start_mcp_server_api(data: McpCreate) -> McpResponse:
         )
 
     try:
-        pid, socket_path, cmd = start_mcp_server(name, data.command)
+        pid, _socket_path, _cmd = start_mcp_server(name, data.command)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except RuntimeError as e:

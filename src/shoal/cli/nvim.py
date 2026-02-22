@@ -46,7 +46,7 @@ async def _nvim_send_impl(session: str, command: str) -> None:
         console.print(f"[red]No nvim socket for session '{s.name}'[/red]")
         raise typer.Exit(1)
 
-    if not Path(socket).exists():
+    if not await asyncio.to_thread(lambda: Path(socket).exists()):
         console.print(f"[red]Nvim socket not found: {socket}[/red]")
         console.print(f"Is nvim running in session '{s.name}'?")
         raise typer.Exit(1)
@@ -55,7 +55,8 @@ async def _nvim_send_impl(session: str, command: str) -> None:
         console.print("[red]nvr not found — install with: pip install neovim-remote[/red]")
         raise typer.Exit(1)
 
-    subprocess.run(
+    await asyncio.to_thread(
+        subprocess.run,
         ["nvr", "--servername", socket, "--remote-send", f"<C-\\><C-n>:{command}<CR>"],
         check=False,
     )
@@ -94,7 +95,7 @@ async def _nvim_diagnostics_impl(session: str) -> None:
         console.print(f"[red]No nvim socket for session '{s.name}'[/red]")
         raise typer.Exit(1)
 
-    if not Path(socket).exists():
+    if not await asyncio.to_thread(lambda: Path(socket).exists()):
         console.print(f"[red]Nvim socket not found: {socket}[/red]")
         console.print(f"Is nvim running in session '{s.name}'?")
         raise typer.Exit(1)
@@ -110,7 +111,8 @@ async def _nvim_diagnostics_impl(session: str) -> None:
         f.write(_DIAGNOSTICS_LUA)
         lua_file = Path(f.name)
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             [
                 "nvr",
                 "--servername",
@@ -124,7 +126,7 @@ async def _nvim_diagnostics_impl(session: str) -> None:
             timeout=10,
         )
     finally:
-        lua_file.unlink(missing_ok=True)
+        await asyncio.to_thread(lambda: lua_file.unlink(missing_ok=True))
 
     if not result.stdout.strip():
         console.print(f"No diagnostics for session '{s.name}'")

@@ -126,7 +126,8 @@ async def _wt_finish_impl(session: str | None, pr: bool, no_merge: bool) -> None
             git.push(s.worktree, s.branch, set_upstream=True)
             import subprocess
 
-            subprocess.run(
+            await asyncio.to_thread(
+                subprocess.run,
                 ["gh", "pr", "create", "--head", s.branch, "--fill", "--web"],
                 cwd=s.worktree,
                 check=False,
@@ -208,9 +209,11 @@ async def _wt_cleanup_impl() -> None:
 
         wt_base = Path(s.path) / ".worktrees"
         if wt_base.is_dir():
-            for wt_dir in wt_base.iterdir():
-                if wt_dir.is_dir() and str(wt_dir) not in tracked:
-                    orphans.append(str(wt_dir))
+            orphans.extend(
+                str(wt_dir)
+                for wt_dir in wt_base.iterdir()
+                if wt_dir.is_dir() and str(wt_dir) not in tracked
+            )
 
     if not orphans:
         console.print("No orphaned worktrees found")

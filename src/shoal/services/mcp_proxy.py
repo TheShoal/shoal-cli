@@ -60,7 +60,7 @@ async def _run_bridge(socket_path: str) -> None:
     )
 
     # Bridge both directions concurrently; when either side closes, cancel the other
-    done, pending = await asyncio.wait(
+    _done, pending = await asyncio.wait(
         [
             asyncio.ensure_future(_bridge(stdin_reader, sock_writer)),
             asyncio.ensure_future(_bridge(sock_reader, stdout_writer)),

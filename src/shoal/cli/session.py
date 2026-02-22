@@ -140,7 +140,7 @@ async def _prune_impl(force: bool) -> None:
         for s in stopped:
             console.print(f"  - {s.name} ({s.id})")
         if not typer.confirm("Are you sure you want to remove these?"):
-            raise typer.Abort()
+            raise typer.Abort
 
     for s in stopped:
         await delete_session(s.id)

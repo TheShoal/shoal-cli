@@ -376,12 +376,92 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - [x] Session.py decomposition: Split 700+ line file by concern (create, view, lifecycle) — currently tracked under v0.9.0 lifecycle extraction.
 - [x] MCP socket cleanup: Add cleanup on reboot or `shoal init` for stale `/tmp/shoal/mcp-pool/*.sock` files.
 
+## v0.13.0: Ruff Lint Expansion (Released: 2026-02-22)
+
+**Priority: enforce async correctness and consolidate security scanning into ruff.**
+
+### Phase 1 — Async + performance rules
+
+- [x] Enable `ASYNC`, `PERF`, `RUF`, `LOG`, `G`, `C4`, `PIE`, `DTZ`, `RET`, `RSE` in ruff select
+- [x] Ignore `ASYNC240` globally (pathlib in async — low risk, noisy in CLI modules)
+- [x] Fix blocking subprocess calls in async functions (`lifecycle.py`, `nvim.py`, `worktree.py`, `state.py`)
+- [x] Fix blocking `open()` in async function (`mcp_pool.py`)
+- [x] Fix PERF401, RUF, RET505, RSE102 violations
+
+### Phase 2 — Consolidate security scanning
+
+- [x] Add `S` rules to ruff, matching current Bandit ignores (`S101, S603, S607, S108`)
+- [x] Remove Bandit from `.pre-commit-config.yaml` and CI (ruff S rules replace it)
+- [x] Update CI security job to use `ruff check --select S`
+
+## v0.14.0: Session Templates v2
+
+**Priority: template inheritance and composition to eliminate duplication.**
+
+### Phase 1 — `extends` (single inheritance)
+
+- [ ] Add `extends` field to `SessionTemplateConfig`
+- [ ] Recursive resolution with cycle detection in `load_template()`
+- [ ] Merge semantics: scalars override, `env` merges, `mcp` unions, `windows` replaces-if-present
+- [ ] Update `template show/ls/validate` commands
+- [ ] Ship built-in base templates demonstrating inheritance
+
+### Phase 2 — `mixins` (additive composition)
+
+- [ ] Create `TemplateMixinConfig` Pydantic model
+- [ ] Mixin files in `~/.config/shoal/templates/mixins/`
+- [ ] Additive merge: `mcp` union, `env` merge, `windows` append
+- [ ] Resolution order: extends → mixins → CLI flags
+- [ ] Ship built-in mixins (e.g., `mcp-memory`, `with-tests`)
+
+## v0.15.0: FastMCP Integration
+
+**Priority: expose Shoal orchestration as MCP tools so agents can call Shoal natively.**
+
+### Phase 1 — Shoal MCP server
+
+- [ ] Add `fastmcp>=3.0.0` as optional dependency
+- [ ] Create `mcp_shoal_server.py` with tools: list_sessions, send_keys, create_session, kill_session, session_status, session_info
+- [ ] Register `shoal-orchestrator` in default MCP server registry
+- [ ] Template support for robo workflows
+
+### Phase 2 — Protocol-aware health checks
+
+- [ ] Replace manual JSON-RPC probe in `mcp doctor` with FastMCP Client
+- [ ] Better error diagnostics from protocol-level failures
+
+### Phase 3 — Transport evaluation (spike)
+
+- [ ] Investigate FastMCP UDS transport support
+- [ ] Measure HTTP vs UDS performance for MCP traffic
+- [ ] Decide go/no-go for byte bridge replacement
+
+## v0.16.0: Remote Sessions
+
+**Priority: monitor and control agents running on remote machines via SSH tunnel + HTTP client.**
+
+### Phase 1 — Documentation + fish wrapper
+
+- [ ] Ship `shoal-remote` fish function wrapping SSH
+- [ ] Document remote usage patterns
+
+### Phase 2 — `shoal remote` subcommand group
+
+- [ ] `shoal remote connect/disconnect` — SSH tunnel management
+- [ ] `shoal remote status/ls` — HTTP GET via tunnel, Rich-formatted
+- [ ] `shoal remote send/attach` — interact with remote sessions
+- [ ] Remote host config in `~/.config/shoal/config.toml`
+
+### Phase 3 — Status bar integration (optional)
+
+- [ ] Fish status bar polls remote WebSocket for session status
+
 ## Future Considerations
 
-- **FastMCP Integration**: Native support for the FastMCP protocol.
-- **Session Templates v2**: Advanced inheritance/composition after MVP stabilizes.
-- **Remote Sessions**: Support managing sessions on remote machines via SSH.
-- **Ruff Lint Expansion**: Enforce stricter async and security linting rules.
+- **FastMCP Transport Migration**: Replace byte bridge with FastMCP proxy if Phase 3 spike succeeds.
+- **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()`.
+- **Project-Local Templates**: `.shoal/templates/` search path in git root.
+- **Oh-My-Pi (omp) Integration**: Add `omp.toml` tool definition and `omp-dev` session template mirroring existing pi support. Key opportunities: omp has native MCP (`omp plugin` system) enabling direct socket sharing with Shoal's MCP pool; detection patterns need tuning for omp's extended TUI (subagent/LSP status indicators beyond pi's base patterns); universal config discovery (reads `.claude/`, `.codex/`, `.gemini/` alongside `.omp/`) enables cross-agent workflow sharing.
 
 ---
 
@@ -498,3 +578,23 @@ This milestone combines the highest-value items from the previous v0.8.1–v0.8.
 - Commit, tag v0.12.0
 - Brain Dump is now empty — consider adding new items or starting Future Considerations
 - Future: FastMCP integration, session templates v2, remote sessions, ruff lint expansion
+
+### Session: 2026-02-22 — v0.13.0 Ruff Lint Expansion + Roadmap Planning
+
+**What we did:**
+
+- Researched all 4 Future Considerations (FastMCP, Templates v2, Remote Sessions, Ruff Lint)
+- Converted Future Considerations into concrete v0.13.0–v0.16.0 milestones in ROADMAP
+- Implemented v0.13.0 Ruff Lint Expansion:
+  - Added 10 new ruff rule sets: ASYNC, PERF, RUF, LOG, G, C4, PIE, DTZ, RET, RSE, S
+  - Fixed 29 violations including 1 genuine event-loop-blocking bug in lifecycle.py
+  - Wrapped 6 blocking subprocess.run() calls in asyncio.to_thread()
+  - Consolidated Bandit security scanning into ruff S rules
+  - Removed Bandit from pre-commit and CI (replaced by ruff --select S)
+- 553 tests passing, ruff/mypy all clean, 0 new violations
+
+**What to do next:**
+
+- v0.14.0: Session Templates v2 (extends + mixins)
+- v0.15.0: FastMCP Integration (Shoal-as-MCP-server for robo supervisors)
+- v0.16.0: Remote Sessions (SSH tunnel + HTTP client)

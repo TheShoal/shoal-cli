@@ -162,9 +162,8 @@ def install_fish_integration(force: bool = False) -> bool:
             "to start using the integration."
         )
         return True
-    else:
-        console.print(f"\n[red]Installation completed with {len(errors)} error(s).[/red]")
-        return False
+    console.print(f"\n[red]Installation completed with {len(errors)} error(s).[/red]")
+    return False
 
 
 def uninstall_fish_integration() -> bool:

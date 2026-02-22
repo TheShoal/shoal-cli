@@ -11,7 +11,7 @@ repos:
 
   # Ruff — lint + format check (uses pre-commit mirror, no Python env needed)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.7
+    rev: v0.15.1
     hooks:
       - id: ruff
         args: [--fix]
@@ -29,13 +29,6 @@ repos:
       - id: mypy
         name: mypy strict
         entry: uv run mypy --strict src/shoal/
-        language: system
-        pass_filenames: false
-        files: \.py$
-        types: [python]
-      - id: bandit
-        name: bandit security scan
-        entry: uv run --with bandit bandit -r src/shoal/ -c pyproject.toml -ll -q
         language: system
         pass_filenames: false
         files: \.py$

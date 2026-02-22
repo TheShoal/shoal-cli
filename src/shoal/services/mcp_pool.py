@@ -221,7 +221,7 @@ async def _handle_client(
     stderr_dest: int | None = asyncio.subprocess.DEVNULL
     if log_path is not None:
         with suppress(OSError):
-            log_fh = open(log_path, "a")  # noqa: SIM115
+            log_fh = await asyncio.to_thread(open, log_path, "a")
     try:
         proc = await asyncio.create_subprocess_exec(
             *tokens,
@@ -252,7 +252,7 @@ async def _handle_client(
             pass
 
     try:
-        done, pending = await asyncio.wait(
+        _done, pending = await asyncio.wait(
             [
                 asyncio.ensure_future(_copy(client_reader, proc.stdin)),
                 asyncio.ensure_future(_copy(proc.stdout, client_writer)),

@@ -277,7 +277,8 @@ async def _resolve_session_interactive_impl(name_or_id: str | None = None) -> st
         lines.append(f"{session.id}\t{icon} {session.name}\t{session.tool}\t{session.status.value}")
 
     try:
-        proc = subprocess.run(
+        proc = await asyncio.to_thread(
+            subprocess.run,
             ["fzf", "--header=ID\tNAME\tTOOL\tSTATUS", "--delimiter=\t"],
             input="\n".join(lines),
             capture_output=True,
