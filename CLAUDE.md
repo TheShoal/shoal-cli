@@ -65,3 +65,8 @@ See @COMMIT_GUIDELINES.md for full spec and examples.
 ## Architecture
 
 See @ARCHITECTURE.md for design decisions, data flow, and component relationships.
+
+## Project Tracking
+
+See @ROADMAP.md for upcoming milestones and session handoff notes.
+See @CHANGELOG.md for completed release history.

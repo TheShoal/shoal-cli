@@ -11,11 +11,12 @@ Read the project roadmap and handoff notes to establish session context.
 ## Steps
 
 1. Read `ROADMAP.md` — focus on the **Handoff** section at the bottom and the first **Upcoming** milestone
-2. Summarize to the user:
+2. If needed, read `CHANGELOG.md` for historical release context (completed milestones live there, not in ROADMAP)
+3. Summarize to the user:
    - What the last session accomplished (from the most recent handoff entry)
    - What the next session should work on
    - Current milestone status (what's done, what remains)
-3. If `$ARGUMENTS` is "update" or "write":
+4. If `$ARGUMENTS` is "update" or "write":
    - Ask the user to confirm what was accomplished this session
    - Append a new handoff entry to the **Handoff** section in `ROADMAP.md` following the existing format:
      ```
@@ -27,7 +28,8 @@ Read the project roadmap and handoff notes to establish session context.
      **What to do next:**
      - bullet points of next steps
      ```
-   - Update milestone checkboxes if any items were completed
+   - Update milestone checkboxes in `ROADMAP.md` if any items were completed
+   - Update `CHANGELOG.md` under `[Unreleased]` if new features/fixes were shipped
 
 ## Format
 
