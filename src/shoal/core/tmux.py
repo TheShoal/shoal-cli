@@ -1,21 +1,13 @@
 """Tmux subprocess wrappers.
 
-Note: All functions in this module are synchronous subprocess calls.
-For async tmux operations, use the async wrapper functions in state.py.
-
-Sync-in-async tradeoff:
-These blocking subprocess.run() calls are invoked directly from async contexts
-(FastAPI routes, watcher service, CLI commands) without asyncio.to_thread() or
-run_in_executor(). This is an accepted tradeoff for v0.4.x because:
-- Tmux operations are fast (typically <50ms)
-- The calls are infrequent relative to I/O-bound operations
-- Complexity of thread pool management outweighs benefit at current scale
-
-This will be revisited in a future version if profiling shows event loop blocking.
+All core functions are synchronous (used by CLI directly).
+``async_*`` variants wrap the sync functions via ``asyncio.to_thread()``
+for use in async contexts (FastAPI routes, watcher, lifecycle service).
 """
 
 from __future__ import annotations
 
+import asyncio
 import os
 import shlex
 import subprocess
@@ -177,3 +169,56 @@ def detach_client() -> None:
 def run_command(command: str) -> None:
     """Run a raw tmux command (e.g. 'new-window -n editor')."""
     _run(shlex.split(command))
+
+
+# ---------------------------------------------------------------------------
+# Async wrappers — for use in async contexts (lifecycle, watcher, API)
+# ---------------------------------------------------------------------------
+
+
+async def async_has_session(name: str) -> bool:
+    return await asyncio.to_thread(has_session, name)
+
+
+async def async_new_session(name: str, *, cwd: str | None = None) -> None:
+    await asyncio.to_thread(new_session, name, cwd=cwd)
+
+
+async def async_kill_session(name: str) -> None:
+    await asyncio.to_thread(kill_session, name)
+
+
+async def async_set_environment(session: str, key: str, value: str) -> None:
+    await asyncio.to_thread(set_environment, session, key, value)
+
+
+async def async_send_keys(target: str, keys: str, *, enter: bool = True) -> None:
+    await asyncio.to_thread(send_keys, target, keys, enter=enter)
+
+
+async def async_capture_pane(target: str, lines: int = 20, include_ansi: bool = False) -> str:
+    return await asyncio.to_thread(capture_pane, target, lines, include_ansi)
+
+
+async def async_list_panes(target: str) -> list[dict[str, str]]:
+    return await asyncio.to_thread(list_panes, target)
+
+
+async def async_preferred_pane(session: str, title: str | None = None) -> str:
+    return await asyncio.to_thread(preferred_pane, session, title)
+
+
+async def async_set_pane_title(target: str, title: str) -> None:
+    await asyncio.to_thread(set_pane_title, target, title)
+
+
+async def async_pane_pid(target: str) -> int | None:
+    return await asyncio.to_thread(pane_pid, target)
+
+
+async def async_pane_coordinates(target: str) -> tuple[str, str] | None:
+    return await asyncio.to_thread(pane_coordinates, target)
+
+
+async def async_run_command(command: str) -> None:
+    await asyncio.to_thread(run_command, command)

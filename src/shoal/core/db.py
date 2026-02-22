@@ -1,10 +1,14 @@
 """Async SQLite database for Shoal session and robo state."""
 
-import aiosqlite
+import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncIterator
-from shoal.models.state import SessionState, RoboState, ConductorState
+from typing import Any
+
+import aiosqlite
+
+from shoal.models.state import RoboState, SessionState
 
 
 class ShoalDB:
@@ -27,13 +31,14 @@ class ShoalDB:
     def __init__(self, db_path: Path):
         self.db_path = db_path
         self._conn: aiosqlite.Connection | None = None
+        self._update_lock = asyncio.Lock()
 
     @classmethod
     async def get_instance(cls, db_path: Path | None = None) -> "ShoalDB":
         """Get or create the singleton database instance."""
         if cls._instance is None:
             if db_path is None:
-                from shoal.core.config import state_dir, ensure_dirs
+                from shoal.core.config import ensure_dirs, state_dir
 
                 ensure_dirs()
                 db_path = state_dir() / "shoal.db"
@@ -111,40 +116,46 @@ class ShoalDB:
 
     async def get_session(self, session_id: str) -> SessionState | None:
         """Get a session by ID."""
-        async with self._connection() as conn:
-            async with conn.execute(
-                "SELECT data FROM sessions WHERE id = ?", (session_id,)
-            ) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    return SessionState.model_validate_json(row[0])
+        async with (
+            self._connection() as conn,
+            conn.execute("SELECT data FROM sessions WHERE id = ?", (session_id,)) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return SessionState.model_validate_json(row[0])
         return None
 
     async def list_sessions(self) -> list[SessionState]:
         """List all sessions."""
-        async with self._connection() as conn:
-            async with conn.execute("SELECT data FROM sessions") as cursor:
-                rows = await cursor.fetchall()
-                return [SessionState.model_validate_json(row[0]) for row in rows]
+        async with self._connection() as conn, conn.execute("SELECT data FROM sessions") as cursor:
+            rows = await cursor.fetchall()
+            return [SessionState.model_validate_json(row[0]) for row in rows]
 
     async def find_session_by_name(self, name: str) -> SessionState | None:
         """Find a session by name (indexed lookup)."""
-        async with self._connection() as conn:
-            async with conn.execute("SELECT data FROM sessions WHERE name = ?", (name,)) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    return SessionState.model_validate_json(row[0])
+        async with (
+            self._connection() as conn,
+            conn.execute("SELECT data FROM sessions WHERE name = ?", (name,)) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return SessionState.model_validate_json(row[0])
         return None
 
     async def update_session(self, session_id: str, **fields: Any) -> SessionState | None:
-        """Update specific fields of a session."""
-        session = await self.get_session(session_id)
-        if not session:
-            return None
+        """Update specific fields of a session.
 
-        updated = session.model_copy(update=fields)
-        await self.save_session(updated)
-        return updated
+        Uses a lock to prevent concurrent read-modify-write races
+        (e.g. watcher vs API on the same event loop).
+        """
+        async with self._update_lock:
+            session = await self.get_session(session_id)
+            if not session:
+                return None
+
+            updated = session.model_copy(update=fields)
+            await self.save_session(updated)
+            return updated
 
     async def delete_session(self, session_id: str):
         """Delete a session."""
@@ -163,21 +174,23 @@ class ShoalDB:
 
     async def get_robo(self, name: str) -> RoboState | None:
         """Get robo state by name."""
-        async with self._connection() as conn:
-            async with conn.execute(
-                "SELECT data FROM conductors WHERE name = ?", (name,)
-            ) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    return RoboState.model_validate_json(row[0])
+        async with (
+            self._connection() as conn,
+            conn.execute("SELECT data FROM conductors WHERE name = ?", (name,)) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return RoboState.model_validate_json(row[0])
         return None
 
     async def list_robos(self) -> list[RoboState]:
         """List all robos."""
-        async with self._connection() as conn:
-            async with conn.execute("SELECT data FROM conductors") as cursor:
-                rows = await cursor.fetchall()
-                return [RoboState.model_validate_json(row[0]) for row in rows]
+        async with (
+            self._connection() as conn,
+            conn.execute("SELECT data FROM conductors") as cursor,
+        ):
+            rows = await cursor.fetchall()
+            return [RoboState.model_validate_json(row[0]) for row in rows]
 
     # Backward compatibility aliases
     save_conductor = save_robo
