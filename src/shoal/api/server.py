@@ -368,7 +368,8 @@ async def create_session_api(data: SessionCreate):
             except KeyError as e:
                 raise ValueError(f"Missing startup command variable {e} in: {cmd}") from None
             tmux.run_command(interpolated)
-    except (ValueError, Exception) as e:
+    except Exception as e:
+        logger.warning("Startup command failed for session %s: %s", session_name, e, exc_info=True)
         # Rollback: kill tmux + delete DB row + remove worktree
         tmux.kill_session(tmux_session)
         await delete_session(session.id)

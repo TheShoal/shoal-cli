@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -103,11 +104,10 @@ async def _nvim_diagnostics_impl(session):
         raise typer.Exit(1)
 
     # Write Lua to a temp file to avoid shell quoting issues with luaeval()
-    import tempfile
-
-    lua_file = Path(tempfile.mktemp(suffix=".lua", prefix="shoal-diag-"))
+    with tempfile.NamedTemporaryFile(suffix=".lua", prefix="shoal-diag-", mode="w", delete=False) as f:
+        f.write(_DIAGNOSTICS_LUA)
+        lua_file = Path(f.name)
     try:
-        lua_file.write_text(_DIAGNOSTICS_LUA)
         result = subprocess.run(
             [
                 "nvr",
