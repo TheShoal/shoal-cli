@@ -6,7 +6,7 @@
 
 <!-- Row 1 — Identity -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.11.0-beta-EED49F?style=flat-square" alt="v0.11.0 beta">
+  <img src="https://img.shields.io/badge/v0.14.0-beta-EED49F?style=flat-square" alt="v0.14.0 beta">
   <img src="https://img.shields.io/badge/status-beta-EED49F?style=flat-square" alt="Status: Beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
@@ -24,7 +24,7 @@
 
 <!-- Row 3 — Quality -->
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-543_passing-A6DA95?style=flat-square" alt="Tests: 543 passing">
+  <img src="https://img.shields.io/badge/tests-589_passing-A6DA95?style=flat-square" alt="Tests: 589 passing">
   <img src="https://img.shields.io/badge/coverage-81%25-8BD5CA?style=flat-square" alt="Coverage: 81%">
   <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
 </p>
@@ -66,7 +66,7 @@ You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. Yo
 
 **Real-time status detection** watches tmux pane output and reports each agent's state: Thinking, Waiting, Error, or Idle. You always know who needs attention.
 
-**Session templates** define window layouts, pane splits, and tool configs in TOML. Reproduce your preferred setup with a single flag.
+**Session templates** define window layouts, pane splits, and tool configs in TOML. Templates support inheritance (`extends`) and composition (`mixins`) to eliminate duplication across workflows.
 
 **Robo supervisor mode** gives a coordinating agent access to the Shoal CLI. It monitors the fleet, sends keystrokes, approves actions, and routes tasks — your agents managing agents.
 
@@ -215,8 +215,10 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 | Command          | Description                              |
 | ---------------- | ---------------------------------------- |
 | `ls`             | List available session templates         |
-| `show <name>`    | Display a template's configuration       |
+| `show <name>`    | Display a template's resolved config     |
+| `show --raw`     | Display unresolved template (pre-merge)  |
 | `validate <name>`| Validate a template against the schema   |
+| `mixins`         | List available template mixins           |
 
 ### Demo (`shoal demo`)
 
@@ -268,9 +270,9 @@ Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection
 
 | Milestone | Focus | Status |
 | --------- | ----- | ------ |
-| **v0.10.1** | MCP pooling, session templates, robo mode | Current |
-| **v0.9.0** | Lifecycle hardening, type annotations, dev tooling | Complete |
-| **v1.0.0** | Pi agent integration, stability, docs | In Progress |
+| **v0.14.0** | Template inheritance and mixins | Current |
+| **v0.13.0** | Ruff lint expansion, security consolidation | Complete |
+| **v1.0.0** | CLI/API parity, 81% coverage, deprecation cleanup | Complete |
 
 See [ROADMAP.md](ROADMAP.md) for the full plan.
 
@@ -287,7 +289,7 @@ just cov         # tests with coverage report
 just setup       # install pre-commit hooks
 ```
 
-**292 tests** | **77% coverage** | **pre-commit enforced** | **conventional commits**
+**589 tests** | **81% coverage** | **pre-commit enforced** | **conventional commits**
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 

@@ -43,7 +43,7 @@ src/shoal/
 
 - **SQLite + WAL mode**: Single async connection via `aiosqlite`, concurrent update guard with `asyncio.Lock`
 - **Lifecycle service**: `services/lifecycle.py` is the single orchestrator for create/fork/kill/reconcile — both CLI and API delegate to it
-- **MCP pooling**: Shared MCP servers via socat Unix socket proxying — one server instance per type
+- **MCP pooling**: Shared MCP servers via asyncio Unix socket proxying — one listener per type, per-connection spawning
 - **Status detection**: Tmux pane scraping with regex patterns per tool (configured in TOML tool profiles)
 - **Git worktrees**: Session isolation via `git worktree add`, not branches in the main working tree
 - **Pane identity**: `shoal:<session_id>` tmux pane titles for stable watcher targeting
@@ -52,7 +52,7 @@ src/shoal/
 
 - Fish templates in `src/shoal/integrations/fish/templates/*.fish` must pass `fish -n` syntax validation
 - The project uses `hatchling` as build backend, not setuptools
-- `socat` is a runtime dependency for MCP socket proxying
+- MCP pool uses pure Python asyncio (no socat dependency since v0.10.0)
 - Integration tests (marked `@pytest.mark.integration`) require a running tmux session
 - Pre-commit hooks enforce: trailing whitespace, EOF newline, YAML/TOML validity, ruff lint+format, gitlint
 

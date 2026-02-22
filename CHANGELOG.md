@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-02-22
+
+### Added
+- **Template Inheritance**: `extends` field for single inheritance with cycle detection
+- **Template Mixins**: `mixins` field for additive composition (env merge, mcp union, windows append)
+- **`TemplateMixinConfig`**: New Pydantic model for additive template fragments
+- **`template mixins`**: CLI command to list available mixins
+- **`template show --raw`**: Display unresolved template (pre-inheritance merge)
+- **Example Templates**: base-dev, claude-dev (extends), pi-dev (extends), mcp-memory and with-tests mixins
+
+### Changed
+- `load_template()` refactored to `resolve_template()` with full inheritance resolution
+- Template CLI `ls` shows EXTENDS and MIX columns; `validate` shows extends chain info
+- Fish completions updated for `template mixins` subcommand
+
+### Stats
+- 589 tests (39 new), ruff/mypy all clean
+
+## [0.13.0] - 2026-02-22
+
+### Added
+- **Ruff Lint Expansion**: 10 new rule sets (ASYNC, PERF, RUF, LOG, G, C4, PIE, DTZ, RET, RSE, S)
+
+### Changed
+- Consolidated Bandit security scanning into ruff S rules
+- Removed Bandit from pre-commit and CI
+
+### Fixed
+- 1 genuine event-loop-blocking bug in lifecycle.py (blocking subprocess in async)
+- 28 additional lint violations across the codebase
+
+## [0.12.0] - 2026-02-22
+
+### Added
+- **Compiled Regex Detection**: `DetectionPatterns` pre-compiles patterns via `model_validator`; detection engine uses `re.search()` for word boundaries, anchors, and alternation
+- **MCP Socket Cleanup**: `shoal init` scans for and removes stale MCP sockets/PIDs from reboots or crashes
+
+### Changed
+- **Session CLI Decomposition**: Split `session.py` (1,069 lines) into `session.py`, `session_create.py`, `session_view.py`
+- `_reconcile_mcp_pool()` renamed to `reconcile_mcp_pool()` (public API)
+
+### Stats
+- 553 tests (10 new), ruff/mypy/bandit all clean
+
 ## [0.11.0] - 2026-02-22
 
 ### Added

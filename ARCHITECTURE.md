@@ -14,6 +14,8 @@
 6. [Production Readiness](#production-readiness)
 7. [Future-Proofing](#future-proofing)
 
+Design Principles covers: Terminal-First, Async+SQLite, Git Worktrees, MCP Pool, Status Detection, Robo Supervisor, Template Inheritance.
+
 ---
 
 ## Why Shoal Exists
@@ -67,7 +69,7 @@ Shoal is a **control plane** for AI agents that:
       │                         │
 ┌─────▼──────┐         ┌────────▼─────┐
 │ Session    │         │ MCP Pool     │
-│ Manager    │         │ (socat proxy)│
+│ Manager    │         │ (asyncio)    │
 │            │         │              │
 │ - Lifecycle│         │ - Shared     │
 │ - Worktrees│         │   servers    │
@@ -232,6 +234,55 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 
 ---
 
+### 7. **Template Inheritance and Composition**
+
+**Decision**: Support single inheritance (`extends`) and additive composition (`mixins`) for session templates, with cycle detection and raw-TOML field presence checks.
+
+**Why**:
+- **DRY Templates**: Common layouts shared via a base template, specialized by child templates
+- **Additive Composition**: Mixins add MCP servers, env vars, or windows without replacing base config
+- **Safe Resolution**: Cycle detection via set-based tracking prevents infinite loops
+
+**Merge Semantics** (`extends`):
+- Scalars (tool, description): child wins only if explicitly set in TOML
+- `env`: parent | child (child wins on conflict)
+- `mcp`: union, deduplicated, sorted
+- `windows`: child replaces all parent windows if child defines any; otherwise inherits
+- `worktree`: child wins if `[template.worktree]` section present
+
+**Mixin Semantics** (additive only):
+- `env`: merged in (mixin wins on conflict)
+- `mcp`: union, deduplicated, sorted
+- `windows`: appended after existing windows
+
+**Resolution order**: extends → mixins → CLI flags
+
+**Implementation**:
+```toml
+# base-dev.toml — shared layout
+[template]
+name = "base-dev"
+tool = "opencode"
+
+# claude-dev.toml — inherits and specializes
+[template]
+name = "claude-dev"
+extends = "base-dev"
+mixins = ["mcp-memory"]
+tool = "claude"
+```
+
+```python
+# resolve_template() walks the extends chain with cycle detection,
+# then applies each mixin additively. Raw TOML dict is checked for
+# key presence to distinguish "not set" from "set to default".
+resolved = resolve_template("claude-dev")
+```
+
+**Trade-off**: Adds complexity to template loading, but eliminates duplication across template libraries.
+
+---
+
 ## Key Implementation Decisions
 
 ### Why Typer + Rich for CLI?
@@ -296,14 +347,16 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 
 ## Production Readiness
 
-### Current Status (v0.9.0)
+### Current Status (v0.14.0)
 
-- ✅ **324 Tests, 77%+ Coverage**: Core modules and runtime paths are covered with targeted regression tests
-- ✅ **Type Safety**: Full type hints, Pydantic models, mypy-ready
+- ✅ **589 Tests, 81% Coverage**: Comprehensive unit, CLI, and model tests with 80% coverage gate
+- ✅ **Type Safety**: Full type hints, Pydantic v2 models, mypy --strict enforced
 - ✅ **Error Handling**: Structured logging with session IDs, scoped exception hierarchy (`LifecycleError` → `TmuxSetupError`, `StartupCommandError`, `SessionExistsError`)
 - ✅ **Database Lifecycle**: Single async SQLite connection with WAL mode, explicit lifecycle cleanup, and concurrent update guards (`asyncio.Lock`)
 - ✅ **Lifecycle Service**: Shared `services/lifecycle.py` orchestrates create/fork/kill/reconcile with full rollback, used by both CLI and API
 - ✅ **Async Correctness**: All tmux/git subprocess calls in async contexts use `asyncio.to_thread()` wrappers to avoid blocking the event loop
+- ✅ **CI/CD Pipeline**: 5 concurrent CI jobs (lint, typecheck, test, fish-check, security), pre-commit hooks, conventional commits
+- ✅ **Template Inheritance**: Single inheritance with cycle detection, additive mixins, full test coverage
 - ✅ **Used Daily**: Built for sustained personal use in terminal-heavy AI workflows
 
 ### Known Limitations
@@ -316,7 +369,11 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 
 - **v0.8.0**: Session template MVP release and final contract documentation ✅
 - **v0.9.0**: Lifecycle hardening, async correctness, failure-path coverage ✅
-- **v0.10.0**: Developer tooling, CI/CD, pre-commit, release automation
+- **v0.10.0**: Pure Python MCP bridge, server registry, auto-configure ✅
+- **v0.11.0**: Pre-commit framework, CI pipeline, release automation ✅
+- **v0.12.0**: Compiled regex detection, session CLI decomposition ✅
+- **v0.13.0**: Ruff lint expansion, security consolidation ✅
+- **v0.14.0**: Template inheritance and mixins ✅
 - **v1.0.0**: Stable public surface for personal-first workflows
 
 ---
@@ -329,6 +386,7 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 2. **MCP Servers**: Add new servers to the pool (filesystem, GitHub, custom)
 3. **Status Patterns**: Customize detection patterns per tool
 4. **Robo Profiles**: Multiple supervisor strategies (approver, reviewer, coordinator)
+5. **Template Inheritance**: Build template libraries with `extends` and `mixins` composition
 
 ### Migration Path
 
@@ -344,7 +402,7 @@ Your job: Monitor agents, approve when needed, escalate if stuck.
 
 - **Thoughtful Architecture**: Every design decision addresses a real pain point
 - **Production-Tested**: Built and battle-tested at a high-growth company
-- **Clean Codebase**: Type-safe, well-documented, 57% test coverage and growing
+- **Clean Codebase**: Type-safe, well-documented, 81% test coverage
 
 ### Practical Value
 

@@ -4,10 +4,10 @@
 
 Only the latest version of Shoal is supported for security updates.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.4.x   | :white_check_mark: |
-| < 0.4.0 | :x:                |
+| Version  | Supported          |
+| -------- | ------------------ |
+| 0.14.x   | :white_check_mark: |
+| < 0.14.0 | :x:                |
 
 ## Reporting a Vulnerability
 
