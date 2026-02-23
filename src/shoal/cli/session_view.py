@@ -100,7 +100,7 @@ async def _ls_impl(format: str | None) -> None:
 
             if is_ghost:
                 status_text = (
-                    f"[bold red]{Icons.GHOST} ghost[/bold red] [dim]({s.status.value})[/dim]"
+                    f"[bold red]{Icons.GHOST} ghost[/bold red] [dim](was {s.status.value})[/dim]"
                 )
 
             wt_display = ""

@@ -577,6 +577,40 @@ def test_mcp_status_dead(mock_dirs):
     assert "Stale entries" in result.stdout
 
 
+def test_mcp_doctor_cleanup(mock_dirs):
+    """Test doctor --cleanup removes stale servers."""
+    from shoal.services import mcp_pool
+
+    # Create two dead servers
+    for name in ["dead1", "dead2"]:
+        pid_path = mcp_pool.mcp_pid_file(name)
+        pid_path.parent.mkdir(parents=True, exist_ok=True)
+        pid_path.write_text("99999")
+
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch("shoal.cli.mcp.stop_mcp_server") as mock_stop,
+    ):
+        result = runner.invoke(app, ["doctor", "--cleanup"])
+    assert result.exit_code == 0
+    assert "Cleaned up 2 stale server(s)" in result.stdout
+    assert mock_stop.call_count == 2
+
+
+def test_mcp_doctor_cleanup_no_stale(mock_dirs):
+    """Test doctor --cleanup with no stale servers."""
+    from shoal.services import mcp_pool
+
+    pid_path = mcp_pool.mcp_pid_file("healthy")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("1234")
+
+    with patch("shoal.cli.mcp.is_mcp_running", return_value=True):
+        result = runner.invoke(app, ["doctor", "--cleanup"])
+    assert result.exit_code == 0
+    assert "No stale servers" in result.stdout
+
+
 def test_mcp_doctor_http_server(mock_dirs):
     """Test doctor shows http transport for HTTP servers."""
     from shoal.services import mcp_pool

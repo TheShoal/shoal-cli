@@ -301,7 +301,7 @@ def mcp_status() -> None:
 
     if dead:
         console.print("\n[yellow]󰀦 Stale entries detected.[/yellow]")
-        console.print("[dim]Run 'shoal mcp stop <name>' to clean up.[/dim]")
+        console.print("[dim]Run 'shoal mcp doctor --cleanup' to clean up.[/dim]")
 
 
 @app.command("logs")
@@ -421,7 +421,11 @@ async def _probe_http_server(name: str, port: int) -> _ProbeResult:
 
 
 @app.command("doctor")
-def mcp_doctor() -> None:
+def mcp_doctor(
+    cleanup: Annotated[
+        bool, typer.Option("--cleanup", help="Remove stale PID/socket files for dead servers")
+    ] = False,
+) -> None:
     """Deep health check for MCP servers."""
     ensure_dirs()
     names = _discover_servers()
@@ -506,6 +510,18 @@ def mcp_doctor() -> None:
             title_align="left",
         )
     )
+
+    if cleanup:
+        cleaned = 0
+        for name in names:
+            pid = read_pid(name)
+            if pid is not None and not is_mcp_running(name):
+                stop_mcp_server(name)
+                cleaned += 1
+        if cleaned:
+            console.print(f"\n[green]{Symbols.CHECK} Cleaned up {cleaned} stale server(s)[/green]")
+        else:
+            console.print("\n[dim]No stale servers to clean up.[/dim]")
 
     if not has_fastmcp:
         console.print()
