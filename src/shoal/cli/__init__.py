@@ -189,6 +189,20 @@ def init(
     _check_environment()
     console.print("\n[green]Shoal initialized successfully![/green]")
 
+    from shoal.core.theme import create_panel
+
+    console.print(
+        create_panel(
+            """[bold]Next steps:[/bold]
+  1. [yellow]shoal setup fish[/yellow]        Install fish shell integration
+  2. [yellow]shoal demo tutorial[/yellow]     Hands-on guided walkthrough
+  3. [yellow]shoal demo start[/yellow]        Launch demo environment
+  4. [yellow]shoal new[/yellow]               Create your first real session""",
+            title="[bold cyan]Get Started[/bold cyan]",
+            title_align="left",
+        )
+    )
+
 
 @app.command()
 def check() -> None:

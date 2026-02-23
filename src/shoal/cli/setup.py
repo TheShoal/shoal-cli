@@ -27,3 +27,12 @@ def fish(
         success = install_fish_integration(force=force)
     if not success:
         raise typer.Exit(code=1)
+
+    if not uninstall:
+        from rich.console import Console
+
+        console = Console()
+        console.print()
+        console.print("[bold]Next steps:[/bold]")
+        console.print("  [yellow]shoal demo tutorial[/yellow]   Learn Shoal interactively")
+        console.print("  [yellow]shoal demo start[/yellow]      Launch demo environment")
