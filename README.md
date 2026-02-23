@@ -1,13 +1,14 @@
 <p align="center">
-  <img src="assets/banner.png" width="600" style="border-radius: 24px;">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0b0f14,30:1f2937,70:334155,100:5eead4&height=200&section=header&text=Shoal&fontSize=72&fontColor=c0caf5&animation=fadeIn&fontAlignY=32&desc=Terminal-first%20orchestration%20for%20parallel%20AI%20coding%20agents&descSize=16&descColor=7aa2f7&descAlignY=52" alt="Shoal banner" width="100%">
 </p>
 
-# <p align="center">Shoal</p>
-
-<!-- Row 1 — Identity -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.14.0-beta-EED49F?style=flat-square" alt="v0.14.0 beta">
-  <img src="https://img.shields.io/badge/status-beta-EED49F?style=flat-square" alt="Status: Beta">
+  <img src="assets/robo-fish.svg" width="280" alt="Shoal robo-fish mascot">
+</p>
+
+<!-- Badges -->
+<p align="center">
+  <img src="https://img.shields.io/badge/v0.15.0-beta-EED49F?style=flat-square" alt="v0.15.0 beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
 </p>
@@ -30,7 +31,6 @@
 </p>
 
 <p align="center">
-  <strong>Terminal-first orchestration for parallel AI coding agents.</strong><br>
   <em>Run multiple AI agents in isolated worktrees, coordinate them through a shared control plane, and never context-switch again.</em>
 </p>
 
@@ -310,3 +310,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 ## License
 
 Proprietary. Copyright (c) 2026 US Mobile.
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:5eead4,30:334155,70:1f2937,100:0b0f14&height=120&section=footer" alt="footer" width="100%">
+</p>
