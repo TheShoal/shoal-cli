@@ -67,20 +67,72 @@ This will output DEBUG-level logs to stderr, which can help identify where a pro
 ### Symptom: `Attached MCP '...' to session '...' but tool can't connect`
 
 **Causes:**
-- `socat` is not installed.
 - The MCP server process died.
-- The tool is not configured to use the proxy socket.
+- The tool is not configured to use the proxy.
+- Stale sockets/PIDs from a previous crash.
 
 **Solutions:**
-1. Ensure `socat` is installed: `shoal check`
+1. Run deep diagnostics: `shoal mcp doctor`
+   - Shows PID liveness, protocol health, tool count, and latency per server
 2. Check MCP pool status: `shoal mcp status`
 3. Restart the MCP server: `shoal mcp stop <name> && shoal mcp start <name>`
-4. Verify the tool's MCP configuration. For Claude Code, it should look like:
+4. Clean stale sockets: `shoal init` (auto-reconciles on startup)
+5. Verify the tool's MCP configuration. For Claude Code:
    ```fish
-   claude mcp add <name> -- socat STDIO UNIX-CONNECT:~/.local/state/shoal/mcp-pool/sockets/<name>.sock
+   claude mcp add <name> -- shoal-mcp-proxy <name>
+   ```
+6. Check server logs: `shoal mcp logs <name>`
+
+## 6. Remote Session Issues
+
+### Symptom: `shoal remote ls` fails or times out
+
+**Causes:**
+- SSH tunnel is not connected.
+- The remote Shoal API server is not running.
+- Port conflict or firewall blocking the tunnel.
+
+**Solutions:**
+1. Connect the tunnel: `shoal remote connect <host>`
+2. Check tunnel status: `shoal remote status <host>`
+3. Verify the remote API is running: `ssh <host> "shoal serve"` in a separate terminal
+4. If the tunnel disconnects, reconnect: `shoal remote disconnect <host> && shoal remote connect <host>`
+5. Configure remote hosts in `~/.config/shoal/config.toml`:
+   ```toml
+   [remote.myserver]
+   host = "user@myserver.example.com"
+   port = 22
    ```
 
-## 6. Neovim Integration
+## 7. Diagnostics
+
+### Using `shoal diag`
+
+The diagnostics command checks all core subsystems:
+
+```fish
+shoal diag          # Rich-formatted output
+shoal diag --json   # Machine-readable JSON
+```
+
+Checks performed:
+- **DB**: SQLite connectivity and WAL mode
+- **Watcher**: Background status watcher PID liveness
+- **Tmux**: tmux server reachability
+
+### Structured Logging
+
+For deeper debugging, use the logging flags:
+
+```fish
+shoal --log-level DEBUG <command>    # Verbose logs to stderr
+shoal --log-file /tmp/shoal.log <command>  # Log to file
+shoal --json-logs <command>          # JSON-lines format (for log aggregators)
+```
+
+These flags work with any command and can be combined.
+
+## 8. Neovim Integration
 
 ### Symptom: `nvr not found` or `No nvim socket`
 

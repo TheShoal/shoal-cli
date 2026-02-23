@@ -32,7 +32,7 @@ The root `CLAUDE.md` gives Claude essential project knowledge on every session s
 - **Code style**: 100-char lines, mandatory type hints, ruff lint rules
 - **Module layout**: One-line description of each top-level package
 - **Architectural invariants**: SQLite WAL mode, lifecycle service pattern, MCP pooling
-- **Gotchas**: Fish template validation, socat dependency, hatchling build backend
+- **Gotchas**: Fish template validation, hatchling build backend, MCP pool semantics
 
 It also uses `@imports` to pull in `ARCHITECTURE.md` and `COMMIT_GUIDELINES.md` when Claude needs deeper context.
 

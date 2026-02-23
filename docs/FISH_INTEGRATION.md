@@ -38,7 +38,7 @@ Once fish is installed, run:
 shoal setup fish
 ```
 
-This command will install the following files to `~/.config/fish/`:
+This command will install the following files to `$XDG_CONFIG_HOME/fish/` (defaults to `~/.config/fish/`):
 
 - `completions/shoal.fish` - Command and session name completions
 - `conf.d/shoal.fish` - Bootstrap script (auto-loaded on shell start)
@@ -303,6 +303,19 @@ shoal ls
 ### Fish Version Compatibility
 
 The integration is tested with fish 3.x and should work with any recent version.
+
+## XDG Compliance
+
+Fish completions and helper functions respect `$XDG_CONFIG_HOME` for locating Shoal tool and template configs. If you set `XDG_CONFIG_HOME` to a non-default path, the fish integration will use it automatically.
+
+## Diagnostics
+
+Use `shoal diag` to check the health of all Shoal subsystems (database, watcher, tmux). This is useful when fish integration appears to work but sessions are stale or the watcher is down.
+
+```fish
+shoal diag          # Rich-formatted subsystem check
+shoal diag --json   # Machine-readable output
+```
 
 ## See Also
 
