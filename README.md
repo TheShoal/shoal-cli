@@ -51,7 +51,7 @@ You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. Yo
 ## See It in Action
 
 <p align="center">
-  <img src="assets/terminal-demo.svg" width="800" alt="Shoal terminal workflow demo">
+  <img src="assets/terminal-demo.svg" width="700" alt="Shoal terminal workflow demo">
 </p>
 
 ---
