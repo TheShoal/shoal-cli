@@ -9,6 +9,7 @@ import typer
 import shoal
 from shoal.cli.demo import app as demo_app
 from shoal.cli.diag import diag
+from shoal.cli.journal import journal_view
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
 from shoal.cli.remote import app as remote_app
@@ -62,6 +63,7 @@ app.command("prune")(prune)
 app.command("status")(status)
 app.command("popup")(popup)
 app.command("diag")(diag)
+app.command("journal")(journal_view)
 
 # Aliases (hidden)
 app.command("i", hidden=True)(info)

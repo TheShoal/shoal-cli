@@ -385,6 +385,74 @@ async def kill_session_tool(
 
 
 # ---------------------------------------------------------------------------
+# Tool: append_journal
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="append_journal",
+    description="Append an entry to a session's journal.",
+    annotations={"destructiveHint": True},
+)
+async def append_journal_tool(session: str, entry: str, source: str = "mcp") -> dict[str, str]:
+    """Append a journal entry for a session.
+
+    Args:
+        session: Session name or ID.
+        entry: The markdown content to append.
+        source: Tag identifying the source (default: "mcp").
+    """
+    import asyncio
+
+    from shoal.core.journal import append_entry
+    from shoal.core.state import resolve_session
+
+    session_id = await resolve_session(session)
+    if not session_id:
+        raise ToolError(f"Session not found: {session}")
+
+    path = await asyncio.to_thread(append_entry, session_id, entry, source)
+    return {"message": f"Journal entry appended to {path.name}"}
+
+
+# ---------------------------------------------------------------------------
+# Tool: read_journal
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="read_journal",
+    description="Read journal entries for a session.",
+    annotations={"readOnlyHint": True},
+)
+async def read_journal_tool(session: str, limit: int = 10) -> list[dict[str, str]]:
+    """Read recent journal entries for a session.
+
+    Args:
+        session: Session name or ID.
+        limit: Maximum number of entries to return (default: 10).
+    """
+    import asyncio
+
+    from shoal.core.journal import read_journal
+    from shoal.core.state import resolve_session
+
+    session_id = await resolve_session(session)
+    if not session_id:
+        raise ToolError(f"Session not found: {session}")
+
+    entries = await asyncio.to_thread(read_journal, session_id, limit)
+    return [
+        {
+            "timestamp": e.timestamp.isoformat(),
+            "source": e.source,
+            "content": e.content,
+        }
+        for e in entries
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
