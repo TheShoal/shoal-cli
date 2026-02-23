@@ -24,6 +24,15 @@ from shoal.models.config import (
 logger = logging.getLogger("shoal.config")
 
 
+class ConfigLoadError(Exception):
+    """User-friendly error for malformed or invalid config files."""
+
+    def __init__(self, path: Path | str, detail: str) -> None:
+        self.path = Path(path)
+        self.detail = detail
+        super().__init__(f"{path}: {detail}")
+
+
 def _examples_dir() -> Path:
     """Return the path to bundled example configs shipped with the package.
 
@@ -120,54 +129,78 @@ def scaffold_defaults() -> list[str]:
 @lru_cache(maxsize=1)
 def load_config() -> ShoalConfig:
     """Load and cache the main config.toml."""
+    from pydantic import ValidationError
+
     path = config_dir() / "config.toml"
     logger.debug("Loading config from %s", path)
     if not path.exists():
         return ShoalConfig()
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
-    return ShoalConfig.model_validate(data)
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigLoadError(path, f"malformed TOML: {e}") from e
+    try:
+        return ShoalConfig.model_validate(data)
+    except ValidationError as e:
+        raise ConfigLoadError(path, f"invalid config: {e}") from e
 
 
 def load_tool_config(name: str) -> ToolConfig:
     """Load a tool config, flattening [tool] + [detection] + [mcp] sections."""
+    from pydantic import ValidationError
+
     logger.debug("Loading tool config: %s", name)
     path = config_dir() / "tools" / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No tool config: {path}")
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigLoadError(path, f"malformed TOML: {e}") from e
 
     tool_section = data.get("tool", {})
     detection_section = data.get("detection", {})
     mcp_section = data.get("mcp", {})
 
-    return ToolConfig(
-        name=tool_section.get("name", name),
-        command=tool_section.get("command", name),
-        icon=tool_section.get("icon", "●"),
-        detection=DetectionPatterns.model_validate(detection_section),
-        mcp=MCPToolConfig.model_validate(mcp_section),
-    )
+    try:
+        return ToolConfig(
+            name=tool_section.get("name", name),
+            command=tool_section.get("command", name),
+            icon=tool_section.get("icon", "●"),
+            detection=DetectionPatterns.model_validate(detection_section),
+            mcp=MCPToolConfig.model_validate(mcp_section),
+        )
+    except ValidationError as e:
+        raise ConfigLoadError(path, f"invalid tool config: {e}") from e
 
 
 def load_robo_profile(name: str) -> RoboProfileConfig:
     """Load a robo profile TOML."""
+    from pydantic import ValidationError
+
     path = config_dir() / "robo" / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No robo profile: {name}")
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigLoadError(path, f"malformed TOML: {e}") from e
 
     robo_section = data.get("robo", {})
-    return RoboProfileConfig(
-        name=robo_section.get("name", name),
-        tool=robo_section.get("tool", "opencode"),
-        auto_approve=robo_section.get("auto_approve", False),
-        monitoring=data.get("monitoring", {}),
-        escalation=data.get("escalation", {}),
-        tasks=data.get("tasks", {}),
-    )
+    try:
+        return RoboProfileConfig(
+            name=robo_section.get("name", name),
+            tool=robo_section.get("tool", "opencode"),
+            auto_approve=robo_section.get("auto_approve", False),
+            monitoring=data.get("monitoring", {}),
+            escalation=data.get("escalation", {}),
+            tasks=data.get("tasks", {}),
+        )
+    except ValidationError as e:
+        raise ConfigLoadError(path, f"invalid robo profile: {e}") from e
 
 
 def available_tools() -> list[str]:
@@ -231,8 +264,11 @@ def load_mcp_registry() -> dict[str, str]:
 
     user_file = config_dir() / "mcp-servers.toml"
     if user_file.exists():
-        with open(user_file, "rb") as f:
-            data = tomllib.load(f)
+        try:
+            with open(user_file, "rb") as f:
+                data = tomllib.load(f)
+        except tomllib.TOMLDecodeError as e:
+            raise ConfigLoadError(user_file, f"malformed TOML: {e}") from e
         for name, entry in data.items():
             if isinstance(entry, dict) and "command" in entry:
                 registry[name] = entry["command"]
@@ -248,8 +284,11 @@ def load_mcp_registry_full() -> dict[str, dict[str, str]]:
     user_file = config_dir() / "mcp-servers.toml"
     registry: dict[str, dict[str, str]] = {}
     if user_file.exists():
-        with open(user_file, "rb") as f:
-            data = tomllib.load(f)
+        try:
+            with open(user_file, "rb") as f:
+                data = tomllib.load(f)
+        except tomllib.TOMLDecodeError as e:
+            raise ConfigLoadError(user_file, f"malformed TOML: {e}") from e
         for name, entry in data.items():
             if isinstance(entry, dict):
                 registry[name] = {k: str(v) for k, v in entry.items()}
@@ -284,13 +323,19 @@ def _load_template_raw(name: str) -> dict[str, Any]:
     if local:
         local_path = local / f"{name}.toml"
         if local_path.exists():
-            with open(local_path, "rb") as f:
-                return tomllib.load(f)
+            try:
+                with open(local_path, "rb") as f:
+                    return tomllib.load(f)
+            except tomllib.TOMLDecodeError as e:
+                raise ConfigLoadError(local_path, f"malformed TOML: {e}") from e
     path = templates_dir() / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No template config: {path}")
-    with open(path, "rb") as f:
-        return tomllib.load(f)
+    try:
+        with open(path, "rb") as f:
+            return tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigLoadError(path, f"malformed TOML: {e}") from e
 
 
 def _parse_template_data(
@@ -298,23 +343,28 @@ def _parse_template_data(
     name: str,
 ) -> SessionTemplateConfig:
     """Parse raw TOML dict into SessionTemplateConfig."""
+    from pydantic import ValidationError
+
     template_section = data.get("template", {})
     worktree_section = template_section.get("worktree", {})
     env_section = template_section.get("env", {})
     mcp_section = template_section.get("mcp", [])
     windows_section = data.get("windows", [])
 
-    return SessionTemplateConfig(
-        name=template_section.get("name", name),
-        description=template_section.get("description", ""),
-        extends=template_section.get("extends"),
-        mixins=template_section.get("mixins", []),
-        tool=template_section.get("tool", "opencode"),
-        worktree=TemplateWorktreeConfig.model_validate(worktree_section),
-        env=env_section,
-        mcp=mcp_section,
-        windows=windows_section,
-    )
+    try:
+        return SessionTemplateConfig(
+            name=template_section.get("name", name),
+            description=template_section.get("description", ""),
+            extends=template_section.get("extends"),
+            mixins=template_section.get("mixins", []),
+            tool=template_section.get("tool", "opencode"),
+            worktree=TemplateWorktreeConfig.model_validate(worktree_section),
+            env=env_section,
+            mcp=mcp_section,
+            windows=windows_section,
+        )
+    except ValidationError as e:
+        raise ConfigLoadError(f"template '{name}'", f"invalid template: {e}") from e
 
 
 def _merge_templates(
@@ -388,6 +438,8 @@ def resolve_template(
 
 def load_mixin(name: str) -> TemplateMixinConfig:
     """Load a template mixin TOML from local or global mixins dir."""
+    from pydantic import ValidationError
+
     path: Path | None = None
     local = project_templates_dir()
     if local:
@@ -398,19 +450,25 @@ def load_mixin(name: str) -> TemplateMixinConfig:
         path = mixins_dir() / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No mixin config: {path}")
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigLoadError(path, f"malformed TOML: {e}") from e
 
     mixin_section = data.get("mixin", {})
     windows_section = data.get("windows", [])
 
-    return TemplateMixinConfig(
-        name=mixin_section.get("name", name),
-        description=mixin_section.get("description", ""),
-        env=mixin_section.get("env", {}),
-        mcp=mixin_section.get("mcp", []),
-        windows=windows_section,
-    )
+    try:
+        return TemplateMixinConfig(
+            name=mixin_section.get("name", name),
+            description=mixin_section.get("description", ""),
+            env=mixin_section.get("env", {}),
+            mcp=mixin_section.get("mcp", []),
+            windows=windows_section,
+        )
+    except ValidationError as e:
+        raise ConfigLoadError(path, f"invalid mixin: {e}") from e
 
 
 def _apply_mixin(

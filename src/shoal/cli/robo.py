@@ -11,7 +11,14 @@ import typer
 from rich.console import Console
 
 from shoal.core import tmux
-from shoal.core.config import config_dir, ensure_dirs, load_config, load_robo_profile, state_dir
+from shoal.core.config import (
+    ConfigLoadError,
+    config_dir,
+    ensure_dirs,
+    load_config,
+    load_robo_profile,
+    state_dir,
+)
 from shoal.core.db import get_db, with_db
 from shoal.core.theme import Icons, create_panel, create_table
 from shoal.models.state import RoboState, SessionStatus
@@ -171,6 +178,9 @@ async def _robo_start_impl(name: str | None) -> None:
     try:
         profile = load_robo_profile(name)
         tool = profile.tool
+    except ConfigLoadError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from None
     except FileNotFoundError:
         console.print(f"[red]Error: Robo profile '{name}' not found[/red]")
         console.print()
@@ -369,7 +379,7 @@ async def _robo_ls_impl() -> None:
         try:
             profile = load_robo_profile(name)
             tool = profile.tool
-        except Exception:
+        except (FileNotFoundError, ConfigLoadError):
             tool = "opencode"
 
         tmux_session = _build_robo_tmux_session(name)

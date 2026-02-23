@@ -11,7 +11,14 @@ import typer
 from rich.console import Console
 
 from shoal.core import git
-from shoal.core.config import config_dir, ensure_dirs, load_config, load_template, load_tool_config
+from shoal.core.config import (
+    ConfigLoadError,
+    config_dir,
+    ensure_dirs,
+    load_config,
+    load_template,
+    load_tool_config,
+)
 from shoal.core.db import with_db
 from shoal.core.state import (
     _get_tool_icon,
@@ -117,6 +124,9 @@ async def _add_impl(
             console.print(f"[red]Error: Template '{template}' not found[/red]")
             templates_dir = config_dir() / "templates"
             console.print(f"[dim]Expected config at: {templates_dir / f'{template}.toml'}[/dim]")
+            raise typer.Exit(1) from None
+        except ConfigLoadError as e:
+            console.print(f"[red]{e}[/red]")
             raise typer.Exit(1) from None
         except ValueError as e:
             console.print(f"[red]Error: Invalid template '{template}'[/red]")

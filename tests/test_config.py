@@ -184,7 +184,7 @@ command = "opencode"
             load_template("nonexistent")
 
     def test_load_template_invalid(self, mock_dirs):
-        from pydantic import ValidationError
+        from shoal.core.config import ConfigLoadError
 
         tmp_config, _ = mock_dirs
         templates = tmp_config / "templates"
@@ -202,7 +202,7 @@ split = "root"
 """
         )
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(ConfigLoadError):
             load_template("broken")
 
 

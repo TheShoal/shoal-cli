@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from rich.console import Console
 
 from shoal.core.config import (
+    ConfigLoadError,
     _load_template_raw,
     available_mixins,
     available_templates,
@@ -59,6 +60,9 @@ def template_ls() -> None:
             extends_name = raw_tmpl.get("extends", "")
             mixins_list = raw_tmpl.get("mixins", [])
             template = load_template(name)
+        except ConfigLoadError as e:
+            table.add_row(name, source, "-", "-", "-", "-", "-", f"[red]{e}[/red]")
+            continue
         except (ValidationError, ValueError, TypeError, FileNotFoundError):
             table.add_row(
                 name,
@@ -108,6 +112,9 @@ def template_show(
         if available:
             console.print(f"[yellow]Available:[/yellow] {', '.join(available)}")
         raise typer.Exit(1) from None
+    except ConfigLoadError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from None
     except (ValidationError, ValueError, TypeError) as exc:
         console.print(f"[red]Invalid template: {name}[/red]")
         console.print(f"[dim]{exc}[/dim]")
@@ -143,6 +150,10 @@ def template_validate(
         except FileNotFoundError:
             console.print(f"[red]MISSING[/red] {template_name}")
             errors += 1
+        except ConfigLoadError as e:
+            console.print(f"[red]INVALID[/red] {template_name}")
+            console.print(f"[dim]{e}[/dim]")
+            errors += 1
         except (ValidationError, ValueError, TypeError) as exc:
             console.print(f"[red]INVALID[/red] {template_name}")
             console.print(f"[dim]{exc}[/dim]")
@@ -170,7 +181,7 @@ def template_mixins_cmd() -> None:
     for name in names:
         try:
             m = load_mixin(name)
-        except (ValidationError, ValueError, TypeError, FileNotFoundError):
+        except (ConfigLoadError, ValidationError, ValueError, TypeError, FileNotFoundError):
             table.add_row(name, "-", "-", "[red]invalid mixin[/red]")
             continue
 
