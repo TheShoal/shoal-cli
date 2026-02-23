@@ -356,3 +356,240 @@ def test_mcp_ls_shows_http_server(mock_dirs):
     assert result.exit_code == 0
     assert "shoal-orchestrator" in result.stdout
     assert "http:8390" in result.stdout
+
+
+def test_mcp_default_invokes_ls(mock_dirs):
+    """Test that mcp with no subcommand calls mcp_ls."""
+    with patch("shoal.cli.mcp.mcp_ls") as mock_ls:
+        result = runner.invoke(app, [])
+        assert result.exit_code == 0
+        mock_ls.assert_called_once()
+
+
+def test_mcp_ls_no_servers(mock_dirs):
+    """Test mcp ls with no servers shows message."""
+    result = runner.invoke(app, ["ls"])
+    assert result.exit_code == 0
+    assert "No MCP servers" in result.stdout
+
+
+def test_mcp_ls_orphaned_server(mock_dirs):
+    """Test mcp ls shows orphaned status when PID file has no pid."""
+    from shoal.services import mcp_pool
+
+    pid_path = mcp_pool.mcp_pid_file("orphan")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("orphan")
+
+    with patch("shoal.cli.mcp.read_pid", return_value=None):
+        result = runner.invoke(app, ["ls"])
+    assert result.exit_code == 0
+    assert "orphaned" in result.stdout
+
+
+def test_mcp_start_invalid_name(mock_dirs):
+    """Test starting an MCP server with invalid name."""
+    with patch("shoal.cli.mcp.validate_mcp_name", side_effect=ValueError("bad name")):
+        result = runner.invoke(app, ["start", "bad!name"])
+    assert result.exit_code == 1
+    assert "bad name" in result.stdout
+
+
+def test_mcp_start_value_error(mock_dirs):
+    """Test mcp start handles ValueError from start_mcp_server."""
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch("shoal.cli.mcp.start_mcp_server", side_effect=ValueError("no command")),
+    ):
+        result = runner.invoke(app, ["start", "test-mcp"])
+    assert result.exit_code == 1
+    assert "no command" in result.stdout
+
+
+def test_mcp_start_runtime_error(mock_dirs):
+    """Test mcp start handles RuntimeError from start_mcp_server."""
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch("shoal.cli.mcp.start_mcp_server", side_effect=RuntimeError("spawn failed")),
+    ):
+        result = runner.invoke(app, ["start", "test-mcp"])
+    assert result.exit_code == 1
+    assert "spawn failed" in result.stdout
+
+
+def test_mcp_stop_not_running(mock_dirs):
+    """Test stopping an MCP server that is not running."""
+    with patch("shoal.cli.mcp.stop_mcp_server", side_effect=FileNotFoundError):
+        result = runner.invoke(app, ["stop", "ghost"])
+    assert result.exit_code == 1
+    assert "is not running" in result.stdout
+
+
+def test_mcp_attach_invalid_name(mock_dirs):
+    """Test attaching with invalid MCP name."""
+
+    async def setup():
+        await create_session("test-s", "claude", "/tmp")
+
+    asyncio.run(with_db(setup()))
+
+    with patch("shoal.cli.mcp.validate_mcp_name", side_effect=ValueError("invalid name")):
+        result = runner.invoke(app, ["attach", "test-s", "bad!name"])
+    assert result.exit_code == 1
+    assert "invalid name" in result.stdout
+
+
+def test_mcp_attach_auto_start_failure(mock_dirs, tmp_path):
+    """Test attach handles auto-start failure gracefully."""
+    socket_path = tmp_path / "mcp.sock"
+
+    async def setup():
+        await create_session("test-s", "claude", "/tmp")
+
+    asyncio.run(with_db(setup()))
+
+    with (
+        patch("shoal.cli.mcp.mcp_socket", return_value=socket_path),
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch(
+            "shoal.core.config.load_mcp_registry",
+            return_value={"memory": "npx -y @modelcontextprotocol/server-memory"},
+        ),
+        patch("shoal.cli.mcp.start_mcp_server", side_effect=RuntimeError("spawn failed")),
+    ):
+        result = runner.invoke(app, ["attach", "test-s", "memory"])
+    assert result.exit_code == 1
+    assert "Failed to auto-start" in result.stdout
+
+
+def test_mcp_attach_stale_socket_cleanup(mock_dirs, tmp_path):
+    """Test attach cleans up stale socket before auto-starting."""
+    socket_path = tmp_path / "mcp.sock"
+    socket_path.touch()
+
+    async def setup():
+        await create_session("test-s", "claude", "/tmp")
+
+    asyncio.run(with_db(setup()))
+
+    with (
+        patch("shoal.cli.mcp.mcp_socket", return_value=socket_path),
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch(
+            "shoal.core.config.load_mcp_registry",
+            return_value={"memory": "npx -y server-memory"},
+        ),
+        patch("shoal.cli.mcp.stop_mcp_server") as mock_stop,
+        patch(
+            "shoal.cli.mcp.start_mcp_server",
+            return_value=(1234, socket_path, "server-memory"),
+        ),
+        patch("shoal.cli.mcp.add_mcp_to_session"),
+        patch("shoal.services.mcp_configure.subprocess.run"),
+    ):
+        result = runner.invoke(app, ["attach", "test-s", "memory"])
+    assert result.exit_code == 0
+    mock_stop.assert_called_once_with("memory")
+
+
+def test_mcp_attach_no_auto_config(mock_dirs, tmp_path):
+    """Test attach shows manual config hint when no auto-config available."""
+    socket_path = tmp_path / "mcp.sock"
+    socket_path.touch()
+
+    async def setup():
+        await create_session("test-s", "unknown-tool", "/tmp")
+
+    asyncio.run(with_db(setup()))
+
+    with (
+        patch("shoal.cli.mcp.mcp_socket", return_value=socket_path),
+        patch("shoal.cli.mcp.is_mcp_running", return_value=True),
+        patch("shoal.cli.mcp.add_mcp_to_session"),
+        patch("shoal.services.mcp_configure.configure_mcp_for_tool", return_value=None),
+    ):
+        result = runner.invoke(app, ["attach", "test-s", "test-mcp"])
+    assert result.exit_code == 0
+    assert "No auto-config" in result.stdout
+
+
+def test_mcp_attach_configure_error(mock_dirs, tmp_path):
+    """Test attach handles McpConfigureError gracefully."""
+    from shoal.services.mcp_configure import McpConfigureError
+
+    socket_path = tmp_path / "mcp.sock"
+    socket_path.touch()
+
+    async def setup():
+        await create_session("test-s", "claude", "/tmp")
+
+    asyncio.run(with_db(setup()))
+
+    with (
+        patch("shoal.cli.mcp.mcp_socket", return_value=socket_path),
+        patch("shoal.cli.mcp.is_mcp_running", return_value=True),
+        patch("shoal.cli.mcp.add_mcp_to_session"),
+        patch(
+            "shoal.services.mcp_configure.configure_mcp_for_tool",
+            side_effect=McpConfigureError("config failed"),
+        ),
+    ):
+        result = runner.invoke(app, ["attach", "test-s", "test-mcp"])
+    assert result.exit_code == 0
+    assert "Auto-configure failed" in result.stdout
+
+
+def test_mcp_status_no_servers(mock_dirs):
+    """Test mcp status with no servers."""
+    result = runner.invoke(app, ["status"])
+    assert result.exit_code == 0
+    assert "No MCP servers" in result.stdout
+    assert "shoal mcp start" in result.stdout
+
+
+def test_mcp_status_healthy(mock_dirs):
+    """Test mcp status with healthy servers."""
+    from shoal.services import mcp_pool
+
+    pid_path = mcp_pool.mcp_pid_file("memory")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("1234")
+
+    with patch("shoal.cli.mcp.is_mcp_running", return_value=True):
+        result = runner.invoke(app, ["status"])
+    assert result.exit_code == 0
+    assert "healthy" in result.stdout
+    assert "1 total" in result.stdout
+
+
+def test_mcp_status_dead(mock_dirs):
+    """Test mcp status with dead servers shows stale warning."""
+    from shoal.services import mcp_pool
+
+    pid_path = mcp_pool.mcp_pid_file("broken")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("99999")
+
+    with patch("shoal.cli.mcp.is_mcp_running", return_value=False):
+        result = runner.invoke(app, ["status"])
+    assert result.exit_code == 0
+    assert "dead" in result.stdout
+    assert "Stale entries" in result.stdout
+
+
+def test_mcp_doctor_http_server(mock_dirs):
+    """Test doctor shows http transport for HTTP servers."""
+    from shoal.services import mcp_pool
+
+    pid_path = mcp_pool.mcp_pid_file("shoal-orchestrator")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("5678")
+
+    port_path = mcp_pool.mcp_port_file("shoal-orchestrator")
+    port_path.parent.mkdir(parents=True, exist_ok=True)
+    port_path.write_text("8390")
+
+    with patch("shoal.cli.mcp.is_mcp_running", return_value=True):
+        result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "http" in result.stdout
