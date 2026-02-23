@@ -87,6 +87,11 @@ complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subco
 complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "kill" -d "Kill MCP server"
 complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "status" -d "MCP pool status"
 
+# MCP start flags
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from start" -l "http" -d "Use HTTP transport"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from start" -l "port" -s "p" -d "HTTP port (default: 8390)" -r
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from start" -l "command" -s "c" -d "Command to run" -r
+
 # MCP server name completions for commands that take a server argument
 complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from start" -a "(__shoal_mcp_servers)" -d "MCP server"
 complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from attach" -a "(__shoal_mcp_servers)" -d "MCP server"

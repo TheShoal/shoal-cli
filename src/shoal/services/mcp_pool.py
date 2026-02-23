@@ -89,6 +89,22 @@ def mcp_pid_file(name: str) -> Path:
     return state_dir() / "mcp-pool" / "pids" / f"{name}.pid"
 
 
+def mcp_port_file(name: str) -> Path:
+    """Return the port file path for a named HTTP-mode MCP server."""
+    return state_dir() / "mcp-pool" / "ports" / f"{name}.port"
+
+
+def read_port(name: str) -> int | None:
+    """Read the HTTP port from a port file, or None if not present."""
+    pf = mcp_port_file(name)
+    if not pf.exists():
+        return None
+    try:
+        return int(pf.read_text().strip())
+    except ValueError:
+        return None
+
+
 def read_pid(name: str) -> int | None:
     pf = mcp_pid_file(name)
     if not pf.exists():
@@ -110,27 +126,33 @@ def is_mcp_running(name: str) -> bool:
         return False
 
 
-def start_mcp_server(name: str, command: str | None = None) -> tuple[int, Path, str]:
-    """Start an MCP server. Returns (pid, socket_path, command_used).
+def start_mcp_server(
+    name: str,
+    command: str | None = None,
+    *,
+    http: bool = False,
+    http_port: int | None = None,
+) -> tuple[int, Path, str]:
+    """Start an MCP server. Returns (pid, path, command_used).
 
-    The server is a Python subprocess that runs an asyncio Unix socket
-    listener.  Each client connection spawns the MCP command and bridges
-    the socket I/O to the command's stdin/stdout.
+    When *http* is False (default), the server is a Python subprocess that
+    runs an asyncio Unix socket listener.  Each client connection spawns the
+    MCP command and bridges the socket I/O to the command's stdin/stdout.
+
+    When *http* is True, the server is spawned directly (e.g.
+    ``shoal-mcp-server --http PORT``) and *path* is the port file instead of
+    a socket path.
 
     Raises ValueError if name is invalid or command can't be determined.
     Raises RuntimeError if server fails to start.
     """
     validate_mcp_name(name)
-    socket = mcp_socket(name)
     pid_file = mcp_pid_file(name)
 
     # Check if already running
-    if socket.exists() and is_mcp_running(name):
+    if is_mcp_running(name):
         pid = read_pid(name)
         raise RuntimeError(f"MCP server '{name}' is already running (pid: {pid})")
-
-    # Clean up stale socket
-    socket.unlink(missing_ok=True)
 
     # Resolve command via configurable registry
     if not command:
@@ -145,7 +167,6 @@ def start_mcp_server(name: str, command: str | None = None) -> tuple[int, Path, 
                 "Known servers: " + ", ".join(registry)
             )
 
-    socket.parent.mkdir(parents=True, exist_ok=True)
     pid_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Set up log file for stderr
@@ -156,7 +177,34 @@ def start_mcp_server(name: str, command: str | None = None) -> tuple[int, Path, 
 
     log_fh = open(log_path, "a")  # noqa: SIM115
 
-    # Launch the pool server as a detached subprocess
+    if http:
+        # HTTP mode: spawn the server command directly with --http flag
+        port = http_port or 8390
+        port_file = mcp_port_file(name)
+        port_file.parent.mkdir(parents=True, exist_ok=True)
+
+        tokens = [*shlex.split(command), "--http", str(port)]
+        proc = subprocess.Popen(
+            tokens,
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=log_fh,
+        )
+
+        time.sleep(1)
+        if proc.poll() is not None:
+            log_fh.close()
+            raise RuntimeError(f"Failed to start MCP server '{name}' in HTTP mode")
+
+        pid_file.write_text(str(proc.pid))
+        port_file.write_text(str(port))
+        return proc.pid, port_file, command
+
+    # Socket mode: spawn via pool bridge
+    socket = mcp_socket(name)
+    socket.unlink(missing_ok=True)
+    socket.parent.mkdir(parents=True, exist_ok=True)
+
     proc = subprocess.Popen(
         [sys.executable, "-m", "shoal.services.mcp_pool", name, command],
         start_new_session=True,
@@ -164,7 +212,6 @@ def start_mcp_server(name: str, command: str | None = None) -> tuple[int, Path, 
         stderr=log_fh,
     )
 
-    # Wait briefly to see if it starts
     time.sleep(1)
     if proc.poll() is not None:
         log_fh.close()
@@ -180,6 +227,7 @@ def stop_mcp_server(name: str) -> None:
     validate_mcp_name(name)
     pid_file = mcp_pid_file(name)
     socket = mcp_socket(name)
+    port_file = mcp_port_file(name)
 
     if not pid_file.exists():
         raise FileNotFoundError(f"MCP server '{name}' is not running")
@@ -199,6 +247,7 @@ def stop_mcp_server(name: str) -> None:
 
     pid_file.unlink(missing_ok=True)
     socket.unlink(missing_ok=True)
+    port_file.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------

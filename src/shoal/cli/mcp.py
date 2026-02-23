@@ -24,6 +24,7 @@ from shoal.services.mcp_pool import (
     mcp_log_file,
     mcp_socket,
     read_pid,
+    read_port,
     start_mcp_server,
     stop_mcp_server,
     validate_mcp_name,
@@ -47,29 +48,35 @@ def mcp_ls() -> None:
     asyncio.run(with_db(_mcp_ls_impl()))
 
 
+def _discover_servers() -> list[str]:
+    """Discover running MCP servers by scanning PID files."""
+    pid_dir = state_dir() / "mcp-pool" / "pids"
+    if not pid_dir.exists():
+        return []
+    return sorted(p.stem for p in pid_dir.glob("*.pid"))
+
+
 async def _mcp_ls_impl() -> None:
     ensure_dirs()
-    socket_dir = state_dir() / "mcp-pool" / "sockets"
-    if not socket_dir.exists():
-        console.print("[yellow]No MCP servers in pool[/yellow]")
-        return
-
-    sockets = list(socket_dir.glob("*.sock"))
-    if not sockets:
+    names = _discover_servers()
+    if not names:
         console.print("[yellow]No MCP servers in pool[/yellow]")
         return
 
     table = create_table(padding=(0, 2))
     table.add_column("NAME", width=20)
     table.add_column("PID", width=10, style="dim")
+    table.add_column("TRANSPORT", width=12, style="dim")
     table.add_column("STATUS", width=12)
     table.add_column("SESSIONS")
 
     sessions = await list_sessions()
-    for sock_path in sorted(sockets):
-        name = sock_path.stem
+    for name in names:
         pid = read_pid(name)
         pid_str = str(pid) if pid else "-"
+
+        port = read_port(name)
+        transport = f"http:{port}" if port is not None else "socket"
 
         if pid is not None:
             if is_mcp_running(name):
@@ -83,7 +90,7 @@ async def _mcp_ls_impl() -> None:
         using = [f"[bold cyan]{s.name}[/bold cyan]" for s in sessions if name in s.mcp_servers]
 
         sessions_str = ", ".join(using) if using else "[dim]-(none)-[/dim]"
-        table.add_row(f"[bold]{name}[/bold]", pid_str, mcp_status, sessions_str)
+        table.add_row(f"[bold]{name}[/bold]", pid_str, transport, mcp_status, sessions_str)
 
     console.print()
     console.print(
@@ -99,6 +106,10 @@ async def _mcp_ls_impl() -> None:
 def mcp_start(
     name: Annotated[str, typer.Argument(help="MCP server name")],
     command: Annotated[str | None, typer.Option("--command", "-c", help="Command to run")] = None,
+    http: Annotated[bool, typer.Option("--http", help="Use HTTP transport")] = False,
+    port: Annotated[
+        int | None, typer.Option("--port", "-p", help="HTTP port (default: 8390)")
+    ] = None,
 ) -> None:
     """Start an MCP server in the pool."""
     ensure_dirs()
@@ -121,7 +132,7 @@ def mcp_start(
         raise typer.Exit(1)
 
     try:
-        pid, socket, cmd = start_mcp_server(name, command)
+        pid, path, cmd = start_mcp_server(name, command, http=http, http_port=port)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
@@ -130,7 +141,11 @@ def mcp_start(
         raise typer.Exit(1) from None
 
     console.print(f"MCP server '{name}' started")
-    console.print(f"  Socket: {socket}")
+    if http:
+        http_port = port or 8390
+        console.print(f"  URL: http://localhost:{http_port}")
+    else:
+        console.print(f"  Socket: {path}")
     console.print(f"  PID: {pid}")
     console.print(f"  Command: {cmd}")
 
@@ -244,22 +259,15 @@ async def _mcp_attach_impl(session: str, mcp_name: str) -> None:
 def mcp_status() -> None:
     """MCP pool health check."""
     ensure_dirs()
-    socket_dir = state_dir() / "mcp-pool" / "sockets"
 
-    total = healthy = dead = orphaned = 0
+    total = healthy = dead = 0
 
-    if socket_dir.exists():
-        for sock_path in socket_dir.glob("*.sock"):
-            total += 1
-            name = sock_path.stem
-            pid = read_pid(name)
-            if pid is not None:
-                if is_mcp_running(name):
-                    healthy += 1
-                else:
-                    dead += 1
-            else:
-                orphaned += 1
+    for name in _discover_servers():
+        total += 1
+        if is_mcp_running(name):
+            healthy += 1
+        else:
+            dead += 1
 
     from rich.text import Text
 
@@ -268,8 +276,6 @@ def mcp_status() -> None:
         parts.append(f"[green]{Symbols.BULLET_FILLED} {healthy} healthy[/green]")
     if dead:
         parts.append(f"[red]{Symbols.BULLET_ERROR} {dead} dead[/red]")
-    if orphaned:
-        parts.append(f"[yellow]? {orphaned} orphaned[/yellow]")
 
     if not parts:
         summary = Text("No MCP servers in pool", style="yellow")
@@ -289,7 +295,7 @@ def mcp_status() -> None:
         console.print("\n[dim]Start one with: [bold]shoal mcp start <name>[/bold][/dim]")
         console.print("[dim]Configure servers in ~/.config/shoal/mcp-servers.toml[/dim]")
 
-    if dead or orphaned:
+    if dead:
         console.print("\n[yellow]󰀦 Stale entries detected.[/yellow]")
         console.print("[dim]Run 'shoal mcp stop <name>' to clean up.[/dim]")
 
@@ -375,9 +381,9 @@ async def _probe_server(name: str) -> _ProbeResult:
 def mcp_doctor() -> None:
     """Deep health check for MCP servers."""
     ensure_dirs()
-    socket_dir = state_dir() / "mcp-pool" / "sockets"
+    names = _discover_servers()
 
-    if not socket_dir.exists() or not list(socket_dir.glob("*.sock")):
+    if not names:
         console.print("[yellow]No MCP servers to check[/yellow]")
         return
 
@@ -391,14 +397,16 @@ def mcp_doctor() -> None:
     table = create_table(padding=(0, 1))
     table.add_column("NAME")
     table.add_column("PID")
+    table.add_column("TRANSPORT")
     table.add_column("PROTOCOL")
     table.add_column("TOOLS")
     table.add_column("VERSION")
     table.add_column("LATENCY")
 
-    for sock_path in sorted(socket_dir.glob("*.sock")):
-        name = sock_path.stem
+    for name in names:
         pid = read_pid(name)
+        port = read_port(name)
+        transport = f"http:{port}" if port is not None else "socket"
 
         # PID check
         pid_status = "[red]dead[/red]"
@@ -407,30 +415,36 @@ def mcp_doctor() -> None:
         elif pid is not None:
             pid_status = f"[red]dead ({pid})[/red]"
 
-        # Protocol probe via FastMCP Client
+        # Protocol probe via FastMCP Client (socket-mode only for now)
         proto_status = "[dim]-[/dim]"
         tools_str = "[dim]-[/dim]"
         version_str = "[dim]-[/dim]"
         latency_str = "[dim]-[/dim]"
 
-        if has_fastmcp and pid is not None and is_mcp_running(name):
-            result = asyncio.run(_probe_server(name))
+        if pid is not None and is_mcp_running(name):
+            if port is not None:
+                # HTTP server — full probe deferred to v0.16.0
+                proto_status = "[green]http[/green]"
+            elif has_fastmcp:
+                result = asyncio.run(_probe_server(name))
 
-            if result.connected:
-                proto_status = "[green]ok[/green]"
-                tools_str = str(result.tool_count)
-                if result.server_version:
-                    version_str = result.server_version
-                latency_str = f"{result.latency_ms:.0f}ms"
-            elif result.error == "timeout":
-                proto_status = "[red]timeout[/red]"
+                if result.connected:
+                    proto_status = "[green]ok[/green]"
+                    tools_str = str(result.tool_count)
+                    if result.server_version:
+                        version_str = result.server_version
+                    latency_str = f"{result.latency_ms:.0f}ms"
+                elif result.error == "timeout":
+                    proto_status = "[red]timeout[/red]"
+                else:
+                    proto_status = f"[red]{result.error}[/red]"
             else:
-                proto_status = f"[red]{result.error}[/red]"
-        elif not has_fastmcp and pid is not None and is_mcp_running(name):
-            proto_status = "[yellow]skip[/yellow]"
+                proto_status = "[yellow]skip[/yellow]"
 
         name_col = f"[bold]{name}[/bold]"
-        table.add_row(name_col, pid_status, proto_status, tools_str, version_str, latency_str)
+        table.add_row(
+            name_col, pid_status, transport, proto_status, tools_str, version_str, latency_str
+        )
 
     console.print()
     console.print(

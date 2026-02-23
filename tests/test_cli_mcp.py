@@ -23,7 +23,7 @@ def test_mcp_start_success(mock_dirs):
         result = runner.invoke(app, ["start", "test-mcp", "--command", "mcp-command"])
         assert result.exit_code == 0
         assert "MCP server 'test-mcp' started" in result.stdout
-        mock_start.assert_called_once_with("test-mcp", "mcp-command")
+        mock_start.assert_called_once_with("test-mcp", "mcp-command", http=False, http_port=None)
 
 
 def test_mcp_start_already_running(mock_dirs):
@@ -300,3 +300,59 @@ def test_mcp_doctor_no_fastmcp(mock_dirs):
     assert result.exit_code == 0
     assert "skip" in result.stdout
     assert "fastmcp" in result.stdout
+
+
+def test_mcp_start_http_success(mock_dirs):
+    """Test starting an MCP server with --http flag."""
+    from pathlib import Path
+
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch(
+            "shoal.cli.mcp.start_mcp_server",
+            return_value=(1234, Path("/tmp/shoal.port"), "shoal-mcp-server"),
+        ) as mock_start,
+    ):
+        result = runner.invoke(app, ["start", "shoal-orchestrator", "--http"])
+        assert result.exit_code == 0
+        assert "MCP server 'shoal-orchestrator' started" in result.stdout
+        assert "http://localhost:8390" in result.stdout
+        mock_start.assert_called_once_with("shoal-orchestrator", None, http=True, http_port=None)
+
+
+def test_mcp_start_http_custom_port(mock_dirs):
+    """Test starting an MCP server with --http and --port flags."""
+    from pathlib import Path
+
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=False),
+        patch(
+            "shoal.cli.mcp.start_mcp_server",
+            return_value=(1234, Path("/tmp/shoal.port"), "shoal-mcp-server"),
+        ) as mock_start,
+    ):
+        result = runner.invoke(app, ["start", "shoal-orchestrator", "--http", "--port", "9000"])
+        assert result.exit_code == 0
+        assert "http://localhost:9000" in result.stdout
+        mock_start.assert_called_once_with("shoal-orchestrator", None, http=True, http_port=9000)
+
+
+def test_mcp_ls_shows_http_server(mock_dirs):
+    """Test that HTTP servers appear in mcp ls with transport indicator."""
+    from shoal.services import mcp_pool
+
+    # Create PID file (HTTP server has no socket)
+    pid_path = mcp_pool.mcp_pid_file("shoal-orchestrator")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("5678")
+
+    # Create port file
+    port_path = mcp_pool.mcp_port_file("shoal-orchestrator")
+    port_path.parent.mkdir(parents=True, exist_ok=True)
+    port_path.write_text("8390")
+
+    with patch("shoal.cli.mcp.is_mcp_running", return_value=True):
+        result = runner.invoke(app, ["ls"])
+    assert result.exit_code == 0
+    assert "shoal-orchestrator" in result.stdout
+    assert "http:8390" in result.stdout
