@@ -5,12 +5,17 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from shoal.cli import app
 from shoal.models.state import SessionState, SessionStatus
 
-runner = CliRunner()
+
+@pytest.fixture()
+def runner() -> CliRunner:
+    """Per-test CliRunner to avoid shared mutable state."""
+    return CliRunner()
 
 
 def _make_session(
@@ -38,7 +43,7 @@ def _make_session(
 class TestAttachFlow:
     """Cover attach lines 42-56."""
 
-    def test_attach_get_session_returns_none(self, mock_dirs):
+    def test_attach_get_session_returns_none(self, mock_dirs, runner):
         """Line 42: get_session returns None."""
         s = _make_session("ghost")
 
@@ -55,7 +60,7 @@ class TestAttachFlow:
             result = runner.invoke(app, ["attach", "ghost"])
         assert result.exit_code == 1
 
-    def test_attach_tmux_not_found(self, mock_dirs):
+    def test_attach_tmux_not_found(self, mock_dirs, runner):
         """Lines 44-49: tmux session not found, marks stopped."""
         s = _make_session("dead-sess")
 
@@ -76,7 +81,7 @@ class TestAttachFlow:
         assert "not found" in result.output
         mock_update.assert_called_once_with(s.id, status=SessionStatus.stopped)
 
-    def test_attach_inside_tmux_switches_client(self, mock_dirs):
+    def test_attach_inside_tmux_switches_client(self, mock_dirs, runner):
         """Lines 51-54: touch + switch_client."""
         s = _make_session("my-sess")
 
@@ -98,7 +103,7 @@ class TestAttachFlow:
         assert result.exit_code == 0
         mock_switch.assert_called_once_with(s.tmux_session)
 
-    def test_attach_outside_tmux_attaches(self, mock_dirs):
+    def test_attach_outside_tmux_attaches(self, mock_dirs, runner):
         """Lines 55-56: attach_session."""
         s = _make_session("my-sess")
 
@@ -124,14 +129,14 @@ class TestAttachFlow:
 class TestDetachFlow:
     """Cover detach lines 61-70."""
 
-    def test_detach_not_inside_tmux(self, mock_dirs):
+    def test_detach_not_inside_tmux(self, mock_dirs, runner):
         """Lines 61-63: not inside tmux."""
         with patch("shoal.cli.session.tmux.is_inside_tmux", return_value=False):
             result = runner.invoke(app, ["detach"])
         assert result.exit_code == 1
         assert "Not inside a tmux session" in result.output
 
-    def test_detach_not_shoal_session(self, mock_dirs):
+    def test_detach_not_shoal_session(self, mock_dirs, runner):
         """Lines 65-68: inside tmux but not a shoal session."""
         with (
             patch("shoal.cli.session.tmux.is_inside_tmux", return_value=True),
@@ -141,7 +146,7 @@ class TestDetachFlow:
         assert result.exit_code == 1
         assert "Not inside a shoal session" in result.output
 
-    def test_detach_success(self, mock_dirs):
+    def test_detach_success(self, mock_dirs, runner):
         """Lines 65-70: successful detach."""
         with (
             patch("shoal.cli.session.tmux.is_inside_tmux", return_value=True),
@@ -160,7 +165,7 @@ class TestDetachFlow:
 class TestRenameGetSessionNone:
     """Cover rename line 99."""
 
-    def test_rename_get_session_returns_none(self, mock_dirs):
+    def test_rename_get_session_returns_none(self, mock_dirs, runner):
         """Line 99: resolve succeeds but get_session returns None."""
 
         async def mock_resolve(name):
@@ -173,7 +178,7 @@ class TestRenameGetSessionNone:
             result = runner.invoke(app, ["rename", "old-name", "new-name"])
         assert result.exit_code == 1
 
-    def test_rename_no_tmux_session(self, mock_dirs):
+    def test_rename_no_tmux_session(self, mock_dirs, runner):
         """Lines 110-112: tmux session does not exist, still renames in DB."""
         s = _make_session("old-name")
 
@@ -197,7 +202,7 @@ class TestRenameGetSessionNone:
 class TestPruneConfirmation:
     """Cover prune lines 128-147."""
 
-    def test_prune_confirm_yes(self, mock_dirs):
+    def test_prune_confirm_yes(self, mock_dirs, runner):
         """Lines 138-143: user confirms prune."""
         import asyncio
 
@@ -211,7 +216,7 @@ class TestPruneConfirmation:
         assert "dead-sess" in result.output
         assert "Removed" in result.output
 
-    def test_prune_confirm_no(self, mock_dirs):
+    def test_prune_confirm_no(self, mock_dirs, runner):
         """Lines 138-143: user declines prune."""
         import asyncio
 
@@ -223,13 +228,13 @@ class TestPruneConfirmation:
         result = runner.invoke(app, ["prune"], input="n\n")
         assert result.exit_code != 0  # typer.Abort
 
-    def test_prune_no_stopped_sessions(self, mock_dirs):
+    def test_prune_no_stopped_sessions(self, mock_dirs, runner):
         """Lines 133-135: no stopped sessions to prune."""
         result = runner.invoke(app, ["prune"])
         assert result.exit_code == 0
         assert "No stopped sessions" in result.output
 
-    def test_prune_force(self, mock_dirs):
+    def test_prune_force(self, mock_dirs, runner):
         """Line 137: force skips confirmation."""
         import asyncio
 
@@ -246,7 +251,7 @@ class TestPruneConfirmation:
 class TestPopupFlow:
     """Cover popup lines 150-164."""
 
-    def test_popup_inside_tmux(self, mock_dirs):
+    def test_popup_inside_tmux(self, mock_dirs, runner):
         """Lines 153-155: inside tmux launches popup."""
         with (
             patch("shoal.cli.session.tmux.is_inside_tmux", return_value=True),
@@ -256,7 +261,7 @@ class TestPopupFlow:
         assert result.exit_code == 0
         mock_popup.assert_called_once_with("shoal _popup-inner")
 
-    def test_popup_outside_tmux(self, mock_dirs):
+    def test_popup_outside_tmux(self, mock_dirs, runner):
         """Lines 156-157: outside tmux runs inner impl."""
         with (
             patch("shoal.cli.session.tmux.is_inside_tmux", return_value=False),
