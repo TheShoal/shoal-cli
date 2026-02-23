@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Demo & onboarding overhaul**: Split monolithic `demo.py` (1249 lines) into `cli/demo/` package with `__init__.py`, `start_stop.py`, `tour.py`, `tutorial.py`
+- **`shoal demo tutorial`**: Interactive 7-step guided walkthrough — creates real sessions, worktrees, journals, and diagnostics in `/tmp/shoal-tutorial/` with `typer.confirm()` pacing, `--cleanup` flag, `--step N` resume, and Ctrl+C crash recovery
+- **Redesigned `shoal demo tour`**: 7 user-facing feature steps (was 9 internal verification steps) — Session Lifecycle, Status Detection, Templates & Inheritance, Journals, Diagnostics, MCP Orchestration, Theme & Status; each step is an independent async function returning `TourResult` dataclass
+- **Next-step prompts**: `shoal init` shows "Get Started" panel; `shoal setup fish` shows tutorial/demo hints after install
+- **Fish completions**: Added `tour` and `tutorial` to demo subcommand completions
+- **Journal frontmatter**: Obsidian-compatible YAML frontmatter (`title`, `aliases`, `tags`, `created`) written on journal creation via `JournalMetadata` dataclass and `build_journal_metadata()` factory
+- **Journal size warning**: Advisory 1MB threshold with `shoal.journal` logger warning after writes
+- **`read_frontmatter()`**: Parse YAML frontmatter from journal files for future tooling
 - **Logging infrastructure**: Named loggers for 8 previously silent modules (`db`, `tmux`, `git`, `config`, `detection`, `mcp_pool`, `mcp_proxy`, `status_bar`) with targeted DEBUG/WARNING statements
 - **Context propagation**: `core/context.py` with `ContextVar`-based `session_id` and `request_id` propagation; `ContextFilter` wired into CLI, watcher, and lifecycle
 - **Request ID middleware**: FastAPI `RequestIdMiddleware` reads/generates `X-Request-ID` header on all API requests
@@ -26,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Benchmark script**: `benchmarks/transport_spike.py` for self-contained transport performance comparison
 
 ### Changed
+- **Demo tour**: Reduced from 9 steps to 7, removed developer-facing tests (Pydantic validation, exception hierarchy, MCP name regex), added Journals and Diagnostics steps
+- **Demo pane content**: Updated command references to include `shoal demo tutorial`
+- **Ghost session wording**: `shoal ls` now shows "was running" instead of "running" for ghost sessions
+- **`mcp status` hint**: Suggests `shoal mcp doctor --cleanup` instead of manual `mcp stop` for stale entries
 - **Fish completions**: `__shoal_tools`, `__shoal_templates`, `__shoal_remote_hosts` use `$XDG_CONFIG_HOME` instead of hardcoded `~/.config`
 - **Status bar**: `status_bar.py` returns dict of counts, `main()` prints JSON; removed `tmux_fg`/`tmux_status_segment` from theme
 - **`mcp doctor`**: Replaced manual JSON-RPC probe with FastMCP Client for protocol-aware health checks
@@ -36,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dead `state_dir` field from `GeneralConfig` model (never read anywhere)
 
 ### Fixed
+- **Async-unsafe prune**: `_prune_impl()` now calls `archive_journal()` via `asyncio.to_thread()` instead of blocking the event loop
+- **Nerd Font glyphs**: Populated all 5 `STATUS_STYLES` nerd fields (were empty strings)
+- **Demo branch detection**: `demo-main` and `demo-robo` sessions now correctly pass `branch=` to `create_session()`
+- **Tour MCP skip**: Step 8 (MCP Orchestration) now shows "skipped" instead of false pass when `fastmcp` is not installed
+- **`mcp doctor --cleanup`**: New flag to remove stale PID/socket files for dead MCP servers
 - **CORS configuration**: Changed `allow_credentials=True` to `allow_credentials=False` — invalid per CORS spec when `origins=["*"]`
 - **SSH credential redaction**: `_redact_ssh_cmd()` replaces identity file paths with `<redacted>` in remote tunnel logs
 - **Watcher error backoff**: Exponential backoff on consecutive poll failures (`_MAX_BACKOFF=300s`), reset on success
