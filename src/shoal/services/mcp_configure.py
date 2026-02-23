@@ -47,6 +47,14 @@ def configure_mcp_for_tool(
 
     mcp_cfg = tool_cfg.mcp
 
+    # Check if this server uses HTTP transport
+    from shoal.services.mcp_pool import get_transport, read_port
+
+    transport = get_transport(mcp_name)
+    if transport == "http":
+        port = read_port(mcp_name) or 8390
+        return _configure_http_for_tool(tool, mcp_name, work_dir, port, mcp_cfg)
+
     # Strategy 1: Run a config command (e.g. "claude mcp add")
     if mcp_cfg.config_cmd:
         return _configure_via_command(mcp_cfg.config_cmd, mcp_name, work_dir)
@@ -57,6 +65,43 @@ def configure_mcp_for_tool(
 
     # No auto-config method available
     return None
+
+
+def _configure_http_for_tool(
+    tool: str,
+    mcp_name: str,
+    work_dir: str,
+    port: int,
+    mcp_cfg: Any,
+) -> str | None:
+    """Configure a tool to use an HTTP-mode MCP server."""
+    url = f"http://localhost:{port}/mcp/"
+
+    # Strategy 1: Config file (JSON) — set URL-based entry
+    if mcp_cfg.config_file:
+        path = Path(work_dir) / mcp_cfg.config_file
+        data: dict[str, Any] = {}
+        if path.exists():
+            try:
+                data = json.loads(path.read_text())
+            except (json.JSONDecodeError, OSError) as exc:
+                raise McpConfigureError(f"Failed to parse config file {path}: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise McpConfigureError(f"Config file {path} is not a JSON object")
+
+        mcp_servers = data.setdefault("mcpServers", {})
+        mcp_servers[mcp_name] = {"url": url}
+
+        try:
+            path.write_text(json.dumps(data, indent=2) + "\n")
+        except OSError as exc:
+            raise McpConfigureError(f"Failed to write config file {path}: {exc}") from exc
+
+        return f"Configured HTTP URL in {path}"
+
+    # Strategy 2: No file config — just report the URL
+    return f"HTTP server at {url}"
 
 
 def _configure_via_command(config_cmd: str, mcp_name: str, work_dir: str) -> str:

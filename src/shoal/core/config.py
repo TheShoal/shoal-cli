@@ -240,6 +240,22 @@ def load_mcp_registry() -> dict[str, str]:
     return registry
 
 
+def load_mcp_registry_full() -> dict[str, dict[str, str]]:
+    """Load the full MCP server registry with all fields per entry.
+
+    Returns raw dicts so callers can read ``transport`` and other fields.
+    """
+    user_file = config_dir() / "mcp-servers.toml"
+    registry: dict[str, dict[str, str]] = {}
+    if user_file.exists():
+        with open(user_file, "rb") as f:
+            data = tomllib.load(f)
+        for name, entry in data.items():
+            if isinstance(entry, dict):
+                registry[name] = {k: str(v) for k, v in entry.items()}
+    return registry
+
+
 def mixins_dir() -> Path:
     """Return ~/.config/shoal/templates/mixins."""
     return templates_dir() / "mixins"

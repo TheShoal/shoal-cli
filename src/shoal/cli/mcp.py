@@ -20,6 +20,7 @@ from shoal.core.state import (
 )
 from shoal.core.theme import Icons, Symbols, create_panel, create_table
 from shoal.services.mcp_pool import (
+    get_transport,
     is_mcp_running,
     mcp_log_file,
     mcp_socket,
@@ -131,8 +132,11 @@ def mcp_start(
         )
         raise typer.Exit(1)
 
+    # Auto-detect HTTP transport if not explicitly set
+    use_http = http or get_transport(name) == "http"
+
     try:
-        pid, path, cmd = start_mcp_server(name, command, http=http, http_port=port)
+        pid, path, cmd = start_mcp_server(name, command, http=use_http, http_port=port)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
@@ -141,9 +145,9 @@ def mcp_start(
         raise typer.Exit(1) from None
 
     console.print(f"MCP server '{name}' started")
-    if http:
-        http_port = port or 8390
-        console.print(f"  URL: http://localhost:{http_port}")
+    if use_http:
+        effective_port = port or 8390
+        console.print(f"  URL: http://localhost:{effective_port}")
     else:
         console.print(f"  Socket: {path}")
     console.print(f"  PID: {pid}")
@@ -377,6 +381,45 @@ async def _probe_server(name: str) -> _ProbeResult:
         return _ProbeResult(error=str(e))
 
 
+async def _probe_http_server(name: str, port: int) -> _ProbeResult:
+    """Probe an HTTP-mode MCP server using FastMCP Client + StreamableHttpTransport."""
+    import time
+
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    url = f"http://localhost:{port}/mcp/"
+    transport = StreamableHttpTransport(url=url)
+    client = Client(transport, timeout=10, init_timeout=5)
+
+    start = time.monotonic()
+    try:
+        async with client:
+            elapsed = time.monotonic() - start
+            init_result = client.initialize_result
+            tools = await client.list_tools()
+
+            server_name = ""
+            server_version = ""
+            if init_result and init_result.serverInfo:
+                server_name = init_result.serverInfo.name
+                server_version = init_result.serverInfo.version or ""
+
+            return _ProbeResult(
+                connected=True,
+                server_name=server_name,
+                server_version=server_version,
+                tool_count=len(tools),
+                latency_ms=elapsed * 1000,
+            )
+    except TimeoutError:
+        return _ProbeResult(error="timeout")
+    except (ConnectionRefusedError, OSError) as e:
+        return _ProbeResult(error=f"http unreachable: {e}")
+    except Exception as e:
+        return _ProbeResult(error=str(e))
+
+
 @app.command("doctor")
 def mcp_doctor() -> None:
     """Deep health check for MCP servers."""
@@ -422,9 +465,18 @@ def mcp_doctor() -> None:
         latency_str = "[dim]-[/dim]"
 
         if pid is not None and is_mcp_running(name):
-            if port is not None:
-                # HTTP server — full probe deferred to v0.16.0
-                proto_status = "[green]http[/green]"
+            if port is not None and has_fastmcp:
+                result = asyncio.run(_probe_http_server(name, port))
+                if result.connected:
+                    proto_status = "[green]ok[/green]"
+                    tools_str = str(result.tool_count)
+                    if result.server_version:
+                        version_str = result.server_version
+                    latency_str = f"{result.latency_ms:.0f}ms"
+                elif result.error:
+                    proto_status = f"[red]{result.error}[/red]"
+            elif port is not None:
+                proto_status = "[yellow]skip (http)[/yellow]"
             elif has_fastmcp:
                 result = asyncio.run(_probe_server(name))
 

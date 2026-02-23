@@ -57,6 +57,26 @@ _DEFAULT_SERVERS: dict[str, str] = {
 # Public alias kept for backward compatibility in tests / direct imports.
 KNOWN_SERVERS = _DEFAULT_SERVERS
 
+# Servers that default to HTTP transport (faster startup, no proxy needed)
+_DEFAULT_TRANSPORTS: dict[str, str] = {
+    "shoal-orchestrator": "http",
+}
+
+
+def get_transport(name: str) -> str:
+    """Determine the transport for an MCP server.
+
+    Checks user registry (``mcp-servers.toml``) for an explicit ``transport``
+    field, then falls back to ``_DEFAULT_TRANSPORTS``, then ``"socket"``.
+    """
+    from shoal.core.config import load_mcp_registry_full
+
+    registry = load_mcp_registry_full()
+    entry = registry.get(name)
+    if isinstance(entry, dict) and "transport" in entry:
+        return str(entry["transport"])
+    return _DEFAULT_TRANSPORTS.get(name, "socket")
+
 
 def mcp_log_dir() -> Path:
     """Return the MCP pool log directory."""
