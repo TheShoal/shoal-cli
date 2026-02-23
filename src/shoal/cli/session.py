@@ -11,6 +11,7 @@ from rich.console import Console
 from shoal.core import tmux
 from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
+from shoal.core.journal import archive_journal
 from shoal.core.state import (
     _resolve_session_interactive_impl,
     build_tmux_session_name,
@@ -143,6 +144,7 @@ async def _prune_impl(force: bool) -> None:
             raise typer.Abort
 
     for s in stopped:
+        archive_journal(s.id)
         await delete_session(s.id)
         console.print(f"Removed session '{s.name}' ({s.id})")
 

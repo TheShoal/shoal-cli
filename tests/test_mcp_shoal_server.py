@@ -249,6 +249,7 @@ async def test_kill_session_success() -> None:
         "worktree_removed": False,
         "branch_deleted": False,
         "db_deleted": True,
+        "journal_archived": False,
     }
     with (
         patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
@@ -315,6 +316,7 @@ async def test_kill_session_with_force() -> None:
         "worktree_removed": True,
         "branch_deleted": True,
         "db_deleted": True,
+        "journal_archived": False,
     }
     with (
         patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),

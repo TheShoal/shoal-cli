@@ -58,7 +58,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - [x] `core/journal.py` — append-only markdown per session
 - [x] MCP tools: `append_journal`, `read_journal`
 - [x] CLI: `shoal journal <session>` view/append
-- [ ] Journal cleanup on session kill
+- [x] Journal archive on session kill
 
 ### FastMCP HTTP Transport Default
 - [x] HTTP default for `shoal-orchestrator` in MCP pool registry
@@ -78,51 +78,20 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-02-23 — 5-Milestone implementation sprint
+### Session: 2026-02-23 — Handoff resync + journal archive
 
 **What we did:**
 
-- M1 Housekeeping: fixed flaky CliRunner test, committed unstaged docs, gitignored CODE_REVIEW artifacts
-- M2 Documentation: updated TROUBLESHOOTING.md (remote, diagnostics, removed socat refs), updated FISH_INTEGRATION.md (XDG, diag), fixed stale socat ref in CLAUDE_CODE_SETUP.md
-- M3 Project-local templates: `.shoal/templates/` search path, local shadows global, SOURCE column in `template ls`, local mixins, 13 tests
-- M4 Structured session journals: `core/journal.py`, `cli/journal.py`, MCP tools `append_journal`/`read_journal`, 18 tests
-- M5 HTTP transport default: `_DEFAULT_TRANSPORTS` registry, `get_transport()`, auto-detect HTTP in CLI, `mcp doctor` HTTP probe, HTTP config generation, 8 tests
-- Updated ROADMAP.md with concrete milestone sections
+- Resynced handoff (prior entries were stale — test count was 618–728, actual is 820+)
+- Journal archive on session kill: `archive_journal()` in `core/journal.py` moves to `journals/archive/`
+- Wired into `kill_session_lifecycle()` (best-effort, between DB delete and MCP cleanup)
+- Wired into `_prune_impl()` for stopped session cleanup
+- Updated CLI kill output, MCP `kill_session` tool return with `journal_archived` key
+- 7 new tests (4 journal, 3 lifecycle), 820 total passing, lint/mypy clean
 
 **What to do next:**
 
-- Wire journal cleanup into `kill_session_lifecycle()` (delete journal on kill)
-- Consider formal version bump (v0.17.0?)
-- Server Composition Gateway investigation
-- Documentation for new features (journal, local templates, HTTP transport)
-
-### Session: 2026-02-23 — Logging, observability, and tracing + cleanup
-
-**What we did:**
-
-- Implemented full 3-phase observability plan from code review (14 tasks, commit `e4fde55`)
-- Phase 1: SSH credential redaction, CORS fix, loggers for 8 silent modules, watcher exponential backoff, named FileHandler
-- Phase 2: `core/context.py` (ContextVar session_id/request_id), RequestIdMiddleware, ContextFilter wired into CLI/watcher/lifecycle, `shoal diag` command, deepened `/health` endpoint
-- Phase 3: `core/logging_config.py` (JsonFormatter), `--log-level`/`--log-file`/`--json-logs` CLI flags, MCP pool + DB operation timing
-- Fixed bandit B310 warnings in `remote.py` with `# nosec B310` comments (`f6bfc02`)
-- Added session CLI coverage tests: attach, detach, rename, prune, popup (`e3617e3`)
-- 29 files changed (6 new), 1368 insertions, 728+ tests, 81.91% coverage
-
-**What to do next:**
-
-- Commit remaining unstaged v0.16.0 changes (CHANGELOG, README, ROADMAP, remote docs, fish installer, remote.fish)
-- Documentation catchup
-- Consider adding observability milestone to ROADMAP if formalizing as a release
-
-### Session: 2026-02-23 — XDG compliance + status bar cleanup
-
-**What we did:**
-
-- XDG Base Directory compliance: `config_dir()` reads `XDG_CONFIG_HOME`, `state_dir()` reads `XDG_DATA_HOME`, `runtime_dir()` reads `XDG_STATE_HOME`, `build_nvim_socket_path()` reads `XDG_RUNTIME_DIR` — all fall back to current defaults
-- Fish completions use `$XDG_CONFIG_HOME` instead of hardcoded `~/.config`
-- Simplified status bar: returns dict of counts, `main()` prints JSON
-- 8 new XDG tests, 676 total passing, committed as `3bbc1b2`
-
-**What to do next:**
-
-- See latest handoff entry above
+- Version bump (v0.17.0?)
+- Server Composition Gateway investigation (FastMCP `mount()`)
+- Documentation for new features (journal archive, local templates, HTTP transport)
+- Consider `shoal journal --archived <session>` CLI for reading archived journals

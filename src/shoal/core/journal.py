@@ -13,6 +13,7 @@ Entries follow the format::
 from __future__ import annotations
 
 import re
+import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -97,3 +98,20 @@ def delete_journal(session_id: str) -> bool:
         path.unlink()
         return True
     return False
+
+
+def archived_journal_path(session_id: str) -> Path:
+    """Return the archived journal file path for a session."""
+    return _journals_dir() / "archive" / f"{session_id}.md"
+
+
+def archive_journal(session_id: str) -> bool:
+    """Archive a session journal. Returns True if it existed and was archived."""
+    path = journal_path(session_id)
+    if not path.exists():
+        return False
+    archive_dir = _journals_dir() / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    dest = archive_dir / f"{session_id}.md"
+    shutil.move(str(path), str(dest))
+    return True

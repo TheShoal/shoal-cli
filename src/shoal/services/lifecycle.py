@@ -866,6 +866,7 @@ async def kill_session_lifecycle(
         "worktree_removed": False,
         "branch_deleted": False,
         "db_deleted": False,
+        "journal_archived": False,
         "mcp_stopped": False,
     }
 
@@ -916,6 +917,17 @@ async def kill_session_lifecycle(
     await delete_session(session_id)
     summary["db_deleted"] = True
     logger.info("[%s] kill: DB row deleted", session_id)
+
+    # 3.5. Archive journal (best-effort)
+    try:
+        from shoal.core.journal import archive_journal
+
+        archived = await asyncio.to_thread(archive_journal, session_id)
+        if archived:
+            summary["journal_archived"] = True
+            logger.info("[%s] kill: journal archived", session_id)
+    except OSError:
+        logger.warning("[%s] kill: failed to archive journal", session_id, exc_info=True)
 
     # 4. Stop orphaned MCP servers (no remaining sessions using them)
     if mcp_names:

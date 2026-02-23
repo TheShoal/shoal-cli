@@ -831,6 +831,56 @@ class TestKillSessionLifecycleExtended:
         mock_wt_rm.assert_not_called()
         assert summary["db_deleted"] is True
 
+    async def test_kill_archives_journal(self, mock_dirs):
+        """Kill archives journal when one exists."""
+        s = await create_session("kill-journal", "claude", "/tmp/repo")
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.journal.archive_journal", return_value=True) as mock_archive,
+        ):
+            summary = await kill_session_lifecycle(
+                session_id=s.id,
+                tmux_session=s.tmux_session,
+            )
+
+        assert summary["journal_archived"] is True
+        mock_archive.assert_called_once_with(s.id)
+
+    async def test_kill_no_journal(self, mock_dirs):
+        """Kill succeeds when no journal exists."""
+        s = await create_session("kill-no-journal", "claude", "/tmp/repo")
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.journal.archive_journal", return_value=False),
+        ):
+            summary = await kill_session_lifecycle(
+                session_id=s.id,
+                tmux_session=s.tmux_session,
+            )
+
+        assert summary["journal_archived"] is False
+
+    async def test_kill_journal_archive_failure_continues(self, mock_dirs):
+        """Kill continues if journal archival fails."""
+        s = await create_session("kill-journal-fail", "claude", "/tmp/repo")
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch(
+                "shoal.core.journal.archive_journal",
+                side_effect=OSError("disk full"),
+            ),
+        ):
+            summary = await kill_session_lifecycle(
+                session_id=s.id,
+                tmux_session=s.tmux_session,
+            )
+
+        assert summary["journal_archived"] is False
+        assert summary["db_deleted"] is True
+
 
 @pytest.mark.asyncio
 class TestCreateSessionLifecycleExtended:

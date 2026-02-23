@@ -2,6 +2,10 @@
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0:11111b,30:1e1e2e,70:45475a,100:94e2d5&height=200&section=header&text=Shoal&fontSize=72&fontColor=cdd6f4&animation=fadeIn&fontAlignY=32&desc=Terminal-first%20orchestration%20for%20parallel%20AI%20coding%20agents&descSize=16&descColor=89b4fa&descAlignY=52" alt="Shoal banner" width="100%">
 </p>
 
+<p align="center">
+  <img src="assets/robo-fish.svg" width="280" alt="Shoal robo-fish mascot">
+</p>
+
 <!-- Badges -->
 <p align="center">
   <img src="https://img.shields.io/badge/v0.16.0-beta-EED49F?style=flat-square" alt="v0.16.0 beta">
@@ -32,10 +36,6 @@
 
 <p align="center">
   <img src="assets/status-pulse.svg" width="600" alt="Agent status indicators">
-</p>
-
-<p align="center">
-  <img src="assets/robo-fish.svg" width="280" alt="Shoal robo-fish mascot">
 </p>
 
 ---

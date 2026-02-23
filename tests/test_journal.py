@@ -13,6 +13,8 @@ from typer.testing import CliRunner
 from shoal.core.journal import (
     _parse_journal,
     append_entry,
+    archive_journal,
+    archived_journal_path,
     delete_journal,
     journal_exists,
     journal_path,
@@ -83,6 +85,29 @@ class TestCoreJournal:
         assert len(entries) == 1
         assert entries[0].timestamp.tzinfo is not None
         assert entries[0].source == "test"
+
+    def test_archive_journal(self, journals_dir: Path) -> None:
+        append_entry("sess-arch", "content", source="test")
+        assert archive_journal("sess-arch") is True
+        assert not journal_exists("sess-arch")
+        archived = journals_dir / "archive" / "sess-arch.md"
+        assert archived.exists()
+        assert "content" in archived.read_text()
+
+    def test_archive_nonexistent_journal(self, journals_dir: Path) -> None:
+        assert archive_journal("nonexistent") is False
+
+    def test_archive_creates_directory(self, journals_dir: Path) -> None:
+        append_entry("sess-first", "first archive")
+        archive_dir = journals_dir / "archive"
+        assert not archive_dir.exists()
+        archive_journal("sess-first")
+        assert archive_dir.exists()
+
+    def test_archived_journal_path(self, journals_dir: Path) -> None:
+        path = archived_journal_path("my-session")
+        assert path.name == "my-session.md"
+        assert "archive" in str(path)
 
 
 class TestParseJournal:

@@ -487,4 +487,6 @@ async def _kill_impl(session: str | None, worktree: bool, force: bool) -> None:
         console.print(f"  Removed worktree: {s.worktree}")
     if summary["branch_deleted"]:
         console.print(f"  Deleted branch: {s.branch}")
+    if summary["journal_archived"]:
+        console.print(f"  Archived journal: {s.id}.md")
     console.print(f"Session '{s.name}' ({sid}) removed")

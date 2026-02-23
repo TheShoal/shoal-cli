@@ -381,6 +381,7 @@ async def kill_session_tool(
         "worktree_removed": summary["worktree_removed"],
         "branch_deleted": summary["branch_deleted"],
         "db_deleted": summary["db_deleted"],
+        "journal_archived": summary["journal_archived"],
     }
 
 
