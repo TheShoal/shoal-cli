@@ -54,6 +54,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - **Project-Local Templates**: `.shoal/templates/` search path in git root.
 - **Oh-My-Pi (omp) Integration**: Add `omp.toml` tool definition and `omp-dev` session template mirroring existing pi support. Key opportunities: omp has native MCP (`omp plugin` system) enabling direct socket sharing with Shoal's MCP pool; detection patterns need tuning for omp's extended TUI (subagent/LSP status indicators beyond pi's base patterns); universal config discovery (reads `.claude/`, `.codex/`, `.gemini/` alongside `.omp/`) enables cross-agent workflow sharing.
 - Expose hooks for configuration and runtime scripting
+- **Structured Session Journals**: Per-session `.shoal/journal.md` written via MCP, enabling robo supervisors to query child agent progress at varying granularity. Inspired by [GCC](https://arxiv.org/abs/2508.00031) (git-like context versioning for agents) — Shoal would provide storage/retrieval infrastructure without managing agent internals.
 - Documentation catchup!! A lot will have changed by v0.16.0
 
 ---
