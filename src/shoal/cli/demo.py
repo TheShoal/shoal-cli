@@ -1158,15 +1158,17 @@ async def _demo_tour_impl() -> None:
         tools = await shoal_mcp.list_tools()
         tool_names = sorted(t.name for t in tools)
         expected_tools = [
+            "append_journal",
             "create_session",
             "kill_session",
             "list_sessions",
+            "read_journal",
             "send_keys",
             "session_info",
             "session_status",
         ]
         if tool_names == expected_tools:
-            console.print(f"   [green]{Symbols.CHECK}[/green] 6 MCP tools registered")
+            console.print(f"   [green]{Symbols.CHECK}[/green] 8 MCP tools registered")
         else:
             console.print(
                 f"   [red]{Symbols.CROSS}[/red] Expected {expected_tools}, got {tool_names}"
