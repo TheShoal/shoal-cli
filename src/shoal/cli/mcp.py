@@ -529,3 +529,52 @@ def mcp_doctor(
             "[yellow]Note: Install fastmcp for protocol-level health checks: "
             "pip install shoal\\[mcp][/yellow]"
         )
+
+
+@app.command("registry")
+def mcp_registry() -> None:
+    """List all known MCP servers (built-in + user registry)."""
+    from shoal.core.config import load_mcp_registry_full
+    from shoal.services.mcp_pool import _DEFAULT_SERVERS
+
+    # Build combined registry: defaults + user overrides
+    combined: dict[str, dict[str, str]] = {}
+    for name, cmd in _DEFAULT_SERVERS.items():
+        combined[name] = {"command": cmd, "transport": "socket", "_source": "built-in"}
+
+    user_registry = load_mcp_registry_full()
+    for name, entry in user_registry.items():
+        if name in combined:
+            combined[name].update(entry)
+            combined[name]["_source"] = "override"
+        else:
+            combined[name] = {**entry, "_source": "user"}
+
+    table = create_table(padding=(0, 2))
+    table.add_column("NAME", style="bold")
+    table.add_column("SOURCE")
+    table.add_column("TRANSPORT")
+    table.add_column("COMMAND", no_wrap=False)
+
+    for name in sorted(combined):
+        entry = combined[name]
+        source = entry.pop("_source", "unknown")
+        transport = entry.get("transport", "socket")
+        command = entry.get("command", "")
+        source_style = (
+            "[dim]built-in[/dim]"
+            if source == "built-in"
+            else "[cyan]user[/cyan]"
+            if source == "user"
+            else "[yellow]override[/yellow]"
+        )
+        table.add_row(name, source_style, transport, f"[dim]{command}[/dim]")
+
+    console.print()
+    console.print(
+        create_panel(
+            table,
+            title=f"[bold blue]{Icons.MCP} MCP Server Registry[/bold blue]",
+            title_align="left",
+        )
+    )

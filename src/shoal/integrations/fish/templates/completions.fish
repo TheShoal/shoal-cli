@@ -48,6 +48,7 @@ complete -c shoal -n "__fish_use_subcommand" -a "nvim" -d "Neovim integration"
 complete -c shoal -n "__fish_use_subcommand" -a "watcher" -d "Background status watcher"
 complete -c shoal -n "__fish_use_subcommand" -a "demo" -d "Demo environment"
 complete -c shoal -n "__fish_use_subcommand" -a "setup" -d "Setup shell integrations"
+complete -c shoal -n "__fish_use_subcommand" -a "config" -d "Configuration inspection"
 
 # Dynamic session name completions for commands that need them
 complete -c shoal -n "__fish_seen_subcommand_from attach" -a "(__shoal_sessions)" -d "Session"
@@ -84,11 +85,12 @@ complete -c shoal -n "__fish_seen_subcommand_from new" -l "template" -d "Session
 complete -c shoal -n "__fish_seen_subcommand_from new" -l "dry-run" -d "Preview without creating"
 
 # MCP subcommands
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "ls" -d "List MCP servers"
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "start" -d "Start MCP server"
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "attach" -d "Attach server to session"
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "kill" -d "Kill MCP server"
-complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status" -a "status" -d "MCP pool status"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status registry" -a "ls" -d "List MCP servers"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status registry" -a "start" -d "Start MCP server"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status registry" -a "attach" -d "Attach server to session"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status registry" -a "kill" -d "Kill MCP server"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status registry" -a "status" -d "MCP pool status"
+complete -c shoal -n "__fish_seen_subcommand_from mcp; and not __fish_seen_subcommand_from ls start attach kill status registry" -a "registry" -d "List MCP server registry"
 
 # MCP start flags
 complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from start" -l "http" -d "Use HTTP transport"
@@ -160,6 +162,11 @@ complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcom
 
 # Remote connect flags
 complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from connect" -l "port" -s "p" -d "Local tunnel port" -r
+
+# Config subcommands
+complete -c shoal -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from show paths" -a "show" -d "Dump effective config"
+complete -c shoal -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from show paths" -a "paths" -d "Show XDG directory paths"
+complete -c shoal -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from show" -l "format" -s "f" -d "Output format" -xa "toml json"
 
 # Nvim subcommands
 complete -c shoal -n "__fish_seen_subcommand_from nvim; and not __fish_seen_subcommand_from send diagnostics" -a "send" -d "Send command to nvim"

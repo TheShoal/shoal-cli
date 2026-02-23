@@ -7,6 +7,7 @@ import asyncio
 import typer
 
 import shoal
+from shoal.cli.config_cmd import app as config_app
 from shoal.cli.demo import app as demo_app
 from shoal.cli.diag import diag
 from shoal.cli.journal import journal_view
@@ -86,6 +87,7 @@ app.add_typer(demo_app, name="demo", help="Demo environment.")
 app.add_typer(remote_app, name="remote", help="Remote session management.")
 app.add_typer(setup_app, name="setup", help="Setup shell integrations.")
 app.add_typer(template_app, name="template", help="Session templates.")
+app.add_typer(config_app, name="config", help="Configuration inspection.")
 
 
 @app.command()
