@@ -32,11 +32,11 @@ class StatusStyle:
 
 # Single source of truth for status → icon + color mapping
 STATUS_STYLES = {
-    "running": StatusStyle(rich="green", icon="●", nerd=""),
-    "idle": StatusStyle(rich="white", icon="○", nerd=""),
-    "waiting": StatusStyle(rich="bold yellow", icon="◉", nerd=""),
-    "error": StatusStyle(rich="bold red", icon="✗", nerd=""),
-    "stopped": StatusStyle(rich="dim", icon="◌", nerd=""),
+    "running": StatusStyle(rich="green", icon="●", nerd="\U000f040a"),  # nf-md-play
+    "idle": StatusStyle(rich="white", icon="○", nerd="\U000f03e4"),  # nf-md-pause
+    "waiting": StatusStyle(rich="bold yellow", icon="◉", nerd="\U000f0694"),  # nf-md-timer_sand
+    "error": StatusStyle(rich="bold red", icon="✗", nerd="\U000f0159"),  # nf-md-alert_octagon
+    "stopped": StatusStyle(rich="dim", icon="◌", nerd="\U000f04db"),  # nf-md-stop
 }
 
 

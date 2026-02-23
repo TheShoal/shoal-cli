@@ -84,6 +84,7 @@ async def test_demo_start_happy_path(tmp_path, mock_dirs):
         patch("shoal.cli.demo.tmux.run_command") as mock_run_command,
         patch("shoal.cli.demo.tmux.send_keys") as mock_send_keys,
         patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add) as mock_worktree_add,
+        patch("shoal.cli.demo.git.current_branch", return_value="main"),
         patch("shoal.cli.demo.console.print"),
         patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
     ):
@@ -136,6 +137,7 @@ async def test_demo_start_varied_statuses(tmp_path, mock_dirs):
         patch("shoal.cli.demo.tmux.run_command"),
         patch("shoal.cli.demo.tmux.send_keys"),
         patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add),
+        patch("shoal.cli.demo.git.current_branch", return_value="main"),
         patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
     ):
         await _demo_start_impl(None)
@@ -173,6 +175,7 @@ async def test_demo_start_custom_dir(tmp_path, mock_dirs):
         patch("shoal.cli.demo.tmux.run_command") as mock_run_command,
         patch("shoal.cli.demo.tmux.send_keys") as mock_send_keys,
         patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add),
+        patch("shoal.cli.demo.git.current_branch", return_value="main"),
     ):
         mock_which.return_value = "/usr/bin/tmux"
         mock_run.return_value = MagicMock(returncode=0)
@@ -366,8 +369,11 @@ async def test_demo_tour_all_pass(mock_dirs):
         await _demo_tour_impl()
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
-    # All 6 feature areas should pass
-    assert "All 9 feature areas passed" in all_output
+    # All 9 pass when fastmcp is installed; 8 pass + 1 skipped otherwise
+    assert (
+        "All 9 feature areas passed" in all_output
+        or "8 feature areas passed, 1 skipped" in all_output
+    )
 
 
 @pytest.mark.asyncio
@@ -421,7 +427,10 @@ async def test_demo_tour_with_sessions(mock_dirs):
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
     # Session data is rendered in a Rich Table object; verify tour still passes
-    assert "All 9 feature areas passed" in all_output
+    assert (
+        "All 9 feature areas passed" in all_output
+        or "8 feature areas passed, 1 skipped" in all_output
+    )
     # Verify session count is shown (1 session exists)
     assert "1 sessions" in all_output
 
@@ -433,8 +442,11 @@ async def test_demo_tour_no_failures(mock_dirs):
         await _demo_tour_impl()
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
-    # All 6 checks should pass
-    assert "All 9 feature areas passed" in all_output
+    # All 9 pass when fastmcp is installed; 8 pass + 1 skipped otherwise
+    assert (
+        "All 9 feature areas passed" in all_output
+        or "8 feature areas passed, 1 skipped" in all_output
+    )
     # Should not contain explicit test failure messages
     assert "Should have rejected" not in all_output
     assert "Should have accepted" not in all_output

@@ -485,6 +485,7 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         name="demo-main",
         tool=default_tool,
         git_root=str(demo_dir),
+        branch=git.current_branch(str(demo_dir)),
     )
     s1.tmux_session = await _pin_demo_tmux_name(s1.name, s1.id, s1.tmux_session)
     session_ids.append(s1.id)
@@ -578,6 +579,7 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         name="demo-robo",
         tool=default_tool,
         git_root=str(demo_dir),
+        branch=git.current_branch(str(demo_dir)),
     )
     s4.tmux_session = await _pin_demo_tmux_name(s4.name, s4.id, s4.tmux_session)
     session_ids.append(s4.id)
@@ -733,6 +735,7 @@ async def _demo_tour_impl() -> None:
 
     passed = 0
     failed = 0
+    skipped = 0
 
     # ── 1. Session State ──────────────────────────────────────────────────
     console.print("[bold]1. Session Management[/bold]")
@@ -1152,6 +1155,7 @@ async def _demo_tour_impl() -> None:
     console.print()
 
     mcp_tools_ok = True
+    mcp_skipped = False
     try:
         from shoal.services.mcp_shoal_server import mcp as shoal_mcp
 
@@ -1193,12 +1197,18 @@ async def _demo_tour_impl() -> None:
             f"   [yellow]{Symbols.BULLET_FILLED}[/yellow] "
             "fastmcp not installed (pip install shoal[mcp])"
         )
-        # Not a failure — optional dependency
+        mcp_skipped = True
     except Exception as e:
         console.print(f"   [red]{Symbols.CROSS}[/red] MCP server introspection failed: {e}")
         mcp_tools_ok = False
 
-    if mcp_tools_ok:
+    if mcp_skipped:
+        console.print(
+            f"   [yellow]{Symbols.BULLET_WAITING} MCP orchestration skipped "
+            "(optional dependency)[/yellow]"
+        )
+        skipped += 1
+    elif mcp_tools_ok:
         console.print(f"   [green]{Symbols.CHECK} MCP orchestration tools work[/green]")
         passed += 1
     else:
@@ -1222,10 +1232,15 @@ async def _demo_tour_impl() -> None:
     console.print()
 
     # ── Summary ────────────────────────────────────────────────────────────
-    total = passed + failed
+    total = passed + failed + skipped
     console.print(Rule(style="cyan"))
-    if failed == 0:
+    if failed == 0 and skipped == 0:
         console.print(f"[bold green]{Symbols.CHECK} All {total} feature areas passed![/bold green]")
+    elif failed == 0 and skipped > 0:
+        console.print(
+            f"[bold green]{Symbols.CHECK} {passed} feature areas passed, "
+            f"{skipped} skipped[/bold green]"
+        )
     else:
         console.print(
             f"[bold yellow]{passed}/{total} feature areas passed, {failed} failed[/bold yellow]"

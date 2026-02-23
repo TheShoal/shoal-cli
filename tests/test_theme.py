@@ -37,6 +37,17 @@ def test_get_status_helpers():
     assert get_status_icon("error") == "✗"
     assert get_status_icon("unknown") == "◌"
 
+    # Nerd font variants
+    assert get_status_icon("running", use_nerd=True) == "\U000f040a"
+    assert get_status_icon("error", use_nerd=True) == "\U000f0159"
+    assert get_status_icon("unknown", use_nerd=True) == "\U000f04db"  # Falls back to stopped
+
+
+def test_status_styles_nerd_populated():
+    """All nerd fields must be non-empty strings."""
+    for status, style in STATUS_STYLES.items():
+        assert style.nerd, f"STATUS_STYLES['{status}'].nerd is empty"
+
 
 def test_icons_and_symbols():
     """Verify icon and symbol constants."""
