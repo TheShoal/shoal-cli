@@ -258,7 +258,7 @@ def remote_api_get(host: str, path: str) -> Any:
     url = f"{_get_base_url(host)}{path}"
     req = urllib.request.Request(url)  # noqa: S310 — always localhost
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310  # nosec B310
             return json.loads(resp.read().decode())
     except urllib.error.URLError as e:
         raise RemoteConnectionError(
@@ -276,10 +276,10 @@ def remote_api_post(host: str, path: str, data: dict[str, Any] | None = None) ->
     """POST request to remote Shoal API. Returns parsed JSON."""
     url = f"{_get_base_url(host)}{path}"
     body = json.dumps(data or {}).encode()
-    req = urllib.request.Request(url, data=body, method="POST")  # noqa: S310
+    req = urllib.request.Request(url, data=body, method="POST")  # noqa: S310  # nosec B310
     req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310  # nosec B310
             return json.loads(resp.read().decode())
     except urllib.error.URLError as e:
         raise RemoteConnectionError(
@@ -296,9 +296,9 @@ def remote_api_post(host: str, path: str, data: dict[str, Any] | None = None) ->
 def remote_api_delete(host: str, path: str) -> Any:
     """DELETE request to remote Shoal API. Returns parsed JSON."""
     url = f"{_get_base_url(host)}{path}"
-    req = urllib.request.Request(url, method="DELETE")  # noqa: S310
+    req = urllib.request.Request(url, method="DELETE")  # noqa: S310  # nosec B310
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310  # nosec B310
             return json.loads(resp.read().decode())
     except urllib.error.URLError as e:
         raise RemoteConnectionError(
