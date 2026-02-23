@@ -8,7 +8,7 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.15.0-beta-EED49F?style=flat-square" alt="v0.15.0 beta">
+  <img src="https://img.shields.io/badge/v0.16.0-beta-EED49F?style=flat-square" alt="v0.16.0 beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
 </p>
@@ -235,6 +235,18 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 | `approve` | Send "Enter" to a waiting agent       |
 | `send`    | Send arbitrary keys to a child session|
 
+### Remote Sessions (`shoal remote`)
+
+| Command      | Description                               |
+| ------------ | ----------------------------------------- |
+| `ls`         | List configured remote hosts              |
+| `connect`    | Open SSH tunnel to remote API             |
+| `disconnect` | Close SSH tunnel                          |
+| `status`     | Show remote session status summary        |
+| `sessions`   | List sessions on remote host              |
+| `send`       | Send keystrokes to remote session         |
+| `attach`     | Attach to remote tmux session via SSH     |
+
 ---
 
 ## Fish Shell Integration
@@ -270,9 +282,9 @@ Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection
 
 | Milestone | Focus | Status |
 | --------- | ----- | ------ |
-| **v0.14.0** | Template inheritance and mixins | Current |
-| **v0.13.0** | Ruff lint expansion, security consolidation | Complete |
-| **v1.0.0** | CLI/API parity, 81% coverage, deprecation cleanup | Complete |
+| **v0.16.0** | Remote sessions via SSH tunnel | Current |
+| **v0.15.0** | FastMCP integration, Shoal MCP server | Complete |
+| **v0.14.0** | Template inheritance and mixins | Complete |
 
 See [ROADMAP.md](ROADMAP.md) for the full plan.
 
@@ -297,6 +309,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
 ## Documentation
 
+- [docs/REMOTE_GUIDE.md](docs/REMOTE_GUIDE.md) — Remote session management guide
 - [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) — Robo supervisor patterns and workflows
 - [docs/FISH_INTEGRATION.md](docs/FISH_INTEGRATION.md) — Fish shell integration guide
 - [ARCHITECTURE.md](ARCHITECTURE.md) — System design and concepts
