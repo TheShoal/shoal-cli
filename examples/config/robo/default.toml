@@ -1,17 +1,27 @@
-# Shoal — default robo profile
+# Shoal — default robo (supervisor) profile
+# Robo profiles configure how a supervisory AI agent monitors the shoal.
+# Place in ~/.config/shoal/robo/<name>.toml
 
 [robo]
+# Profile name (matches the filename)
 name = "default"
+# AI tool used by this robo session
 tool = "opencode"
+# Whether to auto-approve waiting sessions (use with caution)
 auto_approve = false
 
 [monitoring]
-poll_interval = 10  # seconds
-waiting_timeout = 300  # seconds before escalation
+# How often (seconds) the robo polls session status
+poll_interval = 10
+# Seconds a session can wait before triggering escalation
+waiting_timeout = 300
 
 [escalation]
-notify = true  # macOS notification
-auto_respond = false  # auto-respond to permission prompts
+# Send macOS notification when a session exceeds waiting_timeout
+notify = true
+# Automatically respond to permission prompts (dangerous — leave false)
+auto_respond = false
 
 [tasks]
+# Filename for the robo's task log (created in the robo runtime dir)
 log_file = "task-log.md"

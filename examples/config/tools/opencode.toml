@@ -1,4 +1,5 @@
 # Shoal — OpenCode tool definition
+# Place in ~/.config/shoal/tools/opencode.toml
 
 [tool]
 name = "opencode"
@@ -6,12 +7,14 @@ command = "opencode"
 icon = "🌐"
 
 [detection]
+# OpenCode uses a TUI with a bordered input box
 busy_patterns = ["working", "generating", "thinking"]
 waiting_patterns = ["│ >", "permission"]
 error_patterns = ["error", "Error"]
 idle_patterns = ["│ >"]
 
 [mcp]
+# OpenCode uses a JSON config file for MCP servers
 config_cmd = ""
-config_file = ".opencode.json"  # OpenCode uses JSON config for MCP
+config_file = ".opencode.json"
 socket_env = ""

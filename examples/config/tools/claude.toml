@@ -1,18 +1,34 @@
 # Shoal — Claude Code tool definition
+# Place in ~/.config/shoal/tools/claude.toml
 
 [tool]
+# Display name (used in shoal ls output)
 name = "claude"
+# Shell command to launch this tool
 command = "claude"
+# Icon shown next to sessions using this tool
 icon = "🤖"
 
 [detection]
+# Patterns matched against tmux pane output to detect agent status.
+# Each list is checked in priority order: error > waiting > busy > idle.
+# Patterns are compiled as Python regex (re.search), so anchors and
+# alternation (e.g. "Error:|ERROR") work.
+
+# Agent is actively working
 busy_patterns = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "thinking"]
+# Agent is waiting for user input or approval
 waiting_patterns = ["❯", "Yes/No", "Allow", "Deny"]
+# Agent encountered an error
 error_patterns = ["Error:", "error:", "ERROR"]
+# Agent is idle (ready for input)
 idle_patterns = ["\\$", "❯"]
 
 [mcp]
-# How to configure MCP servers for this tool
+# Command used to register an MCP server with this tool.
+# Used by shoal mcp attach for auto-configuration.
 config_cmd = "claude mcp add"
-config_file = ""  # Claude uses CLI-based MCP config
-socket_env = ""   # Environment variable for socket path
+# Path to the tool's MCP config file (empty = uses CLI-based config)
+config_file = ""
+# Environment variable for passing the MCP socket path
+socket_env = ""

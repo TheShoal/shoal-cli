@@ -1,7 +1,10 @@
 # Shoal — MCP memory server mixin
-# Add to any template via: mixins = ["mcp-memory"]
+# Additive fragment: merges into any template.
+# Usage in a template: mixins = ["mcp-memory"]
+# Place in ~/.config/shoal/templates/mixins/mcp-memory.toml
 
 [mixin]
 name = "mcp-memory"
 description = "Adds MCP memory server"
+# MCP servers listed here are union-merged with the template's mcp list
 mcp = ["memory"]

@@ -1,6 +1,7 @@
 # Shoal — Pi coding agent tool definition
 # https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
 # Install: npm install -g @mariozechner/pi-coding-agent
+# Place in ~/.config/shoal/tools/pi.toml
 
 [tool]
 name = "pi"
