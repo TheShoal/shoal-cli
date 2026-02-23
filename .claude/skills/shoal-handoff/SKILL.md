@@ -45,3 +45,4 @@ Each handoff entry uses this template:
 - Reference specific files/functions when relevant
 - Don't duplicate the full ROADMAP — just link to the milestone
 - The handoff section lives at the bottom of ROADMAP.md, after "Future Considerations"
+- **Trim old handoffs**: When writing a new entry, prune the handoff section to keep only the last 2-3 entries. Older session history is preserved in CHANGELOG.md — the handoff section is for recent context only.

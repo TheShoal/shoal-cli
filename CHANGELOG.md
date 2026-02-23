@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Graceful fallback**: `mcp doctor` shows "skip" with install hint when `fastmcp` is not installed
 
 ### Fixed
+- **MCP proxy Python 3.13 compatibility**: Replaced `BaseProtocol` with `StreamReaderProtocol` for stdout write pipe — `StreamWriter` requires `_drain_helper` from `FlowControlMixin` which `BaseProtocol` lacks on Python 3.13+
 - 4 pre-existing ruff lint warnings in test_mcp_pool, test_notify, test_popup
 
 ## [0.15.0] - 2026-02-22

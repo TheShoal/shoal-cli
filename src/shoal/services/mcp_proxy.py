@@ -46,16 +46,18 @@ async def _run_bridge(socket_path: str) -> None:
 
     # Wrap stdin/stdout as asyncio streams
     stdin_reader = asyncio.StreamReader()
-    protocol = asyncio.StreamReaderProtocol(stdin_reader)
-    await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
+    stdin_protocol = asyncio.StreamReaderProtocol(stdin_reader)
+    await loop.connect_read_pipe(lambda: stdin_protocol, sys.stdin.buffer)
 
-    stdout_transport, stdout_protocol = await loop.connect_write_pipe(
-        asyncio.BaseProtocol, sys.stdout.buffer
-    )
+    # StreamReaderProtocol provides the _drain_helper required by StreamWriter
+    # on Python 3.13+ (BaseProtocol lacks it).
+    _stdout_reader = asyncio.StreamReader()
+    stdout_protocol = asyncio.StreamReaderProtocol(_stdout_reader)
+    stdout_transport, _ = await loop.connect_write_pipe(lambda: stdout_protocol, sys.stdout.buffer)
     stdout_writer = asyncio.StreamWriter(
         stdout_transport,
         stdout_protocol,
-        stdin_reader,
+        _stdout_reader,
         loop,
     )
 
