@@ -48,9 +48,23 @@ def remote_default(ctx: typer.Context) -> None:
 
 
 @app.command("ls")
-def remote_ls() -> None:
+def remote_ls(
+    format: Annotated[
+        str | None,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format: default (rich table) or plain (host names only)",
+        ),
+    ] = None,
+) -> None:
     """List configured remote hosts and connection status."""
     cfg = load_config()
+
+    if format == "plain":
+        for name in sorted(cfg.remote):
+            console.print(name)
+        return
 
     if not cfg.remote:
         console.print("[yellow]No remote hosts configured[/yellow]")
@@ -194,6 +208,14 @@ def remote_status(
 @app.command("sessions")
 def remote_sessions(
     host: Annotated[str, typer.Argument(help="Remote host name")],
+    format: Annotated[
+        str | None,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format: default (rich table) or plain (session names only)",
+        ),
+    ] = None,
 ) -> None:
     """List sessions on a remote host."""
     _ensure_connected(host)
@@ -203,6 +225,11 @@ def remote_sessions(
     except RemoteConnectionError as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
+
+    if format == "plain":
+        for s in sorted(sessions, key=lambda x: x.get("name", "")):
+            console.print(s.get("name", ""))
+        return
 
     if not sessions:
         console.print(f"[yellow]No sessions on '{host}'[/yellow]")

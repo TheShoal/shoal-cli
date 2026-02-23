@@ -54,6 +54,29 @@ class TestRemoteLs:
         assert result.exit_code == 0
         assert "connected" in result.stdout
 
+    def test_ls_plain_no_hosts(self, mock_dirs: tuple[Path, Path]) -> None:
+        result = runner.invoke(app, ["ls", "--format", "plain"])
+        assert result.exit_code == 0
+        assert result.stdout.strip() == ""
+
+    def test_ls_plain_with_hosts(self, mock_dirs: tuple[Path, Path]) -> None:
+        config_dir = mock_dirs[0]
+        config_file = config_dir / "config.toml"
+        existing = config_file.read_text()
+        config_file.write_text(
+            existing
+            + '\n[remote.devbox]\nhost = "devbox.local"\n'
+            + '\n[remote.alpha]\nhost = "alpha.local"\n'
+        )
+        from shoal.core.config import load_config
+
+        load_config.cache_clear()
+
+        result = runner.invoke(app, ["ls", "--format", "plain"])
+        assert result.exit_code == 0
+        lines = result.stdout.strip().splitlines()
+        assert lines == ["alpha", "devbox"]
+
 
 class TestRemoteConnect:
     def test_connect_unknown_host(self, mock_dirs: tuple[Path, Path]) -> None:
@@ -196,6 +219,29 @@ class TestRemoteSessions:
             result = runner.invoke(app, ["sessions", "devbox"])
         assert result.exit_code == 0
         assert "feature-ui" in result.stdout
+
+    def test_sessions_plain_empty(self, mock_dirs: tuple[Path, Path]) -> None:
+        with (
+            patch("shoal.cli.remote.is_tunnel_active", return_value=True),
+            patch("shoal.cli.remote.remote_api_get", return_value=[]),
+        ):
+            result = runner.invoke(app, ["sessions", "devbox", "--format", "plain"])
+        assert result.exit_code == 0
+        assert result.stdout.strip() == ""
+
+    def test_sessions_plain_with_sessions(self, mock_dirs: tuple[Path, Path]) -> None:
+        mock_sessions = [
+            {"id": "abc12345", "name": "feature-ui", "tool": "claude", "status": "running"},
+            {"id": "def67890", "name": "api-work", "tool": "pi", "status": "idle"},
+        ]
+        with (
+            patch("shoal.cli.remote.is_tunnel_active", return_value=True),
+            patch("shoal.cli.remote.remote_api_get", return_value=mock_sessions),
+        ):
+            result = runner.invoke(app, ["sessions", "devbox", "--format", "plain"])
+        assert result.exit_code == 0
+        lines = result.stdout.strip().splitlines()
+        assert lines == ["api-work", "feature-ui"]
 
 
 class TestRemoteSend:
