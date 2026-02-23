@@ -279,10 +279,16 @@ def load_mcp_registry() -> dict[str, str]:
 def load_mcp_registry_full() -> dict[str, dict[str, str]]:
     """Load the full MCP server registry with all fields per entry.
 
+    Seeds with built-in defaults, then merges user overrides.
     Returns raw dicts so callers can read ``transport`` and other fields.
     """
+    from shoal.services.mcp_pool import _DEFAULT_SERVERS
+
+    registry: dict[str, dict[str, str]] = {
+        name: {"command": cmd} for name, cmd in _DEFAULT_SERVERS.items()
+    }
+
     user_file = config_dir() / "mcp-servers.toml"
-    registry: dict[str, dict[str, str]] = {}
     if user_file.exists():
         try:
             with open(user_file, "rb") as f:
@@ -291,7 +297,11 @@ def load_mcp_registry_full() -> dict[str, dict[str, str]]:
             raise ConfigLoadError(user_file, f"malformed TOML: {e}") from e
         for name, entry in data.items():
             if isinstance(entry, dict):
-                registry[name] = {k: str(v) for k, v in entry.items()}
+                user_entry = {k: str(v) for k, v in entry.items()}
+                if name in registry:
+                    registry[name].update(user_entry)
+                else:
+                    registry[name] = user_entry
     return registry
 
 

@@ -6,11 +6,14 @@ from unittest.mock import patch
 import pytest
 
 from shoal.core.config import (
+    ConfigLoadError,
     _examples_dir,
     available_templates,
     available_tools,
     load_config,
     load_mcp_registry,
+    load_mcp_registry_full,
+    load_mixin,
     load_robo_profile,
     load_template,
     load_tool_config,
@@ -322,3 +325,171 @@ class TestScaffoldDefaults:
         ):
             created = scaffold_defaults()
         assert created == []
+
+
+class TestLoadMcpRegistryFull:
+    def test_defaults_present(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Built-in defaults are returned even without a user file."""
+        registry = load_mcp_registry_full()
+        assert "memory" in registry
+        assert "filesystem" in registry
+        assert "github" in registry
+        assert "command" in registry["memory"]
+
+    def test_user_overrides(self, mock_dirs: tuple[Path, Path]) -> None:
+        """User file overrides built-in entries."""
+        tmp_config, _ = mock_dirs
+        (tmp_config / "mcp-servers.toml").write_text(
+            """
+[memory]
+command = "custom-memory"
+transport = "http"
+"""
+        )
+        registry = load_mcp_registry_full()
+        assert registry["memory"]["command"] == "custom-memory"
+        assert registry["memory"]["transport"] == "http"
+        # Other defaults still present
+        assert "filesystem" in registry
+
+    def test_user_adds_new_servers(self, mock_dirs: tuple[Path, Path]) -> None:
+        """User file can add new servers not in defaults."""
+        tmp_config, _ = mock_dirs
+        (tmp_config / "mcp-servers.toml").write_text(
+            """
+[my-rag]
+command = "/usr/local/bin/rag-server"
+"""
+        )
+        registry = load_mcp_registry_full()
+        assert "my-rag" in registry
+        assert registry["my-rag"]["command"] == "/usr/local/bin/rag-server"
+        # Defaults still present
+        assert "memory" in registry
+
+
+class TestMalformedToml:
+    def test_malformed_config_toml(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Malformed config.toml raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        load_config.cache_clear()
+        (tmp_config / "config.toml").write_text("invalid toml {{{{")
+        with pytest.raises(ConfigLoadError, match="malformed TOML"):
+            load_config()
+        load_config.cache_clear()
+
+    def test_malformed_tool_toml(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Malformed tool config raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        tools = tmp_config / "tools"
+        (tools / "bad-tool.toml").write_text("not valid [[[")
+        with pytest.raises(ConfigLoadError, match="malformed TOML"):
+            load_tool_config("bad-tool")
+
+    def test_malformed_template_toml(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Malformed template TOML raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        templates.mkdir(parents=True, exist_ok=True)
+        (templates / "bad.toml").write_text("{{not toml}}")
+        with pytest.raises(ConfigLoadError, match="malformed TOML"):
+            load_template("bad")
+
+    def test_malformed_mixin_toml(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Malformed mixin TOML raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        mixins = tmp_config / "templates" / "mixins"
+        mixins.mkdir(parents=True, exist_ok=True)
+        (mixins / "bad.toml").write_text("{{broken}}")
+        with pytest.raises(ConfigLoadError, match="malformed TOML"):
+            load_mixin("bad")
+
+    def test_malformed_mcp_servers_toml(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Malformed mcp-servers.toml raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        (tmp_config / "mcp-servers.toml").write_text("invalid [[[toml")
+        with pytest.raises(ConfigLoadError, match="malformed TOML"):
+            load_mcp_registry()
+
+    def test_malformed_robo_profile(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Malformed robo profile raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        robo = tmp_config / "robo"
+        (robo / "bad.toml").write_text("not valid {{")
+        with pytest.raises(ConfigLoadError, match="malformed TOML"):
+            load_robo_profile("bad")
+
+
+class TestExtraFieldsRejected:
+    def test_unknown_field_in_general(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Unknown field in [general] raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        load_config.cache_clear()
+        (tmp_config / "config.toml").write_text(
+            """
+[general]
+default_tool = "opencode"
+state_dir = "~/.local/share/shoal"
+"""
+        )
+        with pytest.raises(ConfigLoadError, match="invalid config"):
+            load_config()
+        load_config.cache_clear()
+
+    def test_unknown_top_level_section(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Unknown top-level section raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        load_config.cache_clear()
+        (tmp_config / "config.toml").write_text(
+            """
+[general]
+default_tool = "opencode"
+
+[bogus_section]
+foo = "bar"
+"""
+        )
+        with pytest.raises(ConfigLoadError, match="invalid config"):
+            load_config()
+        load_config.cache_clear()
+
+    def test_unknown_field_in_tool_detection(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Unknown field in [detection] section raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        tools = tmp_config / "tools"
+        (tools / "bad.toml").write_text(
+            """
+[tool]
+name = "bad"
+command = "bad"
+
+[detection]
+busy_patterns = ["thinking"]
+unknown_field = "oops"
+"""
+        )
+        with pytest.raises(ConfigLoadError, match="invalid tool config"):
+            load_tool_config("bad")
+
+    def test_unknown_field_in_template(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Unknown field in template pane raises ConfigLoadError."""
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        templates.mkdir(parents=True, exist_ok=True)
+        (templates / "bad.toml").write_text(
+            """
+[template]
+name = "bad"
+tool = "opencode"
+
+[[windows]]
+name = "main"
+bogus = "field"
+
+[[windows.panes]]
+split = "root"
+command = "opencode"
+"""
+        )
+        with pytest.raises(ConfigLoadError, match="invalid template"):
+            load_template("bad")
