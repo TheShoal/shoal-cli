@@ -8,14 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **XDG Base Directory compliance**: `config_dir()`, `state_dir()`, `runtime_dir()` read `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` respectively; `build_nvim_socket_path()` reads `XDG_RUNTIME_DIR`
+- **`shoal remote` subcommand group**: 7 commands for remote session management via SSH tunnel — `ls`, `connect`, `disconnect`, `status`, `sessions`, `send`, `attach`
+- **SSH tunnel lifecycle**: `core/remote.py` with PID/port file management, auto port selection, tunnel health checks
+- **`RemoteHostConfig`**: Pydantic model for remote hosts in `~/.config/shoal/config.toml` (`[remote.<name>]` sections)
+- **Remote HTTP client**: stdlib `urllib.request`-based API client (GET/POST/DELETE) — no new dependencies
+- **Fish completions**: Remote subcommands and dynamic host name completions
 - **Transport evaluation spike**: Benchmark comparing UDS byte bridge vs FastMCP HTTP transport ([docs/transport-spike.md](docs/transport-spike.md))
 - **`shoal-mcp-server --http`**: HTTP (streamable-http) transport mode for the Shoal MCP server
 - **Benchmark script**: `benchmarks/transport_spike.py` for self-contained transport performance comparison
 
 ### Changed
+- **Fish completions**: `__shoal_tools`, `__shoal_templates`, `__shoal_remote_hosts` use `$XDG_CONFIG_HOME` instead of hardcoded `~/.config`
+- **Status bar**: `status_bar.py` returns dict of counts, `main()` prints JSON; removed `tmux_fg`/`tmux_status_segment` from theme
 - **`mcp doctor`**: Replaced manual JSON-RPC probe with FastMCP Client for protocol-aware health checks
 - **`mcp doctor` table**: New columns (PROTOCOL, TOOLS, VERSION, LATENCY) replace old SOCKET + JSON-RPC columns
 - **Graceful fallback**: `mcp doctor` shows "skip" with install hint when `fastmcp` is not installed
+
+### Removed
+- Dead `state_dir` field from `GeneralConfig` model (never read anywhere)
 
 ### Fixed
 - **MCP proxy Python 3.13 compatibility**: Replaced `BaseProtocol` with `StreamReaderProtocol` for stdout write pipe — `StreamWriter` requires `_drain_helper` from `FlowControlMixin` which `BaseProtocol` lacks on Python 3.13+
