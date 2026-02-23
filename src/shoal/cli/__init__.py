@@ -11,6 +11,7 @@ import shoal
 from shoal.cli.demo import app as demo_app
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
+from shoal.cli.remote import app as remote_app
 from shoal.cli.robo import app as robo_app
 from shoal.cli.session import attach, detach, popup, prune, rename
 from shoal.cli.session_create import add, fork, kill
@@ -71,6 +72,7 @@ app.add_typer(robo_app, name="robo", help="Robo (supervisory agent).")
 app.add_typer(nvim_app, name="nvim", help="Neovim integration.")
 app.add_typer(watcher_app, name="watcher", help="Background status watcher.")
 app.add_typer(demo_app, name="demo", help="Demo environment.")
+app.add_typer(remote_app, name="remote", help="Remote session management.")
 app.add_typer(setup_app, name="setup", help="Setup shell integrations.")
 app.add_typer(template_app, name="template", help="Session templates.")
 

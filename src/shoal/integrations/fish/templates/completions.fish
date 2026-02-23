@@ -38,6 +38,7 @@ complete -c shoal -n "__fish_use_subcommand" -a "version" -d "Print version"
 complete -c shoal -n "__fish_use_subcommand" -a "serve" -d "Start API server"
 
 # Sub-groups
+complete -c shoal -n "__fish_use_subcommand" -a "remote" -d "Remote session management"
 complete -c shoal -n "__fish_use_subcommand" -a "template" -d "Template management"
 complete -c shoal -n "__fish_use_subcommand" -a "wt" -d "Worktree management"
 complete -c shoal -n "__fish_use_subcommand" -a "worktree" -d "Worktree management"
@@ -128,6 +129,32 @@ complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_
 complete -c shoal -n "__fish_seen_subcommand_from template; and not __fish_seen_subcommand_from ls show validate mixins" -a "mixins" -d "List template mixins"
 complete -c shoal -n "__fish_seen_subcommand_from template; and __fish_seen_subcommand_from show" -a "(__shoal_templates)" -d "Template"
 complete -c shoal -n "__fish_seen_subcommand_from template; and __fish_seen_subcommand_from validate" -a "(__shoal_templates)" -d "Template"
+
+# Remote subcommands
+complete -c shoal -n "__fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from ls connect disconnect status sessions send attach" -a "ls" -d "List remote hosts"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from ls connect disconnect status sessions send attach" -a "connect" -d "Connect to remote host"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from ls connect disconnect status sessions send attach" -a "disconnect" -d "Disconnect from remote"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from ls connect disconnect status sessions send attach" -a "status" -d "Remote status summary"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from ls connect disconnect status sessions send attach" -a "sessions" -d "List remote sessions"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from ls connect disconnect status sessions send attach" -a "send" -d "Send keys to remote session"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and not __fish_seen_subcommand_from ls connect disconnect status sessions send attach" -a "attach" -d "Attach to remote session"
+
+# Remote host name completions
+function __shoal_remote_hosts
+    # Parse host names from config.toml [remote.*] sections
+    test -f ~/.config/shoal/config.toml; or return
+    string match -r '^\[remote\.(\w[\w-]*)\]' < ~/.config/shoal/config.toml | string replace -r '^\[remote\.(.*)\]$' '$1'
+end
+
+complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from connect" -a "(__shoal_remote_hosts)" -d "Remote host"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from disconnect" -a "(__shoal_remote_hosts)" -d "Remote host"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from status" -a "(__shoal_remote_hosts)" -d "Remote host"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from sessions" -a "(__shoal_remote_hosts)" -d "Remote host"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from send" -a "(__shoal_remote_hosts)" -d "Remote host"
+complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from attach" -a "(__shoal_remote_hosts)" -d "Remote host"
+
+# Remote connect flags
+complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from connect" -l "port" -s "p" -d "Local tunnel port" -r
 
 # Nvim subcommands
 complete -c shoal -n "__fish_seen_subcommand_from nvim; and not __fish_seen_subcommand_from send diagnostics" -a "send" -d "Send command to nvim"

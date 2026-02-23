@@ -41,6 +41,16 @@ class RoboGlobalConfig(BaseModel):
     session_prefix: str = "__"
 
 
+class RemoteHostConfig(BaseModel):
+    """Configuration for a remote Shoal host."""
+
+    host: str
+    port: int = 22
+    user: str = ""
+    identity_file: str = ""
+    api_port: int = 8080
+
+
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
 
@@ -49,6 +59,7 @@ class ShoalConfig(BaseModel):
     status_bar: StatusBarConfig = Field(default_factory=StatusBarConfig)
     notifications: NotificationsConfig = Field(default_factory=NotificationsConfig)
     robo: RoboGlobalConfig = Field(default_factory=RoboGlobalConfig)
+    remote: dict[str, RemoteHostConfig] = Field(default_factory=dict)
 
 
 # --- Tool config models (tools/<name>.toml) ---

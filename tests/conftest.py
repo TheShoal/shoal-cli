@@ -119,7 +119,7 @@ log_file = "task-log.md"
 def tmp_state(tmp_path: Path) -> Path:
     """Create a temporary state directory."""
     state = tmp_path / "state" / "shoal"
-    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "robo"):
+    for subdir in ("sessions", "mcp-pool/pids", "mcp-pool/sockets", "robo", "remote"):
         (state / subdir).mkdir(parents=True)
     return state
 
