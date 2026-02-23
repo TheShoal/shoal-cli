@@ -5,12 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from shoal.cli.demo import (
-    _create_demo_project,
-    _demo_start_impl,
-    _demo_stop_impl,
-    _demo_tour_impl,
-)
+from shoal.cli.demo import create_demo_project
+from shoal.cli.demo.start_stop import _demo_start_impl, _demo_stop_impl
+from shoal.cli.demo.tour import _demo_tour_impl
 
 
 def test_create_demo_project(tmp_path):
@@ -18,7 +15,7 @@ def test_create_demo_project(tmp_path):
     demo_dir = tmp_path / "demo"
 
     with patch("shoal.cli.demo.subprocess.run") as mock_run:
-        _create_demo_project(demo_dir)
+        create_demo_project(demo_dir)
 
         # Should create directory
         assert demo_dir.exists()
@@ -45,7 +42,7 @@ def test_create_demo_project_content(tmp_path):
     demo_dir = tmp_path / "demo"
 
     with patch("shoal.cli.demo.subprocess.run"):
-        _create_demo_project(demo_dir)
+        create_demo_project(demo_dir)
 
     # pyproject.toml has valid content
     pyproject = (demo_dir / "pyproject.toml").read_text()
@@ -77,16 +74,18 @@ async def test_demo_start_happy_path(tmp_path, mock_dirs):
         Path(path).mkdir(parents=True, exist_ok=True)
 
     with (
-        patch("shoal.cli.demo.shutil.which") as mock_which,
+        patch("shoal.cli.demo.start_stop.shutil.which") as mock_which,
         patch("shoal.cli.demo.subprocess.run") as mock_run,
-        patch("shoal.cli.demo.tmux.has_session", return_value=False),
-        patch("shoal.cli.demo.tmux.new_session") as mock_new_session,
-        patch("shoal.cli.demo.tmux.run_command") as mock_run_command,
-        patch("shoal.cli.demo.tmux.send_keys") as mock_send_keys,
-        patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add) as mock_worktree_add,
-        patch("shoal.cli.demo.git.current_branch", return_value="main"),
-        patch("shoal.cli.demo.console.print"),
-        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo.start_stop.tmux.has_session", return_value=False),
+        patch("shoal.cli.demo.start_stop.tmux.new_session") as mock_new_session,
+        patch("shoal.cli.demo.start_stop.tmux.run_command") as mock_run_command,
+        patch("shoal.cli.demo.start_stop.tmux.send_keys") as mock_send_keys,
+        patch(
+            "shoal.cli.demo.start_stop.git.worktree_add", side_effect=mock_wt_add
+        ) as mock_worktree_add,
+        patch("shoal.cli.demo.start_stop.git.current_branch", return_value="main"),
+        patch("shoal.cli.demo.start_stop.console.print"),
+        patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
     ):
         # Mock tool availability
         mock_which.return_value = "/usr/bin/tmux"
@@ -130,15 +129,15 @@ async def test_demo_start_varied_statuses(tmp_path, mock_dirs):
         Path(path).mkdir(parents=True, exist_ok=True)
 
     with (
-        patch("shoal.cli.demo.shutil.which", return_value="/usr/bin/tmux"),
+        patch("shoal.cli.demo.start_stop.shutil.which", return_value="/usr/bin/tmux"),
         patch("shoal.cli.demo.subprocess.run", return_value=MagicMock(returncode=0)),
-        patch("shoal.cli.demo.tmux.has_session", return_value=False),
-        patch("shoal.cli.demo.tmux.new_session"),
-        patch("shoal.cli.demo.tmux.run_command"),
-        patch("shoal.cli.demo.tmux.send_keys"),
-        patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add),
-        patch("shoal.cli.demo.git.current_branch", return_value="main"),
-        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo.start_stop.tmux.has_session", return_value=False),
+        patch("shoal.cli.demo.start_stop.tmux.new_session"),
+        patch("shoal.cli.demo.start_stop.tmux.run_command"),
+        patch("shoal.cli.demo.start_stop.tmux.send_keys"),
+        patch("shoal.cli.demo.start_stop.git.worktree_add", side_effect=mock_wt_add),
+        patch("shoal.cli.demo.start_stop.git.current_branch", return_value="main"),
+        patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
     ):
         await _demo_start_impl(None)
 
@@ -168,14 +167,14 @@ async def test_demo_start_custom_dir(tmp_path, mock_dirs):
         Path(path).mkdir(parents=True, exist_ok=True)
 
     with (
-        patch("shoal.cli.demo.shutil.which") as mock_which,
+        patch("shoal.cli.demo.start_stop.shutil.which") as mock_which,
         patch("shoal.cli.demo.subprocess.run") as mock_run,
-        patch("shoal.cli.demo.tmux.has_session", return_value=False),
-        patch("shoal.cli.demo.tmux.new_session") as mock_new_session,
-        patch("shoal.cli.demo.tmux.run_command") as mock_run_command,
-        patch("shoal.cli.demo.tmux.send_keys") as mock_send_keys,
-        patch("shoal.cli.demo.git.worktree_add", side_effect=mock_wt_add),
-        patch("shoal.cli.demo.git.current_branch", return_value="main"),
+        patch("shoal.cli.demo.start_stop.tmux.has_session", return_value=False),
+        patch("shoal.cli.demo.start_stop.tmux.new_session") as mock_new_session,
+        patch("shoal.cli.demo.start_stop.tmux.run_command") as mock_run_command,
+        patch("shoal.cli.demo.start_stop.tmux.send_keys") as mock_send_keys,
+        patch("shoal.cli.demo.start_stop.git.worktree_add", side_effect=mock_wt_add),
+        patch("shoal.cli.demo.start_stop.git.current_branch", return_value="main"),
     ):
         mock_which.return_value = "/usr/bin/tmux"
         mock_run.return_value = MagicMock(returncode=0)
@@ -212,10 +211,10 @@ async def test_demo_start_marker_exists(tmp_path, mock_dirs):
     (demo_dir / ".shoal-demo").write_text("existing")
 
     with (
-        patch("shoal.cli.demo.shutil.which", return_value="/usr/bin/tmux"),
-        patch("shoal.cli.demo.console.print") as mock_print,
-        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
-        patch("shoal.cli.demo._create_demo_project") as mock_create,
+        patch("shoal.cli.demo.start_stop.shutil.which", return_value="/usr/bin/tmux"),
+        patch("shoal.cli.demo.start_stop.console.print") as mock_print,
+        patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo.start_stop.create_demo_project") as mock_create,
     ):
         from typer import Exit
 
@@ -234,10 +233,10 @@ async def test_demo_start_missing_tmux(tmp_path, mock_dirs):
     demo_dir = tmp_path / "demo-test"
 
     with (
-        patch("shoal.cli.demo.shutil.which", return_value=None),
-        patch("shoal.cli.demo.console.print") as mock_print,
-        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
-        patch("shoal.cli.demo._create_demo_project") as mock_create,
+        patch("shoal.cli.demo.start_stop.shutil.which", return_value=None),
+        patch("shoal.cli.demo.start_stop.console.print") as mock_print,
+        patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo.start_stop.create_demo_project") as mock_create,
     ):
         from typer import Exit
 
@@ -256,10 +255,10 @@ async def test_demo_start_missing_git(tmp_path, mock_dirs):
     demo_dir = tmp_path / "demo-test"
 
     with (
-        patch("shoal.cli.demo.shutil.which", side_effect=["/usr/bin/tmux", None]),
-        patch("shoal.cli.demo.console.print") as mock_print,
-        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
-        patch("shoal.cli.demo._create_demo_project") as mock_create,
+        patch("shoal.cli.demo.start_stop.shutil.which", side_effect=["/usr/bin/tmux", None]),
+        patch("shoal.cli.demo.start_stop.console.print") as mock_print,
+        patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo.start_stop.create_demo_project") as mock_create,
     ):
         from typer import Exit
 
@@ -278,8 +277,8 @@ async def test_demo_stop_no_marker(tmp_path, mock_dirs):
     demo_dir = tmp_path / "demo-test"
 
     with (
-        patch("shoal.cli.demo.console.print") as mock_print,
-        patch("shoal.cli.demo._demo_dir", return_value=demo_dir),
+        patch("shoal.cli.demo.start_stop.console.print") as mock_print,
+        patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
     ):
         # Should raise exit
         from typer import Exit
@@ -314,10 +313,10 @@ async def test_demo_stop_partial_cleanup(tmp_path, mock_dirs):
     marker_file.write_text(f"{s1.id}\n{s2.id}\nnonexistent-id")
 
     with (
-        patch("shoal.cli.demo.tmux.has_session") as mock_has_session,
-        patch("shoal.cli.demo.tmux.kill_session") as mock_kill_session,
-        patch("shoal.cli.demo.shutil.rmtree") as mock_rmtree,
-        patch("shoal.cli.demo.console.print"),
+        patch("shoal.cli.demo.start_stop.tmux.has_session") as mock_has_session,
+        patch("shoal.cli.demo.start_stop.tmux.kill_session") as mock_kill_session,
+        patch("shoal.cli.demo.start_stop.shutil.rmtree") as mock_rmtree,
+        patch("shoal.cli.demo.start_stop.console.print"),
     ):
         mock_has_session.return_value = True
 
@@ -344,9 +343,9 @@ async def test_demo_stop_without_tmux_sessions(tmp_path, mock_dirs):
     marker_file.write_text(f"{s1.id}\n{s2.id}")
 
     with (
-        patch("shoal.cli.demo.tmux.has_session", return_value=False),
-        patch("shoal.cli.demo.tmux.kill_session") as mock_kill_session,
-        patch("shoal.cli.demo.shutil.rmtree") as mock_rmtree,
+        patch("shoal.cli.demo.start_stop.tmux.has_session", return_value=False),
+        patch("shoal.cli.demo.start_stop.tmux.kill_session") as mock_kill_session,
+        patch("shoal.cli.demo.start_stop.shutil.rmtree") as mock_rmtree,
     ):
         await _demo_stop_impl(demo_dir)
 
@@ -365,7 +364,7 @@ async def test_demo_stop_without_tmux_sessions(tmp_path, mock_dirs):
 @pytest.mark.asyncio
 async def test_demo_tour_all_pass(mock_dirs):
     """Test demo tour runs and all feature checks pass."""
-    with patch("shoal.cli.demo.console.print") as mock_print:
+    with patch("shoal.cli.demo.tour.console.print") as mock_print:
         await _demo_tour_impl()
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
@@ -419,10 +418,10 @@ async def test_demo_tour_with_sessions(mock_dirs):
     """Test tour displays session data when sessions exist."""
     from shoal.core.state import create_session
 
-    with patch("shoal.cli.demo.tmux.has_session", return_value=False):
+    with patch("shoal.cli.demo.start_stop.tmux.has_session", return_value=False):
         await create_session("test-session", "claude", "/tmp/test")
 
-    with patch("shoal.cli.demo.console.print") as mock_print:
+    with patch("shoal.cli.demo.tour.console.print") as mock_print:
         await _demo_tour_impl()
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
@@ -438,7 +437,7 @@ async def test_demo_tour_with_sessions(mock_dirs):
 @pytest.mark.asyncio
 async def test_demo_tour_no_failures(mock_dirs):
     """Test that no tour checks produce failures."""
-    with patch("shoal.cli.demo.console.print") as mock_print:
+    with patch("shoal.cli.demo.tour.console.print") as mock_print:
         await _demo_tour_impl()
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
