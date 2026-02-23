@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -182,12 +183,36 @@ def templates_dir() -> Path:
     return config_dir() / "templates"
 
 
+def project_templates_dir() -> Path | None:
+    """Return ``<git-root>/.shoal/templates`` if inside a git repo and the dir exists."""
+    from shoal.core import git
+
+    try:
+        root = git.git_root(".")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    candidate = Path(root) / ".shoal" / "templates"
+    return candidate if candidate.is_dir() else None
+
+
 def available_templates() -> list[str]:
-    """List available template names from config/templates/*.toml."""
-    dir_path = templates_dir()
-    if not dir_path.exists():
-        return []
-    return sorted(p.stem for p in dir_path.glob("*.toml"))
+    """List available template names from local and global template dirs."""
+    names: set[str] = set()
+    local = project_templates_dir()
+    if local and local.exists():
+        names.update(p.stem for p in local.glob("*.toml"))
+    global_dir = templates_dir()
+    if global_dir.exists():
+        names.update(p.stem for p in global_dir.glob("*.toml"))
+    return sorted(names)
+
+
+def template_source(name: str) -> str:
+    """Return 'local' if the template exists in project-local dir, else 'global'."""
+    local = project_templates_dir()
+    if local and (local / f"{name}.toml").exists():
+        return "local"
+    return "global"
 
 
 def load_mcp_registry() -> dict[str, str]:
@@ -221,15 +246,30 @@ def mixins_dir() -> Path:
 
 
 def available_mixins() -> list[str]:
-    """List available mixin names from templates/mixins/*.toml."""
-    dir_path = mixins_dir()
-    if not dir_path.exists():
-        return []
-    return sorted(p.stem for p in dir_path.glob("*.toml"))
+    """List available mixin names from local and global mixin dirs."""
+    names: set[str] = set()
+    local = project_templates_dir()
+    if local:
+        local_mixins = local / "mixins"
+        if local_mixins.exists():
+            names.update(p.stem for p in local_mixins.glob("*.toml"))
+    global_dir = mixins_dir()
+    if global_dir.exists():
+        names.update(p.stem for p in global_dir.glob("*.toml"))
+    return sorted(names)
 
 
 def _load_template_raw(name: str) -> dict[str, Any]:
-    """Load raw TOML data for a template without resolving inheritance."""
+    """Load raw TOML data for a template without resolving inheritance.
+
+    Checks project-local ``.shoal/templates/`` first, then global.
+    """
+    local = project_templates_dir()
+    if local:
+        local_path = local / f"{name}.toml"
+        if local_path.exists():
+            with open(local_path, "rb") as f:
+                return tomllib.load(f)
     path = templates_dir() / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No template config: {path}")
@@ -331,8 +371,15 @@ def resolve_template(
 
 
 def load_mixin(name: str) -> TemplateMixinConfig:
-    """Load a template mixin TOML from templates/mixins/."""
-    path = mixins_dir() / f"{name}.toml"
+    """Load a template mixin TOML from local or global mixins dir."""
+    path: Path | None = None
+    local = project_templates_dir()
+    if local:
+        candidate = local / "mixins" / f"{name}.toml"
+        if candidate.exists():
+            path = candidate
+    if path is None:
+        path = mixins_dir() / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No mixin config: {path}")
     with open(path, "rb") as f:

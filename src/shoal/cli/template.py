@@ -15,6 +15,7 @@ from shoal.core.config import (
     load_mixin,
     load_template,
     mixins_dir,
+    template_source,
     templates_dir,
 )
 from shoal.core.theme import create_table
@@ -42,6 +43,7 @@ def template_ls() -> None:
 
     table = create_table(padding=(0, 1))
     table.add_column("NAME", style="bold")
+    table.add_column("SOURCE")
     table.add_column("EXTENDS")
     table.add_column("MIX", justify="right")
     table.add_column("TOOL")
@@ -50,6 +52,7 @@ def template_ls() -> None:
     table.add_column("DESCRIPTION", no_wrap=False)
 
     for name in names:
+        source = template_source(name)
         try:
             raw = _load_template_raw(name)
             raw_tmpl = raw.get("template", {})
@@ -59,6 +62,7 @@ def template_ls() -> None:
         except (ValidationError, ValueError, TypeError, FileNotFoundError):
             table.add_row(
                 name,
+                source,
                 "-",
                 "-",
                 "-",
@@ -71,6 +75,7 @@ def template_ls() -> None:
         pane_count = sum(len(w.panes) for w in template.windows)
         table.add_row(
             template.name,
+            source,
             extends_name or "[dim]-[/dim]",
             str(len(mixins_list)) if mixins_list else "[dim]-[/dim]",
             template.tool,
