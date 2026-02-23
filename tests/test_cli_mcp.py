@@ -167,8 +167,8 @@ def test_mcp_doctor_no_servers(mock_dirs):
     assert "No MCP servers" in result.stdout
 
 
-def test_mcp_doctor_with_server(mock_dirs):
-    """Test doctor with a server present."""
+def test_mcp_doctor_dead_pid(mock_dirs):
+    """Test doctor shows dead PID when server not running."""
     from shoal.services import mcp_pool
 
     socket_dir = mcp_pool.mcp_socket("test").parent
@@ -179,19 +179,124 @@ def test_mcp_doctor_with_server(mock_dirs):
     pid_path.parent.mkdir(parents=True, exist_ok=True)
     pid_path.write_text("99999")
 
-    result = runner.invoke(app, ["doctor"])
+    with patch("shoal.cli.mcp.is_mcp_running", return_value=False):
+        result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
     assert "test" in result.stdout
+    assert "dead" in result.stdout
 
 
-def test_mcp_doctor_timeout(mock_dirs):
-    """Test doctor handles connection timeouts gracefully."""
+def test_mcp_doctor_probe_success(mock_dirs):
+    """Test doctor with a successful FastMCP probe."""
+    from shoal.cli.mcp import _ProbeResult
     from shoal.services import mcp_pool
 
-    socket_dir = mcp_pool.mcp_socket("timeout-server").parent
+    socket_dir = mcp_pool.mcp_socket("memory").parent
     socket_dir.mkdir(parents=True, exist_ok=True)
-    (socket_dir / "timeout-server.sock").touch()
+    (socket_dir / "memory.sock").touch()
 
-    result = runner.invoke(app, ["doctor"])
+    pid_path = mcp_pool.mcp_pid_file("memory")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("1234")
+
+    probe_result = _ProbeResult(
+        connected=True,
+        server_name="memory-server",
+        server_version="1.2.0",
+        tool_count=5,
+        latency_ms=42.0,
+    )
+
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=True),
+        patch("shoal.cli.mcp._probe_server", return_value=probe_result),
+        patch("shoal.cli.mcp.asyncio.run", return_value=probe_result),
+    ):
+        result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
-    assert "fail" in result.stdout
+    assert "memory" in result.stdout
+    assert "ok" in result.stdout
+    assert "1.2.0" in result.stdout
+    assert "42ms" in result.stdout
+    assert "5" in result.stdout
+
+
+def test_mcp_doctor_probe_timeout(mock_dirs):
+    """Test doctor handles probe timeout gracefully."""
+    from shoal.cli.mcp import _ProbeResult
+    from shoal.services import mcp_pool
+
+    socket_dir = mcp_pool.mcp_socket("slow-server").parent
+    socket_dir.mkdir(parents=True, exist_ok=True)
+    (socket_dir / "slow-server.sock").touch()
+
+    pid_path = mcp_pool.mcp_pid_file("slow-server")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("1234")
+
+    probe_result = _ProbeResult(error="timeout")
+
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=True),
+        patch("shoal.cli.mcp._probe_server", return_value=probe_result),
+        patch("shoal.cli.mcp.asyncio.run", return_value=probe_result),
+    ):
+        result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "timeout" in result.stdout
+
+
+def test_mcp_doctor_probe_error(mock_dirs):
+    """Test doctor shows diagnostic error from probe."""
+    from shoal.cli.mcp import _ProbeResult
+    from shoal.services import mcp_pool
+
+    socket_dir = mcp_pool.mcp_socket("broken").parent
+    socket_dir.mkdir(parents=True, exist_ok=True)
+    (socket_dir / "broken.sock").touch()
+
+    pid_path = mcp_pool.mcp_pid_file("broken")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("1234")
+
+    probe_result = _ProbeResult(error="socket unreachable: Connection refused")
+
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=True),
+        patch("shoal.cli.mcp._probe_server", return_value=probe_result),
+        patch("shoal.cli.mcp.asyncio.run", return_value=probe_result),
+    ):
+        result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "socket unreachable" in result.stdout
+
+
+def test_mcp_doctor_no_fastmcp(mock_dirs):
+    """Test doctor gracefully handles missing fastmcp."""
+    from shoal.services import mcp_pool
+
+    socket_dir = mcp_pool.mcp_socket("test").parent
+    socket_dir.mkdir(parents=True, exist_ok=True)
+    (socket_dir / "test.sock").touch()
+
+    pid_path = mcp_pool.mcp_pid_file("test")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    pid_path.write_text("1234")
+
+    import builtins
+
+    real_import = builtins.__import__
+
+    def mock_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "fastmcp":
+            raise ImportError("No module named 'fastmcp'")
+        return real_import(name, *args, **kwargs)
+
+    with (
+        patch("shoal.cli.mcp.is_mcp_running", return_value=True),
+        patch("builtins.__import__", side_effect=mock_import),
+    ):
+        result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "skip" in result.stdout
+    assert "fastmcp" in result.stdout

@@ -17,8 +17,8 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 ### Phase 2 — Protocol-aware health checks
 
-- [ ] Replace manual JSON-RPC probe in `mcp doctor` with FastMCP Client
-- [ ] Better error diagnostics from protocol-level failures
+- [x] Replace manual JSON-RPC probe in `mcp doctor` with FastMCP Client
+- [x] Better error diagnostics from protocol-level failures
 
 ### Phase 3 — Transport evaluation (spike)
 
@@ -212,5 +212,24 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 - v0.15.0 Phase 2: Replace manual JSON-RPC probe in `mcp doctor` with FastMCP Client
 - v0.15.0 Phase 3: Transport evaluation spike (HTTP vs UDS performance)
+- Consider extracting shared `create_session` resolution logic from API server + MCP server into lifecycle helper
+- v0.16.0: Remote Sessions (SSH tunnel + HTTP client)
+
+### Session: 2026-02-23 — v0.15.0 Phase 2: Protocol-Aware Health Checks
+
+**What we did:**
+
+- Replaced manual JSON-RPC probe in `mcp doctor` with FastMCP Client (`_probe_server()` in `src/shoal/cli/mcp.py`)
+- New `_ProbeResult` class holds structured probe results (connection status, server name/version, tool count, latency, error diagnostics)
+- Probe uses `StdioTransport` → `shoal-mcp-proxy` → pool socket, testing the full client path
+- Doctor table now shows PROTOCOL, TOOLS, VERSION, LATENCY columns (replaces old SOCKET + JSON-RPC)
+- Graceful fallback when `fastmcp` not installed (shows "skip", suggests `pip install shoal[mcp]`)
+- Replaced 3 old doctor tests with 6 focused tests (dead PID, probe success, timeout, error diagnostics, no-fastmcp)
+- Fixed 4 pre-existing ruff lint warnings (test_mcp_pool, test_notify, test_popup)
+- 618 tests passing, ruff/mypy/bandit all clean
+
+**What to do next:**
+
+- v0.15.0 Phase 3: Transport evaluation spike (HTTP vs UDS performance for MCP traffic)
 - Consider extracting shared `create_session` resolution logic from API server + MCP server into lifecycle helper
 - v0.16.0: Remote Sessions (SSH tunnel + HTTP client)

@@ -121,7 +121,7 @@ def test_start_mcp_server_uses_default(tmp_path, mock_dirs):
         mock_process.poll.return_value = None
         mock_popen.return_value = mock_process
 
-        pid, socket, cmd = mcp_pool.start_mcp_server("memory")
+        pid, _socket, cmd = mcp_pool.start_mcp_server("memory")
 
         assert cmd == "npx -y @modelcontextprotocol/server-memory"
         assert pid == 12345

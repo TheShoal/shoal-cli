@@ -20,7 +20,7 @@ def test_notify_darwin(mock_run):
         notify("Test Title", 'Test "Message"')
 
         mock_run.assert_called_once()
-        args, kwargs = mock_run.call_args
+        args, _kwargs = mock_run.call_args
         assert args[0][0] == "osascript"
         assert args[0][1] == "-e"
         assert 'display notification "Test \\"Message\\"" with title "Test Title"' in args[0][2]

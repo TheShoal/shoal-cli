@@ -310,12 +310,70 @@ def mcp_logs(
         console.print(line)
 
 
+class _ProbeResult:
+    """Result of probing an MCP server via FastMCP Client."""
+
+    __slots__ = ("connected", "error", "latency_ms", "server_name", "server_version", "tool_count")
+
+    def __init__(
+        self,
+        *,
+        connected: bool = False,
+        server_name: str = "",
+        server_version: str = "",
+        tool_count: int = 0,
+        latency_ms: float = 0.0,
+        error: str = "",
+    ) -> None:
+        self.connected = connected
+        self.server_name = server_name
+        self.server_version = server_version
+        self.tool_count = tool_count
+        self.latency_ms = latency_ms
+        self.error = error
+
+
+async def _probe_server(name: str) -> _ProbeResult:
+    """Probe an MCP server using FastMCP Client via shoal-mcp-proxy."""
+    import time
+
+    from fastmcp import Client
+    from fastmcp.client.transports import StdioTransport
+
+    transport = StdioTransport(command="shoal-mcp-proxy", args=[name])
+    client = Client(transport, timeout=10, init_timeout=5)
+
+    start = time.monotonic()
+    try:
+        async with client:
+            elapsed = time.monotonic() - start
+            init_result = client.initialize_result
+            tools = await client.list_tools()
+
+            server_name = ""
+            server_version = ""
+            if init_result and init_result.serverInfo:
+                server_name = init_result.serverInfo.name
+                server_version = init_result.serverInfo.version or ""
+
+            return _ProbeResult(
+                connected=True,
+                server_name=server_name,
+                server_version=server_version,
+                tool_count=len(tools),
+                latency_ms=elapsed * 1000,
+            )
+    except TimeoutError:
+        return _ProbeResult(error="timeout")
+    except (ConnectionRefusedError, OSError) as e:
+        return _ProbeResult(error=f"socket unreachable: {e}")
+    except Exception as e:
+        return _ProbeResult(error=str(e))
+
+
 @app.command("doctor")
 def mcp_doctor() -> None:
     """Deep health check for MCP servers."""
-    import json
-    import time
-
     ensure_dirs()
     socket_dir = state_dir() / "mcp-pool" / "sockets"
 
@@ -323,12 +381,20 @@ def mcp_doctor() -> None:
         console.print("[yellow]No MCP servers to check[/yellow]")
         return
 
-    table = create_table(padding=(0, 2))
-    table.add_column("NAME", width=16)
-    table.add_column("PID", width=12)
-    table.add_column("SOCKET", width=12)
-    table.add_column("JSON-RPC", width=12)
-    table.add_column("LATENCY", width=10)
+    try:
+        import fastmcp as _  # noqa: F401
+
+        has_fastmcp = True
+    except ImportError:
+        has_fastmcp = False
+
+    table = create_table(padding=(0, 1))
+    table.add_column("NAME")
+    table.add_column("PID")
+    table.add_column("PROTOCOL")
+    table.add_column("TOOLS")
+    table.add_column("VERSION")
+    table.add_column("LATENCY")
 
     for sock_path in sorted(socket_dir.glob("*.sock")):
         name = sock_path.stem
@@ -341,41 +407,30 @@ def mcp_doctor() -> None:
         elif pid is not None:
             pid_status = f"[red]dead ({pid})[/red]"
 
-        # Socket + JSON-RPC check
-        sock_status = "[red]fail[/red]"
-        rpc_status = "[dim]-[/dim]"
+        # Protocol probe via FastMCP Client
+        proto_status = "[dim]-[/dim]"
+        tools_str = "[dim]-[/dim]"
+        version_str = "[dim]-[/dim]"
         latency_str = "[dim]-[/dim]"
 
-        try:
-            start = time.monotonic()
-            reader, writer = asyncio.run(
-                asyncio.wait_for(
-                    asyncio.open_unix_connection(str(sock_path)),
-                    timeout=5.0,
-                )
-            )
-            sock_status = "[green]ok[/green]"
+        if has_fastmcp and pid is not None and is_mcp_running(name):
+            result = asyncio.run(_probe_server(name))
 
-            # Try JSON-RPC initialize
-            rpc_msg = json.dumps({"jsonrpc": "2.0", "method": "initialize", "id": 1, "params": {}})
-            writer.write((rpc_msg + "\n").encode())
-            try:
-                data = asyncio.run(asyncio.wait_for(reader.read(4096), timeout=5.0))
-                elapsed = time.monotonic() - start
-                latency_str = f"{elapsed * 1000:.0f}ms"
-                if data and b"jsonrpc" in data:
-                    rpc_status = "[green]ok[/green]"
-                else:
-                    rpc_status = "[yellow]no response[/yellow]"
-            except TimeoutError:
-                rpc_status = "[red]timeout[/red]"
-            finally:
-                writer.close()
-        except (TimeoutError, OSError):
-            sock_status = "[red]fail[/red]"
+            if result.connected:
+                proto_status = "[green]ok[/green]"
+                tools_str = str(result.tool_count)
+                if result.server_version:
+                    version_str = result.server_version
+                latency_str = f"{result.latency_ms:.0f}ms"
+            elif result.error == "timeout":
+                proto_status = "[red]timeout[/red]"
+            else:
+                proto_status = f"[red]{result.error}[/red]"
+        elif not has_fastmcp and pid is not None and is_mcp_running(name):
+            proto_status = "[yellow]skip[/yellow]"
 
         name_col = f"[bold]{name}[/bold]"
-        table.add_row(name_col, pid_status, sock_status, rpc_status, latency_str)
+        table.add_row(name_col, pid_status, proto_status, tools_str, version_str, latency_str)
 
     console.print()
     console.print(
@@ -385,3 +440,10 @@ def mcp_doctor() -> None:
             title_align="left",
         )
     )
+
+    if not has_fastmcp:
+        console.print()
+        console.print(
+            "[yellow]Note: Install fastmcp for protocol-level health checks: "
+            "pip install shoal\\[mcp][/yellow]"
+        )

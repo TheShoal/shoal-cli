@@ -33,13 +33,13 @@ async def test_build_entries_with_sessions(mock_dirs):
     assert lookup[s1.id] == s1.tmux_session
 
     # Check format: id\ticon name\ttool\tstatus\tbranch\tlast
-    entry1 = [e for e in entries if e.startswith(s1.id)][0]
+    entry1 = next(e for e in entries if e.startswith(s1.id))
     assert "test1" in entry1
     assert "claude" in entry1
     assert "running" in entry1
     assert "main" in entry1
 
-    entry2 = [e for e in entries if e.startswith(s2.id)][0]
+    entry2 = next(e for e in entries if e.startswith(s2.id))
     assert "test2" in entry2
     assert "opencode" in entry2
     assert "idle" in entry2

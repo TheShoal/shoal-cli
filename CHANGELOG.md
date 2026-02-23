@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`mcp doctor`**: Replaced manual JSON-RPC probe with FastMCP Client for protocol-aware health checks
+- **`mcp doctor` table**: New columns (PROTOCOL, TOOLS, VERSION, LATENCY) replace old SOCKET + JSON-RPC columns
+- **Graceful fallback**: `mcp doctor` shows "skip" with install hint when `fastmcp` is not installed
+
+### Fixed
+- 4 pre-existing ruff lint warnings in test_mcp_pool, test_notify, test_popup
+
 ## [0.15.0] - 2026-02-22
 
 ### Added
