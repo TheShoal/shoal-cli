@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 import secrets
 import subprocess
@@ -91,8 +92,12 @@ def is_shoal_tmux_session_name(name: str | None) -> bool:
 
 
 def build_nvim_socket_path(tmux_session_id: str, tmux_window_id: str) -> str:
-    """Build Neovim socket path from tmux IDs."""
-    return f"/tmp/nvim-{tmux_session_id}-{tmux_window_id}.sock"
+    """Build Neovim socket path from tmux IDs.
+
+    Uses ``XDG_RUNTIME_DIR`` if set, falling back to ``/tmp``.
+    """
+    base = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+    return f"{base}/nvim-{tmux_session_id}-{tmux_window_id}.sock"
 
 
 async def resolve_nvim_socket(session: SessionState) -> str | None:

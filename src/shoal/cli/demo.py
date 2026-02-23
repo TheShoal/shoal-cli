@@ -1206,13 +1206,13 @@ async def _demo_tour_impl() -> None:
 
     # ── 9. Theme System ────────────────────────────────────────────────────
     console.print("[bold]9. Theme & UI System[/bold]")
-    console.print("[dim]   Centralized status icons and colors for CLI + tmux.[/dim]")
+    console.print("[dim]   Centralized status icons and colors for CLI.[/dim]")
     console.print()
 
     for status_name, status_style in STATUS_STYLES.items():
         console.print(
             f"   [{status_style.rich}]{status_style.icon} {status_name:10}[/{status_style.rich}] "
-            f"tmux: {status_style.tmux:8} nerd: {status_style.nerd}"
+            f"nerd: {status_style.nerd}"
         )
 
     console.print(f"   [green]{Symbols.CHECK} Theme system works[/green]")

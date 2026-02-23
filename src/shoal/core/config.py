@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -20,18 +21,30 @@ from shoal.models.config import (
 
 
 def config_dir() -> Path:
-    """Return ~/.config/shoal."""
-    return Path.home() / ".config" / "shoal"
+    """Return Shoal config directory.
+
+    Reads ``XDG_CONFIG_HOME`` env var, falling back to ``~/.config/shoal``.
+    """
+    base = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
+    return Path(base) / "shoal"
 
 
 def state_dir() -> Path:
-    """Return ~/.local/share/shoal (persistent data: sessions, robo state)."""
-    return Path.home() / ".local" / "share" / "shoal"
+    """Return Shoal persistent data directory (sessions, robo state).
+
+    Reads ``XDG_DATA_HOME`` env var, falling back to ``~/.local/share/shoal``.
+    """
+    base = os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
+    return Path(base) / "shoal"
 
 
 def runtime_dir() -> Path:
-    """Return ~/.local/state/shoal (transient runtime: PIDs, logs)."""
-    return Path.home() / ".local" / "state" / "shoal"
+    """Return Shoal transient runtime directory (PIDs, logs).
+
+    Reads ``XDG_STATE_HOME`` env var, falling back to ``~/.local/state/shoal``.
+    """
+    base = os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))
+    return Path(base) / "shoal"
 
 
 def ensure_dirs() -> None:

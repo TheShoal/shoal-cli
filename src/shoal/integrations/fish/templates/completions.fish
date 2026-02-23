@@ -59,16 +59,18 @@ complete -c shoal -n "__fish_seen_subcommand_from fork" -a "(__shoal_sessions)" 
 
 # Helper function to get available tool names
 function __shoal_tools
-    test -d ~/.config/shoal/tools; or return
-    for f in ~/.config/shoal/tools/*.toml
+    set -l cfg_dir (set -q XDG_CONFIG_HOME; and echo $XDG_CONFIG_HOME; or echo ~/.config)/shoal
+    test -d $cfg_dir/tools; or return
+    for f in $cfg_dir/tools/*.toml
         string replace -r '.*/(.*)\.toml$' '$1' -- $f
     end
 end
 
 # Helper function to get available template names
 function __shoal_templates
-    test -d ~/.config/shoal/templates; or return
-    for f in ~/.config/shoal/templates/*.toml
+    set -l cfg_dir (set -q XDG_CONFIG_HOME; and echo $XDG_CONFIG_HOME; or echo ~/.config)/shoal
+    test -d $cfg_dir/templates; or return
+    for f in $cfg_dir/templates/*.toml
         string replace -r '.*/(.*)\.toml$' '$1' -- $f
     end
 end
@@ -142,8 +144,9 @@ complete -c shoal -n "__fish_seen_subcommand_from remote; and not __fish_seen_su
 # Remote host name completions
 function __shoal_remote_hosts
     # Parse host names from config.toml [remote.*] sections
-    test -f ~/.config/shoal/config.toml; or return
-    string match -r '^\[remote\.(\w[\w-]*)\]' < ~/.config/shoal/config.toml | string replace -r '^\[remote\.(.*)\]$' '$1'
+    set -l cfg_dir (set -q XDG_CONFIG_HOME; and echo $XDG_CONFIG_HOME; or echo ~/.config)/shoal
+    test -f $cfg_dir/config.toml; or return
+    string match -r '^\[remote\.(\w[\w-]*)\]' < $cfg_dir/config.toml | string replace -r '^\[remote\.(.*)\]$' '$1'
 end
 
 complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from connect" -a "(__shoal_remote_hosts)" -d "Remote host"

@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_valid
 
 class GeneralConfig(BaseModel):
     default_tool: str = "opencode"
-    state_dir: str = "~/.local/share/shoal"
     worktree_dir: str = ".worktrees"
 
 

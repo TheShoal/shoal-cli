@@ -1,7 +1,7 @@
 """Centralized styling, icons, and colors for shoal UI.
 
 This module provides a single source of truth for all visual elements:
-- Status colors and icons (for both Rich CLI and tmux status bar)
+- Status colors and icons (for Rich CLI output)
 - Label icons (Nerd Font glyphs used in info/status views)
 - UI symbols (checkmarks, arrows, etc.)
 - Layout constants (table/panel styling)
@@ -26,18 +26,17 @@ class StatusStyle:
     """Style definition for a session status across different contexts."""
 
     rich: str  # Rich markup style (e.g., "bold green")
-    tmux: str  # Tmux color name (e.g., "green")
     icon: str  # Unicode symbol (renders universally)
     nerd: str  # Nerd Font glyph (optional, may not render everywhere)
 
 
 # Single source of truth for status → icon + color mapping
 STATUS_STYLES = {
-    "running": StatusStyle(rich="green", tmux="green", icon="●", nerd=""),
-    "idle": StatusStyle(rich="white", tmux="white", icon="○", nerd=""),
-    "waiting": StatusStyle(rich="bold yellow", tmux="yellow", icon="◉", nerd=""),
-    "error": StatusStyle(rich="bold red", tmux="red", icon="✗", nerd=""),
-    "stopped": StatusStyle(rich="dim", tmux="grey", icon="◌", nerd=""),
+    "running": StatusStyle(rich="green", icon="●", nerd=""),
+    "idle": StatusStyle(rich="white", icon="○", nerd=""),
+    "waiting": StatusStyle(rich="bold yellow", icon="◉", nerd=""),
+    "error": StatusStyle(rich="bold red", icon="✗", nerd=""),
+    "stopped": StatusStyle(rich="dim", icon="◌", nerd=""),
 }
 
 
@@ -65,18 +64,6 @@ def get_status_icon(status: str, use_nerd: bool = False) -> str:
     """
     style = STATUS_STYLES.get(status, STATUS_STYLES["stopped"])
     return style.nerd if use_nerd else style.icon
-
-
-def get_status_tmux_color(status: str) -> str:
-    """Get tmux color name for a session status.
-
-    Args:
-        status: Session status value
-
-    Returns:
-        Tmux color name (e.g., "green")
-    """
-    return STATUS_STYLES.get(status, STATUS_STYLES["stopped"]).tmux
 
 
 # ============================================================================
@@ -146,7 +133,7 @@ class Symbols:
     BULLET_WAITING = "◉"
     BULLET_ERROR = "✗"
     BULLET_STOPPED = "◌"
-    BULLET_OFF = ""
+    BULLET_OFF = ""
 
 
 # ============================================================================
@@ -258,45 +245,3 @@ def create_panel(
         defaults["title"] = title
     defaults.update(overrides)
     return Panel(content, **defaults)  # type: ignore[arg-type]
-
-
-# ============================================================================
-# Tmux Formatting Helpers
-# ============================================================================
-
-
-def tmux_fg(text: str, color: str) -> str:
-    """Wrap text in tmux foreground color formatting.
-
-    Args:
-        text: Text to colorize
-        color: Tmux color name (green, red, yellow, etc.)
-
-    Returns:
-        Formatted string: #[fg=color]text#[default]
-
-    Example:
-        tmux_fg("Running", "green") -> "#[fg=green]Running#[default]"
-    """
-    return f"#[fg={color}]{text}#[default]"
-
-
-def tmux_status_segment(icon: str, count: int, color: str, empty_width: int = 3) -> str:
-    """Format a tmux status bar segment.
-
-    Args:
-        icon: Icon to display when count > 0
-        count: Count to display
-        color: Tmux color name
-        empty_width: Width to reserve when count is 0 (default: 3 chars)
-
-    Returns:
-        Formatted segment string
-
-    Example:
-        tmux_status_segment("●", 5, "green") -> "#[fg=green]● 5"
-        tmux_status_segment("●", 0, "green") -> "#[fg=green]  "
-    """
-    if count == 0:
-        return f"#[fg={color}] {Symbols.BULLET_OFF}{' ' * (empty_width - 1)}"
-    return f"#[fg={color}]{icon} {count}"

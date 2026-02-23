@@ -1,17 +1,21 @@
-"""Tmux status bar segment generator — entry point for shoal-status."""
+"""Status bar data generator — entry point for shoal-status."""
 
 from __future__ import annotations
 
 import asyncio
+import json
 
 from shoal.core.state import list_sessions
-from shoal.core.theme import STATUS_STYLES, tmux_status_segment
 
 
-async def generate_status() -> str:
-    """Generate the tmux status-right segment string."""
+async def generate_status() -> dict[str, int]:
+    """Generate status counts for all sessions.
+
+    Returns:
+        Dict with counts: running, idle, waiting, error, inactive.
+    """
     sessions = await list_sessions()
-    counts = {"running": 0, "idle": 0, "error": 0, "waiting": 0, "inactive": 0}
+    counts = {"running": 0, "idle": 0, "waiting": 0, "error": 0, "inactive": 0}
 
     for session in sessions:
         status_val = session.status.value
@@ -22,27 +26,14 @@ async def generate_status() -> str:
         else:
             counts["inactive"] += 1
 
-    # Build status segments for all 5 categories (running, idle, waiting, error, inactive).
-    # Always show all segments for fixed-width consistency.
-    segments = []
-    for status_key in ["running", "idle", "waiting", "error", "inactive"]:
-        count = counts[status_key]
-        style = STATUS_STYLES["stopped"] if status_key == "inactive" else STATUS_STYLES[status_key]
-        segment = tmux_status_segment(
-            icon=style.icon,
-            count=count,
-            color=style.tmux,
-        )
-        segments.append(segment)
-
-    return " ".join(segments) + "#[default]"
+    return counts
 
 
 def main() -> None:
     """Entry point for shoal-status console script."""
     from shoal.core.db import with_db
 
-    print(asyncio.run(with_db(generate_status())))
+    print(json.dumps(asyncio.run(with_db(generate_status()))))
 
 
 if __name__ == "__main__":

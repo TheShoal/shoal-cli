@@ -13,9 +13,6 @@ from shoal.core.theme import (
     create_table,
     get_status_icon,
     get_status_style,
-    get_status_tmux_color,
-    tmux_fg,
-    tmux_status_segment,
 )
 
 
@@ -26,8 +23,8 @@ def test_status_styles_completeness():
         assert status in STATUS_STYLES
         style = STATUS_STYLES[status]
         assert hasattr(style, "rich")
-        assert hasattr(style, "tmux")
         assert hasattr(style, "icon")
+        assert hasattr(style, "nerd")
 
 
 def test_get_status_helpers():
@@ -39,9 +36,6 @@ def test_get_status_helpers():
     assert get_status_icon("running") == "●"
     assert get_status_icon("error") == "✗"
     assert get_status_icon("unknown") == "◌"
-
-    assert get_status_tmux_color("running") == "green"
-    assert get_status_tmux_color("stopped") == "grey"
 
 
 def test_icons_and_symbols():
@@ -95,20 +89,3 @@ def test_create_panel():
     # Test overrides
     custom_panel = create_panel("content", border_style="red")
     assert custom_panel.border_style == "red"
-
-
-def test_tmux_fg():
-    """Test tmux foreground formatting."""
-    assert tmux_fg("hello", "green") == "#[fg=green]hello#[default]"
-
-
-def test_tmux_status_segment():
-    """Test tmux status bar segment formatting."""
-    from shoal.core.theme import Symbols
-
-    assert tmux_status_segment("●", 5, "green") == "#[fg=green]● 5"
-    assert tmux_status_segment("●", 0, "green") == f"#[fg=green] {Symbols.BULLET_OFF}  "
-    assert (
-        tmux_status_segment("●", 0, "green", empty_width=5)
-        == f"#[fg=green] {Symbols.BULLET_OFF}    "
-    )
