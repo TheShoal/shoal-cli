@@ -2,10 +2,6 @@
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0:11111b,30:1e1e2e,70:45475a,100:94e2d5&height=200&section=header&text=Shoal&fontSize=72&fontColor=cdd6f4&animation=fadeIn&fontAlignY=32&desc=Terminal-first%20orchestration%20for%20parallel%20AI%20coding%20agents&descSize=16&descColor=89b4fa&descAlignY=52" alt="Shoal banner" width="100%">
 </p>
 
-<p align="center">
-  <img src="assets/robo-fish.svg" width="280" alt="Shoal robo-fish mascot">
-</p>
-
 <!-- Badges -->
 <p align="center">
   <img src="https://img.shields.io/badge/v0.16.0-beta-EED49F?style=flat-square" alt="v0.16.0 beta">
@@ -36,6 +32,10 @@
 
 <p align="center">
   <img src="assets/status-pulse.svg" width="600" alt="Agent status indicators">
+</p>
+
+<p align="center">
+  <img src="assets/robo-fish.svg" width="280" alt="Shoal robo-fish mascot">
 </p>
 
 ---
@@ -197,55 +197,55 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 
 ### Worktrees (`shoal wt`)
 
-| Command    | Description                               |
-| ---------- | ----------------------------------------- |
-| `ls`       | List managed worktrees                    |
-| `finish`   | Merge, delete branch, and remove worktree |
-| `cleanup`  | Remove orphaned worktrees                 |
+| Command   | Description                               |
+| --------- | ----------------------------------------- |
+| `ls`      | List managed worktrees                    |
+| `finish`  | Merge, delete branch, and remove worktree |
+| `cleanup` | Remove orphaned worktrees                 |
 
 ### MCP Pool (`shoal mcp`)
 
-| Command        | Description                           |
-| -------------- | ------------------------------------- |
-| `start/stop`   | Manage pooled servers                 |
-| `attach`       | Connect a session to a pooled server  |
+| Command      | Description                          |
+| ------------ | ------------------------------------ |
+| `start/stop` | Manage pooled servers                |
+| `attach`     | Connect a session to a pooled server |
 
 ### Templates (`shoal template`)
 
-| Command          | Description                              |
-| ---------------- | ---------------------------------------- |
-| `ls`             | List available session templates         |
-| `show <name>`    | Display a template's resolved config     |
-| `show --raw`     | Display unresolved template (pre-merge)  |
-| `validate <name>`| Validate a template against the schema   |
-| `mixins`         | List available template mixins           |
+| Command           | Description                             |
+| ----------------- | --------------------------------------- |
+| `ls`              | List available session templates        |
+| `show <name>`     | Display a template's resolved config    |
+| `show --raw`      | Display unresolved template (pre-merge) |
+| `validate <name>` | Validate a template against the schema  |
+| `mixins`          | List available template mixins          |
 
 ### Demo (`shoal demo`)
 
-| Command  | Description                                        |
-| -------- | -------------------------------------------------- |
-| `start`  | Spin up a full demo environment with example sessions |
-| `stop`   | Tear down the demo environment                     |
+| Command | Description                                           |
+| ------- | ----------------------------------------------------- |
+| `start` | Spin up a full demo environment with example sessions |
+| `stop`  | Tear down the demo environment                        |
 
 ### Robo Supervisor (`shoal robo`)
 
-| Command   | Description                           |
-| --------- | ------------------------------------- |
-| `start`   | Launch the supervisor agent           |
-| `approve` | Send "Enter" to a waiting agent       |
-| `send`    | Send arbitrary keys to a child session|
+| Command   | Description                            |
+| --------- | -------------------------------------- |
+| `start`   | Launch the supervisor agent            |
+| `approve` | Send "Enter" to a waiting agent        |
+| `send`    | Send arbitrary keys to a child session |
 
 ### Remote Sessions (`shoal remote`)
 
-| Command      | Description                               |
-| ------------ | ----------------------------------------- |
-| `ls`         | List configured remote hosts              |
-| `connect`    | Open SSH tunnel to remote API             |
-| `disconnect` | Close SSH tunnel                          |
-| `status`     | Show remote session status summary        |
-| `sessions`   | List sessions on remote host              |
-| `send`       | Send keystrokes to remote session         |
-| `attach`     | Attach to remote tmux session via SSH     |
+| Command      | Description                           |
+| ------------ | ------------------------------------- |
+| `ls`         | List configured remote hosts          |
+| `connect`    | Open SSH tunnel to remote API         |
+| `disconnect` | Close SSH tunnel                      |
+| `status`     | Show remote session status summary    |
+| `sessions`   | List sessions on remote host          |
+| `send`       | Send keystrokes to remote session     |
+| `attach`     | Attach to remote tmux session via SSH |
 
 ---
 
@@ -267,12 +267,12 @@ shoal --install-completion fish
 
 ## Supported Tools
 
-| Tool       | Command    | Status    |
-| ---------- | ---------- | --------- |
-| OpenCode   | `opencode` | Primary   |
-| Claude Code| `claude`   | Supported |
-| Pi         | `pi`       | Supported |
-| Gemini     | `gemini`   | Supported |
+| Tool        | Command    | Status    |
+| ----------- | ---------- | --------- |
+| OpenCode    | `opencode` | Primary   |
+| Claude Code | `claude`   | Supported |
+| Pi          | `pi`       | Supported |
+| Gemini      | `gemini`   | Supported |
 
 Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection patterns.
 
@@ -280,11 +280,11 @@ Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection
 
 ## Status
 
-| Milestone | Focus | Status |
-| --------- | ----- | ------ |
-| **v0.16.0** | Remote sessions via SSH tunnel | Current |
+| Milestone   | Focus                                 | Status   |
+| ----------- | ------------------------------------- | -------- |
+| **v0.16.0** | Remote sessions via SSH tunnel        | Current  |
 | **v0.15.0** | FastMCP integration, Shoal MCP server | Complete |
-| **v0.14.0** | Template inheritance and mixins | Complete |
+| **v0.14.0** | Template inheritance and mixins       | Complete |
 
 See [ROADMAP.md](ROADMAP.md) for the full plan.
 
