@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import tomllib
 from functools import lru_cache
@@ -18,6 +19,28 @@ from shoal.models.config import (
     TemplateWorktreeConfig,
     ToolConfig,
 )
+
+logger = logging.getLogger("shoal.config")
+
+
+def _examples_dir() -> Path:
+    """Return the path to bundled example configs shipped with the package.
+
+    In an installed wheel, examples live at ``shoal/examples/config`` (via
+    hatchling force-include).  In an editable/dev install, they live at
+    ``<repo>/examples/config``.
+    """
+    pkg_root = Path(__file__).resolve().parent.parent  # .../shoal/
+    # Installed wheel path
+    installed = pkg_root / "examples" / "config"
+    if installed.is_dir():
+        return installed
+    # Dev / editable install: walk up to repo root
+    repo_root = pkg_root.parent.parent  # .../src -> .../<repo>
+    dev = repo_root / "examples" / "config"
+    if dev.is_dir():
+        return dev
+    return installed  # fallback (will log warning in scaffold_defaults)
 
 
 def config_dir() -> Path:
@@ -61,10 +84,43 @@ def ensure_dirs() -> None:
         (rt / subdir).mkdir(parents=True, exist_ok=True)
 
 
+def scaffold_defaults() -> list[str]:
+    """Copy bundled example configs into the user's config dir.
+
+    Only writes files that do not already exist — never overwrites.
+    Returns a list of relative paths that were created.
+    """
+    import shutil
+
+    src = _examples_dir()
+    if not src.is_dir():
+        logger.warning("Bundled examples not found at %s", src)
+        return []
+
+    dst = config_dir()
+    created: list[str] = []
+
+    for src_file in sorted(src.rglob("*")):
+        if not src_file.is_file():
+            continue
+        rel = src_file.relative_to(src)
+        dst_file = dst / rel
+        if dst_file.exists():
+            logger.debug("Skipping existing: %s", rel)
+            continue
+        dst_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src_file, dst_file)
+        created.append(str(rel))
+        logger.debug("Scaffolded: %s", rel)
+
+    return created
+
+
 @lru_cache(maxsize=1)
 def load_config() -> ShoalConfig:
     """Load and cache the main config.toml."""
     path = config_dir() / "config.toml"
+    logger.debug("Loading config from %s", path)
     if not path.exists():
         return ShoalConfig()
     with open(path, "rb") as f:
@@ -74,6 +130,7 @@ def load_config() -> ShoalConfig:
 
 def load_tool_config(name: str) -> ToolConfig:
     """Load a tool config, flattening [tool] + [detection] + [mcp] sections."""
+    logger.debug("Loading tool config: %s", name)
     path = config_dir() / "tools" / f"{name}.toml"
     if not path.exists():
         raise FileNotFoundError(f"No tool config: {path}")
@@ -255,6 +312,7 @@ def resolve_template(
         cycle = " -> ".join(_chain) + f" -> {name}"
         raise ValueError(f"Template inheritance cycle detected: {cycle}")
     _chain.add(name)
+    logger.debug("Resolving template: %s (chain=%s)", name, _chain)
 
     raw = _load_template_raw(name)
     child = _parse_template_data(raw, name)

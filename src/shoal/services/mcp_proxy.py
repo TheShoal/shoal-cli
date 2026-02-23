@@ -7,11 +7,14 @@ to bridge stdin/stdout to a pooled MCP server's Unix domain socket.
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from contextlib import suppress
 
 from shoal.core.config import state_dir
 from shoal.services.mcp_pool import validate_mcp_name
+
+logger = logging.getLogger("shoal.mcp_proxy")
 
 _CHUNK_SIZE = 65536
 _CONNECT_TIMEOUT = 30  # seconds — max wait for socket connection
@@ -76,7 +79,7 @@ async def _run_bridge(socket_path: str) -> None:
 def main() -> None:
     """Bridge stdio to a pooled MCP server's Unix socket."""
     if len(sys.argv) < 2 or not sys.argv[1]:
-        print("Usage: shoal-mcp-proxy <mcp-name>", file=sys.stderr)
+        logger.error("Usage: shoal-mcp-proxy <mcp-name>")
         sys.exit(1)
 
     name = sys.argv[1]
@@ -84,14 +87,14 @@ def main() -> None:
     try:
         validate_mcp_name(name)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error("Invalid MCP name: %s", e)
         sys.exit(1)
 
     socket = state_dir() / "mcp-pool" / "sockets" / f"{name}.sock"
 
     if not socket.exists():
-        print(f"MCP socket not found: {socket}", file=sys.stderr)
-        print(f"Start the server: shoal mcp start {name}", file=sys.stderr)
+        logger.error("MCP socket not found: %s", socket)
+        logger.error("Start the server: shoal mcp start %s", name)
         sys.exit(1)
 
     with suppress(KeyboardInterrupt, BrokenPipeError):

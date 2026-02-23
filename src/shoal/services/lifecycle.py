@@ -606,6 +606,10 @@ async def create_session_lifecycle(
             raise SessionExistsError(str(exc), session_id="", operation="create") from exc
         raise
 
+    from shoal.core.context import set_session_id
+
+    set_session_id(session.id)
+
     tmux_session = session.tmux_session
     logger.info("[%s] create: DB row created (id=%s)", session_name, session.id)
 
@@ -737,6 +741,10 @@ async def fork_session_lifecycle(
             raise SessionExistsError(str(exc), session_id="", operation="fork") from exc
         raise
 
+    from shoal.core.context import set_session_id
+
+    set_session_id(session.id)
+
     tmux_session = session.tmux_session
     logger.info("[%s] fork: DB row created (id=%s)", session_name, session.id)
 
@@ -848,6 +856,10 @@ async def kill_session_lifecycle(
     Raises DirtyWorktreeError if worktree has uncommitted changes and
     force is False.
     """
+    from shoal.core.context import set_session_id
+
+    set_session_id(session_id)
+
     logger.info("[%s] kill: starting", session_id)
     summary: dict[str, bool] = {
         "tmux_killed": False,

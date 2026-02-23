@@ -425,3 +425,29 @@ class TestInit:
         assert result.exit_code == 0
         assert "stale MCP" not in result.output
         assert "Shoal initialized successfully" in result.output
+
+    def test_init_scaffolds_defaults(self, mock_dirs):
+        """Init should scaffold config files and report what was created."""
+        with patch(
+            "shoal.core.config.scaffold_defaults",
+            return_value=["config.toml", "tools/claude.toml"],
+        ):
+            result = runner.invoke(app, ["init"])
+        assert result.exit_code == 0
+        assert "Scaffolded 2 config file(s)" in result.output
+        assert "config.toml" in result.output
+
+    def test_init_bare_skips_scaffolding(self, mock_dirs):
+        """Init --bare should skip scaffolding entirely."""
+        with patch("shoal.core.config.scaffold_defaults") as mock_scaffold:
+            result = runner.invoke(app, ["init", "--bare"])
+        assert result.exit_code == 0
+        mock_scaffold.assert_not_called()
+        assert "Scaffolded" not in result.output
+
+    def test_init_scaffolds_nothing_when_all_exist(self, mock_dirs):
+        """Init should show skip message when all configs already exist."""
+        with patch("shoal.core.config.scaffold_defaults", return_value=[]):
+            result = runner.invoke(app, ["init"])
+        assert result.exit_code == 0
+        assert "already exist" in result.output

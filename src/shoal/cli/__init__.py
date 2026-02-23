@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 
 import typer
 
 import shoal
 from shoal.cli.demo import app as demo_app
+from shoal.cli.diag import diag
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
 from shoal.cli.remote import app as remote_app
@@ -34,10 +34,18 @@ app = typer.Typer(
 @app.callback()
 def main(
     debug: bool = typer.Option(False, "--debug", help="Enable DEBUG-level logging to stderr."),
+    log_level: str = typer.Option(
+        "WARNING", "--log-level", help="Log level (DEBUG/INFO/WARNING/ERROR)."
+    ),
+    log_file: str | None = typer.Option(None, "--log-file", help="Log to file instead of stderr."),
+    json_logs: bool = typer.Option(False, "--json-logs", help="Emit logs as JSON lines."),
 ) -> None:
     """Orchestrate AI coding agents."""
-    if debug:
-        logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(name)s: %(message)s")
+    from shoal.core.logging_config import configure_logging
+
+    effective_level = "DEBUG" if debug else log_level
+    if debug or effective_level != "WARNING" or json_logs or log_file:
+        configure_logging(level=effective_level, json_logs=json_logs, log_file=log_file)
 
 
 # Session commands — top-level
@@ -53,6 +61,7 @@ app.command("kill")(kill)
 app.command("prune")(prune)
 app.command("status")(status)
 app.command("popup")(popup)
+app.command("diag")(diag)
 
 # Aliases (hidden)
 app.command("i", hidden=True)(info)
@@ -146,15 +155,27 @@ def _check_environment() -> None:
 
 
 @app.command()
-def init() -> None:
+def init(
+    bare: bool = typer.Option(False, "--bare", help="Skip scaffolding default config files."),
+) -> None:
     """Initialize Shoal configuration and directories."""
     from rich.console import Console
 
-    from shoal.core.config import ensure_dirs
+    from shoal.core.config import ensure_dirs, scaffold_defaults
     from shoal.services.lifecycle import reconcile_mcp_pool
 
     console = Console()
     ensure_dirs()
+
+    # Scaffold default configs (tools, templates, config.toml)
+    if not bare:
+        created = scaffold_defaults()
+        if created:
+            console.print(f"[green]Scaffolded {len(created)} config file(s):[/green]")
+            for path in created:
+                console.print(f"  [dim]{path}[/dim]")
+        else:
+            console.print("[dim]Config files already exist, nothing to scaffold.[/dim]")
 
     # Clean stale MCP sockets/PIDs from reboots or crashes
     cleaned = reconcile_mcp_pool()

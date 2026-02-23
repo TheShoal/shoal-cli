@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 from shoal.models.config import ToolConfig
 from shoal.models.state import SessionStatus
+
+logger = logging.getLogger("shoal.detection")
 
 
 def detect_status(pane_content: str, tool_config: ToolConfig) -> SessionStatus:
@@ -11,6 +15,8 @@ def detect_status(pane_content: str, tool_config: ToolConfig) -> SessionStatus:
 
     Checks in priority order: error > waiting > busy > idle.
     """
+    logger.debug("detect_status: tool=%s content_len=%d", tool_config.name, len(pane_content))
+
     if not pane_content.strip():
         return SessionStatus.idle
 

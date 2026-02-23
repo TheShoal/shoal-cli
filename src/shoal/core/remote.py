@@ -18,6 +18,25 @@ from shoal.core.config import load_config, state_dir
 logger = logging.getLogger(__name__)
 
 
+def _redact_ssh_cmd(cmd: list[str]) -> str:
+    """Redact sensitive arguments from an SSH command for logging.
+
+    Replaces the argument after ``-i`` (identity file path) with ``<redacted>``.
+    """
+    parts: list[str] = []
+    redact_next = False
+    for arg in cmd:
+        if redact_next:
+            parts.append("<redacted>")
+            redact_next = False
+        elif arg == "-i":
+            parts.append(arg)
+            redact_next = True
+        else:
+            parts.append(arg)
+    return " ".join(parts)
+
+
 class RemoteConnectionError(Exception):
     """SSH tunnel or HTTP connection to remote host failed."""
 
@@ -144,7 +163,7 @@ def start_tunnel(
     target = f"{user}@{ssh_host}" if user else ssh_host
     cmd.append(target)
 
-    logger.info("Starting SSH tunnel: %s", " ".join(cmd))
+    logger.info("Starting SSH tunnel: %s", _redact_ssh_cmd(cmd))
 
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=30)

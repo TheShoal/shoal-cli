@@ -97,13 +97,10 @@ async def test_multi_session_status_aggregation(mock_dirs):
     from shoal.services.status_bar import generate_status
 
     with patch("shoal.core.tmux.has_session", return_value=True):
-        status_line = await generate_status()
+        counts = await generate_status()
 
-        from shoal.core.theme import Symbols
-
-        # Should show 1 running, 1 idle, 1 error, waiting and inactive as placeholders
-        assert "● 1" in status_line  # running
-        assert "○ 1" in status_line  # idle
-        assert "✗ 1" in status_line  # error
-        # waiting and inactive should show as placeholders
-        assert status_line.count(Symbols.BULLET_OFF) >= 2
+        assert counts["running"] == 1
+        assert counts["idle"] == 1
+        assert counts["error"] == 1
+        assert counts["waiting"] == 0
+        assert counts["inactive"] == 0

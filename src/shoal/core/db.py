@@ -1,6 +1,8 @@
 """Async SQLite database for Shoal session and robo state."""
 
 import asyncio
+import logging
+import time
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,6 +11,8 @@ from typing import Any
 import aiosqlite
 
 from shoal.models.state import RoboState, SessionState
+
+logger = logging.getLogger("shoal.db")
 
 
 class ShoalDB:
@@ -58,6 +62,7 @@ class ShoalDB:
         if self._conn is not None:
             return
 
+        logger.debug("Connecting to database: %s", self.db_path)
         self._conn = await aiosqlite.connect(self.db_path)
 
         # Enable WAL mode once at connection time
@@ -93,6 +98,7 @@ class ShoalDB:
     async def close(self) -> None:
         """Close database connection."""
         if self._conn is not None:
+            logger.debug("Closing database connection")
             await self._conn.close()
             self._conn = None
             self._initialized = False
@@ -107,29 +113,43 @@ class ShoalDB:
 
     async def save_session(self, session: SessionState) -> None:
         """Save or update a session."""
+        t0 = time.monotonic()
         async with self._connection() as conn:
             await conn.execute(
                 "INSERT OR REPLACE INTO sessions (id, name, data) VALUES (?, ?, ?)",
                 (session.id, session.name, session.model_dump_json()),
             )
             await conn.commit()
+        logger.debug(
+            "save_session: %s (%s) (%.1fms)",
+            session.id,
+            session.name,
+            (time.monotonic() - t0) * 1000,
+        )
 
     async def get_session(self, session_id: str) -> SessionState | None:
         """Get a session by ID."""
+        t0 = time.monotonic()
         async with (
             self._connection() as conn,
             conn.execute("SELECT data FROM sessions WHERE id = ?", (session_id,)) as cursor,
         ):
             row = await cursor.fetchone()
+            logger.debug("get_session: %s (%.1fms)", session_id, (time.monotonic() - t0) * 1000)
             if row:
                 return SessionState.model_validate_json(row[0])
         return None
 
     async def list_sessions(self) -> list[SessionState]:
         """List all sessions."""
+        t0 = time.monotonic()
         async with self._connection() as conn, conn.execute("SELECT data FROM sessions") as cursor:
             rows = await cursor.fetchall()
-            return [SessionState.model_validate_json(row[0]) for row in rows]
+            result = [SessionState.model_validate_json(row[0]) for row in rows]
+            logger.debug(
+                "list_sessions: %d rows (%.1fms)", len(result), (time.monotonic() - t0) * 1000
+            )
+            return result
 
     async def find_session_by_name(self, name: str) -> SessionState | None:
         """Find a session by name (indexed lookup)."""
@@ -148,6 +168,7 @@ class ShoalDB:
         Uses a lock to prevent concurrent read-modify-write races
         (e.g. watcher vs API on the same event loop).
         """
+        t0 = time.monotonic()
         async with self._update_lock:
             session = await self.get_session(session_id)
             if not session:
@@ -155,13 +176,21 @@ class ShoalDB:
 
             updated = session.model_copy(update=fields)
             await self.save_session(updated)
+            logger.debug(
+                "update_session: %s fields=%s (%.1fms)",
+                session_id,
+                list(fields.keys()),
+                (time.monotonic() - t0) * 1000,
+            )
             return updated
 
     async def delete_session(self, session_id: str) -> None:
         """Delete a session."""
+        t0 = time.monotonic()
         async with self._connection() as conn:
             await conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             await conn.commit()
+        logger.debug("delete_session: %s (%.1fms)", session_id, (time.monotonic() - t0) * 1000)
 
     async def save_robo(self, state: RoboState) -> None:
         """Save or update robo state."""

@@ -9,6 +9,7 @@ stdin/stdout.  This replaces the former socat-based approach.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import re
 import shlex
@@ -20,6 +21,8 @@ from contextlib import suppress
 from pathlib import Path
 
 from shoal.core.config import state_dir
+
+logger = logging.getLogger("shoal.mcp_pool")
 
 # MCP server name validation
 _MCP_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
@@ -219,11 +222,13 @@ def start_mcp_server(
         raise RuntimeError(f"Failed to start MCP server '{name}'")
 
     pid_file.write_text(str(proc.pid))
+    logger.info("Started MCP server '%s' (pid=%d, socket=%s)", name, proc.pid, socket)
     return proc.pid, socket, command
 
 
 def stop_mcp_server(name: str) -> None:
     """Stop an MCP server. Raises FileNotFoundError if not running."""
+    logger.info("Stopping MCP server '%s'", name)
     validate_mcp_name(name)
     pid_file = mcp_pid_file(name)
     socket = mcp_socket(name)
@@ -266,6 +271,8 @@ async def _handle_client(
     log_path: Path | None = None,
 ) -> None:
     """Handle a single client connection by spawning the MCP command."""
+    t0 = time.monotonic()
+    logger.debug("Client connected, spawning: %s", command)
     tokens = shlex.split(command)
     log_fh = None
     stderr_dest: int | None = asyncio.subprocess.DEVNULL
@@ -280,6 +287,7 @@ async def _handle_client(
             stderr=log_fh if log_fh is not None else stderr_dest,
         )
     except Exception:
+        logger.warning("Failed to spawn MCP command: %s", command, exc_info=True)
         if log_fh is not None:
             log_fh.close()
         client_writer.close()
@@ -312,6 +320,8 @@ async def _handle_client(
         for task in pending:
             task.cancel()
     finally:
+        elapsed = time.monotonic() - t0
+        logger.debug("Client disconnected after %.1fs", elapsed)
         with suppress(Exception):
             proc.kill()
         with suppress(Exception):
@@ -323,6 +333,7 @@ async def _handle_client(
 
 async def _serve(socket_path: str, command: str, log_path: Path | None = None) -> None:
     """Run the Unix socket server loop."""
+    logger.info("Listening on %s (command=%s)", socket_path, command)
 
     async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         await _handle_client(reader, writer, command, log_path=log_path)

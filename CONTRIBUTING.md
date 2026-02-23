@@ -107,6 +107,10 @@ The `main` branch is protected with the following rules:
 - At least one review is required for PRs from external contributors
 - Force pushes to `main` are blocked
 
+## Code Reviews
+
+We maintain a standing code review prompt in [CODE_REVIEW.md](CODE_REVIEW.md). Run it periodically (after major milestones or before releases) to audit observability, logging, security, and overall code health. Record dated findings in the review log at the bottom of that file.
+
 ## Release Process
 
 Releases are automated via `just release X.Y.Z`, which bumps the version in `pyproject.toml`, commits, and creates a git tag. Pushing the tag triggers a GitHub Actions workflow that creates a GitHub Release with auto-generated notes.

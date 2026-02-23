@@ -8,14 +8,18 @@ for use in async contexts (FastAPI routes, watcher, lifecycle service).
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import shlex
 import subprocess
+
+logger = logging.getLogger("shoal.tmux")
 
 
 def _run(
     args: list[str], *, check: bool = True, capture: bool = True, timeout: int = 30
 ) -> subprocess.CompletedProcess[str]:
+    logger.debug("tmux %s", " ".join(args))
     try:
         return subprocess.run(
             ["tmux", *args],

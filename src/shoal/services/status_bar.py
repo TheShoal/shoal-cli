@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 
 from shoal.core.state import list_sessions
+
+logger = logging.getLogger("shoal.status_bar")
 
 
 async def generate_status() -> dict[str, int]:
@@ -15,6 +18,7 @@ async def generate_status() -> dict[str, int]:
         Dict with counts: running, idle, waiting, error, inactive.
     """
     sessions = await list_sessions()
+    logger.debug("Generating status bar for %d session(s)", len(sessions))
     counts = {"running": 0, "idle": 0, "waiting": 0, "error": 0, "inactive": 0}
 
     for session in sessions:

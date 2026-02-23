@@ -21,13 +21,51 @@ class TestRoot:
 
 
 @pytest.mark.asyncio
+class TestCors:
+    """Tests for CORS middleware configuration."""
+
+    async def test_cors_allows_origin(self, async_client):
+        response = await async_client.options(
+            "/",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.headers.get("access-control-allow-origin") == "*"
+
+    async def test_cors_no_credentials(self, async_client):
+        response = await async_client.get("/", headers={"Origin": "http://localhost:3000"})
+        # allow_credentials=False means no access-control-allow-credentials header
+        assert "access-control-allow-credentials" not in response.headers
+
+
+@pytest.mark.asyncio
+class TestRequestId:
+    """Tests for request ID middleware."""
+
+    async def test_response_includes_request_id(self, async_client):
+        response = await async_client.get("/")
+        assert "x-request-id" in response.headers
+        assert len(response.headers["x-request-id"]) == 8
+
+    async def test_custom_request_id_echoed_back(self, async_client):
+        response = await async_client.get("/", headers={"x-request-id": "custom42"})
+        assert response.headers["x-request-id"] == "custom42"
+
+
+@pytest.mark.asyncio
 class TestHealth:
     """Tests for health endpoint."""
 
-    async def test_health_returns_ok(self, async_client):
-        response = await async_client.get("/health")
+    async def test_health_returns_component_status(self, async_client):
+        with patch("shoal.api.server.tmux.async_has_session", return_value=False):
+            response = await async_client.get("/health")
         assert response.status_code == 200
-        assert response.json() == {"status": "healthy"}
+        data = response.json()
+        assert data["status"] in ("healthy", "degraded")
+        assert "components" in data
+        assert "database" in data["components"]
 
 
 @pytest.mark.asyncio

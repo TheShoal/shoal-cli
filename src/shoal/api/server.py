@@ -10,9 +10,10 @@ from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 import shoal
 from shoal.core import git, tmux
@@ -217,10 +218,26 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class RequestIdMiddleware(BaseHTTPMiddleware):
+    """Inject a request ID into each request context and response headers."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        from shoal.core.context import generate_request_id, set_request_id
+
+        request_id = request.headers.get("x-request-id") or generate_request_id()
+        set_request_id(request_id)
+        response = await call_next(request)
+        response.headers["x-request-id"] = request_id
+        return response
+
+
+app.add_middleware(RequestIdMiddleware)
 
 
 def _session_to_response(s: SessionState) -> SessionResponse:
@@ -246,8 +263,50 @@ async def root() -> dict[str, str]:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "healthy"}
+async def health() -> dict[str, object]:
+    """Deep health check — DB, watcher, tmux reachability."""
+    components: dict[str, dict[str, object]] = {}
+
+    # Check DB
+    try:
+        db = await get_db()
+        await db.connect()
+        components["database"] = {"healthy": True}
+    except Exception as exc:
+        components["database"] = {"healthy": False, "error": str(exc)}
+
+    # Check watcher PID
+    import os
+
+    pid_file = Path.home()  # placeholder
+    try:
+        from shoal.core.config import runtime_dir
+
+        pid_file = runtime_dir() / "watcher.pid"
+        if pid_file.exists():
+            pid = int(pid_file.read_text().strip())
+            os.kill(pid, 0)
+            components["watcher"] = {"healthy": True, "pid": pid}
+        else:
+            components["watcher"] = {"healthy": False, "error": "not running"}
+    except (ValueError, ProcessLookupError):
+        components["watcher"] = {"healthy": False, "error": "stale PID"}
+    except PermissionError:
+        components["watcher"] = {"healthy": True}
+
+    # Check tmux
+    try:
+        await tmux.async_has_session("__shoal_health_probe__")
+        # has_session returns False for non-existent session, which means tmux is reachable
+        components["tmux"] = {"healthy": True}
+    except Exception:
+        components["tmux"] = {"healthy": False, "error": "not reachable"}
+
+    all_healthy = all(c.get("healthy", False) for c in components.values())
+    return {
+        "status": "healthy" if all_healthy else "degraded",
+        "components": components,
+    }
 
 
 @app.get("/status", response_model=StatusResponse)

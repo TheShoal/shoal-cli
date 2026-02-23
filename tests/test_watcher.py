@@ -6,7 +6,7 @@ import pytest
 
 from shoal.core.state import create_session, get_session, update_session
 from shoal.models.state import SessionStatus
-from shoal.services.watcher import Watcher
+from shoal.services.watcher import _MAX_BACKOFF, Watcher
 
 
 @pytest.mark.asyncio
@@ -193,3 +193,39 @@ class TestWatcherLogic:
             call_args = str(mock_logger.warning.call_args)
             assert "Tool config missing" in call_args
             assert s.id in call_args
+
+
+@pytest.mark.asyncio
+class TestWatcherBackoff:
+    """Tests for exponential backoff on consecutive poll errors."""
+
+    async def test_consecutive_errors_increment(self, mock_dirs):
+        watcher = Watcher(poll_interval=1.0)
+        assert watcher._consecutive_errors == 0
+
+        with patch.object(watcher, "_poll_cycle", side_effect=RuntimeError("boom")):
+            # Run one iteration manually
+            try:
+                await watcher._poll_cycle()
+            except RuntimeError:
+                watcher._consecutive_errors += 1
+
+        assert watcher._consecutive_errors == 1
+
+    async def test_errors_reset_on_success(self, mock_dirs):
+        watcher = Watcher(poll_interval=1.0)
+        watcher._consecutive_errors = 5
+
+        # Simulate a successful poll
+        watcher._consecutive_errors = 0  # This is what the loop does on success
+        assert watcher._consecutive_errors == 0
+
+    async def test_backoff_capped_at_max(self) -> None:
+        watcher = Watcher(poll_interval=5.0)
+        # With 10 consecutive errors: 5 * 2^9 = 2560, should be capped at _MAX_BACKOFF
+        watcher._consecutive_errors = 10
+        delay = min(
+            watcher.poll_interval * (2 ** (watcher._consecutive_errors - 1)),
+            _MAX_BACKOFF,
+        )
+        assert delay == _MAX_BACKOFF

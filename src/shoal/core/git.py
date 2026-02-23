@@ -8,12 +8,16 @@ for use in async contexts (lifecycle service, API).
 from __future__ import annotations
 
 import asyncio
+import logging
 import subprocess
+
+logger = logging.getLogger("shoal.git")
 
 
 def _run(
     args: list[str], *, cwd: str | None = None, check: bool = True, timeout: int = 30
 ) -> subprocess.CompletedProcess[str]:
+    logger.debug("git %s (cwd=%s)", " ".join(args), cwd)
     try:
         return subprocess.run(
             ["git", *args],

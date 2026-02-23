@@ -16,6 +16,7 @@ from shoal.core.remote import (
     RemoteConnectionError,
     _find_free_port,
     _pid_alive,
+    _redact_ssh_cmd,
     is_tunnel_active,
     list_tunnels,
     read_tunnel_pid,
@@ -340,6 +341,25 @@ class TestResolveHost:
 
 
 # --- find_free_port ---
+
+
+class TestRedactSshCmd:
+    def test_redacts_identity_file(self) -> None:
+        cmd = ["ssh", "-i", "/home/user/.ssh/secret_key", "host.example.com"]
+        result = _redact_ssh_cmd(cmd)
+        assert "<redacted>" in result
+        assert "secret_key" not in result
+        assert "-i" in result
+
+    def test_passthrough_when_no_identity(self) -> None:
+        cmd = ["ssh", "-N", "-L", "8080:localhost:8080", "host.example.com"]
+        result = _redact_ssh_cmd(cmd)
+        assert result == "ssh -N -L 8080:localhost:8080 host.example.com"
+
+    def test_identity_flag_at_end_of_args(self) -> None:
+        cmd = ["ssh", "-N", "-i"]
+        result = _redact_ssh_cmd(cmd)
+        assert result == "ssh -N -i"
 
 
 class TestFindFreePort:

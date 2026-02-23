@@ -18,6 +18,8 @@ from shoal.models.state import SessionStatus
 
 logger = logging.getLogger("shoal.watcher")
 
+_MAX_BACKOFF = 300.0  # seconds — cap for exponential backoff on consecutive errors
+
 
 def _find_session_tool_pane(
     panes: list[dict[str, str]],
@@ -39,18 +41,27 @@ class Watcher:
     def __init__(self, poll_interval: float = 5.0) -> None:
         self.poll_interval = poll_interval
         self._running = True
+        self._consecutive_errors = 0
 
     async def run(self) -> None:
         """Main loop with signal handling + PID file."""
         ensure_dirs()
 
         log_file = runtime_dir() / "logs" / "watcher.log"
-        logging.basicConfig(
-            filename=str(log_file),
-            level=logging.INFO,
-            format="%(asctime)s %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+        handler = logging.FileHandler(str(log_file))
+        handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(name)s [sid=%(session_id)s rid=%(request_id)s]: %(message)s",
+                "%Y-%m-%d %H:%M:%S",
+            )
         )
+
+        from shoal.core.context import ContextFilter
+
+        handler.addFilter(ContextFilter())
+        shoal_logger = logging.getLogger("shoal")
+        shoal_logger.setLevel(logging.INFO)
+        shoal_logger.addHandler(handler)
 
         pid_file = runtime_dir() / "watcher.pid"
         pid_file.write_text(str(os.getpid()))
@@ -77,11 +88,27 @@ class Watcher:
             while self._running:
                 try:
                     await self._poll_cycle()
+                    self._consecutive_errors = 0
                 except (subprocess.CalledProcessError, TimeoutError) as exc:
+                    self._consecutive_errors += 1
                     logger.warning("Poll cycle subprocess error: %s", exc)
                 except Exception:
+                    self._consecutive_errors += 1
                     logger.exception("Poll cycle failed, continuing")
-                await asyncio.sleep(self.poll_interval)
+
+                if self._consecutive_errors > 0:
+                    delay = min(
+                        self.poll_interval * (2 ** (self._consecutive_errors - 1)),
+                        _MAX_BACKOFF,
+                    )
+                    logger.debug(
+                        "Backoff: sleeping %.1fs (consecutive_errors=%d)",
+                        delay,
+                        self._consecutive_errors,
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    await asyncio.sleep(self.poll_interval)
         finally:
             pid_file.unlink(missing_ok=True)
             logger.info("Watcher stopping")

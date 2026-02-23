@@ -1,8 +1,12 @@
 """Tests for core/config.py — TOML loading and path helpers."""
 
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 
 from shoal.core.config import (
+    _examples_dir,
     available_templates,
     available_tools,
     load_config,
@@ -10,6 +14,7 @@ from shoal.core.config import (
     load_robo_profile,
     load_template,
     load_tool_config,
+    scaffold_defaults,
 )
 
 
@@ -239,3 +244,81 @@ command = "my-custom-memory-server"
         assert registry["memory"] == "my-custom-memory-server"
         # Other defaults still present
         assert "filesystem" in registry
+
+
+class TestExamplesDir:
+    def test_examples_dir_exists(self):
+        """Bundled examples directory should exist in the source tree."""
+        assert _examples_dir().is_dir()
+
+    def test_examples_dir_has_config_toml(self):
+        assert (_examples_dir() / "config.toml").is_file()
+
+    def test_examples_dir_has_tool_configs(self):
+        tools = _examples_dir() / "tools"
+        assert (tools / "claude.toml").is_file()
+        assert (tools / "opencode.toml").is_file()
+
+
+class TestScaffoldDefaults:
+    def test_scaffolds_all_files_on_empty_dir(self, tmp_path: Path) -> None:
+        """On an empty config dir, all example files should be copied."""
+        cfg = tmp_path / "config" / "shoal"
+        cfg.mkdir(parents=True)
+        with patch("shoal.core.config.config_dir", return_value=cfg):
+            created = scaffold_defaults()
+        assert len(created) > 0
+        assert "config.toml" in created
+        assert "tools/claude.toml" in created
+        assert "tools/opencode.toml" in created
+        # Verify files actually exist
+        assert (cfg / "config.toml").is_file()
+        assert (cfg / "tools" / "claude.toml").is_file()
+
+    def test_skips_existing_files(self, tmp_path: Path) -> None:
+        """Existing files should not be overwritten."""
+        cfg = tmp_path / "config" / "shoal"
+        cfg.mkdir(parents=True)
+        # Pre-create config.toml with custom content
+        (cfg / "config.toml").write_text("# my custom config\n")
+        with patch("shoal.core.config.config_dir", return_value=cfg):
+            created = scaffold_defaults()
+        assert "config.toml" not in created
+        # Original content preserved
+        assert (cfg / "config.toml").read_text() == "# my custom config\n"
+        # Other files still created
+        assert "tools/claude.toml" in created
+
+    def test_returns_empty_when_all_exist(self, tmp_path: Path) -> None:
+        """When all files already exist, nothing is created."""
+        cfg = tmp_path / "config" / "shoal"
+        cfg.mkdir(parents=True)
+        # First pass: scaffold everything
+        with patch("shoal.core.config.config_dir", return_value=cfg):
+            first = scaffold_defaults()
+        assert len(first) > 0
+        # Second pass: nothing new
+        with patch("shoal.core.config.config_dir", return_value=cfg):
+            second = scaffold_defaults()
+        assert second == []
+
+    def test_creates_subdirectories(self, tmp_path: Path) -> None:
+        """Scaffold creates tools/, templates/, etc. subdirectories."""
+        cfg = tmp_path / "config" / "shoal"
+        cfg.mkdir(parents=True)
+        with patch("shoal.core.config.config_dir", return_value=cfg):
+            scaffold_defaults()
+        assert (cfg / "tools").is_dir()
+        assert (cfg / "templates").is_dir()
+        assert (cfg / "templates" / "mixins").is_dir()
+
+    def test_handles_missing_examples_dir(self, tmp_path: Path) -> None:
+        """Returns empty list when bundled examples are not found."""
+        cfg = tmp_path / "config" / "shoal"
+        cfg.mkdir(parents=True)
+        with (
+            patch("shoal.core.config.config_dir", return_value=cfg),
+            patch("shoal.core.config._examples_dir", return_value=tmp_path / "nonexistent"),
+        ):
+            created = scaffold_defaults()
+        assert created == []
