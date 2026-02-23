@@ -205,7 +205,7 @@ def _render_sessions_pane_content() -> None:
     console.print(Text("Session Management Commands", style="bold green"))
     console.print()
     cmds = Table.grid(padding=(0, 1), expand=True)
-    cmds.add_column(style="bold yellow", width=32)
+    cmds.add_column(style="bold yellow", width=34)
     cmds.add_column(style="white")
     cmds.add_row("shoal ls", "List sessions grouped by project")
     cmds.add_row("shoal status", "Quick status summary")
@@ -213,7 +213,9 @@ def _render_sessions_pane_content() -> None:
     cmds.add_row("shoal logs demo-main", "Recent pane output")
     cmds.add_row("shoal attach demo-main", "Attach to this session")
     cmds.add_row("shoal fork demo-main", "Fork into new worktree")
-    cmds.add_row("shoal demo tour", "Guided feature walkthrough")
+    cmds.add_row("shoal template ls", "Available templates")
+    cmds.add_row("shoal mcp doctor", "MCP health checks")
+    cmds.add_row("shoal demo tour", "Guided feature walkthrough (9 areas)")
     console.print(cmds)
 
 
@@ -268,6 +270,11 @@ def _render_robo_pane_content() -> None:
     cmds.add_row("shoal robo approve demo-feature", "Approve an action")
     cmds.add_row("shoal robo send demo-main 'pytest'", "Send command to worker")
     console.print(cmds)
+    console.print()
+    console.print(Text("MCP Orchestration", style="bold green"))
+    console.print(Text("Robo agents can also control sessions via MCP tools:", style="white"))
+    console.print(Text("  list_sessions, session_status, send_keys,", style="dim"))
+    console.print(Text("  create_session, kill_session, session_info", style="dim"))
 
 
 def _render_default_pane_content(tool: str, worktree_note: bool) -> None:
@@ -621,12 +628,18 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
     [yellow]shoal attach demo-main[/yellow]  \u2014 Attach to a session
   [dim]Worktree isolation[/dim]
     [yellow]shoal wt ls[/yellow]             \u2014 Active worktrees
+  [dim]Templates & inheritance[/dim]
+    [yellow]shoal template ls[/yellow]       \u2014 Available templates (with extends chains)
+    [yellow]shoal template mixins[/yellow]   \u2014 Additive mixin fragments
+  [dim]MCP orchestration[/dim]
+    [yellow]shoal mcp ls[/yellow]            \u2014 Running MCP servers
+    [yellow]shoal mcp doctor[/yellow]        \u2014 Health check with protocol probing
   [dim]Supervisor[/dim]
     [yellow]shoal robo ls[/yellow]           \u2014 Robo profiles
   [dim]Dashboard[/dim]
     [yellow]shoal popup[/yellow]             \u2014 Interactive fzf dashboard
   [dim]Feature tour[/dim]
-    [yellow]shoal demo tour[/yellow]         \u2014 Guided walkthrough proving all features work
+    [yellow]shoal demo tour[/yellow]         \u2014 Guided walkthrough (9 feature areas)
 
 [bold]Cleanup:[/bold]
   [yellow]shoal demo stop[/yellow]           \u2014 Remove all demo sessions and files
@@ -699,12 +712,14 @@ def demo_tour() -> None:
 async def _demo_tour_impl() -> None:
     from pydantic import ValidationError
 
+    from shoal.core.config import _apply_mixin, _merge_templates
     from shoal.core.detection import detect_status
     from shoal.core.state import validate_session_name
     from shoal.core.theme import STATUS_STYLES
     from shoal.models.config import (
         DetectionPatterns,
         SessionTemplateConfig,
+        TemplateMixinConfig,
         TemplatePaneConfig,
         TemplateWindowConfig,
         ToolConfig,
@@ -976,8 +991,221 @@ async def _demo_tour_impl() -> None:
         failed += 1
     console.print()
 
-    # ── 6. Theme System ────────────────────────────────────────────────────
-    console.print("[bold]6. Theme & UI System[/bold]")
+    # ── 6. Template Inheritance ────────────────────────────────────────────
+    console.print("[bold]6. Template Inheritance[/bold]")
+    console.print("[dim]   Single inheritance (extends) + additive mixins for DRY templates.[/dim]")
+    console.print()
+
+    inherit_ok = True
+
+    # Build a parent and child template in-memory
+    _win = [
+        TemplateWindowConfig(
+            name="main",
+            panes=[TemplatePaneConfig(split="root", command="{tool_command}")],
+        )
+    ]
+    parent = SessionTemplateConfig(
+        name="base",
+        description="Base layout",
+        tool="opencode",
+        env={"EDITOR": "nvim", "LANG": "en_US.UTF-8"},
+        mcp=["memory"],
+        windows=_win,
+    )
+    child = SessionTemplateConfig(
+        name="child",
+        extends="base",
+        tool="claude",
+        env={"CLAUDE_MODEL": "opus"},
+        mcp=["github"],
+        windows=[],
+    )
+    # Simulate child_raw TOML presence (tool explicitly set, no windows)
+    child_raw = {"template": {"tool": "claude"}}
+
+    merged = _merge_templates(parent, child, child_raw)
+    checks = [
+        (merged.tool == "claude", "child tool wins", f"tool={merged.tool}"),
+        (merged.description == "Base layout", "parent description inherited", ""),
+        (
+            merged.env == {"EDITOR": "nvim", "LANG": "en_US.UTF-8", "CLAUDE_MODEL": "opus"},
+            "env dicts merged (child wins conflicts)",
+            "",
+        ),
+        (
+            merged.mcp == ["github", "memory"],
+            "mcp lists unioned and sorted",
+            f"mcp={merged.mcp}",
+        ),
+        (len(merged.windows) == 1, "parent windows inherited (child had none)", ""),
+    ]
+    for ok, label, detail in checks:
+        mark = Symbols.CHECK if ok else Symbols.CROSS
+        color = "green" if ok else "red"
+        extra = f" ({detail})" if detail and not ok else ""
+        console.print(f"   [{color}]{mark}[/{color}] {label}{extra}")
+        if not ok:
+            inherit_ok = False
+
+    # Test mixin application
+    mixin = TemplateMixinConfig(
+        name="with-tests",
+        env={"TEST_RUNNER": "pytest"},
+        mcp=["memory", "filesystem"],
+        windows=[
+            TemplateWindowConfig(
+                name="tests",
+                panes=[TemplatePaneConfig(split="root", command="pytest --watch")],
+            )
+        ],
+    )
+    mixed = _apply_mixin(merged, mixin)
+    mixin_checks = [
+        ("TEST_RUNNER" in mixed.env, "mixin env merged in"),
+        (sorted(mixed.mcp) == ["filesystem", "github", "memory"], "mixin mcp unioned"),
+        (len(mixed.windows) == 2, "mixin window appended"),
+        (mixed.windows[-1].name == "tests", "appended window is from mixin"),
+    ]
+    for ok, label in mixin_checks:
+        mark = Symbols.CHECK if ok else Symbols.CROSS
+        color = "green" if ok else "red"
+        console.print(f"   [{color}]{mark}[/{color}] {label}")
+        if not ok:
+            inherit_ok = False
+
+    if inherit_ok:
+        console.print(f"   [green]{Symbols.CHECK} Template inheritance works[/green]")
+        passed += 1
+    else:
+        console.print(f"   [red]{Symbols.CROSS} Template inheritance issues[/red]")
+        failed += 1
+    console.print()
+
+    # ── 7. Lifecycle Error Handling ────────────────────────────────────────
+    console.print("[bold]7. Lifecycle Error Handling[/bold]")
+    console.print("[dim]   Structured exceptions with session context for rollback safety.[/dim]")
+    console.print()
+
+    from shoal.services.lifecycle import (
+        DirtyWorktreeError,
+        LifecycleError,
+        SessionExistsError,
+        StartupCommandError,
+        TmuxSetupError,
+    )
+
+    lifecycle_ok = True
+
+    # Verify exception hierarchy
+    hierarchy_checks = [
+        (issubclass(TmuxSetupError, LifecycleError), "TmuxSetupError extends LifecycleError"),
+        (
+            issubclass(StartupCommandError, LifecycleError),
+            "StartupCommandError extends LifecycleError",
+        ),
+        (
+            issubclass(SessionExistsError, LifecycleError),
+            "SessionExistsError extends LifecycleError",
+        ),
+        (
+            issubclass(DirtyWorktreeError, LifecycleError),
+            "DirtyWorktreeError extends LifecycleError",
+        ),
+    ]
+    for ok, label in hierarchy_checks:
+        mark = Symbols.CHECK if ok else Symbols.CROSS
+        color = "green" if ok else "red"
+        console.print(f"   [{color}]{mark}[/{color}] {label}")
+        if not ok:
+            lifecycle_ok = False
+
+    # Verify structured context on exceptions
+    err = DirtyWorktreeError(
+        "uncommitted changes",
+        session_id="abc123",
+        dirty_files="M src/main.py\n?? new_file.txt",
+    )
+    ctx_checks = [
+        (err.session_id == "abc123", "session_id preserved on exception"),
+        (err.operation == "kill", "operation auto-set to 'kill'"),
+        (err.dirty_files == "M src/main.py\n?? new_file.txt", "dirty_files attached"),
+    ]
+    for ok, label in ctx_checks:
+        mark = Symbols.CHECK if ok else Symbols.CROSS
+        color = "green" if ok else "red"
+        console.print(f"   [{color}]{mark}[/{color}] {label}")
+        if not ok:
+            lifecycle_ok = False
+
+    if lifecycle_ok:
+        console.print(f"   [green]{Symbols.CHECK} Lifecycle error handling works[/green]")
+        passed += 1
+    else:
+        console.print(f"   [red]{Symbols.CROSS} Lifecycle error handling issues[/red]")
+        failed += 1
+    console.print()
+
+    # ── 8. MCP Orchestration Tools ─────────────────────────────────────────
+    console.print("[bold]8. MCP Orchestration Tools[/bold]")
+    console.print("[dim]   FastMCP server exposes Shoal as MCP tools for agent control.[/dim]")
+    console.print()
+
+    mcp_tools_ok = True
+    try:
+        from shoal.services.mcp_shoal_server import mcp as shoal_mcp
+
+        tools = await shoal_mcp.list_tools()
+        tool_names = sorted(t.name for t in tools)
+        expected_tools = [
+            "create_session",
+            "kill_session",
+            "list_sessions",
+            "send_keys",
+            "session_info",
+            "session_status",
+        ]
+        if tool_names == expected_tools:
+            console.print(f"   [green]{Symbols.CHECK}[/green] 6 MCP tools registered")
+        else:
+            console.print(
+                f"   [red]{Symbols.CROSS}[/red] Expected {expected_tools}, got {tool_names}"
+            )
+            mcp_tools_ok = False
+
+        # Show each tool with its annotation
+        for tool_obj in sorted(tools, key=lambda t: t.name):
+            annotations = tool_obj.annotations
+            read_only = getattr(annotations, "readOnlyHint", False) if annotations else False
+            destructive = getattr(annotations, "destructiveHint", False) if annotations else False
+            if read_only:
+                badge = "[dim cyan]read-only[/dim cyan]"
+            elif destructive:
+                badge = "[dim red]destructive[/dim red]"
+            else:
+                badge = "[dim]unknown[/dim]"
+            console.print(f"   [green]{Symbols.CHECK}[/green] {tool_obj.name:20} {badge}")
+
+    except ImportError:
+        console.print(
+            f"   [yellow]{Symbols.BULLET_FILLED}[/yellow] "
+            "fastmcp not installed (pip install shoal[mcp])"
+        )
+        # Not a failure — optional dependency
+    except Exception as e:
+        console.print(f"   [red]{Symbols.CROSS}[/red] MCP server introspection failed: {e}")
+        mcp_tools_ok = False
+
+    if mcp_tools_ok:
+        console.print(f"   [green]{Symbols.CHECK} MCP orchestration tools work[/green]")
+        passed += 1
+    else:
+        console.print(f"   [red]{Symbols.CROSS} MCP orchestration issues[/red]")
+        failed += 1
+    console.print()
+
+    # ── 9. Theme System ────────────────────────────────────────────────────
+    console.print("[bold]9. Theme & UI System[/bold]")
     console.print("[dim]   Centralized status icons and colors for CLI + tmux.[/dim]")
     console.print()
 

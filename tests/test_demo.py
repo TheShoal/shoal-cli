@@ -367,7 +367,7 @@ async def test_demo_tour_all_pass(mock_dirs):
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
     # All 6 feature areas should pass
-    assert "All 6 feature areas passed" in all_output
+    assert "All 9 feature areas passed" in all_output
 
 
 @pytest.mark.asyncio
@@ -421,7 +421,7 @@ async def test_demo_tour_with_sessions(mock_dirs):
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
     # Session data is rendered in a Rich Table object; verify tour still passes
-    assert "All 6 feature areas passed" in all_output
+    assert "All 9 feature areas passed" in all_output
     # Verify session count is shown (1 session exists)
     assert "1 sessions" in all_output
 
@@ -434,7 +434,7 @@ async def test_demo_tour_no_failures(mock_dirs):
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
     # All 6 checks should pass
-    assert "All 6 feature areas passed" in all_output
+    assert "All 9 feature areas passed" in all_output
     # Should not contain explicit test failure messages
     assert "Should have rejected" not in all_output
     assert "Should have accepted" not in all_output
