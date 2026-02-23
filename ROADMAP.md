@@ -2,7 +2,7 @@
 
 This roadmap outlines the planned development for Shoal as a fish-first, personal workflow tool that may still be useful to others.
 
-> **Release history**: See [CHANGELOG.md](CHANGELOG.md) for completed releases (v0.4.0–v0.15.0).
+> **Release history**: See [CHANGELOG.md](CHANGELOG.md) for completed releases (v0.4.0–v0.16.0).
 
 ## v0.15.0: FastMCP Integration
 
@@ -47,21 +47,54 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 - [ ] Fish status bar polls remote WebSocket for session status
 
+## Next: Local Templates, Journals, HTTP Transport
+
+### Project-Local Templates
+- [x] `.shoal/templates/` search path in git root (local shadows global)
+- [x] `template ls` shows SOURCE column (local/global)
+- [x] Project-local mixins support
+
+### Structured Session Journals
+- [x] `core/journal.py` — append-only markdown per session
+- [x] MCP tools: `append_journal`, `read_journal`
+- [x] CLI: `shoal journal <session>` view/append
+- [ ] Journal cleanup on session kill
+
+### FastMCP HTTP Transport Default
+- [x] HTTP default for `shoal-orchestrator` in MCP pool registry
+- [x] `mcp doctor` HTTP probe via FastMCP Client
+- [x] Auto-configure HTTP URL for tool integration
+
 ## Future Considerations
 
-- **FastMCP Transport Migration**: Adopt HTTP transport for `shoal-orchestrator` (spike approved); keep byte bridge for third-party stdio servers. Fix proxy Python 3.13 compatibility.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()`.
-- **Project-Local Templates**: `.shoal/templates/` search path in git root.
 - **Oh-My-Pi (omp) Integration**: Add `omp.toml` tool definition and `omp-dev` session template mirroring existing pi support. Key opportunities: omp has native MCP (`omp plugin` system) enabling direct socket sharing with Shoal's MCP pool; detection patterns need tuning for omp's extended TUI (subagent/LSP status indicators beyond pi's base patterns); universal config discovery (reads `.claude/`, `.codex/`, `.gemini/` alongside `.omp/`) enables cross-agent workflow sharing.
 - Expose hooks for configuration and runtime scripting
-- **Structured Session Journals**: Per-session `.shoal/journal.md` written via MCP, enabling robo supervisors to query child agent progress at varying granularity. Inspired by [GCC](https://arxiv.org/abs/2508.00031) (git-like context versioning for agents) — Shoal would provide storage/retrieval infrastructure without managing agent internals.
-- Documentation catchup!! A lot will have changed by v0.16.0
+- Remote status bar: Fish status bar polls remote WebSocket for session status
 
 ---
 
 ## Handoff
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
+
+### Session: 2026-02-23 — 5-Milestone implementation sprint
+
+**What we did:**
+
+- M1 Housekeeping: fixed flaky CliRunner test, committed unstaged docs, gitignored CODE_REVIEW artifacts
+- M2 Documentation: updated TROUBLESHOOTING.md (remote, diagnostics, removed socat refs), updated FISH_INTEGRATION.md (XDG, diag), fixed stale socat ref in CLAUDE_CODE_SETUP.md
+- M3 Project-local templates: `.shoal/templates/` search path, local shadows global, SOURCE column in `template ls`, local mixins, 13 tests
+- M4 Structured session journals: `core/journal.py`, `cli/journal.py`, MCP tools `append_journal`/`read_journal`, 18 tests
+- M5 HTTP transport default: `_DEFAULT_TRANSPORTS` registry, `get_transport()`, auto-detect HTTP in CLI, `mcp doctor` HTTP probe, HTTP config generation, 8 tests
+- Updated ROADMAP.md with concrete milestone sections
+
+**What to do next:**
+
+- Wire journal cleanup into `kill_session_lifecycle()` (delete journal on kill)
+- Consider formal version bump (v0.17.0?)
+- Server Composition Gateway investigation
+- Documentation for new features (journal, local templates, HTTP transport)
 
 ### Session: 2026-02-23 — Logging, observability, and tracing + cleanup
 
