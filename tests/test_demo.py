@@ -368,49 +368,41 @@ async def test_demo_tour_all_pass(mock_dirs):
         await _demo_tour_impl()
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
-    # All 9 pass when fastmcp is installed; 8 pass + 1 skipped otherwise
+    # All 7 pass when fastmcp is installed; 6 pass + 1 skipped otherwise
     assert (
-        "All 9 feature areas passed" in all_output
-        or "8 feature areas passed, 1 skipped" in all_output
+        "All 7 feature areas passed" in all_output
+        or "6 feature areas passed, 1 skipped" in all_output
     )
 
 
 @pytest.mark.asyncio
-async def test_demo_tour_detection_engine(mock_dirs):
-    """Test tour's detection engine exercises real detect_status()."""
-    from shoal.core.detection import detect_status
-    from shoal.models.config import DetectionPatterns, ToolConfig
-    from shoal.models.state import SessionStatus
+async def test_demo_tour_step_detection(mock_dirs):
+    """Test tour's detection step exercises real detect_status()."""
+    from shoal.cli.demo.tour import step_status_detection
 
-    # The same test cases used by the tour
-    claude = ToolConfig(
-        name="claude",
-        command="claude",
-        icon="\U0001f916",
-        detection=DetectionPatterns(
-            busy_patterns=["\u280b", "thinking"],
-            waiting_patterns=["Yes/No", "Allow"],
-            error_patterns=["Error:", "ERROR"],
-        ),
-    )
-    pi = ToolConfig(
-        name="pi",
-        command="pi",
-        icon="\U0001f967",
-        detection=DetectionPatterns(
-            busy_patterns=["thinking", "generating", "executing"],
-            waiting_patterns=["permission", "approve", "y/n"],
-            error_patterns=["Error:", "FAILED"],
-        ),
-    )
+    result = await step_status_detection()
+    assert result.passed
+    assert result.label == "Status Detection"
 
-    assert detect_status("thinking about the code...", claude) == SessionStatus.running
-    assert detect_status("Do you Allow this? Yes/No", claude) == SessionStatus.waiting
-    assert detect_status("Error: file not found", claude) == SessionStatus.error
-    assert detect_status("$ ls\nfile.py", claude) == SessionStatus.idle
-    assert detect_status("generating response...", pi) == SessionStatus.running
-    assert detect_status("Please approve the edit", pi) == SessionStatus.waiting
-    assert detect_status("Build FAILED with 3 errors", pi) == SessionStatus.error
+
+@pytest.mark.asyncio
+async def test_demo_tour_step_journals(mock_dirs):
+    """Test tour's journal step creates, reads, and cleans up."""
+    from shoal.cli.demo.tour import step_journals
+
+    result = await step_journals()
+    assert result.passed
+    assert result.label == "Journals"
+
+
+@pytest.mark.asyncio
+async def test_demo_tour_step_templates(mock_dirs):
+    """Test tour's template step verifies inheritance and mixins."""
+    from shoal.cli.demo.tour import step_templates_and_inheritance
+
+    result = await step_templates_and_inheritance()
+    assert result.passed
+    assert result.label == "Templates & Inheritance"
 
 
 @pytest.mark.asyncio
@@ -425,12 +417,11 @@ async def test_demo_tour_with_sessions(mock_dirs):
         await _demo_tour_impl()
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
-    # Session data is rendered in a Rich Table object; verify tour still passes
     assert (
-        "All 9 feature areas passed" in all_output
-        or "8 feature areas passed, 1 skipped" in all_output
+        "All 7 feature areas passed" in all_output
+        or "6 feature areas passed, 1 skipped" in all_output
     )
-    # Verify session count is shown (1 session exists)
+    # Verify session count is shown (1 session + tour-journal-test briefly)
     assert "1 sessions" in all_output
 
 
@@ -441,11 +432,9 @@ async def test_demo_tour_no_failures(mock_dirs):
         await _demo_tour_impl()
 
     all_output = " ".join(str(c) for c in mock_print.call_args_list)
-    # All 9 pass when fastmcp is installed; 8 pass + 1 skipped otherwise
     assert (
-        "All 9 feature areas passed" in all_output
-        or "8 feature areas passed, 1 skipped" in all_output
+        "All 7 feature areas passed" in all_output
+        or "6 feature areas passed, 1 skipped" in all_output
     )
-    # Should not contain explicit test failure messages
-    assert "Should have rejected" not in all_output
-    assert "Should have accepted" not in all_output
+    # Should not contain failure indicators
+    assert "failed" not in all_output.lower() or "0 failed" in all_output.lower()

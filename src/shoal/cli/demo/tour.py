@@ -1,57 +1,51 @@
-"""Demo tour — guided walkthrough proving features work."""
+"""Demo tour — user-facing feature showcase.
+
+7 steps demonstrating Shoal features from the user's perspective.
+Each step is an independent async function returning a TourResult.
+"""
 
 from __future__ import annotations
 
 import asyncio
+import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 from rich.rule import Rule
 
 from shoal.cli.demo import console
+from shoal.core.config import config_dir, state_dir, templates_dir
 from shoal.core.db import with_db
 from shoal.core.state import list_sessions
 from shoal.core.theme import (
+    STATUS_STYLES,
     Symbols,
     create_table,
     get_status_icon,
     get_status_style,
 )
+from shoal.models.state import SessionStatus
 
 
-def demo_tour() -> None:
-    """Guided tour demonstrating Shoal features with live examples."""
-    asyncio.run(with_db(_demo_tour_impl()))
+@dataclass
+class TourResult:
+    """Result of a single tour step."""
+
+    passed: bool
+    label: str
+    skipped: bool = False
 
 
-async def _demo_tour_impl() -> None:
-    from pydantic import ValidationError
+# ============================================================================
+# Step functions — each returns a TourResult
+# ============================================================================
 
-    from shoal.core.config import _apply_mixin, _merge_templates
-    from shoal.core.detection import detect_status
-    from shoal.core.state import validate_session_name
-    from shoal.core.theme import STATUS_STYLES
-    from shoal.models.config import (
-        DetectionPatterns,
-        SessionTemplateConfig,
-        TemplateMixinConfig,
-        TemplatePaneConfig,
-        TemplateWindowConfig,
-        ToolConfig,
-    )
-    from shoal.services.mcp_pool import validate_mcp_name
 
-    console.print()
-    console.print(Rule("[bold cyan]SHOAL FEATURE TOUR[/bold cyan]", style="cyan"))
-    console.print("[dim]Live tests proving each feature area works correctly.[/dim]")
-    console.print()
-
-    passed = 0
-    failed = 0
-    skipped = 0
-
-    # ── 1. Session State ──────────────────────────────────────────────────
-    console.print("[bold]1. Session Management[/bold]")
-    console.print("[dim]   Sessions track AI agents in tmux with git context.[/dim]")
+async def step_session_lifecycle() -> TourResult:
+    """Step 1: Session Lifecycle — list real sessions, explain what they are."""
+    console.print("[bold]1. Session Lifecycle[/bold]")
+    console.print("[dim]   Sessions are AI agents running in tmux with git context.[/dim]")
+    console.print("[dim]   Create: shoal new <name> [--tool claude] [--worktree branch][/dim]")
     console.print()
 
     sessions = await list_sessions()
@@ -71,7 +65,6 @@ async def _demo_tour_impl() -> None:
         console.print(table)
         console.print()
 
-        # Status breakdown
         counts: dict[str, int] = {}
         for s in sessions:
             counts[s.status.value] = counts.get(s.status.value, 0) + 1
@@ -86,12 +79,18 @@ async def _demo_tour_impl() -> None:
         )
 
     console.print(f"   [green]{Symbols.CHECK} Session state queries work[/green]")
-    passed += 1
     console.print()
+    return TourResult(passed=True, label="Session Lifecycle")
 
-    # ── 2. Status Detection Engine ─────────────────────────────────────────
-    console.print("[bold]2. Status Detection Engine[/bold]")
-    console.print("[dim]   Pane content matched against tool-specific patterns.[/dim]")
+
+async def step_status_detection() -> TourResult:
+    """Step 2: Status Detection — show 4 detection examples, Claude-focused."""
+    from shoal.core.detection import detect_status
+    from shoal.models.config import DetectionPatterns, ToolConfig
+
+    console.print("[bold]2. Status Detection[/bold]")
+    console.print("[dim]   Shoal monitors tmux pane output for tool-specific patterns.[/dim]")
+    console.print("[dim]   Each tool has configurable busy/waiting/error/idle regexes.[/dim]")
     console.print()
 
     claude_tool = ToolConfig(
@@ -104,30 +103,17 @@ async def _demo_tour_impl() -> None:
             error_patterns=["Error:", "ERROR"],
         ),
     )
-    pi_tool = ToolConfig(
-        name="pi",
-        command="pi",
-        icon="\U0001f967",
-        detection=DetectionPatterns(
-            busy_patterns=["thinking", "generating", "executing"],
-            waiting_patterns=["permission", "approve", "y/n"],
-            error_patterns=["Error:", "FAILED"],
-        ),
-    )
 
-    test_cases = [
-        ("thinking about the code...", claude_tool, SessionStatus.running),
-        ("Do you Allow this? Yes/No", claude_tool, SessionStatus.waiting),
-        ("Error: file not found", claude_tool, SessionStatus.error),
-        ("$ ls\nfile.py", claude_tool, SessionStatus.idle),
-        ("generating response...", pi_tool, SessionStatus.running),
-        ("Please approve the edit", pi_tool, SessionStatus.waiting),
-        ("Build FAILED with 3 errors", pi_tool, SessionStatus.error),
+    test_cases: list[tuple[str, SessionStatus]] = [
+        ("thinking about the code...", SessionStatus.running),
+        ("Do you Allow this? Yes/No", SessionStatus.waiting),
+        ("Error: file not found", SessionStatus.error),
+        ("$ ls\nfile.py", SessionStatus.idle),
     ]
 
     detection_ok = True
-    for content, tool, expected in test_cases:
-        result = detect_status(content, tool)
+    for content, expected in test_cases:
+        result = detect_status(content, claude_tool)
         ok = result == expected
         icon = get_status_icon(result.value)
         style = get_status_style(result.value)
@@ -136,184 +122,58 @@ async def _demo_tour_impl() -> None:
         short = content[:42].replace("\n", "\\n")
         console.print(
             f"   [{color}]{mark}[/{color}] [{style}]{icon} {result.value:8}[/{style}] "
-            f'\u2190 {tool.name}: "{short}"'
+            f'\u2190 "{short}"'
         )
         if not ok:
             detection_ok = False
 
     if detection_ok:
         console.print(f"   [green]{Symbols.CHECK} All detection tests passed[/green]")
-        passed += 1
     else:
         console.print(f"   [red]{Symbols.CROSS} Some detection tests failed[/red]")
-        failed += 1
+    console.print()
+    return TourResult(passed=detection_ok, label="Status Detection")
+
+
+async def step_templates_and_inheritance() -> TourResult:
+    """Step 3: Templates & Inheritance — load real templates from config dir."""
+    from shoal.core.config import _apply_mixin, _merge_templates
+    from shoal.models.config import (
+        SessionTemplateConfig,
+        TemplateMixinConfig,
+        TemplatePaneConfig,
+        TemplateWindowConfig,
+    )
+
+    console.print("[bold]3. Templates & Inheritance[/bold]")
+    console.print("[dim]   Declarative session layouts with extends + mixins composition.[/dim]")
     console.print()
 
-    # ── 3. Template Validation ─────────────────────────────────────────────
-    console.print("[bold]3. Template Validation[/bold]")
-    console.print("[dim]   Schema-validated session layouts with pane configuration.[/dim]")
-    console.print()
+    tpl_dir = templates_dir()
+    ok = True
 
-    template_ok = True
+    # Show real templates if they exist
+    if tpl_dir.exists():
+        toml_files = sorted(tpl_dir.glob("*.toml"))
+        if toml_files:
+            for tf in toml_files:
+                try:
+                    from shoal.core.config import resolve_template
 
-    # Valid template
-    try:
-        t = SessionTemplateConfig(
-            name="pi-dev",
-            description="Pi agent with terminal pane",
-            tool="pi",
-            windows=[
-                TemplateWindowConfig(
-                    name="editor",
-                    panes=[
-                        TemplatePaneConfig(split="root", size="65%", command="{tool_command}"),
-                        TemplatePaneConfig(split="right", size="35%", command="echo terminal"),
-                    ],
-                ),
-            ],
-        )
-        console.print(
-            f"   [green]{Symbols.CHECK}[/green] Valid: {t.name} "
-            f"({len(t.windows)} window, "
-            f"{sum(len(w.panes) for w in t.windows)} panes)"
-        )
-    except Exception as e:
-        console.print(f"   [red]{Symbols.CROSS} Valid template rejected: {e}[/red]")
-        template_ok = False
+                    t = resolve_template(tf.stem)
+                    extends = f" (extends {t.extends})" if t.extends else ""
+                    mixins = f" +{','.join(t.mixins)}" if t.mixins else ""
+                    console.print(
+                        f"   [green]{Symbols.CHECK}[/green] {t.name:20} "
+                        f"tool={t.tool or 'default'}{extends}{mixins}"
+                    )
+                except Exception as e:
+                    console.print(f"   [red]{Symbols.CROSS}[/red] {tf.stem}: {e}")
+                    ok = False
+        else:
+            console.print("   [dim]No templates in config dir (shoal init to scaffold)[/dim]")
 
-    # Invalid: bad name
-    try:
-        SessionTemplateConfig(
-            name="bad name!",
-            windows=[
-                TemplateWindowConfig(
-                    name="w", panes=[TemplatePaneConfig(split="root", command="echo")]
-                )
-            ],
-        )
-        console.print(f"   [red]{Symbols.CROSS} Should have rejected invalid name[/red]")
-        template_ok = False
-    except (ValidationError, ValueError):
-        console.print(f'   [green]{Symbols.CHECK}[/green] Rejected invalid name: "bad name!"')
-
-    # Invalid: no windows
-    try:
-        SessionTemplateConfig(name="empty", windows=[])
-        console.print(f"   [red]{Symbols.CROSS} Should have rejected empty windows[/red]")
-        template_ok = False
-    except (ValidationError, ValueError):
-        console.print(f"   [green]{Symbols.CHECK}[/green] Rejected template with no windows")
-
-    # Invalid: bad pane size
-    try:
-        TemplatePaneConfig(split="root", size="150%", command="echo")
-        console.print(f"   [red]{Symbols.CROSS} Should have rejected invalid size[/red]")
-        template_ok = False
-    except (ValidationError, ValueError):
-        console.print(f'   [green]{Symbols.CHECK}[/green] Rejected invalid pane size: "150%"')
-
-    # Invalid: first pane not root
-    try:
-        TemplateWindowConfig(name="bad", panes=[TemplatePaneConfig(split="right", command="echo")])
-        console.print(f"   [red]{Symbols.CROSS} Should have rejected non-root first pane[/red]")
-        template_ok = False
-    except (ValidationError, ValueError):
-        console.print(f"   [green]{Symbols.CHECK}[/green] Rejected non-root first pane")
-
-    if template_ok:
-        console.print(f"   [green]{Symbols.CHECK} Template validation works[/green]")
-        passed += 1
-    else:
-        console.print(f"   [red]{Symbols.CROSS} Template validation issues[/red]")
-        failed += 1
-    console.print()
-
-    # ── 4. MCP Name Validation ─────────────────────────────────────────────
-    console.print("[bold]4. MCP Server Name Validation[/bold]")
-    console.print("[dim]   Names validated for file paths and environment variables.[/dim]")
-    console.print()
-
-    mcp_ok = True
-    valid_mcp = ["memory", "filesystem", "my-server", "test_123"]
-    invalid_mcp = [
-        ("bad/name", "bad/name"),
-        ("$(whoami)", "$(whoami)"),
-        ("", "(empty)"),
-        ("-leading", "-leading"),
-        ("a" * 65, "a" * 20 + "..."),
-    ]
-
-    for name in valid_mcp:
-        try:
-            validate_mcp_name(name)
-            console.print(f'   [green]{Symbols.CHECK}[/green] Accepted: "{name}"')
-        except ValueError:
-            console.print(f'   [red]{Symbols.CROSS}[/red] Should have accepted: "{name}"')
-            mcp_ok = False
-
-    for name, display in invalid_mcp:
-        try:
-            validate_mcp_name(name)
-            console.print(f'   [red]{Symbols.CROSS}[/red] Should have rejected: "{display}"')
-            mcp_ok = False
-        except ValueError:
-            console.print(f'   [green]{Symbols.CHECK}[/green] Rejected: "{display}"')
-
-    if mcp_ok:
-        console.print(f"   [green]{Symbols.CHECK} MCP name validation works[/green]")
-        passed += 1
-    else:
-        console.print(f"   [red]{Symbols.CROSS} MCP validation issues[/red]")
-        failed += 1
-    console.print()
-
-    # ── 5. Session Name Validation ─────────────────────────────────────────
-    console.print("[bold]5. Session Name Validation[/bold]")
-    console.print("[dim]   Names validated for tmux compatibility and security.[/dim]")
-    console.print()
-
-    name_ok = True
-    valid_names = ["my-session", "project/feature", "test.v2", "a_b-c"]
-    invalid_names = [
-        ("", "(empty)"),
-        ("a" * 101, "a" * 20 + "..."),
-        ("$(whoami)", "$(whoami)"),
-        ("..", ".."),
-        ("bad name", "bad name"),
-    ]
-
-    for name in valid_names:
-        try:
-            validate_session_name(name)
-            console.print(f'   [green]{Symbols.CHECK}[/green] Accepted: "{name}"')
-        except ValueError:
-            console.print(f'   [red]{Symbols.CROSS}[/red] Should have accepted: "{name}"')
-            name_ok = False
-
-    for name, display in invalid_names:
-        try:
-            validate_session_name(name)
-            console.print(f'   [red]{Symbols.CROSS}[/red] Should have rejected: "{display}"')
-            name_ok = False
-        except ValueError:
-            console.print(f'   [green]{Symbols.CHECK}[/green] Rejected: "{display}"')
-
-    if name_ok:
-        console.print(f"   [green]{Symbols.CHECK} Session name validation works[/green]")
-        passed += 1
-    else:
-        console.print(f"   [red]{Symbols.CROSS} Name validation issues[/red]")
-        failed += 1
-    console.print()
-
-    # ── 6. Template Inheritance ────────────────────────────────────────────
-    console.print("[bold]6. Template Inheritance[/bold]")
-    console.print("[dim]   Single inheritance (extends) + additive mixins for DRY templates.[/dim]")
-    console.print()
-
-    inherit_ok = True
-
-    # Build a parent and child template in-memory
+    # In-memory inheritance test
     _win = [
         TemplateWindowConfig(
             name="main",
@@ -324,7 +184,7 @@ async def _demo_tour_impl() -> None:
         name="base",
         description="Base layout",
         tool="opencode",
-        env={"EDITOR": "nvim", "LANG": "en_US.UTF-8"},
+        env={"EDITOR": "nvim"},
         mcp=["memory"],
         windows=_win,
     )
@@ -332,42 +192,32 @@ async def _demo_tour_impl() -> None:
         name="child",
         extends="base",
         tool="claude",
-        env={"CLAUDE_MODEL": "opus"},
+        env={"MODEL": "opus"},
         mcp=["github"],
         windows=[],
     )
-    # Simulate child_raw TOML presence (tool explicitly set, no windows)
     child_raw = {"template": {"tool": "claude"}}
 
     merged = _merge_templates(parent, child, child_raw)
-    checks = [
-        (merged.tool == "claude", "child tool wins", f"tool={merged.tool}"),
-        (merged.description == "Base layout", "parent description inherited", ""),
-        (
-            merged.env == {"EDITOR": "nvim", "LANG": "en_US.UTF-8", "CLAUDE_MODEL": "opus"},
-            "env dicts merged (child wins conflicts)",
-            "",
-        ),
-        (
-            merged.mcp == ["github", "memory"],
-            "mcp lists unioned and sorted",
-            f"mcp={merged.mcp}",
-        ),
-        (len(merged.windows) == 1, "parent windows inherited (child had none)", ""),
+    inherit_checks = [
+        (merged.tool == "claude", "child tool overrides parent"),
+        (merged.description == "Base layout", "parent description inherited"),
+        ("EDITOR" in merged.env and "MODEL" in merged.env, "env dicts merged"),
+        (merged.mcp == ["github", "memory"], "mcp lists unioned and sorted"),
+        (len(merged.windows) == 1, "parent windows inherited when child has none"),
     ]
-    for ok, label, detail in checks:
-        mark = Symbols.CHECK if ok else Symbols.CROSS
-        color = "green" if ok else "red"
-        extra = f" ({detail})" if detail and not ok else ""
-        console.print(f"   [{color}]{mark}[/{color}] {label}{extra}")
-        if not ok:
-            inherit_ok = False
+    for check_ok, label in inherit_checks:
+        mark = Symbols.CHECK if check_ok else Symbols.CROSS
+        color = "green" if check_ok else "red"
+        console.print(f"   [{color}]{mark}[/{color}] {label}")
+        if not check_ok:
+            ok = False
 
-    # Test mixin application
+    # Mixin test
     mixin = TemplateMixinConfig(
         name="with-tests",
         env={"TEST_RUNNER": "pytest"},
-        mcp=["memory", "filesystem"],
+        mcp=["filesystem"],
         windows=[
             TemplateWindowConfig(
                 name="tests",
@@ -376,98 +226,145 @@ async def _demo_tour_impl() -> None:
         ],
     )
     mixed = _apply_mixin(merged, mixin)
-    mixin_checks = [
-        ("TEST_RUNNER" in mixed.env, "mixin env merged in"),
-        (sorted(mixed.mcp) == ["filesystem", "github", "memory"], "mixin mcp unioned"),
-        (len(mixed.windows) == 2, "mixin window appended"),
-        (mixed.windows[-1].name == "tests", "appended window is from mixin"),
-    ]
-    for ok, label in mixin_checks:
-        mark = Symbols.CHECK if ok else Symbols.CROSS
-        color = "green" if ok else "red"
-        console.print(f"   [{color}]{mark}[/{color}] {label}")
-        if not ok:
-            inherit_ok = False
-
-    if inherit_ok:
-        console.print(f"   [green]{Symbols.CHECK} Template inheritance works[/green]")
-        passed += 1
+    if len(mixed.windows) == 2 and mixed.windows[-1].name == "tests":
+        console.print(f"   [green]{Symbols.CHECK}[/green] mixin window appended correctly")
     else:
-        console.print(f"   [red]{Symbols.CROSS} Template inheritance issues[/red]")
-        failed += 1
-    console.print()
+        console.print(f"   [red]{Symbols.CROSS}[/red] mixin application failed")
+        ok = False
 
-    # ── 7. Lifecycle Error Handling ────────────────────────────────────────
-    console.print("[bold]7. Lifecycle Error Handling[/bold]")
-    console.print("[dim]   Structured exceptions with session context for rollback safety.[/dim]")
-    console.print()
-
-    from shoal.services.lifecycle import (
-        DirtyWorktreeError,
-        LifecycleError,
-        SessionExistsError,
-        StartupCommandError,
-        TmuxSetupError,
-    )
-
-    lifecycle_ok = True
-
-    # Verify exception hierarchy
-    hierarchy_checks = [
-        (issubclass(TmuxSetupError, LifecycleError), "TmuxSetupError extends LifecycleError"),
-        (
-            issubclass(StartupCommandError, LifecycleError),
-            "StartupCommandError extends LifecycleError",
-        ),
-        (
-            issubclass(SessionExistsError, LifecycleError),
-            "SessionExistsError extends LifecycleError",
-        ),
-        (
-            issubclass(DirtyWorktreeError, LifecycleError),
-            "DirtyWorktreeError extends LifecycleError",
-        ),
-    ]
-    for ok, label in hierarchy_checks:
-        mark = Symbols.CHECK if ok else Symbols.CROSS
-        color = "green" if ok else "red"
-        console.print(f"   [{color}]{mark}[/{color}] {label}")
-        if not ok:
-            lifecycle_ok = False
-
-    # Verify structured context on exceptions
-    err = DirtyWorktreeError(
-        "uncommitted changes",
-        session_id="abc123",
-        dirty_files="M src/main.py\n?? new_file.txt",
-    )
-    ctx_checks = [
-        (err.session_id == "abc123", "session_id preserved on exception"),
-        (err.operation == "kill", "operation auto-set to 'kill'"),
-        (err.dirty_files == "M src/main.py\n?? new_file.txt", "dirty_files attached"),
-    ]
-    for ok, label in ctx_checks:
-        mark = Symbols.CHECK if ok else Symbols.CROSS
-        color = "green" if ok else "red"
-        console.print(f"   [{color}]{mark}[/{color}] {label}")
-        if not ok:
-            lifecycle_ok = False
-
-    if lifecycle_ok:
-        console.print(f"   [green]{Symbols.CHECK} Lifecycle error handling works[/green]")
-        passed += 1
+    if ok:
+        console.print(f"   [green]{Symbols.CHECK} Template system works[/green]")
     else:
-        console.print(f"   [red]{Symbols.CROSS} Lifecycle error handling issues[/red]")
-        failed += 1
+        console.print(f"   [red]{Symbols.CROSS} Template issues[/red]")
+    console.print()
+    return TourResult(passed=ok, label="Templates & Inheritance")
+
+
+async def step_journals() -> TourResult:
+    """Step 4: Journals — create temp session, append entry, read back, clean up."""
+    from shoal.core.journal import (
+        JournalMetadata,
+        append_entry,
+        delete_journal,
+        read_journal,
+    )
+    from shoal.core.state import create_session, delete_session
+
+    console.print("[bold]4. Journals[/bold]")
+    console.print("[dim]   Append-only markdown journals for session notes and handoffs.[/dim]")
+    console.print("[dim]   Obsidian-compatible YAML frontmatter on creation.[/dim]")
     console.print()
 
-    # ── 8. MCP Orchestration Tools ─────────────────────────────────────────
-    console.print("[bold]8. MCP Orchestration Tools[/bold]")
-    console.print("[dim]   FastMCP server exposes Shoal as MCP tools for agent control.[/dim]")
+    ok = True
+    session = await create_session("tour-journal-test", "claude", "/tmp/tour-test")
+
+    try:
+        meta = JournalMetadata(
+            session_id=session.id,
+            session_name=session.name,
+            tool=session.tool,
+        )
+        append_entry(
+            session.id,
+            "Tour test entry: verifying journal write + read cycle.",
+            source="tour",
+            metadata=meta,
+        )
+        console.print(f"   [green]{Symbols.CHECK}[/green] Journal entry written with frontmatter")
+
+        entries = read_journal(session.id)
+        if entries and "Tour test entry" in entries[-1].content:
+            console.print(
+                f"   [green]{Symbols.CHECK}[/green] "
+                f"Read back {len(entries)} entry — source={entries[-1].source}"
+            )
+        else:
+            console.print(f"   [red]{Symbols.CROSS}[/red] Failed to read journal entry")
+            ok = False
+
+        # Verify frontmatter
+        from shoal.core.journal import read_frontmatter
+
+        fm = read_frontmatter(session.id)
+        if fm and fm.get("session_id") == session.id:
+            console.print(f"   [green]{Symbols.CHECK}[/green] Frontmatter has session_id")
+        else:
+            console.print(f"   [red]{Symbols.CROSS}[/red] Frontmatter missing or incorrect")
+            ok = False
+
+        # Clean up
+        delete_journal(session.id)
+        await delete_session(session.id)
+        console.print(f"   [green]{Symbols.CHECK}[/green] Cleaned up temp session and journal")
+    except Exception as e:
+        console.print(f"   [red]{Symbols.CROSS}[/red] Journal test failed: {e}")
+        ok = False
+        # Best-effort cleanup
+        delete_journal(session.id)
+        await delete_session(session.id)
+
+    if ok:
+        console.print(f"   [green]{Symbols.CHECK} Journal system works[/green]")
+    else:
+        console.print(f"   [red]{Symbols.CROSS} Journal issues[/red]")
+    console.print()
+    return TourResult(passed=ok, label="Journals")
+
+
+async def step_diagnostics() -> TourResult:
+    """Step 5: Diagnostics — run DB/tmux/MCP checks inline."""
+    console.print("[bold]5. Diagnostics[/bold]")
+    console.print("[dim]   Component health checks (same as 'shoal diag').[/dim]")
     console.print()
 
-    mcp_tools_ok = True
-    mcp_skipped = False
+    ok = True
+    checks: list[tuple[str, bool, str]] = []
+
+    # DB check
+    db_path = state_dir() / "shoal.db"
+    if db_path.exists():
+        size_kb = db_path.stat().st_size / 1024
+        checks.append(("database", True, f"{size_kb:.1f} KB"))
+    else:
+        checks.append(("database", False, "not found"))
+
+    # tmux check
+    tmux_found = shutil.which("tmux") is not None
+    checks.append(("tmux", tmux_found, "installed" if tmux_found else "not found"))
+
+    # MCP socket check
+    socket_dir = state_dir() / "mcp-pool" / "sockets"
+    if socket_dir.exists():
+        sockets = list(socket_dir.glob("*.sock"))
+        checks.append(("mcp sockets", True, f"{len(sockets)} active"))
+    else:
+        checks.append(("mcp sockets", True, "0 sockets"))
+
+    # Config dir check
+    cfg_dir = config_dir()
+    checks.append(("config dir", cfg_dir.exists(), str(cfg_dir)))
+
+    for name, healthy, detail in checks:
+        mark = Symbols.CHECK if healthy else Symbols.CROSS
+        color = "green" if healthy else "red"
+        console.print(f"   [{color}]{mark}[/{color}] {name:16} {detail}")
+        if not healthy:
+            ok = False
+
+    if ok:
+        console.print(f"   [green]{Symbols.CHECK} All components healthy[/green]")
+    else:
+        console.print(f"   [yellow]{Symbols.BULLET_WAITING} Some components unavailable[/yellow]")
+    console.print()
+    return TourResult(passed=ok, label="Diagnostics")
+
+
+async def step_mcp_orchestration() -> TourResult:
+    """Step 6: MCP Orchestration — list FastMCP tools or skip if not installed."""
+    console.print("[bold]6. MCP Orchestration[/bold]")
+    console.print("[dim]   Shoal exposes itself as MCP tools for agent-to-agent control.[/dim]")
+    console.print()
+
     try:
         from shoal.services.mcp_shoal_server import mcp as shoal_mcp
 
@@ -483,15 +380,14 @@ async def _demo_tour_impl() -> None:
             "session_info",
             "session_status",
         ]
-        if tool_names == expected_tools:
-            console.print(f"   [green]{Symbols.CHECK}[/green] 8 MCP tools registered")
+        ok = tool_names == expected_tools
+        if ok:
+            console.print(f"   [green]{Symbols.CHECK}[/green] {len(tools)} MCP tools registered")
         else:
             console.print(
                 f"   [red]{Symbols.CROSS}[/red] Expected {expected_tools}, got {tool_names}"
             )
-            mcp_tools_ok = False
 
-        # Show each tool with its annotation
         for tool_obj in sorted(tools, key=lambda t: t.name):
             annotations = tool_obj.annotations
             read_only = getattr(annotations, "readOnlyHint", False) if annotations else False
@@ -501,36 +397,38 @@ async def _demo_tour_impl() -> None:
             elif destructive:
                 badge = "[dim red]destructive[/dim red]"
             else:
-                badge = "[dim]unknown[/dim]"
+                badge = "[dim]mutating[/dim]"
             console.print(f"   [green]{Symbols.CHECK}[/green] {tool_obj.name:20} {badge}")
+
+        if ok:
+            console.print(f"   [green]{Symbols.CHECK} MCP orchestration works[/green]")
+        else:
+            console.print(f"   [red]{Symbols.CROSS} MCP orchestration issues[/red]")
+        console.print()
+        return TourResult(passed=ok, label="MCP Orchestration")
 
     except ImportError:
         console.print(
             f"   [yellow]{Symbols.BULLET_FILLED}[/yellow] "
             "fastmcp not installed (pip install shoal[mcp])"
         )
-        mcp_skipped = True
-    except Exception as e:
-        console.print(f"   [red]{Symbols.CROSS}[/red] MCP server introspection failed: {e}")
-        mcp_tools_ok = False
-
-    if mcp_skipped:
         console.print(
             f"   [yellow]{Symbols.BULLET_WAITING} MCP orchestration skipped "
             "(optional dependency)[/yellow]"
         )
-        skipped += 1
-    elif mcp_tools_ok:
-        console.print(f"   [green]{Symbols.CHECK} MCP orchestration tools work[/green]")
-        passed += 1
-    else:
-        console.print(f"   [red]{Symbols.CROSS} MCP orchestration issues[/red]")
-        failed += 1
-    console.print()
+        console.print()
+        return TourResult(passed=True, label="MCP Orchestration", skipped=True)
 
-    # ── 9. Theme System ────────────────────────────────────────────────────
-    console.print("[bold]9. Theme & UI System[/bold]")
-    console.print("[dim]   Centralized status icons and colors for CLI.[/dim]")
+    except Exception as e:
+        console.print(f"   [red]{Symbols.CROSS}[/red] MCP introspection failed: {e}")
+        console.print()
+        return TourResult(passed=False, label="MCP Orchestration")
+
+
+async def step_theme_and_status() -> TourResult:
+    """Step 7: Theme & Status — show 5 status styles with icons."""
+    console.print("[bold]7. Theme & Status[/bold]")
+    console.print("[dim]   Centralized icons, colors, and Nerd Font glyphs for the CLI.[/dim]")
     console.print()
 
     for status_name, status_style in STATUS_STYLES.items():
@@ -540,11 +438,46 @@ async def _demo_tour_impl() -> None:
         )
 
     console.print(f"   [green]{Symbols.CHECK} Theme system works[/green]")
-    passed += 1
+    console.print()
+    return TourResult(passed=True, label="Theme & Status")
+
+
+# ============================================================================
+# Tour runner
+# ============================================================================
+
+TOUR_STEPS = [
+    step_session_lifecycle,
+    step_status_detection,
+    step_templates_and_inheritance,
+    step_journals,
+    step_diagnostics,
+    step_mcp_orchestration,
+    step_theme_and_status,
+]
+
+
+def demo_tour() -> None:
+    """Guided tour demonstrating Shoal features with live examples."""
+    asyncio.run(with_db(_demo_tour_impl()))
+
+
+async def _demo_tour_impl() -> None:
+    console.print()
+    console.print(Rule("[bold cyan]SHOAL FEATURE TOUR[/bold cyan]", style="cyan"))
+    console.print("[dim]Showcasing what Shoal can do \u2014 7 feature areas.[/dim]")
     console.print()
 
-    # ── Summary ────────────────────────────────────────────────────────────
+    results: list[TourResult] = []
+    for step_fn in TOUR_STEPS:
+        result = await step_fn()
+        results.append(result)
+
+    passed = sum(1 for r in results if r.passed and not r.skipped)
+    failed = sum(1 for r in results if not r.passed)
+    skipped = sum(1 for r in results if r.skipped)
     total = passed + failed + skipped
+
     console.print(Rule(style="cyan"))
     if failed == 0 and skipped == 0:
         console.print(f"[bold green]{Symbols.CHECK} All {total} feature areas passed![/bold green]")
@@ -558,7 +491,3 @@ async def _demo_tour_impl() -> None:
             f"[bold yellow]{passed}/{total} feature areas passed, {failed} failed[/bold yellow]"
         )
     console.print()
-
-
-# SessionStatus import needed for detection test cases
-from shoal.models.state import SessionStatus  # noqa: E402
