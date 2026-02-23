@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Transport evaluation spike**: Benchmark comparing UDS byte bridge vs FastMCP HTTP transport ([docs/transport-spike.md](docs/transport-spike.md))
+- **`shoal-mcp-server --http`**: HTTP (streamable-http) transport mode for the Shoal MCP server
+- **Benchmark script**: `benchmarks/transport_spike.py` for self-contained transport performance comparison
+
 ### Changed
 - **`mcp doctor`**: Replaced manual JSON-RPC probe with FastMCP Client for protocol-aware health checks
 - **`mcp doctor` table**: New columns (PROTOCOL, TOOLS, VERSION, LATENCY) replace old SOCKET + JSON-RPC columns

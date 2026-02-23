@@ -22,9 +22,10 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 ### Phase 3 — Transport evaluation (spike)
 
-- [ ] Investigate FastMCP UDS transport support
-- [ ] Measure HTTP vs UDS performance for MCP traffic
-- [ ] Decide go/no-go for byte bridge replacement
+- [x] Investigate FastMCP UDS transport support
+- [x] Measure HTTP vs UDS performance for MCP traffic
+- [x] Decide go/no-go for byte bridge replacement
+- See [docs/transport-spike.md](docs/transport-spike.md) for full findings
 
 ## v0.16.0: Remote Sessions
 
@@ -48,7 +49,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 ## Future Considerations
 
-- **FastMCP Transport Migration**: Replace byte bridge with FastMCP proxy if Phase 3 spike succeeds.
+- **FastMCP Transport Migration**: Adopt HTTP transport for `shoal-orchestrator` (spike approved); keep byte bridge for third-party stdio servers. Fix proxy Python 3.13 compatibility.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()`.
 - **Project-Local Templates**: `.shoal/templates/` search path in git root.
 - **Oh-My-Pi (omp) Integration**: Add `omp.toml` tool definition and `omp-dev` session template mirroring existing pi support. Key opportunities: omp has native MCP (`omp plugin` system) enabling direct socket sharing with Shoal's MCP pool; detection patterns need tuning for omp's extended TUI (subagent/LSP status indicators beyond pi's base patterns); universal config discovery (reads `.claude/`, `.codex/`, `.gemini/` alongside `.omp/`) enables cross-agent workflow sharing.
@@ -233,3 +234,23 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - v0.15.0 Phase 3: Transport evaluation spike (HTTP vs UDS performance for MCP traffic)
 - Consider extracting shared `create_session` resolution logic from API server + MCP server into lifecycle helper
 - v0.16.0: Remote Sessions (SSH tunnel + HTTP client)
+
+### Session: 2026-02-23 — v0.15.0 Phase 3: Transport Evaluation Spike
+
+**What we did:**
+
+- Investigated FastMCP UDS transport: **not available** in FastMCP 3.0.2 (only stdio, HTTP, SSE, streamable-http)
+- Added `--http [PORT]` flag to `shoal-mcp-server` for streamable-http transport mode
+- Created `benchmarks/transport_spike.py` — self-contained benchmark comparing stdio vs HTTP transports
+- Benchmarked on Python 3.13.11: stdio ~21ms/call, HTTP ~57ms/call, HTTP startup ~65ms vs stdio ~2-9s
+- Discovered Python 3.13 compatibility bug in `mcp_proxy.py` (`BaseProtocol` lacks `_drain_helper`)
+- Wrote `docs/transport-spike.md` with full findings and go/no-go recommendation
+- **Decision: Go** — adopt HTTP for `shoal-orchestrator` (enables v0.16.0 remote sessions), keep byte bridge for third-party stdio servers
+- v0.15.0 all 3 phases complete
+
+**What to do next:**
+
+- Fix proxy Python 3.13 bug: replace `BaseProtocol` with `StreamReaderProtocol` in `mcp_proxy.py`
+- Production HTTP server: add `shoal mcp start shoal-orchestrator --http` CLI support
+- Consider extracting shared `create_session` resolution logic from API server + MCP server
+- v0.16.0: Remote Sessions (SSH tunnel + HTTP transport for `shoal-orchestrator`)

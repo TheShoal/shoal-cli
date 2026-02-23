@@ -390,8 +390,25 @@ async def kill_session_tool(
 
 
 def main() -> None:
-    """Run the Shoal MCP server (stdio transport)."""
-    mcp.run()
+    """Run the Shoal MCP server.
+
+    Supports ``--http [PORT]`` for streamable-http transport (default: stdio).
+    HTTP mode is used for benchmarking and remote session support.
+    """
+    import sys
+    from typing import Literal
+
+    mode: Literal["stdio", "streamable-http"] = "stdio"
+    port = 8390
+    if len(sys.argv) > 1 and sys.argv[1] == "--http":
+        mode = "streamable-http"
+        if len(sys.argv) > 2:
+            port = int(sys.argv[2])
+
+    if mode == "streamable-http":
+        mcp.run(transport=mode, port=port)
+    else:
+        mcp.run()
 
 
 if __name__ == "__main__":
