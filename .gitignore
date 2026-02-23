@@ -33,3 +33,6 @@ settings.local.json
 # Workflow
 .worktrees
 *.gif
+
+# Code review artifacts
+CODE_REVIEW*.md
