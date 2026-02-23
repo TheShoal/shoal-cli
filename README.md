@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0b0f14,30:1f2937,70:334155,100:5eead4&height=200&section=header&text=Shoal&fontSize=72&fontColor=c0caf5&animation=fadeIn&fontAlignY=32&desc=Terminal-first%20orchestration%20for%20parallel%20AI%20coding%20agents&descSize=16&descColor=7aa2f7&descAlignY=52" alt="Shoal banner" width="100%">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:11111b,30:1e1e2e,70:45475a,100:94e2d5&height=200&section=header&text=Shoal&fontSize=72&fontColor=cdd6f4&animation=fadeIn&fontAlignY=32&desc=Terminal-first%20orchestration%20for%20parallel%20AI%20coding%20agents&descSize=16&descColor=89b4fa&descAlignY=52" alt="Shoal banner" width="100%">
 </p>
 
 <p align="center">
@@ -312,5 +312,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 Proprietary. Copyright (c) 2026 US Mobile.
 
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:5eead4,30:334155,70:1f2937,100:0b0f14&height=120&section=footer" alt="footer" width="100%">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:94e2d5,30:45475a,70:1e1e2e,100:11111b&height=120&section=footer" alt="footer" width="100%">
 </p>
