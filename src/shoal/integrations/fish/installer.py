@@ -93,6 +93,7 @@ def install_fish_integration(force: bool = False) -> bool:
             "Quick Attach",
         ),
         (template_dir / "dashboard.fish", functions_dir / "shoal-dashboard.fish", "Dashboard"),
+        (template_dir / "remote.fish", functions_dir / "shoal-remote.fish", "Remote"),
     ]
 
     # Track installation results
@@ -185,6 +186,7 @@ def uninstall_fish_integration() -> bool:
         (fish_config / "conf.d" / "shoal.fish", "Bootstrap"),
         (fish_config / "functions" / "shoal-quick-attach.fish", "Quick Attach"),
         (fish_config / "functions" / "shoal-dashboard.fish", "Dashboard"),
+        (fish_config / "functions" / "shoal-remote.fish", "Remote"),
     ]
 
     removed = 0

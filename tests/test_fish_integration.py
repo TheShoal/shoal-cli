@@ -25,6 +25,7 @@ def test_get_template_dir():
     assert (template_dir / "bootstrap.fish").exists()
     assert (template_dir / "quick-attach.fish").exists()
     assert (template_dir / "dashboard.fish").exists()
+    assert (template_dir / "remote.fish").exists()
 
 
 def test_is_fish_installed():
@@ -90,8 +91,8 @@ def test_install_fish_integration_success(
     # Should succeed
     assert result is True
 
-    # Verify files were copied (4 files: completions, bootstrap, 2 functions)
-    assert mock_copy.call_count == 4
+    # Verify files were copied (5 files: completions, bootstrap, 3 functions)
+    assert mock_copy.call_count == 5
 
 
 @patch("shoal.integrations.fish.installer.is_fish_installed")
@@ -124,8 +125,8 @@ def test_install_fish_integration_skip_existing(
     # Should still succeed but skip existing files
     assert result is True
 
-    # Only 2 new files should be copied (the function files)
-    assert mock_copy.call_count == 2
+    # Only 3 new files should be copied (the function files)
+    assert mock_copy.call_count == 3
 
 
 @patch("shoal.integrations.fish.installer.is_fish_installed")

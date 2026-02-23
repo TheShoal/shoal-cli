@@ -44,6 +44,7 @@ This command will install the following files to `~/.config/fish/`:
 - `conf.d/shoal.fish` - Bootstrap script (auto-loaded on shell start)
 - `functions/shoal-quick-attach.fish` - Quick attach helper
 - `functions/shoal-dashboard.fish` - Dashboard launcher
+- `functions/shoal-remote.fish` - Remote host interactive picker
 
 ### Activate Integration
 
@@ -137,6 +138,22 @@ shoal-dashboard
 ```
 
 Also bound to `Ctrl+S` for quick access.
+
+#### `shoal-remote`
+
+Interactively connect to a remote host and attach to a session:
+
+```fish
+shoal-remote
+```
+
+Features:
+- fzf picker for configured remote hosts
+- Auto-connects SSH tunnel if not already connected
+- fzf picker for remote sessions
+- Attaches to the selected session
+
+Requires `fzf` to be installed and at least one remote host configured in `~/.config/shoal/config.toml`.
 
 ### Event Handlers
 
@@ -254,6 +271,7 @@ rm ~/.config/fish/completions/shoal.fish
 rm ~/.config/fish/conf.d/shoal.fish
 rm ~/.config/fish/functions/shoal-quick-attach.fish
 rm ~/.config/fish/functions/shoal-dashboard.fish
+rm ~/.config/fish/functions/shoal-remote.fish
 ```
 
 Then restart your fish shell.
