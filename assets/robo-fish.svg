@@ -1,56 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32" width="640" height="320" shape-rendering="crispEdges">
-  <!--
-    Robo-Fish Pixel SVG (Shoal-style)
-    - scale via width/height or CSS
-    - tweak colors in :root vars
-  -->
-  <style>
-    :root{
-      --bg: #0b0f14;        /* deep slate/ink */
-      --ink: #111827;       /* darkest body */
-      --slate: #1f2937;     /* mid body */
-      --steel: #334155;     /* seam lines */
-      --blue: #7aa2f7;      /* muted blue */
-      --teal: #5eead4;      /* muted green/teal */
-      --peach: #f5a97f;     /* accent peach */
-      --red: #ed8796;       /* small alert */
-      --glow: rgba(94,234,212,.55);
-      --scan: rgba(122,162,247,.20);
-    }
-
-    .glow { filter: url(#softGlow); }
-    .dim  { opacity:.85; }
-    .faint{ opacity:.55; }
-
-    /* Tail wag + fin flutter */
-    .tail { transform-origin: 18px 16px; animation: wag 1100ms ease-in-out infinite; }
-    .fin  { transform-origin: 34px 19px; animation: fin 900ms ease-in-out infinite; }
-
-    @keyframes wag { 0%,100%{ transform: rotate(10deg);} 50%{ transform: rotate(-10deg);} }
-    @keyframes fin { 0%,100%{ transform: rotate(-6deg);} 50%{ transform: rotate(7deg);} }
-
-    /* Eye pulse */
-    .eyePulse { animation: pulse 1400ms ease-in-out infinite; }
-    @keyframes pulse { 0%,100%{ opacity:.55;} 50%{ opacity:1;} }
-
-    /* Scan sweep */
-    .scanbar { animation: sweep 1500ms linear infinite; }
-    @keyframes sweep { from{ transform: translateX(-18px);} to{ transform: translateX(78px);} }
-
-    /* Bubbles */
-    .b1 { animation: bubble 1800ms linear infinite; }
-    .b2 { animation: bubble 2200ms linear infinite; }
-    .b3 { animation: bubble 2600ms linear infinite; }
-
-    @keyframes bubble {
-      from { transform: translateY(8px); opacity:0; }
-      10%  { opacity:.6; }
-      70%  { opacity:.55; }
-      to   { transform: translateY(-18px); opacity:0; }
-    }
-  </style>
-
-  <!-- Soft glow filter -->
   <defs>
     <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur stdDeviation="1.2" result="b"/>
@@ -59,42 +7,37 @@
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-
-    <!-- Clip scanlines to the fish silhouette -->
     <clipPath id="fishClip">
-      <!-- rough silhouette boxy enough for pixel style -->
       <path d="M14 12 h26 v-2 h6 v2 h3 v8 h-3 v2 h-6 v-2 h-26 z"/>
     </clipPath>
   </defs>
 
-  <!-- Background (set --bg to transparent if desired) -->
-  <rect x="0" y="0" width="64" height="32" fill="var(--bg)"/>
+  <!-- Background -->
+  <rect x="0" y="0" width="64" height="32" fill="#0b0f14"/>
 
-  <!-- Ambient faint grid dots (very subtle tech motif) -->
-  <g class="faint" fill="var(--steel)">
+  <!-- Ambient grid dots -->
+  <g opacity=".55" fill="#334155">
     <rect x="4" y="6" width="1" height="1"/><rect x="8" y="10" width="1" height="1"/><rect x="12" y="5" width="1" height="1"/>
     <rect x="52" y="6" width="1" height="1"/><rect x="56" y="12" width="1" height="1"/><rect x="50" y="14" width="1" height="1"/>
     <rect x="6" y="24" width="1" height="1"/><rect x="10" y="26" width="1" height="1"/><rect x="54" y="24" width="1" height="1"/>
   </g>
 
-  <!-- Bubbles (left side) -->
-  <g fill="var(--teal)" class="faint">
-    <rect class="b1" x="6" y="20" width="1" height="1"/>
-    <rect class="b2" x="8" y="22" width="1" height="1"/>
-    <rect class="b3" x="10" y="21" width="1" height="1"/>
+  <!-- Bubbles -->
+  <g fill="#5eead4" opacity=".55">
+    <rect x="6" y="20" width="1" height="1"/>
+    <rect x="8" y="22" width="1" height="1"/>
+    <rect x="10" y="21" width="1" height="1"/>
   </g>
 
-  <!-- Tail (animated) -->
-  <g class="tail">
-    <!-- tail fin -->
-    <g fill="var(--slate)">
+  <!-- Tail -->
+  <g>
+    <g fill="#1f2937">
       <rect x="10" y="14" width="2" height="4"/>
       <rect x="8" y="13" width="2" height="6"/>
       <rect x="6" y="12" width="2" height="8"/>
       <rect x="4" y="13" width="2" height="6"/>
     </g>
-    <!-- tail edge highlights -->
-    <g fill="var(--steel)" class="dim">
+    <g fill="#334155" opacity=".85">
       <rect x="8" y="13" width="1" height="6"/>
       <rect x="6" y="12" width="1" height="8"/>
     </g>
@@ -103,43 +46,41 @@
   <!-- Body -->
   <g>
     <!-- core shell -->
-    <g fill="var(--slate)">
+    <g fill="#1f2937">
       <rect x="14" y="12" width="26" height="8"/>
-      <!-- dorsal/ventral caps -->
       <rect x="18" y="11" width="18" height="1"/>
       <rect x="18" y="20" width="18" height="1"/>
     </g>
 
     <!-- darker belly band -->
-    <g fill="var(--ink)" class="dim">
+    <g fill="#111827" opacity=".85">
       <rect x="16" y="16" width="22" height="2"/>
     </g>
 
     <!-- mechanical seams -->
-    <g fill="var(--steel)">
+    <g fill="#334155">
       <rect x="20" y="12" width="1" height="8"/>
       <rect x="28" y="12" width="1" height="8"/>
       <rect x="36" y="12" width="1" height="8"/>
-      <!-- small rivets -->
       <rect x="22" y="14" width="1" height="1"/>
       <rect x="30" y="18" width="1" height="1"/>
       <rect x="34" y="15" width="1" height="1"/>
     </g>
 
     <!-- peach status accent strip -->
-    <g fill="var(--peach)">
+    <g fill="#f5a97f">
       <rect x="23" y="13" width="3" height="1"/>
       <rect x="31" y="13" width="2" height="1"/>
       <rect x="33" y="19" width="3" height="1"/>
     </g>
 
-    <!-- fin (animated) -->
-    <g class="fin">
-      <g fill="var(--slate)">
+    <!-- fin -->
+    <g>
+      <g fill="#1f2937">
         <rect x="32" y="19" width="5" height="2"/>
         <rect x="34" y="21" width="3" height="1"/>
       </g>
-      <g fill="var(--steel)" class="dim">
+      <g fill="#334155" opacity=".85">
         <rect x="33" y="19" width="1" height="2"/>
       </g>
     </g>
@@ -147,14 +88,13 @@
 
   <!-- Head module -->
   <g>
-    <!-- snout block -->
-    <g fill="var(--slate)">
+    <g fill="#1f2937">
       <rect x="40" y="10" width="6" height="12"/>
       <rect x="46" y="12" width="3" height="8"/>
     </g>
 
     <!-- jaw/edge -->
-    <g fill="var(--steel)" class="dim">
+    <g fill="#334155" opacity=".85">
       <rect x="40" y="10" width="6" height="1"/>
       <rect x="40" y="21" width="6" height="1"/>
       <rect x="46" y="12" width="1" height="8"/>
@@ -162,29 +102,25 @@
 
     <!-- sensor eye -->
     <g>
-      <rect x="43" y="15" width="2" height="2" fill="var(--teal)" class="glow eyePulse"/>
-      <rect x="43" y="15" width="2" height="2" fill="var(--teal)" class="faint"/>
-      <!-- tiny alert pixel (optional "error" indicator vibe) -->
-      <rect x="48" y="14" width="1" height="1" fill="var(--red)" opacity=".65"/>
+      <rect x="43" y="15" width="2" height="2" fill="#5eead4" filter="url(#softGlow)"/>
+      <rect x="43" y="15" width="2" height="2" fill="#5eead4" opacity=".55"/>
+      <rect x="48" y="14" width="1" height="1" fill="#ed8796" opacity=".65"/>
     </g>
   </g>
 
-  <!-- Scanline sweep (clipped to fish) -->
+  <!-- Scanline sweep (static position, clipped to fish) -->
   <g clip-path="url(#fishClip)">
-    <g class="scanbar">
-      <rect x="0" y="12" width="10" height="8" fill="var(--scan)"/>
-      <!-- little horizontal scanlines inside the bar -->
-      <g fill="rgba(255,255,255,.12)">
-        <rect x="0" y="13" width="10" height="1"/>
-        <rect x="0" y="15" width="10" height="1"/>
-        <rect x="0" y="17" width="10" height="1"/>
-        <rect x="0" y="19" width="10" height="1"/>
-      </g>
+    <rect x="30" y="12" width="10" height="8" fill="rgba(122,162,247,.20)"/>
+    <g fill="rgba(255,255,255,.12)">
+      <rect x="30" y="13" width="10" height="1"/>
+      <rect x="30" y="15" width="10" height="1"/>
+      <rect x="30" y="17" width="10" height="1"/>
+      <rect x="30" y="19" width="10" height="1"/>
     </g>
   </g>
 
-  <!-- Subtle outline to keep it crisp on any bg -->
+  <!-- Outline -->
   <g fill="none" opacity=".35">
-    <path d="M14 12 h26 v-2 h6 v2 h3 v8 h-3 v2 h-6 v-2 h-26 z" stroke="var(--steel)" stroke-width="1"/>
+    <path d="M14 12 h26 v-2 h6 v2 h3 v8 h-3 v2 h-6 v-2 h-26 z" stroke="#334155" stroke-width="1"/>
   </g>
 </svg>
