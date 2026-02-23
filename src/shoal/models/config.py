@@ -5,15 +5,19 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
 
 
 class GeneralConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     default_tool: str = "opencode"
     worktree_dir: str = ".worktrees"
 
 
 class TmuxConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     session_prefix: str = "_"
     popup_width: str = "90%"
     popup_height: str = "90%"
@@ -24,17 +28,23 @@ class TmuxConfig(BaseModel):
 
 
 class StatusBarConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     max_display: int = 5
     separator: str = "  "
     flash_waiting: bool = True
 
 
 class NotificationsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = True
     timeout_seconds: int = 300
 
 
 class RoboGlobalConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     default_tool: str = "opencode"
     default_profile: str = "default"
     session_prefix: str = "__"
@@ -42,6 +52,8 @@ class RoboGlobalConfig(BaseModel):
 
 class RemoteHostConfig(BaseModel):
     """Configuration for a remote Shoal host."""
+
+    model_config = ConfigDict(extra="forbid")
 
     host: str
     port: int = 22
@@ -52,6 +64,8 @@ class RemoteHostConfig(BaseModel):
 
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
+
+    model_config = ConfigDict(extra="forbid")
 
     general: GeneralConfig = Field(default_factory=GeneralConfig)
     tmux: TmuxConfig = Field(default_factory=TmuxConfig)
@@ -65,6 +79,8 @@ class ShoalConfig(BaseModel):
 
 
 class DetectionPatterns(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     busy_patterns: list[str] = Field(default_factory=list)
     waiting_patterns: list[str] = Field(default_factory=list)
     error_patterns: list[str] = Field(default_factory=list)
@@ -95,6 +111,8 @@ def _compile_patterns(patterns: list[str]) -> list[re.Pattern[str]]:
 
 
 class MCPToolConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     config_cmd: str = ""
     config_file: str = ""
     socket_env: str = ""
@@ -102,6 +120,8 @@ class MCPToolConfig(BaseModel):
 
 class ToolConfig(BaseModel):
     """Flattened tool config — merges [tool], [detection], [mcp] sections."""
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str
     command: str
@@ -114,21 +134,29 @@ class ToolConfig(BaseModel):
 
 
 class MonitoringConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     poll_interval: int = 10
     waiting_timeout: int = 300
 
 
 class EscalationConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     notify: bool = True
     auto_respond: bool = False
 
 
 class TasksConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     log_file: str = "task-log.md"
 
 
 class RoboProfileConfig(BaseModel):
     """Robo profile — maps to ~/.config/shoal/robo/<name>.toml."""
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str = "default"
     tool: str = "opencode"
@@ -142,11 +170,15 @@ class RoboProfileConfig(BaseModel):
 
 
 class TemplateWorktreeConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = ""
     create_branch: bool = False
 
 
 class TemplatePaneConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     split: Literal["root", "right", "down"] = "root"
     size: str = ""
     title: str = ""
@@ -164,6 +196,8 @@ class TemplatePaneConfig(BaseModel):
 
 
 class TemplateWindowConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     cwd: str = ""
     layout: str = ""
@@ -181,6 +215,8 @@ class TemplateWindowConfig(BaseModel):
 
 
 class SessionTemplateConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     description: str = ""
     extends: str | None = None
@@ -207,6 +243,8 @@ class SessionTemplateConfig(BaseModel):
 
 class TemplateMixinConfig(BaseModel):
     """A mixin template fragment: additive env, mcp, and windows."""
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str
     description: str = ""

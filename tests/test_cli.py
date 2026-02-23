@@ -51,7 +51,8 @@ class TestLs:
 
         assert result.exit_code == 0
         assert "ghost" in result.output
-        assert "(running)" in result.output
+        # Rich table may wrap "(was running)" across lines
+        assert "was" in result.output and "running" in result.output
 
 
 class TestPrune:

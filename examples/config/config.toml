@@ -3,7 +3,6 @@
 
 [general]
 default_tool = "opencode"
-state_dir = "~/.local/share/shoal"
 worktree_dir = ".worktrees"  # relative to project root
 
 [tmux]
