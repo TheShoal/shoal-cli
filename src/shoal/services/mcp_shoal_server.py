@@ -405,14 +405,24 @@ async def append_journal_tool(session: str, entry: str, source: str = "mcp") -> 
     """
     import asyncio
 
-    from shoal.core.journal import append_entry
-    from shoal.core.state import resolve_session
+    from shoal.core.journal import (
+        append_entry,
+        build_journal_metadata,
+        journal_exists,
+    )
+    from shoal.core.state import get_session, resolve_session
 
     session_id = await resolve_session(session)
     if not session_id:
         raise ToolError(f"Session not found: {session}")
 
-    path = await asyncio.to_thread(append_entry, session_id, entry, source)
+    metadata = None
+    if not await asyncio.to_thread(journal_exists, session_id):
+        session_state = await get_session(session_id)
+        if session_state:
+            metadata = build_journal_metadata(session_state)
+
+    path = await asyncio.to_thread(append_entry, session_id, entry, source, metadata=metadata)
     return {"message": f"Journal entry appended to {path.name}"}
 
 

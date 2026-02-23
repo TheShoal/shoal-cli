@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Annotated
 
 import typer
@@ -144,7 +145,8 @@ async def _prune_impl(force: bool) -> None:
             raise typer.Abort
 
     for s in stopped:
-        archive_journal(s.id)
+        with contextlib.suppress(OSError):
+            await asyncio.to_thread(archive_journal, s.id)
         await delete_session(s.id)
         console.print(f"Removed session '{s.name}' ({s.id})")
 

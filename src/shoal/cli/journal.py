@@ -24,16 +24,27 @@ def journal_view(
     """View or append to a session journal."""
     import asyncio
 
-    async def _impl() -> str | None:
-        return await resolve_session(session)
+    from shoal.core.journal import build_journal_metadata
+    from shoal.core.state import get_session
+    from shoal.models.state import SessionState
 
-    session_id = asyncio.run(with_db(_impl()))
+    async def _impl() -> tuple[str | None, SessionState | None]:
+        sid = await resolve_session(session)
+        if not sid:
+            return None, None
+        state = await get_session(sid)
+        return sid, state
+
+    session_id, session_state = asyncio.run(with_db(_impl()))
     if not session_id:
         console.print(f"[red]Session not found: {session}[/red]")
         raise typer.Exit(1)
 
     if append:
-        path = append_entry(session_id, append, source=source)
+        metadata = None
+        if not journal_exists(session_id) and session_state:
+            metadata = build_journal_metadata(session_state)
+        path = append_entry(session_id, append, source=source, metadata=metadata)
         console.print(f"[green]Entry appended to {path.name}[/green]")
         return
 
