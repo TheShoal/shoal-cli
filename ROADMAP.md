@@ -63,35 +63,33 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-02-23 — v0.16.0 Remote Sessions (Phase 2)
+### Session: 2026-02-23 — Logging, observability, and tracing + cleanup
 
 **What we did:**
 
-- Created `src/shoal/core/remote.py` — SSH tunnel lifecycle (start/stop/list) + HTTP client helpers (get/post/delete via `urllib.request`, no new deps)
-- Created `src/shoal/cli/remote.py` — 7 CLI commands: `ls`, `connect`, `disconnect`, `status`, `sessions`, `send`, `attach`
-- Added `RemoteHostConfig` model to `models/config.py` with `remote: dict[str, RemoteHostConfig]` on `ShoalConfig`
-- Added fish shell completions for remote subcommands and host name completions
-- 45 new tests (25 core + 20 CLI), 666 total passing, ruff/mypy --strict/fish-check all clean
-- v0.16.0 all phases complete (Phase 1 + Phase 2; Phase 3 deferred)
+- Implemented full 3-phase observability plan from code review (14 tasks, commit `e4fde55`)
+- Phase 1: SSH credential redaction, CORS fix, loggers for 8 silent modules, watcher exponential backoff, named FileHandler
+- Phase 2: `core/context.py` (ContextVar session_id/request_id), RequestIdMiddleware, ContextFilter wired into CLI/watcher/lifecycle, `shoal diag` command, deepened `/health` endpoint
+- Phase 3: `core/logging_config.py` (JsonFormatter), `--log-level`/`--log-file`/`--json-logs` CLI flags, MCP pool + DB operation timing
+- Fixed bandit B310 warnings in `remote.py` with `# nosec B310` comments (`f6bfc02`)
+- Added session CLI coverage tests: attach, detach, rename, prune, popup (`e3617e3`)
+- 29 files changed (6 new), 1368 insertions, 728+ tests, 81.91% coverage
 
 **What to do next:**
 
 - Commit remaining unstaged v0.16.0 changes (CHANGELOG, README, ROADMAP, remote docs, fish installer, remote.fish)
 - Documentation catchup
+- Consider adding observability milestone to ROADMAP if formalizing as a release
 
 ### Session: 2026-02-23 — XDG compliance + status bar cleanup
 
 **What we did:**
 
 - XDG Base Directory compliance: `config_dir()` reads `XDG_CONFIG_HOME`, `state_dir()` reads `XDG_DATA_HOME`, `runtime_dir()` reads `XDG_STATE_HOME`, `build_nvim_socket_path()` reads `XDG_RUNTIME_DIR` — all fall back to current defaults
-- Fish completions (`__shoal_tools`, `__shoal_templates`, `__shoal_remote_hosts`) use `$XDG_CONFIG_HOME` instead of hardcoded `~/.config`
-- Removed dead `state_dir` field from `GeneralConfig` model
-- Simplified status bar: `status_bar.py` returns dict of counts, `main()` prints JSON; removed `tmux_fg`/`tmux_status_segment` from theme
-- 8 new XDG tests, 676 total passing, ruff/mypy --strict clean
-- Committed as `3bbc1b2`
+- Fish completions use `$XDG_CONFIG_HOME` instead of hardcoded `~/.config`
+- Simplified status bar: returns dict of counts, `main()` prints JSON
+- 8 new XDG tests, 676 total passing, committed as `3bbc1b2`
 
 **What to do next:**
 
-- Commit remaining unstaged v0.16.0 changes (CHANGELOG, README, ROADMAP, remote docs, fish installer, remote.fish)
-- Fix bandit B310 findings in `remote.py` (queued in backlog)
-- Documentation catchup
+- See latest handoff entry above

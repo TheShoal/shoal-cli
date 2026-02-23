@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Logging infrastructure**: Named loggers for 8 previously silent modules (`db`, `tmux`, `git`, `config`, `detection`, `mcp_pool`, `mcp_proxy`, `status_bar`) with targeted DEBUG/WARNING statements
+- **Context propagation**: `core/context.py` with `ContextVar`-based `session_id` and `request_id` propagation; `ContextFilter` wired into CLI, watcher, and lifecycle
+- **Request ID middleware**: FastAPI `RequestIdMiddleware` reads/generates `X-Request-ID` header on all API requests
+- **`shoal diag` command**: Diagnostics command checking DB connectivity, watcher PID, tmux reachability, MCP sockets; supports `--json` output
+- **Structured logging**: `JsonFormatter` for JSON-lines output; `--log-level`, `--log-file`, `--json-logs` CLI flags via `configure_logging()`
+- **Operation timing**: `time.monotonic()` timing at DEBUG level for DB operations (`save_session`, `get_session`, `list_sessions`, `update_session`, `delete_session`) and MCP pool connections
+- **Deepened `/health` endpoint**: Returns component-level status (`db`, `watcher`, `tmux`) with `healthy`/`degraded` overall status
 - **XDG Base Directory compliance**: `config_dir()`, `state_dir()`, `runtime_dir()` read `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` respectively; `build_nvim_socket_path()` reads `XDG_RUNTIME_DIR`
 - **`shoal remote` subcommand group**: 7 commands for remote session management via SSH tunnel — `ls`, `connect`, `disconnect`, `status`, `sessions`, `send`, `attach`
 - **SSH tunnel lifecycle**: `core/remote.py` with PID/port file management, auto port selection, tunnel health checks
@@ -29,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dead `state_dir` field from `GeneralConfig` model (never read anywhere)
 
 ### Fixed
+- **CORS configuration**: Changed `allow_credentials=True` to `allow_credentials=False` — invalid per CORS spec when `origins=["*"]`
+- **SSH credential redaction**: `_redact_ssh_cmd()` replaces identity file paths with `<redacted>` in remote tunnel logs
+- **Watcher error backoff**: Exponential backoff on consecutive poll failures (`_MAX_BACKOFF=300s`), reset on success
+- **Watcher logging**: Replaced `logging.basicConfig` with named `FileHandler` to avoid conflicts with CLI logging
+- **Bandit B310**: Added `# nosec B310` to intentional localhost-only `urlopen()` calls in `remote.py`
 - **MCP proxy Python 3.13 compatibility**: Replaced `BaseProtocol` with `StreamReaderProtocol` for stdout write pipe — `StreamWriter` requires `_drain_helper` from `FlowControlMixin` which `BaseProtocol` lacks on Python 3.13+
 - 4 pre-existing ruff lint warnings in test_mcp_pool, test_notify, test_popup
 
