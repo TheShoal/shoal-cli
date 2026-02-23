@@ -379,7 +379,9 @@ def demo_pane(
 # Register subcommands
 from shoal.cli.demo.start_stop import demo_start, demo_stop  # noqa: E402
 from shoal.cli.demo.tour import demo_tour  # noqa: E402
+from shoal.cli.demo.tutorial import demo_tutorial  # noqa: E402
 
 app.command("start")(demo_start)
 app.command("stop")(demo_stop)
 app.command("tour")(demo_tour)
+app.command("tutorial")(demo_tutorial)

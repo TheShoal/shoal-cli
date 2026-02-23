@@ -118,8 +118,10 @@ complete -c shoal -n "__fish_seen_subcommand_from watcher; and not __fish_seen_s
 complete -c shoal -n "__fish_seen_subcommand_from watcher; and not __fish_seen_subcommand_from start stop status" -a "status" -d "Watcher status"
 
 # Demo subcommands
-complete -c shoal -n "__fish_seen_subcommand_from demo; and not __fish_seen_subcommand_from start stop" -a "start" -d "Start demo environment"
-complete -c shoal -n "__fish_seen_subcommand_from demo; and not __fish_seen_subcommand_from start stop" -a "stop" -d "Stop demo environment"
+complete -c shoal -n "__fish_seen_subcommand_from demo; and not __fish_seen_subcommand_from start stop tour tutorial" -a "start" -d "Start demo environment"
+complete -c shoal -n "__fish_seen_subcommand_from demo; and not __fish_seen_subcommand_from start stop tour tutorial" -a "stop" -d "Stop demo environment"
+complete -c shoal -n "__fish_seen_subcommand_from demo; and not __fish_seen_subcommand_from start stop tour tutorial" -a "tour" -d "Feature showcase tour"
+complete -c shoal -n "__fish_seen_subcommand_from demo; and not __fish_seen_subcommand_from start stop tour tutorial" -a "tutorial" -d "Interactive hands-on tutorial"
 
 # Setup subcommands
 complete -c shoal -n "__fish_seen_subcommand_from setup; and not __fish_seen_subcommand_from fish" -a "fish" -d "Install fish shell integration"
