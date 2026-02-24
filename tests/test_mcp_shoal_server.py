@@ -738,6 +738,65 @@ async def test_create_session_template_not_found() -> None:
 
 
 # ---------------------------------------------------------------------------
+# read_history
+# ---------------------------------------------------------------------------
+
+
+async def test_read_history_returns_transitions() -> None:
+    """read_history returns status transition list from DB."""
+    from shoal.services.mcp_shoal_server import read_history_tool
+
+    transitions = [
+        {
+            "id": "t1",
+            "session_id": "abc12345",
+            "from_status": "idle",
+            "to_status": "running",
+            "timestamp": "2026-02-24T05:00:00+00:00",
+            "pane_snapshot": None,
+        },
+    ]
+    mock_db = MagicMock()
+    mock_db.get_status_transitions = AsyncMock(return_value=transitions)
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
+        patch("shoal.core.db.get_db", new_callable=AsyncMock, return_value=mock_db),
+    ):
+        result = await read_history_tool(session="worker-1", limit=10)
+
+    assert len(result) == 1
+    assert result[0]["from_status"] == "idle"
+    assert result[0]["to_status"] == "running"
+    mock_db.get_status_transitions.assert_called_once_with("abc12345", limit=10)
+
+
+async def test_read_history_not_found() -> None:
+    """read_history raises ToolError for unknown session."""
+    from shoal.services.mcp_shoal_server import read_history_tool
+
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value=None),
+        pytest.raises(ToolError, match="Session not found"),
+    ):
+        await read_history_tool(session="nonexistent")
+
+
+async def test_read_history_empty() -> None:
+    """read_history returns empty list when no transitions exist."""
+    from shoal.services.mcp_shoal_server import read_history_tool
+
+    mock_db = MagicMock()
+    mock_db.get_status_transitions = AsyncMock(return_value=[])
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
+        patch("shoal.core.db.get_db", new_callable=AsyncMock, return_value=mock_db),
+    ):
+        result = await read_history_tool(session="worker-1")
+
+    assert result == []
+
+
+# ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
 

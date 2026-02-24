@@ -240,6 +240,34 @@ async def capture_pane_tool(session: str, lines: int = 20) -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# Tool: read_history
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="read_history",
+    description="Get status transition history for a session.",
+    annotations={"readOnlyHint": True},
+)
+async def read_history_tool(session: str, limit: int = 50) -> list[dict[str, Any]]:
+    """Read status transition history for a session.
+
+    Args:
+        session: Session name or ID.
+        limit: Maximum number of transitions to return (default: 50).
+    """
+    from shoal.core.db import get_db
+    from shoal.core.state import resolve_session
+
+    session_id = await resolve_session(session)
+    if not session_id:
+        raise ToolError(f"Session not found: {session}")
+
+    db = await get_db()
+    return await db.get_status_transitions(session_id, limit=limit)
+
+
+# ---------------------------------------------------------------------------
 # Tool: create_session
 # ---------------------------------------------------------------------------
 

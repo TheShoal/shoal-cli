@@ -376,6 +376,7 @@ async def step_mcp_orchestration() -> TourResult:
             "create_session",
             "kill_session",
             "list_sessions",
+            "read_history",
             "read_journal",
             "send_keys",
             "session_info",
