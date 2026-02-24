@@ -39,6 +39,9 @@ def test_nvim_send_success_dynamic_socket(mock_dirs, tmp_path):
 
 def test_same_session_different_window_routing(mock_dirs):
     """Socket target changes with window_id within same tmux session."""
+    import os
+
+    runtime_base = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
 
     async def scenario():
         s = await create_session("test-routing", "claude", "/tmp")
@@ -62,8 +65,8 @@ def test_same_session_different_window_routing(mock_dirs):
 
         latest = await get_session(s.id)
         assert latest is not None
-        assert sock_a == "/tmp/nvim-$1-@1.sock"
-        assert sock_b == "/tmp/nvim-$1-@2.sock"
+        assert sock_a == f"{runtime_base}/nvim-$1-@1.sock"
+        assert sock_b == f"{runtime_base}/nvim-$1-@2.sock"
         assert latest.tmux_session_id == "$1"
         assert latest.tmux_window == "@2"
 
@@ -72,6 +75,9 @@ def test_same_session_different_window_routing(mock_dirs):
 
 def test_session_rename_stability_id_based_socket(mock_dirs):
     """Socket path remains stable across tmux session-name renames."""
+    import os
+
+    runtime_base = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
 
     async def scenario():
         s = await create_session("old-name", "claude", "/tmp")
@@ -87,7 +93,7 @@ def test_session_rename_stability_id_based_socket(mock_dirs):
         ):
             socket = await resolve_nvim_socket(renamed)
 
-        assert socket == "/tmp/nvim-$9-@3.sock"
+        assert socket == f"{runtime_base}/nvim-$9-@3.sock"
         assert "new-name" not in socket
         assert "old-name" not in socket
 
