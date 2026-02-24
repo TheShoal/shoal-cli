@@ -26,6 +26,7 @@ from shoal.core.journal import (
     delete_journal,
     journal_exists,
     journal_path,
+    read_archived_journal,
     read_frontmatter,
     read_journal,
 )
@@ -413,6 +414,74 @@ class TestJournalCLI:
         call_kwargs = mock_append.call_args
         assert call_kwargs.kwargs["metadata"] is not None
         assert call_kwargs.kwargs["metadata"].session_id == "meta-sess"
+
+
+class TestReadArchivedJournal:
+    """Test read_archived_journal core function."""
+
+    def test_read_archived_journal(self, journals_dir: Path) -> None:
+        append_entry("sess-arc", "archived content", source="test")
+        archive_journal("sess-arc")
+        entries = read_archived_journal("sess-arc")
+        assert len(entries) == 1
+        assert entries[0].content == "archived content"
+
+    def test_read_archived_journal_with_limit(self, journals_dir: Path) -> None:
+        for i in range(5):
+            append_entry("sess-arc-lim", f"entry {i}", source="test")
+        archive_journal("sess-arc-lim")
+        entries = read_archived_journal("sess-arc-lim", limit=2)
+        assert len(entries) == 2
+        assert entries[0].content == "entry 3"
+        assert entries[1].content == "entry 4"
+
+    def test_read_archived_journal_nonexistent(self, journals_dir: Path) -> None:
+        entries = read_archived_journal("nonexistent")
+        assert entries == []
+
+
+class TestArchivedCLI:
+    """Test the --archived flag on the journal CLI command."""
+
+    def test_archived_happy_path(self, runner: CliRunner, journals_dir: Path) -> None:
+        """--archived displays content from an archived journal."""
+        from shoal.cli import app
+
+        append_entry("archived-sess", "old content", source="agent")
+        archive_journal("archived-sess")
+
+        result = runner.invoke(app, ["journal", "archived-sess", "--archived"])
+        assert result.exit_code == 0
+        assert "old content" in result.output
+        assert "Archived journal" in result.output
+
+    def test_archived_not_found(self, runner: CliRunner, mock_dirs: object) -> None:
+        """--archived shows error when no archive exists."""
+        from shoal.cli import app
+
+        async def mock_resolve(name: str) -> None:
+            return None
+
+        with patch("shoal.cli.journal.resolve_session", side_effect=mock_resolve):
+            result = runner.invoke(app, ["journal", "ghost-sess", "--archived"])
+        assert result.exit_code == 1
+        assert "No archived journal" in result.output
+
+    def test_archived_resolves_by_name(self, runner: CliRunner, journals_dir: Path) -> None:
+        """--archived resolves session name to ID via DB when direct path fails."""
+        from shoal.cli import app
+
+        # Create and archive a journal keyed by session ID
+        append_entry("resolved-id", "resolved content", source="agent")
+        archive_journal("resolved-id")
+
+        async def mock_resolve(name: str) -> str:
+            return "resolved-id"
+
+        with patch("shoal.cli.journal.resolve_session", side_effect=mock_resolve):
+            result = runner.invoke(app, ["journal", "my-session-name", "--archived"])
+        assert result.exit_code == 0
+        assert "resolved content" in result.output
 
 
 class TestJournalMCP:
