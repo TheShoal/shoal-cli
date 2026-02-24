@@ -5,7 +5,7 @@ Shoal is a terminal-first orchestration tool for parallel AI coding agents. Pyth
 ## Quick Reference
 
 ```bash
-just ci          # Run all checks: lint → typecheck → test → fish-check
+just ci          # Run all checks: lint → typecheck → test → fish-check → security
 just test        # Unit tests only (excludes integration)
 just test-all    # All tests including integration (requires tmux)
 just lint        # Ruff lint
@@ -22,7 +22,7 @@ Prefer running targeted tests: `uv run pytest tests/test_lifecycle.py -x -q`
 - **Line length**: 100 chars (ruff + mypy configured in pyproject.toml)
 - **Type hints**: Mandatory on all function signatures — `mypy --strict` is enforced
 - **Formatting**: ruff format (runs via pre-commit)
-- **Lint rules**: E, F, I, UP, B, SIM (see `[tool.ruff.lint]` in pyproject.toml)
+- **Lint rules**: E, F, I, UP, B, SIM, ASYNC, PERF, RUF, LOG, G, C4, PIE, DTZ, RET, RSE, S (see `[tool.ruff.lint]` in pyproject.toml)
 - **Imports**: Sorted by ruff (isort-compatible), absolute imports preferred
 - **Async**: All I/O operations use `async/await`. Blocking subprocess calls in async contexts MUST use `asyncio.to_thread()`
 
@@ -31,13 +31,17 @@ Prefer running targeted tests: `uv run pytest tests/test_lifecycle.py -x -q`
 ```
 src/shoal/
 ├── api/          # FastAPI server (REST endpoints for sessions, MCP, status)
-├── cli/          # Typer CLI (session, mcp, config commands)
-├── core/         # Business logic (config, database, state, tmux/git wrappers)
+├── cli/          # Typer CLI (session, mcp, config, remote, demo commands)
+│   └── demo/     # Demo subpackage (start/stop, tour, tutorial)
+├── core/         # Business logic (config, database, state, tmux/git wrappers,
+│                 #   journal, context propagation, remote tunnels, logging)
 ├── models/       # Pydantic models (config, session state, API schemas)
-├── services/     # Lifecycle orchestration, MCP pool/proxy, status bar
+├── services/     # Lifecycle orchestration, MCP pool/proxy/server, status bar
 ├── integrations/ # Fish shell templates and tool-specific configs
 └── dashboard/    # Terminal dashboard (Rich-based)
 ```
+
+Console entry points: `shoal` (CLI), `shoal-mcp-proxy` (stdio-to-socket bridge), `shoal-mcp-server` (FastMCP orchestration server), `shoal-status` (status bar JSON)
 
 ## Architectural Invariants
 
