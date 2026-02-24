@@ -107,3 +107,56 @@ def test_robo_status_with_robos(mock_dirs):
         assert result.exit_code == 0
         assert "Robo: status-test" in result.stdout
         assert "running" in result.stdout
+
+
+def test_robo_watch_profile_not_found(mock_dirs):
+    """Test robo watch with missing profile."""
+    result = runner.invoke(app, ["watch", "nonexistent"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout
+
+
+def test_robo_watch_shows_config(mock_dirs):
+    """Test robo watch prints config summary then falls back gracefully."""
+    runner.invoke(app, ["setup", "watch-me"])
+
+    result = runner.invoke(app, ["watch", "watch-me"])
+    assert result.exit_code == 0
+    assert "Robo watch" in result.stdout
+    assert "poll_interval" in result.stdout
+    assert "waiting_timeout" in result.stdout
+    assert "auto_approve" in result.stdout
+    assert "not implemented yet" in result.stdout
+
+
+def test_robo_watch_default_profile(mock_dirs):
+    """Test robo watch uses 'default' profile when no arg given."""
+    runner.invoke(app, ["setup", "default"])
+
+    result = runner.invoke(app, ["watch"])
+    assert result.exit_code == 0
+    assert "profile: default" in result.stdout
+
+
+def test_robo_watch_with_supervisor(mock_dirs):
+    """Test robo watch calls RoboSupervisor.run() when module exists."""
+    import types
+
+    runner.invoke(app, ["setup", "sup-test"])
+
+    mock_module = types.ModuleType("shoal.services.robo_supervisor")
+
+    class MockRoboSupervisor:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        async def run(self) -> None:
+            pass
+
+    mock_module.RoboSupervisor = MockRoboSupervisor  # type: ignore[attr-defined]
+
+    with patch.dict("sys.modules", {"shoal.services.robo_supervisor": mock_module}):
+        result = runner.invoke(app, ["watch", "sup-test"])
+        assert result.exit_code == 0
+        assert "Robo watch" in result.stdout
+        assert "not implemented yet" not in result.stdout
