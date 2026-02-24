@@ -290,3 +290,46 @@ class TestJournalDecision:
             assert "**Robo decision**: approved" in args[1]
             assert "Test detail" in args[1]
             assert args[2] == "robo"
+
+
+# ------------------------------------------------------------------
+# main() entry point tests
+# ------------------------------------------------------------------
+
+
+def test_main_reads_profile_from_argv(mock_dirs):
+    """main() reads profile name from sys.argv[1]."""
+    import contextlib
+    from unittest.mock import patch
+
+    from shoal.services.robo_supervisor import main
+
+    with (
+        patch(
+            "shoal.core.config.load_robo_profile",
+            side_effect=FileNotFoundError("not found"),
+        ) as mock_load,
+        patch("sys.argv", ["shoal-robo-supervisor", "my-profile"]),
+        contextlib.suppress(FileNotFoundError),
+    ):
+        main()
+    mock_load.assert_called_once_with("my-profile")
+
+
+def test_main_defaults_to_default_profile(mock_dirs):
+    """main() uses 'default' when sys.argv has no extra args."""
+    import contextlib
+    from unittest.mock import patch
+
+    from shoal.services.robo_supervisor import main
+
+    with (
+        patch(
+            "shoal.core.config.load_robo_profile",
+            side_effect=FileNotFoundError("not found"),
+        ) as mock_load,
+        patch("sys.argv", ["shoal-robo-supervisor"]),
+        contextlib.suppress(FileNotFoundError),
+    ):
+        main()
+    mock_load.assert_called_once_with("default")

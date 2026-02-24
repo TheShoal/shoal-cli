@@ -22,6 +22,7 @@ dependencies = [
 shoal = "shoal.cli:app"
 shoal-mcp-proxy = "shoal.services.mcp_proxy:main"
 shoal-mcp-server = "shoal.services.mcp_shoal_server:main"
+shoal-robo-supervisor = "shoal.services.robo_supervisor:main"
 shoal-status = "shoal.services.status_bar:main"
 
 [project.optional-dependencies]

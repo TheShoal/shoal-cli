@@ -1,11 +1,12 @@
 """Tests for cli/robo.py."""
 
 import asyncio
-from unittest.mock import patch
+import os
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
-from shoal.cli.robo import app
+from shoal.cli.robo import _read_robo_pid, _robo_pid_file, app
 
 runner = CliRunner()
 
@@ -161,3 +162,143 @@ def test_robo_watch_with_supervisor(mock_dirs):
         assert result.exit_code == 0
         assert "Robo watch" in result.stdout
         assert "not implemented yet" not in result.stdout
+
+
+# ------------------------------------------------------------------
+# Daemon mode tests
+# ------------------------------------------------------------------
+
+
+def test_robo_pid_file_path(mock_dirs):
+    """_robo_pid_file returns expected path within runtime_dir."""
+    pid_file = _robo_pid_file("myprofile")
+    assert pid_file.name == "robo-myprofile.pid"
+
+
+def test_read_robo_pid_missing(mock_dirs):
+    """_read_robo_pid returns None when no PID file exists."""
+    assert _read_robo_pid("no-such-profile") is None
+
+
+def test_read_robo_pid_stale(mock_dirs, tmp_path):
+    """_read_robo_pid removes stale PID file and returns None."""
+    pid_file = _robo_pid_file("stale-test")
+    pid_file.write_text("99999999")  # very unlikely real PID
+
+    # If the process doesn't exist, os.kill raises ProcessLookupError
+    with patch("shoal.cli.robo.os.kill", side_effect=ProcessLookupError):
+        result = _read_robo_pid("stale-test")
+    assert result is None
+    assert not pid_file.exists()
+
+
+def test_read_robo_pid_alive(mock_dirs):
+    """_read_robo_pid returns the PID when the process is alive."""
+    pid = os.getpid()
+    pid_file = _robo_pid_file("alive-test")
+    pid_file.write_text(str(pid))
+
+    result = _read_robo_pid("alive-test")
+    assert result == pid
+
+
+def test_robo_watch_daemon_launches_subprocess(mock_dirs):
+    """robo watch --daemon launches subprocess and prints pid."""
+    runner.invoke(app, ["setup", "daemon-test"])
+
+    mock_proc = MagicMock()
+    mock_proc.pid = 12345
+
+    with (
+        patch("shoal.cli.robo._read_robo_pid", return_value=None),
+        patch("shoal.cli.robo.subprocess.Popen", return_value=mock_proc) as mock_popen,
+    ):
+        result = runner.invoke(app, ["watch", "daemon-test", "--daemon"])
+
+    assert result.exit_code == 0
+    assert "12345" in result.stdout
+    assert "daemon" in result.stdout
+    mock_popen.assert_called_once()
+    call_args = mock_popen.call_args
+    # Verify profile name is passed as argv to the subprocess
+    cmd = call_args[0][0]
+    assert "shoal.services.robo_supervisor" in cmd
+    assert "daemon-test" in cmd
+    assert call_args[1]["start_new_session"] is True
+
+
+def test_robo_watch_daemon_already_running(mock_dirs):
+    """robo watch --daemon errors when daemon is already running."""
+    runner.invoke(app, ["setup", "dup-test"])
+
+    with patch("shoal.cli.robo._read_robo_pid", return_value=9876):
+        result = runner.invoke(app, ["watch", "dup-test", "--daemon"])
+
+    assert result.exit_code == 1
+    assert "9876" in result.stdout
+    assert "already running" in result.stdout
+
+
+def test_robo_watch_stop_success(mock_dirs):
+    """watch-stop sends SIGTERM and removes PID file."""
+    import signal as _signal
+
+    fake_pid = 99998
+    pid_file = _robo_pid_file("stop-test")
+
+    with (
+        patch("shoal.cli.robo._read_robo_pid", return_value=fake_pid) as mock_read,
+        patch("shoal.cli.robo.os.kill") as mock_kill,
+    ):
+        result = runner.invoke(app, ["watch-stop", "stop-test"])
+
+    assert result.exit_code == 0
+    assert str(fake_pid) in result.stdout
+    assert "stopped" in result.stdout
+    mock_read.assert_called_once_with("stop-test")
+    mock_kill.assert_called_once_with(fake_pid, _signal.SIGTERM)
+    assert not pid_file.exists()
+
+
+def test_robo_watch_stop_not_running(mock_dirs):
+    """watch-stop errors when daemon is not running."""
+    with patch("shoal.cli.robo._read_robo_pid", return_value=None):
+        result = runner.invoke(app, ["watch-stop", "gone-test"])
+
+    assert result.exit_code == 1
+    assert "not running" in result.stdout
+
+
+def test_robo_watch_status_running(mock_dirs):
+    """watch-status reports running when PID is alive."""
+    with patch("shoal.cli.robo._read_robo_pid", return_value=5555):
+        result = runner.invoke(app, ["watch-status", "live-test"])
+
+    assert result.exit_code == 0
+    assert "5555" in result.stdout
+    assert "running" in result.stdout
+
+
+def test_robo_watch_status_not_running(mock_dirs):
+    """watch-status reports not running when no PID."""
+    with patch("shoal.cli.robo._read_robo_pid", return_value=None):
+        result = runner.invoke(app, ["watch-status", "dead-test"])
+
+    assert result.exit_code == 0
+    assert "not running" in result.stdout
+
+
+def test_robo_watch_stop_default_profile(mock_dirs):
+    """watch-stop uses 'default' profile when no arg given."""
+    with patch("shoal.cli.robo._read_robo_pid", return_value=None):
+        result = runner.invoke(app, ["watch-stop"])
+    assert result.exit_code == 1
+    assert "not running" in result.stdout
+
+
+def test_robo_watch_status_default_profile(mock_dirs):
+    """watch-status uses 'default' profile when no arg given."""
+    with patch("shoal.cli.robo._read_robo_pid", return_value=None):
+        result = runner.invoke(app, ["watch-status"])
+    assert result.exit_code == 0
+    assert "default" in result.stdout
