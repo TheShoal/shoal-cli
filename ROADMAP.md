@@ -88,7 +88,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - [x] Journal auto-entries for status changes (written via lifecycle hook)
 - [x] `shoal history <session>` CLI command — status timeline with durations
 - [x] New MCP tools: `capture_pane`, `read_history`
-- [ ] Server Composition Gateway investigation (FastMCP `mount()`)
+- [x] Server Composition Gateway investigation (FastMCP `mount()`) — no-go, deferred to backlog. See [docs/composition-gateway.md](docs/composition-gateway.md)
 
 ### Phase 3 — Session Graph
 
@@ -119,7 +119,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - **Linux notifications**: Solved by fish event hooks — users wire `notify-send` or ntfy in their fish config
 - **Dashboard actions**: Add fork, approve, send-keys, filter-by-status as fzf popup actions
 - **Agent readiness signals**: Poll-until-pattern readiness check replacing `asyncio.sleep(1)` hack after session creation
-- **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()`
+- **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when robo supervisor needs unified cross-session MCP or FastMCP adds UDS transport
 - **Oh-My-Pi (omp) Integration**: `omp.toml` tool definition and `omp-dev` session template; native MCP via `omp plugin`; detection pattern tuning for omp's extended TUI
 - Remote status bar: Fish status bar polls remote WebSocket for session status
 - **Robo merge/worktree workflow**: Document merge-back-to-main lifecycle for robo supervisor — concrete instructions in default `AGENTS.md` template and ROBO_GUIDE section covering: branch readiness checks, test verification before merge, safe auto-merge patterns vs. human review, worktree cleanup after merge, and post-session branch deletion. Consider dedicated MCP tools (`merge_branch`, `branch_status`) so robo doesn't need raw `send_keys` for git operations.
@@ -130,24 +130,19 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-02-24 — v0.18.0 Phase 2 parallel implementation
+### Session: 2026-02-24 — v0.18.0 Phase 2 composition gateway spike
 
 **What we did:**
 
-- Reviewed Phase 1 agent-generated code (3 merged branches) — clean, 1 minor test annotation cosmetic
-- Shipped Phase 2 via 2 parallel Claude Code sessions (`shoal-sendkeys-mcp`, `shoal-status-history`) + integration commit
-- Fixed send_keys Enter bug: root cause was tmux key-name interpretation in text — fix uses `-l` flag for literal text, separate `Enter` call
-- Added `capture_pane` MCP tool (readOnlyHint, session resolution, pane targeting, 5 tests)
-- Added `status_transitions` SQLite table with indexed save/query methods in `core/db.py`
-- Wired transition recording via 2 new lifecycle hooks: `_hook_record_status_transition` (DB) + `_hook_journal_on_status_change` (journal)
-- Added `shoal history <session>` CLI command with Rich table (timestamps, color-styled statuses, durations)
-- Added `read_history` MCP tool for agent-accessible status transition queries (3 tests)
-- 4 commits, 12 files changed (+768 lines), 927 tests passing (was 900), mypy/ruff/bandit clean
-- Phase 2: 5/6 items complete — only Server Composition Gateway investigation remains
+- Completed Server Composition Gateway investigation (last Phase 2 item)
+- Researched FastMCP 3.x `mount()`, `create_proxy()`, namespace transforms, and proxy providers
+- Wrote spike findings doc at `docs/composition-gateway.md` matching `docs/transport-spike.md` format
+- **Decision: No-go** — gateway duplicates pool subprocess management, adds 90 MB per-session overhead, and FastMCP lacks UDS transport (can't bridge to existing pool sockets)
+- Updated ROADMAP.md: Phase 2 complete (6/6 items), moved gateway to backlog with deferral rationale
+- Phase 2 is now fully complete
 
 **What to do next:**
 
 - Push to origin and tag release (carried over from previous sessions)
-- Server Composition Gateway investigation (FastMCP `mount()`) — last Phase 2 item
 - Start Phase 3: Session Graph (`parent_id`, `tags`, `template_name` on SessionState, `shoal tag`, `shoal ls --tree`)
 - Or start Phase 4: Robo Supervision Loop (`services/robo_supervisor.py`)
