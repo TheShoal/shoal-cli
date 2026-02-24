@@ -165,7 +165,10 @@ async def session_info_tool(session: str) -> dict[str, Any]:
 
 @mcp.tool(
     name="send_keys",
-    description="Send keystrokes to a session's tmux pane. Use this to interact with agents.",
+    description=(
+        "Send keystrokes to a session's tmux pane. Use this to interact with agents. "
+        "Enter is pressed automatically after the keys — do not append Enter yourself."
+    ),
     annotations={"destructiveHint": True},
 )
 async def send_keys_tool(session: str, keys: str) -> dict[str, str]:
@@ -173,7 +176,7 @@ async def send_keys_tool(session: str, keys: str) -> dict[str, str]:
 
     Args:
         session: Session name or ID.
-        keys: The keystrokes to send (e.g., 'y', 'Enter', or a command string).
+        keys: The keystrokes to send (e.g., 'y' or 'ls -la'). Enter is sent automatically.
     """
     from shoal.core import tmux
     from shoal.core.state import get_session, resolve_session
@@ -210,6 +213,7 @@ async def create_session_tool(
     branch: bool = False,
     template: str | None = None,
     mcp_servers: list[str] | None = None,
+    prompt: str | None = None,
 ) -> dict[str, Any]:
     """Create a new agent session.
 
@@ -221,6 +225,7 @@ async def create_session_tool(
         branch: Create a new branch for the worktree.
         template: Session template name to apply.
         mcp_servers: MCP servers to provision (e.g. ["memory", "github"]).
+        prompt: Initial prompt to send to the agent after startup. Enter is pressed automatically.
     """
     from shoal.core import git
     from shoal.core.config import ensure_dirs, load_config, load_template, load_tool_config
@@ -313,6 +318,15 @@ async def create_session_tool(
         raise ToolError(f"Startup command failed: {e}") from e
     except ValueError as e:
         raise ToolError(f"Invalid session configuration: {e}") from e
+
+    if prompt:
+        import asyncio
+
+        from shoal.core import tmux
+
+        # Brief delay to let the tool finish launching in the pane
+        await asyncio.sleep(1)
+        await tmux.async_send_keys(session.tmux_session, prompt)
 
     return {
         "id": session.id,

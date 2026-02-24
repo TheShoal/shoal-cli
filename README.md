@@ -8,7 +8,7 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.16.0-beta-EED49F?style=flat-square" alt="v0.16.0 beta">
+  <img src="https://img.shields.io/badge/v0.17.0--dev-beta-EED49F?style=flat-square" alt="v0.17.0-dev beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
 </p>
@@ -25,7 +25,7 @@
 
 <!-- Row 3 — Quality -->
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-589_passing-A6DA95?style=flat-square" alt="Tests: 589 passing">
+  <img src="https://img.shields.io/badge/tests-862_passing-A6DA95?style=flat-square" alt="Tests: 862 passing">
   <img src="https://img.shields.io/badge/coverage-81%25-8BD5CA?style=flat-square" alt="Coverage: 81%">
   <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
 </p>
@@ -66,9 +66,17 @@ You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. Yo
 
 **Real-time status detection** watches tmux pane output and reports each agent's state: Thinking, Waiting, Error, or Idle. You always know who needs attention.
 
-**Session templates** define window layouts, pane splits, and tool configs in TOML. Templates support inheritance (`extends`) and composition (`mixins`) to eliminate duplication across workflows.
+**Session templates** define window layouts, pane splits, and tool configs in TOML. Templates support inheritance (`extends`) and composition (`mixins`) to eliminate duplication across workflows. Project-local templates in `.shoal/templates/` shadow global ones.
+
+**Session journals** provide append-only markdown logs per session with Obsidian-compatible YAML frontmatter. Journals are archived automatically when sessions are killed.
+
+**Remote sessions** let you monitor and control agents on remote machines via SSH tunnel. `shoal remote connect` opens a tunnel; `shoal remote ls` and `shoal remote send` work through it.
+
+**Shoal MCP server** exposes orchestration tools (list, create, kill, send keys) via FastMCP so agents can call Shoal natively — enabling robo supervisor workflows where agents manage other agents.
 
 **Robo supervisor mode** gives a coordinating agent access to the Shoal CLI. It monitors the fleet, sends keystrokes, approves actions, and routes tasks — your agents managing agents.
+
+**Diagnostics** built in — `shoal diag` checks DB connectivity, watcher PID, tmux reachability, and MCP sockets. `shoal mcp doctor` runs protocol-level health checks on pooled servers.
 
 ---
 
@@ -92,17 +100,57 @@ You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. Yo
 
 ## Quick Start
 
+### Prerequisites
+
+Shoal requires these tools on your system:
+
+| Tool | Install | Why |
+| ---- | ------- | --- |
+| **[uv](https://docs.astral.sh/uv/)** | `curl -LsSf https://astral.sh/uv/install.sh \| sh` | Python package manager — installs Shoal and its dependencies |
+| **[fish](https://fishshell.com/)** | `sudo apt install fish` / `brew install fish` | Shell integration — completions, key bindings, abbreviations |
+| **[tmux](https://github.com/tmux/tmux)** | `sudo apt install tmux` / `brew install tmux` | Session multiplexer — each agent runs in its own tmux pane |
+| **[git](https://git-scm.com/)** | `sudo apt install git` / `brew install git` | Worktree isolation and branch management |
+| **[fzf](https://github.com/junegunn/fzf)** | `sudo apt install fzf` / `brew install fzf` | Interactive session picker for `shoal attach` |
+
+Optional:
+
+| Tool | Install | Why |
+| ---- | ------- | --- |
+| **[gh](https://cli.github.com/)** | `sudo apt install gh` / `brew install gh` | GitHub CLI — used by `shoal wt finish --pr` |
+| **[nvr](https://github.com/mhinz/neovim-remote)** | `pip install neovim-remote` | Neovim remote control integration |
+
+> **Minimum versions**: Python 3.12+, tmux 3.3+, fish 3.6+
+
+`shoal init` checks for tmux, git, fzf, gh, and nvr and reports what's missing.
+
 ### Install
 
 ```bash
 # Recommended
 uv tool install .
 
-# From source (dev)
-git clone git@github.com:usm-ricardoroche/shoal.git
-cd shoal && uv pip install -e ".[dev]"
-just setup  # install pre-commit + commit-msg hooks
+# With MCP support (enables shoal-orchestrator)
+uv tool install ".[mcp]"
 ```
+
+### From Source (dev)
+
+```bash
+git clone git@github.com:usm-ricardoroche/shoal.git
+cd shoal
+uv tool install -e ".[dev,mcp]"
+uv tool install pre-commit
+just setup                   # install pre-commit + commit-msg hooks
+```
+
+### Setup
+
+```bash
+shoal init          # create DB, scaffold configs, check dependencies
+shoal setup fish    # install fish completions, keybindings, abbreviations
+```
+
+`shoal init` creates `~/.config/shoal/` (config, tool profiles, templates) and `~/.local/state/shoal/` (database, MCP sockets). It also checks that required tools are installed and reports anything missing.
 
 ### Try the Demo
 
@@ -205,10 +253,21 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 
 ### MCP Pool (`shoal mcp`)
 
-| Command      | Description                          |
-| ------------ | ------------------------------------ |
-| `start/stop` | Manage pooled servers                |
-| `attach`     | Connect a session to a pooled server |
+| Command    | Description                                    |
+| ---------- | ---------------------------------------------- |
+| `start`    | Start a pooled MCP server                      |
+| `stop`     | Stop a pooled MCP server                       |
+| `attach`   | Connect a session to a pooled server            |
+| `doctor`   | Protocol-level health check on pooled servers   |
+| `registry` | Show configured MCP server registry             |
+
+### Diagnostics & Config
+
+| Command             | Description                                |
+| ------------------- | ------------------------------------------ |
+| `shoal diag`        | Check DB, watcher, tmux, MCP socket health |
+| `shoal config show` | Display resolved configuration             |
+| `shoal journal`     | View or append to session journals         |
 
 ### Templates (`shoal template`)
 
@@ -222,10 +281,12 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 
 ### Demo (`shoal demo`)
 
-| Command | Description                                           |
-| ------- | ----------------------------------------------------- |
-| `start` | Spin up a full demo environment with example sessions |
-| `stop`  | Tear down the demo environment                        |
+| Command    | Description                                           |
+| ---------- | ----------------------------------------------------- |
+| `start`    | Spin up a full demo environment with example sessions |
+| `stop`     | Tear down the demo environment                        |
+| `tour`     | Guided 7-step feature walkthrough                     |
+| `tutorial` | Interactive hands-on tutorial with real sessions      |
 
 ### Robo Supervisor (`shoal robo`)
 
@@ -280,11 +341,12 @@ Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection
 
 ## Status
 
-| Milestone   | Focus                                 | Status   |
-| ----------- | ------------------------------------- | -------- |
-| **v0.16.0** | Remote sessions via SSH tunnel        | Current  |
-| **v0.15.0** | FastMCP integration, Shoal MCP server | Complete |
-| **v0.14.0** | Template inheritance and mixins       | Complete |
+| Milestone   | Focus                                      | Status   |
+| ----------- | ------------------------------------------ | -------- |
+| **v0.17.0** | Demo overhaul, config introspection, journals | Dev      |
+| **v0.16.0** | Remote sessions via SSH tunnel             | Complete |
+| **v0.15.0** | FastMCP integration, Shoal MCP server      | Complete |
+| **v0.14.0** | Template inheritance and mixins            | Complete |
 
 See [ROADMAP.md](ROADMAP.md) for the full plan.
 
@@ -301,7 +363,7 @@ just cov         # tests with coverage report
 just setup       # install pre-commit hooks
 ```
 
-**589 tests** | **81% coverage** | **pre-commit enforced** | **conventional commits**
+**862 tests** | **81% coverage** | **pre-commit enforced** | **conventional commits**
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 

@@ -19,6 +19,12 @@ Print the reference card below directly to the user. Do not paraphrase or summar
 | `/shoal-release <version>` | Cut a release: verify clean tree → `just ci` → bump `pyproject.toml` + `__init__.py` → update CHANGELOG → commit → tag → confirm before push. |
 | `/shoal-coverage [module]` | Run tests with coverage. Shows files below 80% gate, cross-references with recent git changes. Optional per-module targeting. |
 | `/shoal-handoff [update]` | Read ROADMAP.md handoff section for session context. Pass `update` to write a new handoff entry. |
+| `/shoal-scaffold <type> <name>` | Scaffold modules, CLI commands, services, models, MCP tools, templates with tests. Types: `cli`, `service`, `core`, `model`, `mcp-tool`, `template`, `integration`. |
+| `/shoal-parallel [plan\|launch\|status\|collect]` | Orchestrate parallel Shoal sessions for independent workstreams. Uses Shoal's own MCP tools to spin up, monitor, and merge parallel dev sessions. |
+| `/shoal-arch-check [target]` | Validate architectural invariants: async correctness, lifecycle delegation, module boundaries, detection patterns, DB/MCP patterns. Targets: `async`, `lifecycle`, `boundaries`, `detection`, `db`, `mcp`, `all`. |
+| `/shoal-dogfood [area]` | Test Shoal features by actually using them via MCP tools and CLI. Areas: `sessions`, `mcp`, `templates`, `cli`, `detection`. |
+| `/shoal-changelog [preview\|write\|diff]` | Generate CHANGELOG.md entries from git history since last release. Categorizes by conventional commit type. |
+| `/shoal-deps [check]` | Audit dependencies: updates, unused, optional boundary validation, security. Checks: `updates`, `unused`, `boundaries`, `security`, `tree`, `audit`. |
 | `/shoal-help [section]` | This reference card. |
 
 ## Agents (invoked automatically via Task tool)
@@ -43,7 +49,7 @@ Print the reference card below directly to the user. Do not paraphrase or summar
 
 | Server | Registration |
 |--------|-------------|
-| `shoal-orchestrator` | Registered in `.mcp.json`. Entry point: `shoal-mcp-server` (stdio). Exposes 6 tools: `list_sessions`, `session_status`, `session_info`, `send_keys`, `create_session`, `kill_session`. |
+| `shoal-orchestrator` | Registered in `.mcp.json`. Entry point: `shoal-mcp-server` (stdio). Exposes 8 tools: `list_sessions`, `session_status`, `session_info`, `send_keys`, `create_session`, `kill_session`, `append_journal`, `read_journal`. |
 
 ## Project Permissions (`.claude/settings.local.json`)
 
