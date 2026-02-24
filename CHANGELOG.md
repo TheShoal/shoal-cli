@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`shoal journal --archived <session>`**: Read archived journals from killed sessions with `read_archived_journal()` core helper, DB name resolution fallback, and Rich rendering
 - **Nerd Font toggle**: `use_nerd_fonts` config flag in `GeneralConfig` (default `True`), wired through `_ls_impl` and `_status_impl` with Unicode fallback symbols
 - **Feature documentation**: `docs/JOURNALS.md`, `docs/LOCAL_TEMPLATES.md`, `docs/HTTP_TRANSPORT.md` — standalone guides for shipped features
+- **Lifecycle event system**: `LifecycleEvent` enum (`session_created`, `session_killed`, `session_forked`, `status_changed`) with async callback registry (`lifecycle.on()` / `lifecycle.emit()`)
+- **Built-in lifecycle hooks**: Auto-journal entry on session create, fish event emission via `fish -c "emit shoal_status_changed <name> <status>"`
+- **Fish event hook templates**: `hooks.fish` with `__shoal_on_status_changed` dispatcher and per-status handlers (`__shoal_on_waiting`, `__shoal_on_error`, `__shoal_on_created`, `__shoal_on_killed`), installed by `shoal setup fish`
+- **Pre-commit agent bypass**: `SHOAL_AGENT=1` env var skips pre-commit hooks in Shoal-spawned agent sessions
+
+### Changed
+- **Tool-profile-aware `send_keys`**: MCP `send_keys` tool checks session tool profile for Enter handling behavior
 
 ### Fixed
 - **mypy strict**: Resolved type narrowing error in journal archived CLI (`str | None` assignment)

@@ -228,12 +228,20 @@ async def test_send_keys_claude_auto_enter() -> None:
     with (
         patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
         patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%1",
+        ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
     ):
         result = await send_keys_tool(session="worker-1", keys="y")
 
     assert "worker-1" in result["message"]
-    mock_send.assert_called_once_with("_worker-1", "y", enter=True)
+    # Must target the titled pane, not just the session name
+    mock_pane.assert_called_once_with("_worker-1", "shoal:abc12345")
+    # Claude is a CLI tool → auto-enter=True
+    mock_send.assert_called_once_with("%1", "y", enter=True)
 
 
 async def test_send_keys_opencode_no_auto_enter() -> None:
@@ -244,12 +252,18 @@ async def test_send_keys_opencode_no_auto_enter() -> None:
     with (
         patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="def67890"),
         patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%2",
+        ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
     ):
         result = await send_keys_tool(session="worker-2", keys="y")
 
     assert "worker-2" in result["message"]
-    mock_send.assert_called_once_with("_worker-2", "y", enter=False)
+    mock_pane.assert_called_once_with("_worker-2", "shoal:def67890")
+    mock_send.assert_called_once_with("%2", "y", enter=False)
 
 
 async def test_send_keys_explicit_enter_override() -> None:
@@ -260,12 +274,18 @@ async def test_send_keys_explicit_enter_override() -> None:
     with (
         patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="ghi11111"),
         patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%4",
+        ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
     ):
         result = await send_keys_tool(session="worker-3", keys="y", enter=True)
 
     assert "worker-3" in result["message"]
-    mock_send.assert_called_once_with("_worker-3", "y", enter=True)
+    mock_pane.assert_called_once_with("_worker-3", "shoal:ghi11111")
+    mock_send.assert_called_once_with("%4", "y", enter=True)
 
 
 async def test_send_keys_not_found() -> None:
@@ -281,6 +301,33 @@ async def test_send_keys_not_found() -> None:
 # ---------------------------------------------------------------------------
 # kill_session
 # ---------------------------------------------------------------------------
+
+
+async def test_send_keys_targets_shoal_pane() -> None:
+    """send_keys uses preferred_pane to avoid landing in the wrong pane.
+
+    Without preferred_pane, tmux targets the *active* pane which may not be
+    the tool pane when the session has multiple panes (e.g. editor + terminal).
+    """
+    from shoal.services.mcp_shoal_server import send_keys_tool
+
+    s = _make_session(name="worker-2", session_id="deadbeef")
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="deadbeef"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%3",
+        ) as mock_pane,
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        await send_keys_tool(session="worker-2", keys="ls -la")
+
+    # Pane title is "shoal:<session_id>" matching the Shoal pane identity contract
+    mock_pane.assert_called_once_with("_worker-2", "shoal:deadbeef")
+    # Keys go to the resolved pane ID, not the raw session name
+    mock_send.assert_called_once_with("%3", "ls -la", enter=True)
 
 
 async def test_kill_session_success() -> None:

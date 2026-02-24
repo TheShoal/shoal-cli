@@ -198,7 +198,11 @@ async def send_keys_tool(session: str, keys: str, enter: bool | None = None) -> 
         raise ToolError(f"Session not found: {session}")
 
     auto_enter = enter if enter is not None else s.tool in _AUTO_ENTER_TOOLS
-    await tmux.async_send_keys(s.tmux_session, keys, enter=auto_enter)
+    # Use preferred_pane to target the titled pane (shoal:<id>), not just the
+    # active pane in the session.  Without this, keys land in whatever pane
+    # happens to be active, which may not be the tool pane.
+    pane_target = await tmux.async_preferred_pane(s.tmux_session, f"shoal:{s.id}")
+    await tmux.async_send_keys(pane_target, keys, enter=auto_enter)
     return {"message": f"Keys sent to session '{s.name}'"}
 
 
