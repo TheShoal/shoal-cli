@@ -28,6 +28,7 @@ htmlcov/
 .ruff_cache/
 
 # Claude settings
+.claude/worktrees
 settings.local.json
 
 # Workflow

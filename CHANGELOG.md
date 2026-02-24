@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`status_transitions` SQLite table**: Records every status change with session ID, from/to status, timestamp, and optional pane snapshot
 - **`shoal history <session>` CLI**: Rich table showing status transition timeline with timestamps, color-styled statuses, and durations
 - **Status change lifecycle hooks**: `_hook_record_status_transition` persists to DB; `_hook_journal_on_status_change` appends journal entries
+- **Session graph fields**: `parent_id`, `tags`, `template_name` on `SessionState` — Pydantic defaults handle existing DB rows
+- **`shoal tag` CLI subcommand**: `shoal tag <session> add/remove/ls` for managing session tags
+- **`shoal ls --tag <tag>`**: Filter sessions by tag
+- **`shoal ls --tree`**: Display fork relationships as indented tree with tree characters
+- **`shoal journal --search <query>`**: Search across all session journals (case-insensitive substring match)
+- **`JournalSearchResult`**: Dataclass for structured journal search results
+- **Fork tracking**: `fork_session_lifecycle` records `parent_id` from source session
+- **Template tracking**: `create_session_lifecycle` records `template_name` from template config
+- **Enhanced `shoal info`**: Shows parent session, template name, and tags when present
+- **Composition gateway spike**: `docs/composition-gateway.md` — FastMCP `mount()` investigation, decision no-go
 
 ### Changed
 - **Tool-profile-aware `send_keys`**: MCP `send_keys` tool checks session tool profile for Enter handling behavior

@@ -92,11 +92,11 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 ### Phase 3 — Session Graph
 
-- [ ] `parent_id`, `tags`, `template_name` fields on `SessionState`
-- [ ] `shoal tag <session> add/remove <tag>` command
-- [ ] `shoal ls --tag <tag>` and `shoal ls --tree` (fork relationships)
-- [ ] `shoal journal search <query>` across all session journals
-- [ ] Fork tracking: `fork_session_lifecycle` records `parent_id`
+- [x] `parent_id`, `tags`, `template_name` fields on `SessionState`
+- [x] `shoal tag <session> add/remove <tag>` command
+- [x] `shoal ls --tag <tag>` and `shoal ls --tree` (fork relationships)
+- [x] `shoal journal search <query>` across all session journals
+- [x] Fork tracking: `fork_session_lifecycle` records `parent_id`
 
 ### Phase 4 — Robo Supervision Loop
 
@@ -123,6 +123,7 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - **Oh-My-Pi (omp) Integration**: `omp.toml` tool definition and `omp-dev` session template; native MCP via `omp plugin`; detection pattern tuning for omp's extended TUI
 - Remote status bar: Fish status bar polls remote WebSocket for session status
 - **Robo merge/worktree workflow**: Document merge-back-to-main lifecycle for robo supervisor — concrete instructions in default `AGENTS.md` template and ROBO_GUIDE section covering: branch readiness checks, test verification before merge, safe auto-merge patterns vs. human review, worktree cleanup after merge, and post-session branch deletion. Consider dedicated MCP tools (`merge_branch`, `branch_status`) so robo doesn't need raw `send_keys` for git operations.
+- **Per-session git practices**: Once template env vars are wired up (blocked by env var gap), support git identity and conventions per session via `[template.env]` (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Longer-term: dedicated `[template.git]` section for commit conventions, hook profiles, and branch naming rules — enabling different practices for admin agents, robo supervisors, and task workers.
 
 ---
 
@@ -130,19 +131,22 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-02-24 — v0.18.0 Phase 2 composition gateway spike
+### Session: 2026-02-24 — v0.18.0 Phase 2+3 parallel implementation
 
 **What we did:**
 
-- Completed Server Composition Gateway investigation (last Phase 2 item)
-- Researched FastMCP 3.x `mount()`, `create_proxy()`, namespace transforms, and proxy providers
-- Wrote spike findings doc at `docs/composition-gateway.md` matching `docs/transport-spike.md` format
-- **Decision: No-go** — gateway duplicates pool subprocess management, adds 90 MB per-session overhead, and FastMCP lacks UDS transport (can't bridge to existing pool sockets)
-- Updated ROADMAP.md: Phase 2 complete (6/6 items), moved gateway to backlog with deferral rationale
-- Phase 2 is now fully complete
+- Completed Phase 2 + Phase 3 in parallel via 2 Shoal sessions (`shoal-gateway-spike`, `shoal-session-graph`)
+- **Phase 2 final item**: Composition Gateway spike — researched FastMCP `mount()`, decision no-go, wrote `docs/composition-gateway.md`
+- **Phase 3 complete**: Session Graph — `parent_id`, `tags`, `template_name` on SessionState
+- Added `shoal tag add/remove/ls` CLI subcommand group
+- Added `shoal ls --tag` filtering and `--tree` fork-relationship display
+- Added `shoal journal --search` for cross-session journal search
+- Enhanced `shoal info` with parent, template, and tags display
+- 24 new tests in `tests/test_session_graph.py`, 951 total passing
+- 4 commits across 2 branches, merged cleanly into main, `just ci` all green
 
 **What to do next:**
 
 - Push to origin and tag release (carried over from previous sessions)
-- Start Phase 3: Session Graph (`parent_id`, `tags`, `template_name` on SessionState, `shoal tag`, `shoal ls --tree`)
-- Or start Phase 4: Robo Supervision Loop (`services/robo_supervisor.py`)
+- Update CHANGELOG.md with session graph additions
+- Start Phase 4: Robo Supervision Loop (`services/robo_supervisor.py`)
