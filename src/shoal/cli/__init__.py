@@ -20,6 +20,7 @@ from shoal.cli.session import attach, detach, popup, prune, rename
 from shoal.cli.session_create import add, fork, kill
 from shoal.cli.session_view import info, logs, ls, status
 from shoal.cli.setup import app as setup_app
+from shoal.cli.tag import app as tag_app
 from shoal.cli.template import app as template_app
 from shoal.cli.watcher import app as watcher_app
 from shoal.cli.worktree import app as wt_app
@@ -88,6 +89,7 @@ app.add_typer(watcher_app, name="watcher", help="Background status watcher.")
 app.add_typer(demo_app, name="demo", help="Demo environment.")
 app.add_typer(remote_app, name="remote", help="Remote session management.")
 app.add_typer(setup_app, name="setup", help="Setup shell integrations.")
+app.add_typer(tag_app, name="tag", help="Session tags.")
 app.add_typer(template_app, name="template", help="Session templates.")
 app.add_typer(config_app, name="config", help="Configuration inspection.")
 

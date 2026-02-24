@@ -16,6 +16,7 @@ from shoal.core.journal import (
     journal_exists,
     read_archived_journal,
     read_journal,
+    search_journals,
 )
 from shoal.core.state import resolve_session
 
@@ -23,13 +24,16 @@ console = Console()
 
 
 def journal_view(
-    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,
     append: Annotated[str | None, typer.Option("--append", "-a", help="Append entry text")] = None,
     source: Annotated[str, typer.Option("--source", "-s", help="Entry source tag")] = "cli",
     limit: Annotated[int | None, typer.Option("--limit", "-n", help="Show last N entries")] = None,
     archived: Annotated[
         bool, typer.Option("--archived", help="Read from archived journal")
     ] = False,
+    search: Annotated[
+        str | None, typer.Option("--search", help="Search across all journals")
+    ] = None,
 ) -> None:
     """View or append to a session journal."""
     import asyncio
@@ -37,6 +41,14 @@ def journal_view(
     from shoal.core.journal import build_journal_metadata
     from shoal.core.state import get_session
     from shoal.models.state import SessionState
+
+    if search is not None:
+        _search_journals(search, limit=limit or 10)
+        return
+
+    if not session:
+        console.print("[red]Session argument required (or use --search)[/red]")
+        raise typer.Exit(1)
 
     if archived:
         _view_archived(session, limit=limit)
@@ -102,6 +114,22 @@ def _view_archived(session: str, *, limit: int | None = None) -> None:
 
     console.print(f"[dim]Archived journal for {session}[/dim]\n")
     _render_entries(entries)
+
+
+def _search_journals(query: str, *, limit: int = 10) -> None:
+    """Search across all journals and display results."""
+    results = search_journals(query, limit=limit)
+    if not results:
+        console.print(f"[yellow]No results for '{query}'[/yellow]")
+        return
+
+    console.print(f"[bold]Found {len(results)} result(s) for '{query}':[/bold]\n")
+    for result in results:
+        ts = result.entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        src_tag = f" [{result.entry.source}]" if result.entry.source else ""
+        console.print(f"[dim]{result.session_id}[/dim] {ts}{src_tag}")
+        console.print(Markdown(result.entry.content))
+        console.print("[dim]---[/dim]")
 
 
 def _render_entries(entries: list[JournalEntry]) -> None:

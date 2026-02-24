@@ -267,6 +267,42 @@ def read_archived_journal(session_id: str, limit: int | None = None) -> list[Jou
     return entries
 
 
+@dataclass(frozen=True)
+class JournalSearchResult:
+    """A journal entry with its session ID."""
+
+    session_id: str
+    entry: JournalEntry
+
+
+def search_journals(query: str, limit: int = 10) -> list[JournalSearchResult]:
+    """Search across all session journals for entries matching *query*.
+
+    Performs case-insensitive substring matching on entry content.
+    Returns up to *limit* results, newest first.
+    """
+    journals_dir = _journals_dir()
+    if not journals_dir.exists():
+        return []
+
+    query_lower = query.lower()
+    results: list[JournalSearchResult] = []
+
+    for journal_file in journals_dir.glob("*.md"):
+        session_id = journal_file.stem
+        text = journal_file.read_text()
+        entries = _parse_journal(text)
+        results.extend(
+            JournalSearchResult(session_id=session_id, entry=entry)
+            for entry in entries
+            if query_lower in entry.content.lower()
+        )
+
+    # Sort newest first
+    results.sort(key=lambda r: r.entry.timestamp, reverse=True)
+    return results[:limit]
+
+
 def archive_journal(session_id: str) -> bool:
     """Archive a session journal. Returns True if it existed and was archived."""
     path = journal_path(session_id)

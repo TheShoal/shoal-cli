@@ -631,11 +631,19 @@ async def create_session_lifecycle(
         StartupCommandError: startup command interpolation/execution failed.
         ValueError: invalid session name.
     """
+    template_name = template_cfg.name if template_cfg else ""
     logger.info("[%s] create: starting (tool=%s)", session_name, tool)
 
     # 1. Create DB row
     try:
-        session = await create_session(session_name, tool, git_root, wt_path, branch_name)
+        session = await create_session(
+            session_name,
+            tool,
+            git_root,
+            wt_path,
+            branch_name,
+            template_name=template_name,
+        )
     except ValueError as exc:
         if "already exists" in str(exc) or "collides" in str(exc):
             raise SessionExistsError(str(exc), session_id="", operation="create") from exc
@@ -754,6 +762,7 @@ async def fork_session_lifecycle(
     template_cfg: SessionTemplateConfig | None = None,
     worktree_name: str = "",
     mcp_servers: list[str] | None = None,
+    parent_id: str = "",
 ) -> SessionState:
     """Fork a session with full rollback on failure.
 
@@ -773,6 +782,7 @@ async def fork_session_lifecycle(
             source_path,
             wt_path,
             new_branch,
+            parent_id=parent_id,
         )
     except ValueError as exc:
         if "already exists" in str(exc) or "collides" in str(exc):

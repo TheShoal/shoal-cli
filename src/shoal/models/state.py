@@ -46,6 +46,9 @@ class SessionState(BaseModel):
     status: SessionStatus = SessionStatus.idle
     pid: int | None = None
     mcp_servers: list[str] = Field(default_factory=list)
+    parent_id: str = ""
+    tags: list[str] = Field(default_factory=list)
+    template_name: str = ""
     created_at: datetime = Field(default_factory=_utcnow)
     last_activity: datetime = Field(default_factory=_utcnow)
 
