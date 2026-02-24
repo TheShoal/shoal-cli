@@ -11,7 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from shoal.core import tmux
-from shoal.core.config import ensure_dirs, load_tool_config
+from shoal.core.config import ensure_dirs, load_config, load_tool_config
 from shoal.core.db import with_db
 from shoal.core.state import (
     _get_tool_icon,
@@ -58,6 +58,8 @@ async def _ls_impl(format: str | None) -> None:
         console.print("No sessions")
         return
 
+    use_nerd = load_config().general.use_nerd_fonts
+
     # Group sessions by path
 
     from collections import defaultdict
@@ -90,17 +92,19 @@ async def _ls_impl(format: str | None) -> None:
             if s.status.value != "stopped" and not tmux.has_session(s.tmux_session):
                 is_ghost = True
 
+            status_icon = get_status_icon(s.status.value, use_nerd=use_nerd)
             status_style = get_status_style(s.status.value)
 
             status_text = (
-                f"[{status_style}]{s.status.value}[/{status_style}]"
+                f"[{status_style}]{status_icon} {s.status.value}[/{status_style}]"
                 if status_style
                 else s.status.value
             )
 
             if is_ghost:
+                ghost_icon = Icons.GHOST if use_nerd else Symbols.CROSS
                 status_text = (
-                    f"[bold red]{Icons.GHOST} ghost[/bold red] [dim](was {s.status.value})[/dim]"
+                    f"[bold red]{ghost_icon} ghost[/bold red] [dim](was {s.status.value})[/dim]"
                 )
 
             wt_display = ""
@@ -118,11 +122,12 @@ async def _ls_impl(format: str | None) -> None:
                 wt_display,
             )
 
+        session_icon = Icons.SESSION if use_nerd else Symbols.BULLET_FILLED
         console.print()
         console.print(
             create_panel(
                 table,
-                title=f"[bold blue]{Icons.SESSION} {display_project}[/bold blue]",
+                title=f"[bold blue]{session_icon} {display_project}[/bold blue]",
                 primary=True,
                 title_align="left",
                 padding=(0, 1),
@@ -185,6 +190,8 @@ async def _status_impl(format: str | None) -> None:
         console.print(f"Total: {total} | {', '.join(status_parts)}")
         return
 
+    use_nerd = load_config().general.use_nerd_fonts
+
     total = len(sessions)
     from rich.text import Text
 
@@ -193,15 +200,20 @@ async def _status_impl(format: str | None) -> None:
 
     parts = []
     if counts["running"]:
-        parts.append(f"[green]{get_status_icon('running')} {counts['running']} running[/green]")
+        ri = get_status_icon("running", use_nerd=use_nerd)
+        parts.append(f"[green]{ri} {counts['running']} running[/green]")
     if counts["waiting"]:
-        parts.append(f"[yellow]{get_status_icon('waiting')} {counts['waiting']} waiting[/yellow]")
+        wi = get_status_icon("waiting", use_nerd=use_nerd)
+        parts.append(f"[yellow]{wi} {counts['waiting']} waiting[/yellow]")
     if counts["error"]:
-        parts.append(f"[red]{get_status_icon('error')} {counts['error']} error[/red]")
+        ei = get_status_icon("error", use_nerd=use_nerd)
+        parts.append(f"[red]{ei} {counts['error']} error[/red]")
     if counts["idle"]:
-        parts.append(f"{get_status_icon('idle')} {counts['idle']} idle")
+        ii = get_status_icon("idle", use_nerd=use_nerd)
+        parts.append(f"{ii} {counts['idle']} idle")
     if counts["stopped"]:
-        parts.append(f"[dim]{get_status_icon('stopped')} {counts['stopped']} stopped[/dim]")
+        si = get_status_icon("stopped", use_nerd=use_nerd)
+        parts.append(f"[dim]{si} {counts['stopped']} stopped[/dim]")
     if counts["unknown"]:
         parts.append(f"[dim]? {counts['unknown']} unknown[/dim]")
 
@@ -212,7 +224,8 @@ async def _status_impl(format: str | None) -> None:
 
     # Sessions needing attention
     if counts["waiting"]:
-        console.print(f"\n[bold yellow]{Icons.STATUS} Waiting for input:[/bold yellow]")
+        status_icon = Icons.STATUS if use_nerd else Symbols.INFO
+        console.print(f"\n[bold yellow]{status_icon} Waiting for input:[/bold yellow]")
         for s in sessions:
             if s.status.value == "waiting":
                 icon = _get_tool_icon(s.tool)
@@ -222,7 +235,8 @@ async def _status_impl(format: str | None) -> None:
                 )
 
     if counts["error"]:
-        console.print(f"\n[bold red]{Icons.ERROR_ICON} Errors detected:[/bold red]")
+        error_icon = Icons.ERROR_ICON if use_nerd else Symbols.CROSS
+        console.print(f"\n[bold red]{error_icon} Errors detected:[/bold red]")
         for s in sessions:
             if s.status.value == "error":
                 icon = _get_tool_icon(s.tool)

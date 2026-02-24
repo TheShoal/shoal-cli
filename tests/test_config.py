@@ -36,6 +36,26 @@ class TestLoadConfig:
         assert cfg.general.default_tool == "opencode"
         load_config.cache_clear()
 
+    def test_use_nerd_fonts_default(self, mock_dirs):
+        cfg = load_config()
+        assert cfg.general.use_nerd_fonts is True
+
+    def test_use_nerd_fonts_override(self, mock_dirs):
+        tmp_config, _ = mock_dirs
+        load_config.cache_clear()
+        (tmp_config / "config.toml").write_text(
+            """
+[general]
+use_nerd_fonts = false
+
+[notifications]
+enabled = false
+"""
+        )
+        cfg = load_config()
+        assert cfg.general.use_nerd_fonts is False
+        load_config.cache_clear()
+
 
 class TestLoadToolConfig:
     def test_loads_claude(self, mock_dirs):

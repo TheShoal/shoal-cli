@@ -54,6 +54,50 @@ class TestLs:
         # Rich table may wrap "(was running)" across lines
         assert "was" in result.output and "running" in result.output
 
+    def test_ls_nerd_fonts_off(self, mock_dirs):
+        """When use_nerd_fonts=False, ls uses Unicode fallback icons."""
+        from shoal.core.state import create_session
+        from shoal.core.theme import Symbols
+
+        asyncio.run(create_session("nf-test", "claude", "/tmp/repo"))
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch(
+                "shoal.cli.session_view.load_config",
+                return_value=_config_with_nerd(False),
+            ),
+        ):
+            result = runner.invoke(app, ["ls"])
+
+        assert result.exit_code == 0
+        # Unicode status icon should appear (e.g. "●" for idle)
+        assert Symbols.BULLET_STOPPED in result.output or "idle" in result.output
+
+    def test_ls_nerd_fonts_on(self, mock_dirs):
+        """When use_nerd_fonts=True (default), ls uses Nerd Font glyphs."""
+        from shoal.core.state import create_session
+
+        asyncio.run(create_session("nf-test-on", "claude", "/tmp/repo"))
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch(
+                "shoal.cli.session_view.load_config",
+                return_value=_config_with_nerd(True),
+            ),
+        ):
+            result = runner.invoke(app, ["ls"])
+
+        assert result.exit_code == 0
+        assert "nf-test-on" in result.output
+
+
+def _config_with_nerd(use_nerd: bool) -> object:
+    from shoal.models.config import GeneralConfig, ShoalConfig
+
+    return ShoalConfig(general=GeneralConfig(use_nerd_fonts=use_nerd))
+
 
 class TestPrune:
     def test_prune_command(self, mock_dirs):

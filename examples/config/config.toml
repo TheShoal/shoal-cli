@@ -8,6 +8,9 @@
 default_tool = "opencode"
 # Worktree directory name, relative to the git project root
 worktree_dir = ".worktrees"
+# Use Nerd Font glyphs in CLI output (status icons, tool icons, panel titles)
+# Set to false if your terminal font lacks Nerd Font support
+use_nerd_fonts = true
 
 [tmux]
 # Prefix added to tmux session names (e.g. "_my-session")

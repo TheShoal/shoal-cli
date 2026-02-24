@@ -13,6 +13,7 @@ class GeneralConfig(BaseModel):
 
     default_tool: str = "opencode"
     worktree_dir: str = ".worktrees"
+    use_nerd_fonts: bool = True
 
 
 class TmuxConfig(BaseModel):
