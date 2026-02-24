@@ -135,6 +135,9 @@ async def create_session(
     git_root: str,
     worktree: str = "",
     branch: str = "",
+    parent_id: str = "",
+    tags: list[str] | None = None,
+    template_name: str = "",
 ) -> SessionState:
     """Create a new session state in DB and return the session.
 
@@ -170,6 +173,9 @@ async def create_session(
         status=SessionStatus.idle,
         pid=None,
         mcp_servers=[],
+        parent_id=parent_id,
+        tags=tags or [],
+        template_name=template_name,
         created_at=now,
         last_activity=now,
     )
@@ -243,6 +249,24 @@ async def remove_mcp_from_session(session_id: str, mcp_name: str) -> None:
         return
     servers = [s for s in session.mcp_servers if s != mcp_name]
     await update_session(session_id, mcp_servers=servers)
+
+
+async def add_tag(session_id: str, tag: str) -> None:
+    """Add a tag to a session (no-op if already present)."""
+    session = await get_session(session_id)
+    if session is None:
+        return
+    if tag not in session.tags:
+        await update_session(session_id, tags=[*session.tags, tag])
+
+
+async def remove_tag(session_id: str, tag: str) -> None:
+    """Remove a tag from a session (no-op if not present)."""
+    session = await get_session(session_id)
+    if session is None:
+        return
+    if tag in session.tags:
+        await update_session(session_id, tags=[t for t in session.tags if t != tag])
 
 
 async def resolve_session(name_or_id: str) -> str | None:

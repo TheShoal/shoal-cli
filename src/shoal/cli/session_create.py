@@ -424,6 +424,7 @@ async def _fork_impl(
             tool_command=tool_cfg.command,
             startup_commands=cfg.tmux.startup_commands,
             mcp_servers=mcp_servers or None,
+            parent_id=source.id,
         )
     except SessionExistsError as e:
         console.print(f"[red]Error: {e}[/red]")

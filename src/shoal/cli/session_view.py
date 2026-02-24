@@ -27,6 +27,7 @@ from shoal.core.theme import (
     get_status_icon,
     get_status_style,
 )
+from shoal.models.state import SessionState
 
 console = Console()
 
@@ -40,14 +41,26 @@ def ls(
             help="Output format: default (rich table) or plain (names only for completions)",
         ),
     ] = None,
+    tag: Annotated[
+        str | None,
+        typer.Option("--tag", help="Filter sessions by tag"),
+    ] = None,
+    tree: Annotated[
+        bool,
+        typer.Option("--tree", help="Display fork relationships as a tree"),
+    ] = False,
 ) -> None:
     """List all sessions."""
-    asyncio.run(with_db(_ls_impl(format)))
+    asyncio.run(with_db(_ls_impl(format, tag=tag, tree=tree)))
 
 
-async def _ls_impl(format: str | None) -> None:
+async def _ls_impl(format: str | None, *, tag: str | None = None, tree: bool = False) -> None:
     ensure_dirs()
     sessions = await list_sessions()
+
+    # Filter by tag
+    if tag:
+        sessions = [s for s in sessions if tag in s.tags]
 
     if format == "plain":
         for session in sessions:
@@ -58,7 +71,12 @@ async def _ls_impl(format: str | None) -> None:
         console.print("No sessions")
         return
 
+    if tree:
+        _render_fork_tree(sessions)
+        return
+
     use_nerd = load_config().general.use_nerd_fonts
+    show_tags = any(s.tags for s in sessions)
 
     # Group sessions by path
 
@@ -82,6 +100,8 @@ async def _ls_impl(format: str | None) -> None:
         table.add_column("STATUS", width=20)
         table.add_column("BRANCH", width=30)
         table.add_column("WORKTREE")
+        if show_tags:
+            table.add_column("TAGS", width=20)
 
         # Sort sessions within group by name
         for s in sorted(group_sessions, key=lambda x: x.name):
@@ -113,14 +133,18 @@ async def _ls_impl(format: str | None) -> None:
             else:
                 wt_display = "[dim](root)[/dim]"
 
-            table.add_row(
+            row: list[str] = [
                 s.id,
                 f"{icon} [bold]{s.name}[/bold]",
                 s.tool,
                 status_text,
                 f"[cyan]{s.branch or '-'}[/cyan]",
                 wt_display,
-            )
+            ]
+            if show_tags:
+                row.append(", ".join(s.tags) if s.tags else "[dim]-[/dim]")
+
+            table.add_row(*row)
 
         session_icon = Icons.SESSION if use_nerd else Symbols.BULLET_FILLED
         console.print()
@@ -133,6 +157,52 @@ async def _ls_impl(format: str | None) -> None:
                 padding=(0, 1),
             )
         )
+
+
+def _render_fork_tree(sessions: list[SessionState]) -> None:
+    """Render sessions as a fork-relationship tree."""
+
+    # Build parent -> children map
+    by_id: dict[str, SessionState] = {s.id: s for s in sessions}
+    children: dict[str, list[SessionState]] = {}
+    roots: list[SessionState] = []
+
+    for s in sessions:
+        if s.parent_id and s.parent_id in by_id:
+            children.setdefault(s.parent_id, []).append(s)
+        else:
+            roots.append(s)
+
+    # Sort
+    roots.sort(key=lambda x: x.name)
+    for clist in children.values():
+        clist.sort(key=lambda x: x.name)
+
+    def _fmt_tags(tags: list[str]) -> str:
+        if not tags:
+            return ""
+        return f" \\[{', '.join(tags)}]"
+
+    def _print_node(s: SessionState, prefix: str, is_last: bool) -> None:
+        connector = "└── " if is_last else "├── "
+        console.print(
+            f"{prefix}{connector}[bold]{s.name}[/bold] "
+            f"[dim]({s.id})[/dim] {s.status.value}{_fmt_tags(s.tags)}"
+        )
+        child_prefix = prefix + ("    " if is_last else "│   ")
+        kids = children.get(s.id, [])
+        for i, child in enumerate(kids):
+            _print_node(child, child_prefix, i == len(kids) - 1)
+
+    console.print()
+    for _i, root in enumerate(roots):
+        console.print(
+            f"[bold]{root.name}[/bold] "
+            f"[dim]({root.id})[/dim] {root.status.value}{_fmt_tags(root.tags)}"
+        )
+        kids = children.get(root.id, [])
+        for j, child in enumerate(kids):
+            _print_node(child, "", j == len(kids) - 1)
 
 
 def status(
@@ -304,6 +374,14 @@ async def _info_impl(session_name_or_id: str | None, color_setting: str) -> None
     details.add_row(f"{icon.strip()} Name", f"[bold]{s.name}[/bold]")
     details.add_row(f"{Icons.TOOL} Tool", s.tool)
     details.add_row(f"{Icons.STATUS} Status", status_text)
+    if s.template_name:
+        details.add_row(f"{Symbols.ARROW} Template", s.template_name)
+    if s.parent_id:
+        parent = await get_session(s.parent_id)
+        parent_display = f"{parent.name} [dim]({s.parent_id})[/dim]" if parent else s.parent_id
+        details.add_row(f"{Symbols.ARROW} Parent", parent_display)
+    if s.tags:
+        details.add_row(f"{Symbols.BULLET_FILLED} Tags", ", ".join(s.tags))
     details.add_row(f"{Icons.DATE} Created", s.created_at.strftime("%Y-%m-%d %H:%M:%S"))
     details.add_row(f"{Icons.ACTIVITY} Activity", s.last_activity.strftime("%Y-%m-%d %H:%M:%S"))
 
