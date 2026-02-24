@@ -53,7 +53,7 @@ class RoboSupervisor:
         """Start the supervision loop with signal handling and PID file."""
         ensure_dirs()
 
-        log_file = runtime_dir() / "logs" / "robo-supervisor.log"
+        log_file = runtime_dir() / "logs" / f"robo-{self.profile.name}.log"
         handler = logging.FileHandler(str(log_file))
         handler.setFormatter(
             logging.Formatter(
@@ -65,7 +65,7 @@ class RoboSupervisor:
         shoal_logger.setLevel(logging.INFO)
         shoal_logger.addHandler(handler)
 
-        pid_file = runtime_dir() / "robo-supervisor.pid"
+        pid_file = runtime_dir() / f"robo-{self.profile.name}.pid"
         pid_file.write_text(str(os.getpid()))
 
         logger.info(
@@ -231,13 +231,20 @@ class RoboSupervisor:
         return None
 
 
-def main(profile_name: str = "default") -> None:
-    """Entry point for running as a daemon."""
+def main() -> None:
+    """Entry point for running as a daemon.
+
+    Accepts an optional profile name as ``sys.argv[1]`` (defaults to "default").
+    Called by the ``shoal-robo-supervisor`` console script entry point and by
+    ``python -m shoal.services.robo_supervisor <profile>``.
+    """
     import contextlib
+    import sys
 
     from shoal.core.config import load_robo_profile
     from shoal.core.db import with_db
 
+    profile_name = sys.argv[1] if len(sys.argv) > 1 else "default"
     profile = load_robo_profile(profile_name)
     supervisor = RoboSupervisor(profile)
     with contextlib.suppress(KeyboardInterrupt):

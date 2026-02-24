@@ -103,11 +103,13 @@ complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcomman
 complete -c shoal -n "__fish_seen_subcommand_from mcp; and __fish_seen_subcommand_from kill" -a "(__shoal_mcp_servers)" -d "MCP server"
 
 # Robo subcommands
-complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch" -a "send" -d "Send keys to robo"
-complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch" -a "approve" -d "Approve robo action"
-complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch" -a "status" -d "Robo status"
-complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch" -a "profiles" -d "List robo profiles"
-complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch" -a "watch" -d "Start supervision loop"
+complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch watch-stop watch-status" -a "send" -d "Send keys to robo"
+complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch watch-stop watch-status" -a "approve" -d "Approve robo action"
+complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch watch-stop watch-status" -a "status" -d "Robo status"
+complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch watch-stop watch-status" -a "profiles" -d "List robo profiles"
+complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch watch-stop watch-status" -a "watch" -d "Start supervision loop (--daemon for background)"
+complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch watch-stop watch-status" -a "watch-stop" -d "Stop background supervision daemon"
+complete -c shoal -n "__fish_seen_subcommand_from robo; and not __fish_seen_subcommand_from send approve status profiles watch watch-stop watch-status" -a "watch-status" -d "Check supervision daemon status"
 
 # Worktree subcommands
 complete -c shoal -n "__fish_seen_subcommand_from wt; and not __fish_seen_subcommand_from finish prune" -a "finish" -d "Finish worktree session"

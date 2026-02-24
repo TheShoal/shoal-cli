@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import signal
+import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -17,6 +21,7 @@ from shoal.core.config import (
     ensure_dirs,
     load_config,
     load_robo_profile,
+    runtime_dir,
     state_dir,
 )
 from shoal.core.db import get_db, with_db
@@ -53,6 +58,25 @@ def _build_robo_tmux_session(name: str) -> str:
     return f"{prefix}_{name}"
 
 
+def _robo_pid_file(profile: str) -> Path:
+    """Return the PID file path for a robo supervision daemon."""
+    return runtime_dir() / f"robo-{profile}.pid"
+
+
+def _read_robo_pid(profile: str) -> int | None:
+    """Read PID from file and verify the process is alive. Returns None if not running."""
+    pf = _robo_pid_file(profile)
+    if not pf.exists():
+        return None
+    try:
+        pid = int(pf.read_text().strip())
+        os.kill(pid, 0)  # check if alive
+        return pid
+    except (ValueError, ProcessLookupError, PermissionError):
+        pf.unlink(missing_ok=True)
+        return None
+
+
 @app.command("setup")
 def robo_setup(
     name: Annotated[str | None, typer.Argument(help="Robo profile name")] = None,
@@ -65,7 +89,7 @@ def robo_setup(
 
     # Try new path first, support old path for backward compat
     profile_file = config_dir() / "robo" / f"{name}.toml"
-    runtime_dir = _robo_runtime_dir(name)
+    robo_rt_dir = _robo_runtime_dir(name)
 
     # Create profile if it doesn't exist
     if not profile_file.exists():
@@ -95,9 +119,9 @@ log_file = "task-log.md"
         console.print(f"Profile already exists: {profile_file}")
 
     # Create runtime directory with AGENTS.md
-    runtime_dir.mkdir(parents=True, exist_ok=True)
+    robo_rt_dir.mkdir(parents=True, exist_ok=True)
 
-    agents_file = runtime_dir / "AGENTS.md"
+    agents_file = robo_rt_dir / "AGENTS.md"
     if not agents_file.exists():
         agents_file.write_text(
             """# Shoal Robo-Fish
@@ -148,7 +172,7 @@ agents, approve their actions, and ensure the group stays on track.
         )
         console.print(f"Created AGENTS.md: {agents_file}")
 
-    task_log = runtime_dir / "task-log.md"
+    task_log = robo_rt_dir / "task-log.md"
     if not task_log.exists():
         task_log.write_text(f"# Robo Task Log: {name}\n\n---\n\n")
         console.print(f"Created task log: {task_log}")
@@ -156,7 +180,7 @@ agents, approve their actions, and ensure the group stays on track.
     console.print()
     console.print(f"Robo '{name}' ready")
     console.print(f"  Profile: {profile_file}")
-    console.print(f"  Runtime: {runtime_dir}")
+    console.print(f"  Runtime: {robo_rt_dir}")
     console.print()
     console.print(f"Start with: shoal robo start {name}")
 
@@ -173,7 +197,7 @@ async def _robo_start_impl(name: str | None) -> None:
     ensure_dirs()
     name = name or "default"
 
-    runtime_dir = _robo_runtime_dir(name)
+    robo_rt_dir = _robo_runtime_dir(name)
 
     try:
         profile = load_robo_profile(name)
@@ -207,11 +231,11 @@ async def _robo_start_impl(name: str | None) -> None:
         raise typer.Exit(1)
 
     # Ensure runtime dir exists
-    if not runtime_dir.exists():
+    if not robo_rt_dir.exists():
         robo_setup(name, tool)
 
     # Create tmux session
-    tmux.new_session(tmux_session, cwd=str(runtime_dir))
+    tmux.new_session(tmux_session, cwd=str(robo_rt_dir))
     tmux.set_environment(tmux_session, "SHOAL_ROBO", name)
 
     # Get tool command and launch
@@ -239,7 +263,7 @@ async def _robo_start_impl(name: str | None) -> None:
     console.print(f"Robo '{name}' started")
     console.print(f"  Tool: {tool}")
     console.print(f"  Tmux: {tmux_session}")
-    console.print(f"  Runtime: {runtime_dir}")
+    console.print(f"  Runtime: {robo_rt_dir}")
     console.print()
     console.print(f"Attach with: tmux attach -t {tmux_session}")
 
@@ -409,8 +433,11 @@ async def _robo_ls_impl() -> None:
 @app.command("watch")
 def robo_watch(
     profile: Annotated[str | None, typer.Argument(help="Robo profile name")] = None,
+    daemon: Annotated[
+        bool, typer.Option("--daemon", "-d", help="Run as background daemon")
+    ] = False,
 ) -> None:
-    """Start the robo supervision loop."""
+    """Start the robo supervision loop (foreground by default; --daemon for background)."""
     profile = profile or "default"
 
     try:
@@ -429,6 +456,24 @@ def robo_watch(
     console.print(f"  auto_approve:    {cfg.auto_approve}")
     console.print()
 
+    if daemon:
+        existing = _read_robo_pid(profile)
+        if existing:
+            console.print(
+                f"[red]Error: Robo watch '{profile}' already running (pid: {existing})[/red]"
+            )
+            console.print(f"  Stop with: shoal robo watch-stop {profile}")
+            raise typer.Exit(1)
+
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "shoal.services.robo_supervisor", profile],
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        console.print(f"Robo watch '{profile}' started as daemon (pid: {proc.pid})")
+        return
+
     try:
         from shoal.services.robo_supervisor import RoboSupervisor
     except ImportError:
@@ -440,3 +485,33 @@ def robo_watch(
 
     supervisor = RoboSupervisor(profile=cfg)
     asyncio.run(supervisor.run())
+
+
+@app.command("watch-stop")
+def robo_watch_stop(
+    profile: Annotated[str | None, typer.Argument(help="Robo profile name")] = None,
+) -> None:
+    """Stop a background robo supervision daemon."""
+    profile = profile or "default"
+    pid = _read_robo_pid(profile)
+    if not pid:
+        console.print(f"[red]Robo watch '{profile}' is not running[/red]")
+        console.print(f"  Start with: shoal robo watch {profile} --daemon")
+        raise typer.Exit(1)
+
+    os.kill(pid, signal.SIGTERM)
+    _robo_pid_file(profile).unlink(missing_ok=True)
+    console.print(f"Robo watch '{profile}' stopped (pid: {pid})")
+
+
+@app.command("watch-status")
+def robo_watch_status(
+    profile: Annotated[str | None, typer.Argument(help="Robo profile name")] = None,
+) -> None:
+    """Check if a robo supervision daemon is running."""
+    profile = profile or "default"
+    pid = _read_robo_pid(profile)
+    if pid:
+        console.print(f"[green]Robo watch '{profile}' is running (pid: {pid})[/green]")
+    else:
+        console.print(f"Robo watch '{profile}' is not running")
