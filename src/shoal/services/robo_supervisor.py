@@ -16,14 +16,15 @@ from datetime import UTC, datetime
 from shoal.core import tmux
 from shoal.core.config import ensure_dirs, load_tool_config, runtime_dir
 from shoal.core.db import get_db
-from shoal.core.journal import append_entry
-from shoal.core.state import list_sessions
+from shoal.core.journal import append_entry, read_journal
+from shoal.core.state import find_by_name, get_session, list_sessions
 from shoal.models.config import RoboProfileConfig, ToolConfig
 from shoal.models.state import SessionState, SessionStatus
 
 logger = logging.getLogger("shoal.robo_supervisor")
 
 _MAX_BACKOFF = 300.0  # cap for exponential backoff on consecutive errors
+_ESCALATION_POLL_INTERVAL = 5.0  # seconds between journal polls during LLM escalation
 
 
 class RoboSupervisor:
@@ -202,9 +203,150 @@ class RoboSupervisor:
         )
 
     async def _escalate(self, session: SessionState, reason: str) -> None:
-        """Escalate a waiting session and journal the decision."""
+        """Escalate a waiting session: try LLM agent if configured, else journal-only."""
         logger.warning("[%s] Escalating session '%s': %s", session.id, session.name, reason)
-        await self._journal_decision(session, "escalated", reason)
+        if self.profile.escalation.escalation_session:
+            await self._escalate_to_llm(session, reason)
+        else:
+            await self._journal_decision(session, "escalated", reason)
+
+    async def _escalate_to_llm(self, session: SessionState, reason: str) -> None:
+        """Escalate to configured LLM agent session by sending it an escalation prompt.
+
+        Sends a formatted prompt to the escalation agent's tmux pane, then polls
+        the agent's journal for a response entry with ``source="robo-escalation-response"``.
+        If the response contains "approve", auto-approves the waiting session.
+        Falls back to journal-only if the session is not found or times out.
+        """
+        esc_name = self.profile.escalation.escalation_session
+        if not esc_name:
+            await self._journal_decision(session, "escalated", reason)
+            return
+
+        # Resolve the escalation session from DB
+        esc_id = await find_by_name(esc_name)
+        if not esc_id:
+            logger.warning(
+                "[%s] Escalation session '%s' not found, falling back to journal",
+                session.id,
+                esc_name,
+            )
+            await self._journal_decision(session, "escalated", reason)
+            return
+
+        esc_session = await get_session(esc_id)
+        if not esc_session:
+            logger.warning(
+                "[%s] Escalation session '%s' state not found, falling back to journal",
+                session.id,
+                esc_name,
+            )
+            await self._journal_decision(session, "escalated", reason)
+            return
+
+        # Capture pane content of waiting session for context
+        pane_title = f"shoal:{session.id}"
+        pane_target = await tmux.async_preferred_pane(session.tmux_session, title=pane_title)
+        pane_content = await tmux.async_capture_pane(pane_target, lines=30)
+
+        # Build prompt and find escalation session pane target
+        prompt = self._build_escalation_prompt(session, reason, pane_content, esc_name)
+        esc_pane_title = f"shoal:{esc_session.id}"
+        esc_pane_target = await tmux.async_preferred_pane(
+            esc_session.tmux_session, title=esc_pane_title
+        )
+
+        # Send prompt to escalation agent
+        logger.info("[%s] Sending escalation prompt to session '%s'", session.id, esc_name)
+        await tmux.async_send_keys(esc_pane_target, prompt, enter=True)
+        await self._journal_decision(
+            session,
+            "escalated-to-llm",
+            f"Escalated to agent session '{esc_name}': {reason}",
+        )
+
+        # Wait for the agent's response
+        max_wait = float(self.profile.escalation.escalation_timeout)
+        response = await self._wait_for_escalation_response(esc_session.id, max_wait)
+
+        if response is None:
+            logger.warning(
+                "[%s] Escalation to '%s' timed out after %.0fs",
+                session.id,
+                esc_name,
+                max_wait,
+            )
+            await self._journal_decision(
+                session,
+                "escalation-timeout",
+                f"LLM agent '{esc_name}' did not respond within {max_wait:.0f}s",
+            )
+            return
+
+        # Parse response: "approve" → auto-approve, anything else → log and move on
+        if "approve" in response.lower():
+            waiting_pane = await tmux.async_preferred_pane(session.tmux_session, title=pane_title)
+            await tmux.async_send_keys(waiting_pane, "", enter=True)
+            await self._journal_decision(
+                session,
+                "approved-by-llm",
+                f"LLM agent '{esc_name}' approved: {response.strip()}",
+            )
+        else:
+            logger.info("[%s] LLM agent '%s' declined: %s", session.id, esc_name, response.strip())
+            await self._journal_decision(
+                session,
+                "declined-by-llm",
+                f"LLM agent '{esc_name}' declined: {response.strip()}",
+            )
+
+    def _build_escalation_prompt(
+        self,
+        session: SessionState,
+        reason: str,
+        pane_content: str,
+        esc_session_name: str,
+    ) -> str:
+        """Build a prompt to send to the escalation LLM agent."""
+        snapshot = pane_content.strip() if pane_content else "(no output captured)"
+        esc_source = "robo-escalation-response"
+        cmd_approve = f"shoal journal {esc_session_name} --append 'approve' --source {esc_source}"
+        cmd_decline = f"shoal journal {esc_session_name} --append 'decline' --source {esc_source}"
+        lines = [
+            f"[ROBO ESCALATION] Session '{session.name}' needs your review.",
+            "",
+            f"Reason: {reason}",
+            "",
+            "Terminal output:",
+            "```",
+            snapshot,
+            "```",
+            "",
+            "Analyze the situation and record your decision by running one of:",
+            f"  {cmd_approve}",
+            f"  {cmd_decline}",
+        ]
+        return "\n".join(lines)
+
+    async def _wait_for_escalation_response(
+        self, escalation_session_id: str, max_wait: float
+    ) -> str | None:
+        """Poll the escalation session's journal for a response entry.
+
+        Looks for entries with ``source="robo-escalation-response"`` written after
+        this method was called.  Returns the entry content, or None if timed out.
+        """
+        start = datetime.now(UTC)
+        try:
+            async with asyncio.timeout(max_wait):
+                while True:
+                    await asyncio.sleep(_ESCALATION_POLL_INTERVAL)
+                    entries = await asyncio.to_thread(read_journal, escalation_session_id)
+                    for entry in reversed(entries):
+                        if entry.timestamp > start and entry.source == "robo-escalation-response":
+                            return entry.content
+        except TimeoutError:
+            return None
 
     async def _journal_decision(self, session: SessionState, decision: str, detail: str) -> None:
         """Append a robo decision entry to the session journal."""

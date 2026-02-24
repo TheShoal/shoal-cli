@@ -37,6 +37,25 @@ def _make_profile(
     )
 
 
+def _make_profile_with_escalation(
+    esc_session: str,
+    *,
+    timeout: int = 60,
+) -> RoboProfileConfig:
+    return RoboProfileConfig(
+        name="test",
+        tool="claude",
+        auto_approve=False,
+        monitoring=MonitoringConfig(poll_interval=10, waiting_timeout=300),
+        escalation=EscalationConfig(
+            notify=True,
+            auto_respond=False,
+            escalation_session=esc_session,
+            escalation_timeout=timeout,
+        ),
+    )
+
+
 def _make_tool_config() -> ToolConfig:
     return ToolConfig(
         name="claude",
@@ -333,3 +352,122 @@ def test_main_defaults_to_default_profile(mock_dirs):
     ):
         main()
     mock_load.assert_called_once_with("default")
+
+
+# ------------------------------------------------------------------
+# LLM escalation tests
+# ------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestEscalateLLM:
+    async def test_escalate_to_llm_sends_prompt(self, mock_dirs: object) -> None:
+        """Verify send_keys is called on escalation session with the prompt."""
+        waiting = await create_session("waiting-llm", "claude", "/tmp/repo")
+        _esc = await create_session("esc-agent", "claude", "/tmp/repo")
+
+        sup = RoboSupervisor(_make_profile_with_escalation("esc-agent"))
+
+        with (
+            patch("shoal.core.tmux.preferred_pane", return_value="%1"),
+            patch("shoal.core.tmux.capture_pane", return_value="waiting content"),
+            patch("shoal.core.tmux.send_keys") as mock_send,
+            patch("shoal.services.robo_supervisor.append_entry"),
+            patch.object(
+                sup,
+                "_wait_for_escalation_response",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+        ):
+            await sup._escalate_to_llm(waiting, "timeout exceeded")
+
+        mock_send.assert_called_once()
+        keys_sent = mock_send.call_args[0][1]
+        assert "ROBO ESCALATION" in keys_sent
+        assert "waiting-llm" in keys_sent
+
+    async def test_escalate_no_config_falls_back(self, mock_dirs: object) -> None:
+        """Verify journal-only behavior when no escalation_session is configured."""
+        s = await create_session("no-esc", "claude", "/tmp/repo")
+        sup = RoboSupervisor(_make_profile())  # no escalation_session
+
+        with (
+            patch("shoal.core.tmux.send_keys") as mock_send,
+            patch("shoal.services.robo_supervisor.append_entry") as mock_journal,
+        ):
+            await sup._escalate(s, "timeout exceeded")
+
+        mock_send.assert_not_called()
+        mock_journal.assert_called_once()
+        content = mock_journal.call_args[0][1]
+        assert "**Robo decision**: escalated" in content
+
+    async def test_escalate_timeout(self, mock_dirs: object) -> None:
+        """Verify timeout journals escalated-to-llm and escalation-timeout entries."""
+        waiting = await create_session("timeout-test", "claude", "/tmp/repo")
+        _esc = await create_session("esc-timeout", "claude", "/tmp/repo")
+
+        sup = RoboSupervisor(_make_profile_with_escalation("esc-timeout", timeout=10))
+
+        with (
+            patch("shoal.core.tmux.preferred_pane", return_value="%1"),
+            patch("shoal.core.tmux.capture_pane", return_value="prompt here"),
+            patch("shoal.core.tmux.send_keys"),
+            patch("shoal.services.robo_supervisor.append_entry") as mock_journal,
+            patch.object(
+                sup,
+                "_wait_for_escalation_response",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+        ):
+            await sup._escalate_to_llm(waiting, "timeout exceeded")
+
+        decisions = [call[0][1] for call in mock_journal.call_args_list]
+        assert any("escalated-to-llm" in d for d in decisions)
+        assert any("escalation-timeout" in d for d in decisions)
+
+    async def test_escalate_approve_response(self, mock_dirs: object) -> None:
+        """Verify auto_approve is called when LLM agent responds with 'approve'."""
+        waiting = await create_session("approve-test", "claude", "/tmp/repo")
+        _esc = await create_session("esc-approve", "claude", "/tmp/repo")
+
+        sup = RoboSupervisor(_make_profile_with_escalation("esc-approve"))
+
+        with (
+            patch("shoal.core.tmux.preferred_pane", return_value="%1"),
+            patch("shoal.core.tmux.capture_pane", return_value="Allow this action?"),
+            patch("shoal.core.tmux.send_keys") as mock_send,
+            patch("shoal.services.robo_supervisor.append_entry") as mock_journal,
+            patch.object(
+                sup,
+                "_wait_for_escalation_response",
+                new_callable=AsyncMock,
+                return_value="approve",
+            ),
+        ):
+            await sup._escalate_to_llm(waiting, "ambiguous prompt")
+
+        # send_keys called once for the prompt, once for the approval Enter
+        assert mock_send.call_count >= 2
+        decisions = [call[0][1] for call in mock_journal.call_args_list]
+        assert any("approved-by-llm" in d for d in decisions)
+
+    async def test_escalate_session_not_found(self, mock_dirs: object) -> None:
+        """Verify graceful fallback when escalation session name is not in DB."""
+        waiting = await create_session("not-found-test", "claude", "/tmp/repo")
+        # "nonexistent-esc" is not created in DB
+
+        sup = RoboSupervisor(_make_profile_with_escalation("nonexistent-esc"))
+
+        with (
+            patch("shoal.core.tmux.send_keys") as mock_send,
+            patch("shoal.services.robo_supervisor.append_entry") as mock_journal,
+        ):
+            await sup._escalate_to_llm(waiting, "timeout exceeded")
+
+        mock_send.assert_not_called()
+        mock_journal.assert_called_once()
+        content = mock_journal.call_args[0][1]
+        assert "escalated" in content

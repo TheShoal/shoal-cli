@@ -109,6 +109,8 @@ waiting_timeout = 300
 [escalation]
 notify = true
 auto_respond = false
+# escalation_session = "my-supervisor"  # name of LLM agent session to escalate to
+# escalation_timeout = 300              # seconds to wait for agent response
 
 [tasks]
 log_file = "task-log.md"

@@ -146,6 +146,8 @@ class EscalationConfig(BaseModel):
 
     notify: bool = True
     auto_respond: bool = False
+    escalation_session: str | None = None
+    escalation_timeout: int = 300
 
 
 class TasksConfig(BaseModel):
