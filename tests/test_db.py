@@ -10,10 +10,12 @@ from shoal.models.state import RoboState, SessionState, SessionStatus
 @pytest.fixture
 async def db(tmp_path):
     db_path = tmp_path / "shoal.db"
+    ShoalDB._initialized = False
     db = ShoalDB(db_path)
     await db.connect()
     yield db
     await db.close()
+    ShoalDB._initialized = False
 
 
 @pytest.mark.asyncio
@@ -167,3 +169,77 @@ async def test_list_robos_empty(db):
     """Test listing robos when none exist."""
     robos = await db.list_robos()
     assert robos == []
+
+
+# ---------------------------------------------------------------------------
+# Status transitions
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_save_and_get_status_transition(db):
+    """Test saving and retrieving a status transition."""
+    tid = await db.save_status_transition("sess-1", "idle", "running")
+    assert isinstance(tid, str)
+
+    transitions = await db.get_status_transitions("sess-1")
+    assert len(transitions) == 1
+    t = transitions[0]
+    assert t["id"] == tid
+    assert t["session_id"] == "sess-1"
+    assert t["from_status"] == "idle"
+    assert t["to_status"] == "running"
+    assert t["timestamp"]  # non-empty ISO string
+    assert t["pane_snapshot"] is None
+
+
+@pytest.mark.asyncio
+async def test_status_transition_with_snapshot(db):
+    """Test saving a transition with a pane snapshot."""
+    await db.save_status_transition("sess-1", "running", "waiting", pane_snapshot="prompt> ")
+    transitions = await db.get_status_transitions("sess-1")
+    assert transitions[0]["pane_snapshot"] == "prompt> "
+
+
+@pytest.mark.asyncio
+async def test_status_transitions_ordered_desc(db):
+    """Transitions are returned newest-first."""
+    await db.save_status_transition("sess-1", "idle", "running")
+    await db.save_status_transition("sess-1", "running", "waiting")
+    await db.save_status_transition("sess-1", "waiting", "idle")
+
+    transitions = await db.get_status_transitions("sess-1")
+    assert len(transitions) == 3
+    assert transitions[0]["from_status"] == "waiting"
+    assert transitions[2]["from_status"] == "idle"
+
+
+@pytest.mark.asyncio
+async def test_status_transitions_limit(db):
+    """Limit parameter caps returned rows."""
+    for i in range(5):
+        await db.save_status_transition("sess-1", f"s{i}", f"s{i + 1}")
+
+    transitions = await db.get_status_transitions("sess-1", limit=2)
+    assert len(transitions) == 2
+
+
+@pytest.mark.asyncio
+async def test_status_transitions_filter_by_session(db):
+    """Only transitions for the requested session are returned."""
+    await db.save_status_transition("sess-1", "idle", "running")
+    await db.save_status_transition("sess-2", "idle", "waiting")
+
+    t1 = await db.get_status_transitions("sess-1")
+    t2 = await db.get_status_transitions("sess-2")
+    assert len(t1) == 1
+    assert len(t2) == 1
+    assert t1[0]["session_id"] == "sess-1"
+    assert t2[0]["session_id"] == "sess-2"
+
+
+@pytest.mark.asyncio
+async def test_status_transitions_empty(db):
+    """No transitions for a session returns an empty list."""
+    transitions = await db.get_status_transitions("nonexistent")
+    assert transitions == []

@@ -93,6 +93,24 @@ class ShoalDB:
                 data TEXT NOT NULL
             )
         """)
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS status_transitions (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                from_status TEXT NOT NULL,
+                to_status TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                pane_snapshot TEXT
+            )
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_st_session
+            ON status_transitions(session_id)
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_st_timestamp
+            ON status_transitions(timestamp)
+        """)
         await self._conn.commit()
 
     async def close(self) -> None:
@@ -220,6 +238,71 @@ class ShoalDB:
         ):
             rows = await cursor.fetchall()
             return [RoboState.model_validate_json(row[0]) for row in rows]
+
+    async def save_status_transition(
+        self,
+        session_id: str,
+        from_status: str,
+        to_status: str,
+        pane_snapshot: str | None = None,
+    ) -> str:
+        """Record a status transition. Returns the generated transition ID."""
+        import uuid
+        from datetime import UTC, datetime
+
+        t0 = time.monotonic()
+        transition_id = str(uuid.uuid4())
+        timestamp = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            await conn.execute(
+                "INSERT INTO status_transitions"
+                " (id, session_id, from_status, to_status, timestamp, pane_snapshot)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (transition_id, session_id, from_status, to_status, timestamp, pane_snapshot),
+            )
+            await conn.commit()
+        logger.debug(
+            "save_status_transition: %s %s→%s (%.1fms)",
+            session_id,
+            from_status,
+            to_status,
+            (time.monotonic() - t0) * 1000,
+        )
+        return transition_id
+
+    async def get_status_transitions(
+        self, session_id: str, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        """Get status transitions for a session, ordered by timestamp descending."""
+        t0 = time.monotonic()
+        async with (
+            self._connection() as conn,
+            conn.execute(
+                "SELECT id, session_id, from_status, to_status, timestamp, pane_snapshot"
+                " FROM status_transitions WHERE session_id = ?"
+                " ORDER BY timestamp DESC LIMIT ?",
+                (session_id, limit),
+            ) as cursor,
+        ):
+            rows = await cursor.fetchall()
+            result = [
+                {
+                    "id": row[0],
+                    "session_id": row[1],
+                    "from_status": row[2],
+                    "to_status": row[3],
+                    "timestamp": row[4],
+                    "pane_snapshot": row[5],
+                }
+                for row in rows
+            ]
+            logger.debug(
+                "get_status_transitions: %s %d rows (%.1fms)",
+                session_id,
+                len(result),
+                (time.monotonic() - t0) * 1000,
+            )
+            return result
 
 
 async def get_db() -> ShoalDB:

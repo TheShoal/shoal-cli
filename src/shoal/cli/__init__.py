@@ -10,6 +10,7 @@ import shoal
 from shoal.cli.config_cmd import app as config_app
 from shoal.cli.demo import app as demo_app
 from shoal.cli.diag import diag
+from shoal.cli.history import history
 from shoal.cli.journal import journal_view
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
@@ -64,6 +65,7 @@ app.command("prune")(prune)
 app.command("status")(status)
 app.command("popup")(popup)
 app.command("diag")(diag)
+app.command("history")(history)
 app.command("journal")(journal_view)
 
 # Aliases (hidden)
