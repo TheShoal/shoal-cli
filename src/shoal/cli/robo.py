@@ -430,7 +430,7 @@ def robo_watch(
     console.print()
 
     try:
-        from shoal.services.robo_supervisor import RoboSupervisor  # type: ignore[import-not-found]
+        from shoal.services.robo_supervisor import RoboSupervisor
     except ImportError:
         console.print(
             "[yellow]RoboSupervisor not implemented yet — "

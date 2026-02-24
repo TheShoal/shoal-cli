@@ -30,8 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Template tracking**: `create_session_lifecycle` records `template_name` from template config
 - **Enhanced `shoal info`**: Shows parent session, template name, and tags when present
 - **Composition gateway spike**: `docs/composition-gateway.md` — FastMCP `mount()` investigation, decision no-go
+- **Robo supervision loop**: `services/robo_supervisor.py` — async `RoboSupervisor` class with configurable poll loop, safe-to-approve pattern detection, auto-approve via tmux send_keys, timeout escalation, and journal decision logging
+- **`shoal robo watch` CLI command**: Start the robo supervision loop for a named profile — loads `RoboProfileConfig`, prints config summary, runs supervisor in foreground
+- **Fish completions**: Added `watch` to robo subcommand completions
 
 ### Changed
+- **Parallel test execution**: Added `-n auto` (pytest-xdist) to justfile `test` and `test-all` recipes
 - **Tool-profile-aware `send_keys`**: MCP `send_keys` tool checks session tool profile for Enter handling behavior
 
 ### Fixed

@@ -117,23 +117,24 @@ def test_robo_watch_profile_not_found(mock_dirs):
 
 
 def test_robo_watch_shows_config(mock_dirs):
-    """Test robo watch prints config summary then falls back gracefully."""
+    """Test robo watch prints config summary."""
     runner.invoke(app, ["setup", "watch-me"])
 
-    result = runner.invoke(app, ["watch", "watch-me"])
+    with patch("shoal.cli.robo.asyncio.run"):
+        result = runner.invoke(app, ["watch", "watch-me"])
     assert result.exit_code == 0
     assert "Robo watch" in result.stdout
     assert "poll_interval" in result.stdout
     assert "waiting_timeout" in result.stdout
     assert "auto_approve" in result.stdout
-    assert "not implemented yet" in result.stdout
 
 
 def test_robo_watch_default_profile(mock_dirs):
     """Test robo watch uses 'default' profile when no arg given."""
     runner.invoke(app, ["setup", "default"])
 
-    result = runner.invoke(app, ["watch"])
+    with patch("shoal.cli.robo.asyncio.run"):
+        result = runner.invoke(app, ["watch"])
     assert result.exit_code == 0
     assert "profile: default" in result.stdout
 

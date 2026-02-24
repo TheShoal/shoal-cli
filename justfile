@@ -19,11 +19,11 @@ typecheck:
 
 # Run tests (exclude integration)
 test:
-    uv run pytest -m "not integration"
+    uv run pytest -n auto -m "not integration"
 
 # Run all tests including integration
 test-all:
-    uv run pytest
+    uv run pytest -n auto
 
 # Security scan with Bandit
 security:

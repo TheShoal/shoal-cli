@@ -100,12 +100,12 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 ### Phase 4 — Robo Supervision Loop
 
-- [ ] `services/robo_supervisor.py` — async programmatic supervision loop
-- [ ] Wire up `auto_approve`, `poll_interval`, `waiting_timeout` from robo config
-- [ ] Pattern-based safe-to-approve detection (reads pane content, checks against patterns)
+- [x] `services/robo_supervisor.py` — async programmatic supervision loop
+- [x] Wire up `auto_approve`, `poll_interval`, `waiting_timeout` from robo config
+- [x] Pattern-based safe-to-approve detection (reads pane content, checks against patterns)
 - [ ] LLM escalation: ambiguous cases escalated to robo agent session via MCP tools
-- [ ] Robo journal: logs every decision (approved, escalated, timed out)
-- [ ] `shoal robo watch` — start the supervision loop as a background daemon
+- [x] Robo journal: logs every decision (approved, escalated, timed out)
+- [x] `shoal robo watch` — start the supervision loop (foreground; background daemon deferred)
 
 ### Design Decisions
 
@@ -116,6 +116,17 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 ## Backlog
 
+### Worktree & Environment Initialization
+
+> Full design: [docs/WORKTREE_ENV_INIT.md](docs/WORKTREE_ENV_INIT.md)
+
+- **Fix template env gap** (bug): `template_cfg.env` is parsed and merged but never applied in `create_session_lifecycle` or `fork_session_lifecycle`. Requires both `tmux set-environment` (for subsequent panes) and fish `set -gx` via `send-keys` (for the initial pane, which is already running). ~10 lines, no schema change. Files: `services/lifecycle.py`
+- **Template `setup_commands`** (feature): New `setup_commands: list[str]` field on `SessionTemplateConfig` and `TemplateMixinConfig`. Commands run via `send-keys` in the initial pane before the agent launches. Canonical answer for venv activation (`uv sync`, `source .venv/bin/activate.fish`). Inheritance: extends=replace, mixins=append. Files: `models/config.py`, `services/lifecycle.py`, `docs/LOCAL_TEMPLATES.md`
+- **Project-level `.shoal.toml`** (feature, lower priority): Committed config at project root with `[env]` and `[setup]` sections. Precedence: `.shoal.toml` < `template.env` < CLI flags. Discovered via `git_root`. Files: `core/config.py`, `services/lifecycle.py`
+- **direnv/mise integration** (deferred): Opt-in `env_manager` field on templates. NEVER auto-detect `.envrc`/`mise.toml` — explicit opt-in only.
+
+### Other
+
 - **Linux notifications**: Solved by fish event hooks — users wire `notify-send` or ntfy in their fish config
 - **Dashboard actions**: Add fork, approve, send-keys, filter-by-status as fzf popup actions
 - **Agent readiness signals**: Poll-until-pattern readiness check replacing `asyncio.sleep(1)` hack after session creation
@@ -123,7 +134,9 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - **Oh-My-Pi (omp) Integration**: `omp.toml` tool definition and `omp-dev` session template; native MCP via `omp plugin`; detection pattern tuning for omp's extended TUI
 - Remote status bar: Fish status bar polls remote WebSocket for session status
 - **Robo merge/worktree workflow**: Document merge-back-to-main lifecycle for robo supervisor — concrete instructions in default `AGENTS.md` template and ROBO_GUIDE section covering: branch readiness checks, test verification before merge, safe auto-merge patterns vs. human review, worktree cleanup after merge, and post-session branch deletion. Consider dedicated MCP tools (`merge_branch`, `branch_status`) so robo doesn't need raw `send_keys` for git operations.
-- **Per-session git practices**: Once template env vars are wired up (blocked by env var gap), support git identity and conventions per session via `[template.env]` (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Longer-term: dedicated `[template.git]` section for commit conventions, hook profiles, and branch naming rules — enabling different practices for admin agents, robo supervisors, and task workers.
+- **Batch MCP commands**: Adapt existing MCP tools (`send_keys`, `session_status`, `kill_session`, `capture_pane`, etc.) to accept lists of sessions for batch operations. Add batch variants or overload existing tools to handle `session: str | list[str]` — enables robo supervisors and orchestrators to approve/kill/query multiple sessions in a single MCP call instead of N sequential calls. Consider a `batch_execute` meta-tool that takes `[(tool, params), ...]` for arbitrary batching.
+- **Per-session git practices**: Unblocked once template env gap is fixed — support git identity and conventions per session via `[template.env]` (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Longer-term: dedicated `[template.git]` section for commit conventions, hook profiles, and branch naming rules — enabling different practices for admin agents, robo supervisors, and task workers.
+- **Double `feat/` branch prefix bug**: `f"feat/{worktree}"` in `cli/session_create.py:61`, `api/server.py:373`, and `services/mcp_shoal_server.py:356` produces `feat/feat/...` when the worktree name already includes a `feat/` prefix (e.g. from backlog worker branch naming). Fix: strip existing prefix before prepending, or let callers control the full branch name.
 
 ---
 
@@ -131,22 +144,35 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-02-24 — v0.18.0 Phase 2+3 parallel implementation
+### Session: 2026-02-24 — v0.18.0 Phase 4 Robo Supervisor
 
 **What we did:**
 
-- Completed Phase 2 + Phase 3 in parallel via 2 Shoal sessions (`shoal-gateway-spike`, `shoal-session-graph`)
-- **Phase 2 final item**: Composition Gateway spike — researched FastMCP `mount()`, decision no-go, wrote `docs/composition-gateway.md`
-- **Phase 3 complete**: Session Graph — `parent_id`, `tags`, `template_name` on SessionState
-- Added `shoal tag add/remove/ls` CLI subcommand group
-- Added `shoal ls --tag` filtering and `--tree` fork-relationship display
-- Added `shoal journal --search` for cross-session journal search
-- Enhanced `shoal info` with parent, template, and tags display
-- 24 new tests in `tests/test_session_graph.py`, 951 total passing
-- 4 commits across 2 branches, merged cleanly into main, `just ci` all green
+- Implemented `services/robo_supervisor.py` (248 lines) — async `RoboSupervisor` class with poll loop, `_safe_to_approve()` pattern detection, `_auto_approve()` via tmux, `_escalate()` with journal logging, `_waiting_duration_seconds()` from status_transitions DB
+- Added `shoal robo watch` CLI command in `cli/robo.py` — loads robo profile, prints config summary, runs supervisor loop; fish completions updated
+- 15 new tests (11 supervisor + 4 CLI), 967 total passing
+- Added `-n auto` to justfile test recipes — parallel test execution (5min+ → 21s)
+- Post-merge fixes: removed stale `type: ignore`, fixed hanging test that ran real supervisor loop
+- Created `/shoal-roadmap` skill, added batch MCP commands to backlog
+- 3 parallel Shoal sessions used for development (changelog, robo-core, robo-cli)
 
 **What to do next:**
 
-- Push to origin and tag release (carried over from previous sessions)
-- Update CHANGELOG.md with session graph additions
-- Start Phase 4: Robo Supervision Loop (`services/robo_supervisor.py`)
+- LLM escalation for ambiguous cases (remaining Phase 4 item)
+- Background daemon mode for `shoal robo watch` (currently foreground only)
+- Fix template env gap (Iteration 1 from `docs/WORKTREE_ENV_INIT.md`)
+- Push to origin and tag release (carried over)
+
+### Session: 2026-02-24 — Worktree env init design + roadmap update
+
+**What we did:**
+
+- Researched template env gap bug: `template_cfg.env` parsed but never applied in lifecycle create/fork
+- Wrote full design doc: `docs/WORKTREE_ENV_INIT.md` — 5 approaches with interaction matrix and recommended sequencing
+- Restructured ROADMAP backlog: new "Worktree & Environment Initialization" section linking to design doc
+
+**What to do next:**
+
+- Fix template env gap (Iteration 1 from design doc) — ~10 lines in `services/lifecycle.py`
+- Add `setup_commands` (Iteration 2) — model + lifecycle + docs
+- Start Phase 4: Robo Supervision Loop
