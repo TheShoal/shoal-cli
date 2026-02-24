@@ -2,7 +2,7 @@
 
 This roadmap outlines the planned development for Shoal as a fish-first, personal workflow tool that may still be useful to others.
 
-> **Release history**: See [CHANGELOG.md](CHANGELOG.md) for completed releases (v0.4.0–v0.16.0).
+> **Release history**: See [CHANGELOG.md](CHANGELOG.md) for completed releases (v0.4.0–v0.17.0).
 
 ## v0.15.0: FastMCP Integration
 
@@ -47,23 +47,25 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 - [ ] Fish status bar polls remote WebSocket for session status
 
-## Next: Local Templates, Journals, HTTP Transport
+## v0.17.0: Demo Overhaul, Diagnostics & Observability
 
-### Project-Local Templates
-- [x] `.shoal/templates/` search path in git root (local shadows global)
-- [x] `template ls` shows SOURCE column (local/global)
-- [x] Project-local mixins support
+**Priority: onboarding experience, operational visibility, and developer ergonomics.**
 
-### Structured Session Journals
-- [x] `core/journal.py` — append-only markdown per session
-- [x] MCP tools: `append_journal`, `read_journal`
-- [x] CLI: `shoal journal <session>` view/append
-- [x] Journal archive on session kill
-
-### FastMCP HTTP Transport Default
-- [x] HTTP default for `shoal-orchestrator` in MCP pool registry
-- [x] `mcp doctor` HTTP probe via FastMCP Client
-- [x] Auto-configure HTTP URL for tool integration
+- [x] Demo & onboarding overhaul — split monolithic `demo.py` into `cli/demo/` package
+- [x] `shoal demo tutorial` — interactive 7-step guided walkthrough
+- [x] Redesigned `shoal demo tour` — 7 user-facing feature steps
+- [x] `shoal config show` and `shoal mcp registry` — config introspection commands
+- [x] `shoal diag` — diagnostics command (DB, watcher, tmux, MCP sockets)
+- [x] Logging infrastructure — named loggers for 8 modules, structured JSON output
+- [x] Context propagation — `ContextVar`-based session/request ID threading
+- [x] Request ID middleware — `X-Request-ID` on all API requests
+- [x] Journal frontmatter — Obsidian-compatible YAML metadata on creation
+- [x] Project-local templates — `.shoal/templates/` search path in git root
+- [x] Structured session journals — append-only markdown with archive on kill
+- [x] FastMCP HTTP transport default for `shoal-orchestrator`
+- [x] Remote sessions — `shoal remote` subcommand group (7 commands via SSH tunnel)
+- [x] XDG Base Directory compliance across config/state/runtime paths
+- [x] `extra="forbid"` on config models; `ConfigLoadError` for TOML parse errors
 
 ## Future Considerations
 
