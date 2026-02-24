@@ -66,6 +66,16 @@ def test_main_exists() -> None:
     assert callable(main)
 
 
+def test_auto_enter_tools() -> None:
+    """CLI tools are in the auto-enter set, TUI tools are not."""
+    from shoal.services.mcp_shoal_server import _AUTO_ENTER_TOOLS
+
+    assert "claude" in _AUTO_ENTER_TOOLS
+    assert "gemini" in _AUTO_ENTER_TOOLS
+    assert "pi" in _AUTO_ENTER_TOOLS
+    assert "opencode" not in _AUTO_ENTER_TOOLS
+
+
 # ---------------------------------------------------------------------------
 # list_sessions
 # ---------------------------------------------------------------------------
@@ -210,10 +220,11 @@ async def test_session_info_resolve_then_missing() -> None:
 # ---------------------------------------------------------------------------
 
 
-async def test_send_keys_success() -> None:
+async def test_send_keys_claude_auto_enter() -> None:
+    """Claude (CLI tool) gets auto-enter by default."""
     from shoal.services.mcp_shoal_server import send_keys_tool
 
-    s = _make_session(name="worker-1")
+    s = _make_session(name="worker-1", tool="claude")
     with (
         patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
         patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
@@ -222,7 +233,39 @@ async def test_send_keys_success() -> None:
         result = await send_keys_tool(session="worker-1", keys="y")
 
     assert "worker-1" in result["message"]
-    mock_send.assert_called_once_with("_worker-1", "y")
+    mock_send.assert_called_once_with("_worker-1", "y", enter=True)
+
+
+async def test_send_keys_opencode_no_auto_enter() -> None:
+    """OpenCode (TUI tool) does not get auto-enter by default."""
+    from shoal.services.mcp_shoal_server import send_keys_tool
+
+    s = _make_session(name="worker-2", tool="opencode", session_id="def67890")
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="def67890"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        result = await send_keys_tool(session="worker-2", keys="y")
+
+    assert "worker-2" in result["message"]
+    mock_send.assert_called_once_with("_worker-2", "y", enter=False)
+
+
+async def test_send_keys_explicit_enter_override() -> None:
+    """Explicit enter parameter overrides tool-based auto-detection."""
+    from shoal.services.mcp_shoal_server import send_keys_tool
+
+    s = _make_session(name="worker-3", tool="opencode", session_id="ghi11111")
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="ghi11111"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        result = await send_keys_tool(session="worker-3", keys="y", enter=True)
+
+    assert "worker-3" in result["message"]
+    mock_send.assert_called_once_with("_worker-3", "y", enter=True)
 
 
 async def test_send_keys_not_found() -> None:

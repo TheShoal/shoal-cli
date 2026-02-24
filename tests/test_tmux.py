@@ -33,14 +33,24 @@ def test_has_session_false():
 
 
 def test_new_session():
-    """Test new_session creates a tmux session."""
+    """Test new_session creates a tmux session and sets SHOAL_AGENT."""
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
         tmux.new_session("my-session", cwd="/tmp/project")
 
-        mock_run.assert_called_once_with(
+        assert mock_run.call_count == 2
+        # First call: new-session
+        mock_run.assert_any_call(
             ["tmux", "new-session", "-d", "-s", "my-session", "-c", "/tmp/project"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+        # Second call: set SHOAL_AGENT env var
+        mock_run.assert_any_call(
+            ["tmux", "set-environment", "-t", "my-session", "SHOAL_AGENT", "1"],
             capture_output=True,
             text=True,
             check=True,
@@ -55,8 +65,17 @@ def test_new_session_no_cwd():
 
         tmux.new_session("my-session")
 
-        mock_run.assert_called_once_with(
+        assert mock_run.call_count == 2
+        mock_run.assert_any_call(
             ["tmux", "new-session", "-d", "-s", "my-session"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+        # SHOAL_AGENT always set
+        mock_run.assert_any_call(
+            ["tmux", "set-environment", "-t", "my-session", "SHOAL_AGENT", "1"],
             capture_output=True,
             text=True,
             check=True,

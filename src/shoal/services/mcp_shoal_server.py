@@ -162,21 +162,29 @@ async def session_info_tool(session: str) -> dict[str, Any]:
 # Tool: send_keys
 # ---------------------------------------------------------------------------
 
+# CLI-based tools where Enter is auto-appended after send_keys by default.
+# TUI-based tools (e.g. opencode) handle input natively and may not need
+# auto-Enter — callers can override with the explicit enter parameter.
+_AUTO_ENTER_TOOLS: frozenset[str] = frozenset({"claude", "gemini", "pi"})
+
 
 @mcp.tool(
     name="send_keys",
     description=(
         "Send keystrokes to a session's tmux pane. Use this to interact with agents. "
-        "Enter is pressed automatically after the keys — do not append Enter yourself."
+        "Whether Enter is pressed depends on the session's tool profile — "
+        "override with the enter parameter if needed."
     ),
     annotations={"destructiveHint": True},
 )
-async def send_keys_tool(session: str, keys: str) -> dict[str, str]:
+async def send_keys_tool(session: str, keys: str, enter: bool | None = None) -> dict[str, str]:
     """Send keys to a session.
 
     Args:
         session: Session name or ID.
-        keys: The keystrokes to send (e.g., 'y' or 'ls -la'). Enter is sent automatically.
+        keys: The keystrokes to send (e.g., 'y' or 'ls -la').
+        enter: Whether to press Enter after keys. Auto-detected from tool
+               profile if not specified (True for claude/gemini/pi).
     """
     from shoal.core import tmux
     from shoal.core.state import get_session, resolve_session
@@ -189,7 +197,8 @@ async def send_keys_tool(session: str, keys: str) -> dict[str, str]:
     if not s:
         raise ToolError(f"Session not found: {session}")
 
-    await tmux.async_send_keys(s.tmux_session, keys)
+    auto_enter = enter if enter is not None else s.tool in _AUTO_ENTER_TOOLS
+    await tmux.async_send_keys(s.tmux_session, keys, enter=auto_enter)
     return {"message": f"Keys sent to session '{s.name}'"}
 
 

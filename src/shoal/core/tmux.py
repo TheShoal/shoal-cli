@@ -43,6 +43,8 @@ def new_session(name: str, *, cwd: str | None = None) -> None:
     if cwd:
         args.extend(["-c", cwd])
     _run(args)
+    # Mark all Shoal-created sessions so pre-commit hooks can skip
+    set_environment(name, "SHOAL_AGENT", "1")
 
 
 def kill_session(name: str) -> None:
