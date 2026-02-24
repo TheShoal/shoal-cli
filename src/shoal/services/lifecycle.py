@@ -678,6 +678,15 @@ async def create_session_lifecycle(
     if template_cfg:
         for key, value in template_cfg.env.items():
             await tmux.async_set_environment(tmux_session, key, value)
+        # Apply env to the initial pane via fish set (tmux set-environment only affects new panes)
+        if template_cfg.env:
+            initial_pane = f"{tmux_session}:0.0"
+            for key, value in template_cfg.env.items():
+                await tmux.async_send_keys(
+                    initial_pane,
+                    f"set -gx {shlex.quote(key)} {shlex.quote(value)}",
+                    enter=True,
+                )
 
     # 4. Run startup commands
     try:
@@ -821,6 +830,15 @@ async def fork_session_lifecycle(
     if template_cfg:
         for key, value in template_cfg.env.items():
             await tmux.async_set_environment(tmux_session, key, value)
+        # Apply env to the initial pane via fish set (tmux set-environment only affects new panes)
+        if template_cfg.env:
+            initial_pane = f"{tmux_session}:0.0"
+            for key, value in template_cfg.env.items():
+                await tmux.async_send_keys(
+                    initial_pane,
+                    f"set -gx {shlex.quote(key)} {shlex.quote(value)}",
+                    enter=True,
+                )
 
     # 4. Run startup commands — full rollback on failure (fixes previous gap)
     try:

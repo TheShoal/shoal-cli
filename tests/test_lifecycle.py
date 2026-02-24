@@ -1,6 +1,6 @@
 """Unit tests for services/lifecycle.py — core lifecycle operations."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -2109,7 +2109,7 @@ class TestLifecycleErrorAttributes:
                 assert exc.operation == "create"
 
     async def test_template_env_vars_applied(self, mock_dirs):
-        """Template env vars are passed to tmux set-environment."""
+        """Template env vars applied via set-environment and fish set -gx to initial pane."""
         from shoal.models.config import (
             SessionTemplateConfig,
             TemplatePaneConfig,
@@ -2117,16 +2117,20 @@ class TestLifecycleErrorAttributes:
         )
 
         mock_set_env = MagicMock()
+        mock_async_send_keys = AsyncMock()
+        mock_async_set_env = AsyncMock()
         with (
             patch("shoal.core.tmux.has_session", return_value=False),
             patch("shoal.core.tmux.new_session"),
             patch("shoal.core.tmux.set_environment", mock_set_env),
+            patch("shoal.core.tmux.async_set_environment", mock_async_set_env),
             patch("shoal.core.tmux.set_pane_title"),
             patch("shoal.core.tmux.preferred_pane", return_value="_test"),
             patch("shoal.core.tmux.pane_pid", return_value=42),
             patch("shoal.core.tmux.pane_coordinates", return_value=("$1", "@0")),
             patch("shoal.core.tmux.run_command"),
             patch("shoal.core.tmux.send_keys"),
+            patch("shoal.core.tmux.async_send_keys", mock_async_send_keys),
         ):
             template = SessionTemplateConfig(
                 name="env-test",
@@ -2151,9 +2155,14 @@ class TestLifecycleErrorAttributes:
                 template_cfg=template,
             )
 
-        # Should have SHOAL_SESSION_ID, SHOAL_SESSION_NAME, MY_VAR, OTHER
-        env_calls = {call.args[1]: call.args[2] for call in mock_set_env.call_args_list}
+        # Should have SHOAL_SESSION_ID, SHOAL_SESSION_NAME, MY_VAR, OTHER via set-environment
+        env_calls = {call.args[1]: call.args[2] for call in mock_async_set_env.call_args_list}
         assert env_calls["MY_VAR"] == "hello"
         assert env_calls["OTHER"] == "world"
         assert "SHOAL_SESSION_ID" in env_calls
         assert "SHOAL_SESSION_NAME" in env_calls
+
+        # Should also send fish set -gx commands to the initial pane
+        send_keys_cmds = [call.args[1] for call in mock_async_send_keys.call_args_list]
+        assert any("set -gx MY_VAR hello" in cmd for cmd in send_keys_cmds)
+        assert any("set -gx OTHER world" in cmd for cmd in send_keys_cmds)
