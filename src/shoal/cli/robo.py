@@ -1,4 +1,4 @@
-"""Robo (supervisory agent) commands: setup, start, stop, send, approve, status, ls."""
+"""Robo (supervisory agent) commands: setup, start, stop, send, approve, status, ls, watch."""
 
 from __future__ import annotations
 
@@ -404,3 +404,39 @@ async def _robo_ls_impl() -> None:
             title_align="left",
         )
     )
+
+
+@app.command("watch")
+def robo_watch(
+    profile: Annotated[str | None, typer.Argument(help="Robo profile name")] = None,
+) -> None:
+    """Start the robo supervision loop."""
+    profile = profile or "default"
+
+    try:
+        cfg = load_robo_profile(profile)
+    except ConfigLoadError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from None
+    except FileNotFoundError:
+        console.print(f"[red]Error: Robo profile '{profile}' not found[/red]")
+        console.print(f"[yellow]Create one with:[/yellow] shoal robo setup {profile}")
+        raise typer.Exit(1) from None
+
+    console.print(f"[bold]Robo watch[/bold] — profile: {profile}")
+    console.print(f"  poll_interval:   {cfg.monitoring.poll_interval}s")
+    console.print(f"  waiting_timeout: {cfg.monitoring.waiting_timeout}s")
+    console.print(f"  auto_approve:    {cfg.auto_approve}")
+    console.print()
+
+    try:
+        from shoal.services.robo_supervisor import RoboSupervisor  # type: ignore[import-not-found]
+    except ImportError:
+        console.print(
+            "[yellow]RoboSupervisor not implemented yet — "
+            "services/robo_supervisor.py is pending.[/yellow]"
+        )
+        raise typer.Exit(0) from None
+
+    supervisor = RoboSupervisor(profile=cfg)
+    asyncio.run(supervisor.run())
