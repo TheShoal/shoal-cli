@@ -11,7 +11,10 @@ import asyncio
 import logging
 import shlex
 import subprocess
+from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Any
 
 from shoal.core import git, tmux
 from shoal.core.state import (
@@ -23,9 +26,41 @@ from shoal.core.state import (
     update_session,
 )
 from shoal.models.config import SessionTemplateConfig
-from shoal.models.state import SessionState, SessionStatus
+from shoal.models.state import LifecycleEvent, SessionState, SessionStatus
 
 logger = logging.getLogger("shoal.lifecycle")
+
+# ---------------------------------------------------------------------------
+# Lifecycle hook registry
+# ---------------------------------------------------------------------------
+
+# Callback type: async fn(event, **kwargs) -> None
+HookCallback = Callable[..., Awaitable[None]]
+
+_hooks: dict[LifecycleEvent, list[HookCallback]] = defaultdict(list)
+
+
+def on(event: LifecycleEvent, callback: HookCallback) -> None:
+    """Register an async callback for a lifecycle event."""
+    _hooks[event].append(callback)
+
+
+async def emit(event: LifecycleEvent, **kwargs: Any) -> None:
+    """Fire all registered callbacks for an event.
+
+    Exceptions in individual hooks are logged but do not propagate,
+    so a broken hook never blocks the lifecycle operation.
+    """
+    for cb in _hooks.get(event, []):
+        try:
+            await cb(event, **kwargs)
+        except Exception:
+            logger.exception("Hook error for %s: %s", event, cb)
+
+
+def clear_hooks() -> None:
+    """Remove all registered hooks.  Intended for testing."""
+    _hooks.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -699,6 +734,9 @@ async def create_session_lifecycle(
     # Re-fetch to return fully-updated state
     result = await get_session(session.id)
     assert result is not None
+
+    await emit(LifecycleEvent.session_created, session=result)
+
     return result
 
 
@@ -832,6 +870,9 @@ async def fork_session_lifecycle(
     logger.info("[%s] fork: complete (tmux=%s)", session.id, tmux_session)
     result = await get_session(session.id)
     assert result is not None
+
+    await emit(LifecycleEvent.session_forked, session=result)
+
     return result
 
 
@@ -912,6 +953,10 @@ async def kill_session_lifecycle(
         ):
             summary["branch_deleted"] = True
             logger.info("[%s] kill: branch deleted", session_id)
+
+    # 2.5. Emit kill event before DB deletion (session still available)
+    if session:
+        await emit(LifecycleEvent.session_killed, session=session)
 
     # 3. Delete DB row
     await delete_session(session_id)
@@ -1030,3 +1075,68 @@ def reconcile_mcp_pool() -> list[str]:
             logger.info("reconcile: cleaned orphaned MCP socket '%s'", name)
 
     return cleaned
+
+
+# ---------------------------------------------------------------------------
+# Built-in hooks
+# ---------------------------------------------------------------------------
+
+
+async def _hook_journal_on_create(event: LifecycleEvent, **kwargs: Any) -> None:
+    """Write an initial journal entry when a session is created."""
+    session: SessionState | None = kwargs.get("session")
+    if session is None:
+        return
+    from shoal.core.journal import append_entry, build_journal_metadata
+
+    metadata = build_journal_metadata(session)
+    await asyncio.to_thread(
+        append_entry,
+        session.id,
+        f"Session **{session.name}** created (tool={session.tool})",
+        source="lifecycle",
+        metadata=metadata,
+    )
+
+
+async def _hook_fish_event(event: LifecycleEvent, **kwargs: Any) -> None:
+    """Emit a fish shell event so users can react in their fish config.
+
+    Fires ``emit shoal_<event> <session_name> [extra...]`` via fish -c.
+    Best-effort — failures are logged and swallowed.
+    """
+    session: SessionState | None = kwargs.get("session")
+    if session is None:
+        return
+
+    parts = ["emit", f"shoal_{event.value}", session.name]
+
+    if event == LifecycleEvent.status_changed:
+        old: SessionStatus | None = kwargs.get("old_status")
+        new: SessionStatus | None = kwargs.get("new_status")
+        if old is not None:
+            parts.append(old.value)
+        if new is not None:
+            parts.append(new.value)
+
+    fish_cmd = " ".join(parts)
+    try:
+        await asyncio.to_thread(
+            subprocess.run,
+            ["fish", "-c", fish_cmd],
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+    except FileNotFoundError:
+        logger.debug("fish not found, skipping event emission")
+    except Exception:
+        logger.debug("fish event emission failed", exc_info=True)
+
+
+def register_builtin_hooks() -> None:
+    """Register the default set of lifecycle hooks."""
+    on(LifecycleEvent.session_created, _hook_journal_on_create)
+    on(LifecycleEvent.session_forked, _hook_journal_on_create)
+    for evt in LifecycleEvent:
+        on(evt, _hook_fish_event)

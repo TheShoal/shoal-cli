@@ -172,13 +172,22 @@ class Watcher:
 
             # Update if changed
             if new_status.value != session.status.value:
+                old_status = session.status
                 await update_session(
                     session.id,
                     status=new_status,
                     last_activity=datetime.now(UTC),
                 )
-                logger.info(
-                    "Session %s: %s → %s", session.id, session.status.value, new_status.value
+                logger.info("Session %s: %s → %s", session.id, old_status.value, new_status.value)
+
+                from shoal.models.state import LifecycleEvent
+                from shoal.services.lifecycle import emit
+
+                await emit(
+                    LifecycleEvent.status_changed,
+                    session=session,
+                    old_status=old_status,
+                    new_status=new_status,
                 )
 
                 if new_status.value == "waiting":

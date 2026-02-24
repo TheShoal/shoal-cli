@@ -17,6 +17,15 @@ class SessionStatus(StrEnum):
     unknown = "unknown"
 
 
+class LifecycleEvent(StrEnum):
+    """Events emitted by the lifecycle service."""
+
+    session_created = "session_created"
+    session_killed = "session_killed"
+    session_forked = "session_forked"
+    status_changed = "status_changed"
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
