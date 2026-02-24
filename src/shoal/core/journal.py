@@ -1,6 +1,6 @@
 """Append-only session journals stored as flat markdown files.
 
-Each session gets a ``<session_id>.md`` file under ``state_dir() / "journals"``.
+Each session gets a ``<session_id>.md`` file under ``~/.local/share/shoal/journals/``.
 Entries follow the format::
 
     ## <ISO timestamp> [<source>]

@@ -31,14 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Enhanced `shoal info`**: Shows parent session, template name, and tags when present
 - **Composition gateway spike**: `docs/composition-gateway.md` — FastMCP `mount()` investigation, decision no-go
 - **Robo supervision loop**: `services/robo_supervisor.py` — async `RoboSupervisor` class with configurable poll loop, safe-to-approve pattern detection, auto-approve via tmux send_keys, timeout escalation, and journal decision logging
-- **`shoal robo watch` CLI command**: Start the robo supervision loop for a named profile — loads `RoboProfileConfig`, prints config summary, runs supervisor in foreground
-- **Fish completions**: Added `watch` to robo subcommand completions
+- **`shoal robo watch` CLI command**: Start the robo supervision loop for a named profile — loads `RoboProfileConfig`, prints config summary, runs in foreground or background daemon mode
+- **Robo daemon mode**: `shoal robo watch --daemon` launches supervisor as background process with PID file management; `watch-stop` and `watch-status` commands for daemon lifecycle; profile-specific PID files (`robo-{profile}.pid`)
+- **LLM escalation**: `_escalate_to_llm()` sends ambiguous waiting sessions to a configured LLM agent session via `send_keys`, polls journal for `robo-escalation-response` entries; `EscalationConfig` gains `escalation_session` and `escalation_timeout` fields; graceful fallback when no escalation session configured or on timeout
+- **Fish completions**: Added `watch`, `watch-stop`, `watch-status` to robo subcommand completions
+- **`shoal-robo-supervisor`**: New console script entry point for background daemon invocation
 
 ### Changed
 - **Parallel test execution**: Added `-n auto` (pytest-xdist) to justfile `test` and `test-all` recipes
 - **Tool-profile-aware `send_keys`**: MCP `send_keys` tool checks session tool profile for Enter handling behavior
 
 ### Fixed
+- **Template env gap**: `template_cfg.env` now applied to the initial pane via fish `set -gx` commands sent before agent launch — `tmux set-environment` alone only affects subsequent panes, not the one created by `new-session`
 - **send_keys Enter bug**: Use `-l` flag for literal text in tmux send-keys, then send Enter as a separate command — fixes key-name interpretation issues in Claude Code sessions
 - **mypy strict**: Resolved type narrowing error in journal archived CLI (`str | None` assignment)
 

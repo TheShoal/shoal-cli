@@ -103,9 +103,9 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - [x] `services/robo_supervisor.py` — async programmatic supervision loop
 - [x] Wire up `auto_approve`, `poll_interval`, `waiting_timeout` from robo config
 - [x] Pattern-based safe-to-approve detection (reads pane content, checks against patterns)
-- [ ] LLM escalation: ambiguous cases escalated to robo agent session via MCP tools
+- [x] LLM escalation: ambiguous cases escalated to robo agent session via MCP tools
 - [x] Robo journal: logs every decision (approved, escalated, timed out)
-- [x] `shoal robo watch` — start the supervision loop (foreground; background daemon deferred)
+- [x] `shoal robo watch` — start the supervision loop (foreground + background daemon mode)
 
 ### Design Decisions
 
@@ -133,16 +133,39 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when robo supervisor needs unified cross-session MCP or FastMCP adds UDS transport
 - **Oh-My-Pi (omp) Integration**: `omp.toml` tool definition and `omp-dev` session template; native MCP via `omp plugin`; detection pattern tuning for omp's extended TUI
 - Remote status bar: Fish status bar polls remote WebSocket for session status
+- **Auto-commit on session idle/kill**: Workers should automatically commit their changes when they finish working. Implement as a lifecycle hook (`session_killed`, `status_changed → idle`) that runs `git add -A && git commit` in the session's worktree. Should be user-configurable — `auto_commit` bool in `[template.git]` or `GeneralConfig` (default on in templates, off globally). Consider: commit message generation (conventional commit from diff summary vs. agent-provided), dirty worktree guard on kill already exists (`DirtyWorktreeError`), opt-out for sessions where manual review is preferred. Related to robo merge workflow and per-session git practices below.
 - **Robo merge/worktree workflow**: Document merge-back-to-main lifecycle for robo supervisor — concrete instructions in default `AGENTS.md` template and ROBO_GUIDE section covering: branch readiness checks, test verification before merge, safe auto-merge patterns vs. human review, worktree cleanup after merge, and post-session branch deletion. Consider dedicated MCP tools (`merge_branch`, `branch_status`) so robo doesn't need raw `send_keys` for git operations.
 - **Batch MCP commands**: Adapt existing MCP tools (`send_keys`, `session_status`, `kill_session`, `capture_pane`, etc.) to accept lists of sessions for batch operations. Add batch variants or overload existing tools to handle `session: str | list[str]` — enables robo supervisors and orchestrators to approve/kill/query multiple sessions in a single MCP call instead of N sequential calls. Consider a `batch_execute` meta-tool that takes `[(tool, params), ...]` for arbitrary batching.
 - **Per-session git practices**: Unblocked once template env gap is fixed — support git identity and conventions per session via `[template.env]` (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Longer-term: dedicated `[template.git]` section for commit conventions, hook profiles, and branch naming rules — enabling different practices for admin agents, robo supervisors, and task workers.
+- **`state_dir`/`runtime_dir` naming inversion** (refactor): `core/config.py` has swapped names — `state_dir()` reads `XDG_DATA_HOME` (returns `~/.local/share`), `runtime_dir()` reads `XDG_STATE_HOME` (returns `~/.local/state`). Names are inverted relative to the XDG spec. Rename to `data_dir` and `state_dir` respectively. Breaking internal rename — grep all callers across `core/`, `services/`, `cli/` before landing.
+- **`send_keys` prompt submission bug** (bug): Prompts pasted into Claude Code panes via `send_keys` are not reliably submitted — text appears but Enter doesn't trigger execution. Current implementation sends `-l` literal text then a separate `send-keys Enter`, but Claude Code may not process the Enter if it arrives before the TUI has finished rendering the pasted text. Investigate: (1) adding a small delay between text paste and Enter, (2) using `send-keys -H` hex codes for newline, (3) chunked sending for long prompts, (4) readiness detection (wait for TUI idle before sending Enter). Affects `core/tmux.py:send_keys()`, MCP `send_keys_tool`, and `create_session` prompt delivery. This is the #1 reliability blocker for robo supervisor and orchestrator workflows.
 - **Double `feat/` branch prefix bug**: `f"feat/{worktree}"` in `cli/session_create.py:61`, `api/server.py:373`, and `services/mcp_shoal_server.py:356` produces `feat/feat/...` when the worktree name already includes a `feat/` prefix (e.g. from backlog worker branch naming). Fix: strip existing prefix before prepending, or let callers control the full branch name.
+- **Fins (extension system)**: Plugin/extension architecture for Shoal — let users and third parties extend functionality without modifying core. Consider: custom tool profiles, lifecycle hook packages, MCP server bundles, CLI subcommand plugins, and template libraries as installable Fins. Design decisions: discovery mechanism (entry points vs config registry), sandboxing, API surface contract, naming (`shoal fin install`, `shoal fin ls`). Look at FastMCP's plugin patterns and Click's plugin system for inspiration.
 
 ---
 
 ## Handoff
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
+
+### Session: 2026-02-24 — v0.18.0 Phase 4 complete + env fix
+
+**What we did:**
+
+- Fixed template env gap — `lifecycle.py` now applies `template_cfg.env` to initial pane via fish `set -gx` before agent launch (`75a2434`, +31 lines)
+- Added background daemon mode for `shoal robo watch` — `--daemon` flag, `watch-stop`/`watch-status` commands, profile-specific PID files (`3aa15f5`, +290 lines, 6 files)
+- Added LLM escalation for robo supervisor — `_escalate_to_llm()`, `_build_escalation_prompt()`, journal-based polling via `_wait_for_escalation_response()`, `EscalationConfig` with `escalation_session`/`escalation_timeout` (`72cf876`, +288 lines)
+- v0.18.0 Phase 4 now fully complete (all checkboxes done)
+- 986 tests passing (was 967), CI green — 3 parallel Shoal sessions used
+- Added backlog items: Fins extension system, `send_keys` submission bug, auto-commit on idle/kill
+
+**What to do next:**
+
+- Push to origin and tag v0.18.0 release
+- Fix `send_keys` prompt submission reliability (text pastes but Enter doesn't always submit in Claude Code)
+- Fix double `feat/` branch prefix bug
+- Add `setup_commands` template feature (Iteration 2 from `docs/WORKTREE_ENV_INIT.md`)
+- Update CHANGELOG.md `[Unreleased]` section with all v0.18.0 changes before tagging
 
 ### Session: 2026-02-24 — v0.18.0 Phase 4 Robo Supervisor
 
@@ -152,27 +175,9 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - Added `shoal robo watch` CLI command in `cli/robo.py` — loads robo profile, prints config summary, runs supervisor loop; fish completions updated
 - 15 new tests (11 supervisor + 4 CLI), 967 total passing
 - Added `-n auto` to justfile test recipes — parallel test execution (5min+ → 21s)
-- Post-merge fixes: removed stale `type: ignore`, fixed hanging test that ran real supervisor loop
-- Created `/shoal-roadmap` skill, added batch MCP commands to backlog
-- 3 parallel Shoal sessions used for development (changelog, robo-core, robo-cli)
 
 **What to do next:**
 
 - LLM escalation for ambiguous cases (remaining Phase 4 item)
-- Background daemon mode for `shoal robo watch` (currently foreground only)
-- Fix template env gap (Iteration 1 from `docs/WORKTREE_ENV_INIT.md`)
-- Push to origin and tag release (carried over)
-
-### Session: 2026-02-24 — Worktree env init design + roadmap update
-
-**What we did:**
-
-- Researched template env gap bug: `template_cfg.env` parsed but never applied in lifecycle create/fork
-- Wrote full design doc: `docs/WORKTREE_ENV_INIT.md` — 5 approaches with interaction matrix and recommended sequencing
-- Restructured ROADMAP backlog: new "Worktree & Environment Initialization" section linking to design doc
-
-**What to do next:**
-
-- Fix template env gap (Iteration 1 from design doc) — ~10 lines in `services/lifecycle.py`
-- Add `setup_commands` (Iteration 2) — model + lifecycle + docs
-- Start Phase 4: Robo Supervision Loop
+- Background daemon mode for `shoal robo watch`
+- Fix template env gap
