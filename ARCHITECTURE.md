@@ -347,7 +347,7 @@ resolved = resolve_template("claude-dev")
 
 ## Production Readiness
 
-### Current Status (v0.16.0)
+### Current Status (v0.17.0)
 
 - ✅ **862 Tests, 82% Coverage**: Comprehensive unit, CLI, and model tests with 80% coverage gate
 - ✅ **Type Safety**: Full type hints, Pydantic v2 models, mypy --strict enforced
@@ -376,6 +376,7 @@ resolved = resolve_template("claude-dev")
 - **v0.14.0**: Template inheritance and mixins ✅
 - **v0.15.0**: FastMCP integration, Shoal MCP server, robo-orchestrator template ✅
 - **v0.16.0**: Remote sessions, journals, HTTP transport, project-local templates ✅
+- **v0.17.0**: Demo overhaul, diagnostics, observability, config introspection ✅
 - **v1.0.0**: Stable public surface for personal-first workflows
 
 ---

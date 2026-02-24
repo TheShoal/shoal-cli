@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-02-24
+
 ### Added
 - **Demo & onboarding overhaul**: Split monolithic `demo.py` (1249 lines) into `cli/demo/` package with `__init__.py`, `start_stop.py`, `tour.py`, `tutorial.py`
 - **`shoal demo tutorial`**: Interactive 7-step guided walkthrough — creates real sessions, worktrees, journals, and diagnostics in `/tmp/shoal-tutorial/` with `typer.confirm()` pacing, `--cleanup` flag, `--step N` resume, and Ctrl+C crash recovery
