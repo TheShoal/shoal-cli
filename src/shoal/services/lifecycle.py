@@ -675,6 +675,9 @@ async def create_session_lifecycle(
     # 3. Set environment variables
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
+    if template_cfg:
+        for key, value in template_cfg.env.items():
+            await tmux.async_set_environment(tmux_session, key, value)
 
     # 4. Run startup commands
     try:
@@ -815,6 +818,9 @@ async def fork_session_lifecycle(
     # 3. Set environment
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
+    if template_cfg:
+        for key, value in template_cfg.env.items():
+            await tmux.async_set_environment(tmux_session, key, value)
 
     # 4. Run startup commands — full rollback on failure (fixes previous gap)
     try:

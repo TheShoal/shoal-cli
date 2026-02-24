@@ -1,6 +1,6 @@
 """Unit tests for services/lifecycle.py — core lifecycle operations."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -2107,3 +2107,53 @@ class TestLifecycleErrorAttributes:
             except StartupCommandError as exc:
                 assert exc.session_id != ""
                 assert exc.operation == "create"
+
+    async def test_template_env_vars_applied(self, mock_dirs):
+        """Template env vars are passed to tmux set-environment."""
+        from shoal.models.config import (
+            SessionTemplateConfig,
+            TemplatePaneConfig,
+            TemplateWindowConfig,
+        )
+
+        mock_set_env = MagicMock()
+        with (
+            patch("shoal.core.tmux.has_session", return_value=False),
+            patch("shoal.core.tmux.new_session"),
+            patch("shoal.core.tmux.set_environment", mock_set_env),
+            patch("shoal.core.tmux.set_pane_title"),
+            patch("shoal.core.tmux.preferred_pane", return_value="_test"),
+            patch("shoal.core.tmux.pane_pid", return_value=42),
+            patch("shoal.core.tmux.pane_coordinates", return_value=("$1", "@0")),
+            patch("shoal.core.tmux.run_command"),
+            patch("shoal.core.tmux.send_keys"),
+        ):
+            template = SessionTemplateConfig(
+                name="env-test",
+                tool="claude",
+                env={"MY_VAR": "hello", "OTHER": "world"},
+                windows=[
+                    TemplateWindowConfig(
+                        name="main",
+                        panes=[TemplatePaneConfig(split="root", command="{tool_command}")],
+                    ),
+                ],
+            )
+            await create_session_lifecycle(
+                session_name="env-test",
+                tool="claude",
+                git_root="/tmp/repo",
+                wt_path="",
+                work_dir="/tmp/repo",
+                branch_name="main",
+                tool_command="claude",
+                startup_commands=[],
+                template_cfg=template,
+            )
+
+        # Should have SHOAL_SESSION_ID, SHOAL_SESSION_NAME, MY_VAR, OTHER
+        env_calls = {call.args[1]: call.args[2] for call in mock_set_env.call_args_list}
+        assert env_calls["MY_VAR"] == "hello"
+        assert env_calls["OTHER"] == "world"
+        assert "SHOAL_SESSION_ID" in env_calls
+        assert "SHOAL_SESSION_NAME" in env_calls
