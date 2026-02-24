@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`shoal journal --archived <session>`**: Read archived journals from killed sessions with `read_archived_journal()` core helper, DB name resolution fallback, and Rich rendering
+- **Nerd Font toggle**: `use_nerd_fonts` config flag in `GeneralConfig` (default `True`), wired through `_ls_impl` and `_status_impl` with Unicode fallback symbols
+- **Feature documentation**: `docs/JOURNALS.md`, `docs/LOCAL_TEMPLATES.md`, `docs/HTTP_TRANSPORT.md` — standalone guides for shipped features
+
+### Fixed
+- **mypy strict**: Resolved type narrowing error in journal archived CLI (`str | None` assignment)
+
 ## [0.17.0] - 2026-02-24
 
 ### Added
