@@ -347,9 +347,9 @@ resolved = resolve_template("claude-dev")
 
 ## Production Readiness
 
-### Current Status (v0.14.0)
+### Current Status (v0.16.0)
 
-- ✅ **589 Tests, 81% Coverage**: Comprehensive unit, CLI, and model tests with 80% coverage gate
+- ✅ **862 Tests, 82% Coverage**: Comprehensive unit, CLI, and model tests with 80% coverage gate
 - ✅ **Type Safety**: Full type hints, Pydantic v2 models, mypy --strict enforced
 - ✅ **Error Handling**: Structured logging with session IDs, scoped exception hierarchy (`LifecycleError` → `TmuxSetupError`, `StartupCommandError`, `SessionExistsError`)
 - ✅ **Database Lifecycle**: Single async SQLite connection with WAL mode, explicit lifecycle cleanup, and concurrent update guards (`asyncio.Lock`)
@@ -374,6 +374,8 @@ resolved = resolve_template("claude-dev")
 - **v0.12.0**: Compiled regex detection, session CLI decomposition ✅
 - **v0.13.0**: Ruff lint expansion, security consolidation ✅
 - **v0.14.0**: Template inheritance and mixins ✅
+- **v0.15.0**: FastMCP integration, Shoal MCP server, robo-orchestrator template ✅
+- **v0.16.0**: Remote sessions, journals, HTTP transport, project-local templates ✅
 - **v1.0.0**: Stable public surface for personal-first workflows
 
 ---
@@ -402,7 +404,7 @@ resolved = resolve_template("claude-dev")
 
 - **Thoughtful Architecture**: Every design decision addresses a real pain point
 - **Production-Tested**: Built and battle-tested at a high-growth company
-- **Clean Codebase**: Type-safe, well-documented, 81% test coverage
+- **Clean Codebase**: Type-safe, well-documented, 82% test coverage
 
 ### Practical Value
 
