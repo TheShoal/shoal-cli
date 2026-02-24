@@ -250,6 +250,23 @@ def archived_journal_path(session_id: str) -> Path:
     return _journals_dir() / "archive" / f"{session_id}.md"
 
 
+def read_archived_journal(session_id: str, limit: int | None = None) -> list[JournalEntry]:
+    """Read entries from an archived journal. Returns newest-last.
+
+    Args:
+        session_id: The session ID to read the archived journal for.
+        limit: If set, return only the last *limit* entries.
+    """
+    path = archived_journal_path(session_id)
+    if not path.exists():
+        return []
+    text = path.read_text()
+    entries = _parse_journal(text)
+    if limit is not None:
+        entries = entries[-limit:]
+    return entries
+
+
 def archive_journal(session_id: str) -> bool:
     """Archive a session journal. Returns True if it existed and was archived."""
     path = journal_path(session_id)
