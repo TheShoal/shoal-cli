@@ -8,7 +8,7 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.17.0--dev-beta-EED49F?style=flat-square" alt="v0.17.0-dev beta">
+  <img src="https://img.shields.io/badge/v0.18.0-beta-EED49F?style=flat-square" alt="v0.18.0 beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
 </p>
@@ -19,14 +19,16 @@
   <img src="https://img.shields.io/badge/SQLite_WAL-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite WAL">
   <img src="https://img.shields.io/badge/tmux-1BB91F?style=flat-square&logo=tmux&logoColor=white" alt="tmux">
   <img src="https://img.shields.io/badge/Fish_Shell-4AAE46?style=flat-square&logo=gnubash&logoColor=white" alt="Fish Shell">
+  <img src="https://img.shields.io/badge/MCP-FastMCP_3.0-F97316?style=flat-square" alt="FastMCP 3.0">
   <img src="https://img.shields.io/badge/Pydantic_v2-E92063?style=flat-square&logo=pydantic&logoColor=white" alt="Pydantic v2">
   <img src="https://img.shields.io/badge/Ruff-D7FF64?style=flat-square&logo=ruff&logoColor=black" alt="Ruff">
 </p>
 
 <!-- Row 3 — Quality -->
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-862_passing-A6DA95?style=flat-square" alt="Tests: 862 passing">
-  <img src="https://img.shields.io/badge/coverage-81%25-8BD5CA?style=flat-square" alt="Coverage: 81%">
+  <img src="https://img.shields.io/badge/tests-986_passing-A6DA95?style=flat-square" alt="Tests: 986 passing">
+  <img src="https://img.shields.io/badge/coverage-82%25-8BD5CA?style=flat-square" alt="Coverage: 82%">
+  <img src="https://img.shields.io/badge/mypy-strict-CBA6F7?style=flat-square" alt="mypy strict">
   <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
 </p>
 
@@ -66,15 +68,21 @@ You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. Yo
 
 **Real-time status detection** watches tmux pane output and reports each agent's state: Thinking, Waiting, Error, or Idle. You always know who needs attention.
 
+**Lifecycle hooks** emit events (`session_created`, `session_killed`, `status_changed`) to async Python callbacks and fish shell events. Wire up notifications, logging, or custom automation without touching core code.
+
+**Agent observability** records every status transition in SQLite with timestamps and optional pane snapshots. `shoal history` shows a color-coded timeline; `capture_pane` reads live terminal output via MCP.
+
+**Session graph** tracks fork relationships (`parent_id`), tags, and template provenance. `shoal ls --tree` displays the fork hierarchy; `shoal ls --tag` filters by label.
+
 **Session templates** define window layouts, pane splits, and tool configs in TOML. Templates support inheritance (`extends`) and composition (`mixins`) to eliminate duplication across workflows. Project-local templates in `.shoal/templates/` shadow global ones.
 
-**Session journals** provide append-only markdown logs per session with Obsidian-compatible YAML frontmatter. Journals are archived automatically when sessions are killed.
+**Session journals** provide append-only markdown logs per session with Obsidian-compatible YAML frontmatter. Search across all journals with `shoal journal --search`. Journals are archived automatically when sessions are killed.
 
 **Remote sessions** let you monitor and control agents on remote machines via SSH tunnel. `shoal remote connect` opens a tunnel; `shoal remote ls` and `shoal remote send` work through it.
 
-**Shoal MCP server** exposes orchestration tools (list, create, kill, send keys) via FastMCP so agents can call Shoal natively — enabling robo supervisor workflows where agents manage other agents.
+**Shoal MCP server** exposes orchestration tools (list, create, kill, send keys, capture pane, read history) via FastMCP so agents can call Shoal natively — enabling robo supervisor workflows where agents manage other agents.
 
-**Robo supervisor mode** gives a coordinating agent access to the Shoal CLI. It monitors the fleet, sends keystrokes, approves actions, and routes tasks — your agents managing agents.
+**Robo supervisor** runs an autonomous supervision loop that polls agent status, auto-approves known-safe prompts, and escalates ambiguous cases to an LLM agent session. Run it as a foreground process or a background daemon.
 
 **Diagnostics** built in — `shoal diag` checks DB connectivity, watcher PID, tmux reachability, and MCP sockets. `shoal mcp doctor` runs protocol-level health checks on pooled servers.
 
@@ -92,9 +100,9 @@ You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. Yo
 
 3. **MCP servers are pooled** — Instead of each agent spawning its own MCP servers, Shoal runs a shared pool. Agents connect through `shoal-mcp-proxy` for shared infrastructure (each connection spawns a fresh MCP process).
 
-4. **Status is tracked continuously** — A background monitor reads tmux pane output, matches patterns against tool-specific configs, and writes state to a SQLite WAL database. The FastAPI server exposes this via a local API.
+4. **Status is tracked continuously** — A background monitor reads tmux pane output, matches patterns against tool-specific configs, and writes state to a SQLite WAL database. Every transition is recorded with timestamps. The FastAPI server exposes this via a local API.
 
-5. **You control everything from one CLI** — `shoal status` shows all agents. `shoal popup` opens a TUI dashboard. `shoal attach` jumps into any session. `shoal robo` launches a supervisor to automate the whole fleet.
+5. **You control everything from one CLI** — `shoal status` shows all agents. `shoal popup` opens a TUI dashboard. `shoal attach` jumps into any session. `shoal robo watch` launches a supervisor to automate the whole fleet.
 
 ---
 
@@ -155,8 +163,9 @@ shoal setup fish    # install fish completions, keybindings, abbreviations
 ### Try the Demo
 
 ```bash
-shoal demo start   # guided demo environment
-shoal demo stop    # tear down when done
+shoal demo tutorial   # interactive hands-on walkthrough
+shoal demo start      # guided demo environment
+shoal demo stop       # tear down when done
 ```
 
 ### 60-Second Workflow
@@ -215,15 +224,17 @@ shoal new -t pi -w review-auth -b
 </details>
 
 <details>
-<summary><strong>Overnight Batch Processing</strong></summary>
+<summary><strong>Autonomous Supervision</strong></summary>
 
-Set up agents with a robo supervisor to route tasks:
+Run a robo supervisor that auto-approves safe prompts and escalates ambiguous cases:
 
 ```bash
-shoal robo setup batch --tool opencode
-shoal robo start batch
-# Robo monitors agents and assigns tasks from a backlog
+shoal robo watch default              # foreground supervision loop
+shoal robo watch default --daemon     # background daemon mode
+shoal robo watch-status default       # check daemon health
 ```
+
+The supervisor polls agent status, pattern-matches pane content against safe-to-approve rules, and escalates anything ambiguous to a configured LLM agent session.
 
 See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 
@@ -235,13 +246,27 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 
 ### Session Management
 
-| Command        | Alias | Description                                       |
-| -------------- | ----- | ------------------------------------------------- |
-| `shoal new`    | `add` | Create a new session (optionally with a worktree) |
-| `shoal ls`     |       | List sessions grouped by project                  |
-| `shoal attach` | `a`   | Attach to a session (fzf picker if no name)       |
-| `shoal kill`   | `rm`  | Stop a session and clean up worktrees             |
-| `shoal popup`  | `pop` | Open the interactive TUI dashboard                |
+| Command         | Alias | Description                                       |
+| --------------- | ----- | ------------------------------------------------- |
+| `shoal new`     | `add` | Create a new session (optionally with a worktree) |
+| `shoal ls`      |       | List sessions (`--tag`, `--tree` supported)       |
+| `shoal attach`  | `a`   | Attach to a session (fzf picker if no name)       |
+| `shoal kill`    | `rm`  | Stop a session and clean up worktrees             |
+| `shoal fork`    |       | Fork a session (tracked parent/child graph)       |
+| `shoal rename`  |       | Rename a session                                  |
+| `shoal info`    |       | Detailed session summary with tags and lineage    |
+| `shoal popup`   | `pop` | Open the interactive TUI dashboard                |
+| `shoal history` |       | Status transition timeline with durations         |
+| `shoal tag`     |       | Add, remove, or list session tags                 |
+
+### Journals (`shoal journal`)
+
+| Command              | Description                                   |
+| -------------------- | --------------------------------------------- |
+| `<session>`          | View a session's journal                      |
+| `--append <message>` | Append an entry to a session journal          |
+| `--archived`         | Read archived journals from killed sessions   |
+| `--search <query>`   | Search across all session journals            |
 
 ### Worktrees (`shoal wt`)
 
@@ -260,6 +285,7 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 | `attach`   | Connect a session to a pooled server            |
 | `doctor`   | Protocol-level health check on pooled servers   |
 | `registry` | Show configured MCP server registry             |
+| `logs`     | View MCP server log files                       |
 
 ### Diagnostics & Config
 
@@ -267,7 +293,7 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 | ------------------- | ------------------------------------------ |
 | `shoal diag`        | Check DB, watcher, tmux, MCP socket health |
 | `shoal config show` | Display resolved configuration             |
-| `shoal journal`     | View or append to session journals         |
+| `shoal status`      | Aggregate status counts across all agents  |
 
 ### Templates (`shoal template`)
 
@@ -290,11 +316,15 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 
 ### Robo Supervisor (`shoal robo`)
 
-| Command   | Description                            |
-| --------- | -------------------------------------- |
-| `start`   | Launch the supervisor agent            |
-| `approve` | Send "Enter" to a waiting agent        |
-| `send`    | Send arbitrary keys to a child session |
+| Command        | Description                                           |
+| -------------- | ----------------------------------------------------- |
+| `start`        | Launch the supervisor agent session                   |
+| `watch`        | Start the autonomous supervision loop                 |
+| `watch --daemon` | Run supervision as a background daemon              |
+| `watch-stop`   | Stop a running daemon                                 |
+| `watch-status` | Check daemon health                                   |
+| `approve`      | Send "Enter" to a waiting agent                       |
+| `send`         | Send arbitrary keys to a child session                |
 
 ### Remote Sessions (`shoal remote`)
 
@@ -316,7 +346,7 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 shoal setup fish
 ```
 
-Installs tab completions, key bindings (`Ctrl+S` popup, `Alt+A` attach), abbreviations (`sa`, `sl`, `ss`, `sp`), and helper functions. See [Fish Integration Guide](docs/FISH_INTEGRATION.md) for details.
+Installs tab completions, key bindings (`Ctrl+S` popup, `Alt+A` attach), abbreviations (`sa`, `sl`, `ss`, `sp`), and helper functions. Fish event hooks (`__shoal_on_waiting`, `__shoal_on_error`) let you wire up notifications without writing Python. See [Fish Integration Guide](docs/FISH_INTEGRATION.md) for details.
 
 For completions only:
 
@@ -341,12 +371,13 @@ Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection
 
 ## Status
 
-| Milestone   | Focus                                      | Status   |
-| ----------- | ------------------------------------------ | -------- |
-| **v0.17.0** | Demo overhaul, config introspection, journals | Dev      |
-| **v0.16.0** | Remote sessions via SSH tunnel             | Complete |
-| **v0.15.0** | FastMCP integration, Shoal MCP server      | Complete |
-| **v0.14.0** | Template inheritance and mixins            | Complete |
+| Milestone   | Focus                                                   | Status   |
+| ----------- | ------------------------------------------------------- | -------- |
+| **v0.18.0** | Lifecycle hooks, observability, session graph, robo supervisor | Current  |
+| **v0.17.0** | Demo overhaul, diagnostics, journals, remote sessions   | Complete |
+| **v0.16.0** | Remote sessions via SSH tunnel                          | Complete |
+| **v0.15.0** | FastMCP integration, Shoal MCP server                   | Complete |
+| **v0.14.0** | Template inheritance and mixins                         | Complete |
 
 See [ROADMAP.md](ROADMAP.md) for the full plan.
 
@@ -355,15 +386,16 @@ See [ROADMAP.md](ROADMAP.md) for the full plan.
 ## Development
 
 ```bash
-just ci          # all CI checks (lint, typecheck, test, fish-check)
+just ci          # all CI checks (lint, typecheck, test, fish-check, security)
 just lint        # lint with ruff
 just fmt         # auto-format with ruff
 just test        # tests (exclude integration)
+just typecheck   # mypy --strict
 just cov         # tests with coverage report
 just setup       # install pre-commit hooks
 ```
 
-**862 tests** | **81% coverage** | **pre-commit enforced** | **conventional commits**
+**986 tests** | **82% coverage** | **mypy --strict** | **pre-commit enforced** | **conventional commits**
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
@@ -371,9 +403,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
 ## Documentation
 
+- [docs/JOURNALS.md](docs/JOURNALS.md) — Session journals and frontmatter
+- [docs/LOCAL_TEMPLATES.md](docs/LOCAL_TEMPLATES.md) — Project-local template guide
 - [docs/REMOTE_GUIDE.md](docs/REMOTE_GUIDE.md) — Remote session management guide
 - [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) — Robo supervisor patterns and workflows
 - [docs/FISH_INTEGRATION.md](docs/FISH_INTEGRATION.md) — Fish shell integration guide
+- [docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md) — MCP HTTP transport setup
+- [docs/CLAUDE_CODE_SETUP.md](docs/CLAUDE_CODE_SETUP.md) — Claude Code integration guide
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — Common issues and solutions
 - [ARCHITECTURE.md](ARCHITECTURE.md) — System design and concepts
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Development setup and guidelines
 - [ROADMAP.md](ROADMAP.md) — Upcoming features and milestones
