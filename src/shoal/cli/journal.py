@@ -83,16 +83,17 @@ def _view_archived(session: str, *, limit: int | None = None) -> None:
 
     path = archived_journal_path(session)
     if path.exists():
-        session_id = session
+        session_id: str = session
     else:
         # Try resolving via DB in case user passed a name
         async def _resolve() -> str | None:
             return await resolve_session(session)
 
-        session_id = asyncio.run(with_db(_resolve()))
-        if not session_id:
+        resolved = asyncio.run(with_db(_resolve()))
+        if not resolved:
             console.print(f"[red]No archived journal found for '{session}'[/red]")
             raise typer.Exit(1)
+        session_id = resolved
 
     entries = read_archived_journal(session_id, limit=limit)
     if not entries:
