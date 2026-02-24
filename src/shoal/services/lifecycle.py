@@ -1134,9 +1134,45 @@ async def _hook_fish_event(event: LifecycleEvent, **kwargs: Any) -> None:
         logger.debug("fish event emission failed", exc_info=True)
 
 
+async def _hook_record_status_transition(event: LifecycleEvent, **kwargs: Any) -> None:
+    """Record a status transition in the database."""
+    session: SessionState | None = kwargs.get("session")
+    old_status: SessionStatus | None = kwargs.get("old_status")
+    new_status: SessionStatus | None = kwargs.get("new_status")
+    if session is None or old_status is None or new_status is None:
+        return
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    await db.save_status_transition(
+        session_id=session.id,
+        from_status=old_status.value,
+        to_status=new_status.value,
+    )
+
+
+async def _hook_journal_on_status_change(event: LifecycleEvent, **kwargs: Any) -> None:
+    """Write a journal entry on status change."""
+    session: SessionState | None = kwargs.get("session")
+    old_status: SessionStatus | None = kwargs.get("old_status")
+    new_status: SessionStatus | None = kwargs.get("new_status")
+    if session is None or old_status is None or new_status is None:
+        return
+    from shoal.core.journal import append_entry
+
+    await asyncio.to_thread(
+        append_entry,
+        session.id,
+        f"Status: {old_status.value} → {new_status.value}",
+        source="lifecycle",
+    )
+
+
 def register_builtin_hooks() -> None:
     """Register the default set of lifecycle hooks."""
     on(LifecycleEvent.session_created, _hook_journal_on_create)
     on(LifecycleEvent.session_forked, _hook_journal_on_create)
+    on(LifecycleEvent.status_changed, _hook_record_status_transition)
+    on(LifecycleEvent.status_changed, _hook_journal_on_status_change)
     for evt in LifecycleEvent:
         on(evt, _hook_fish_event)

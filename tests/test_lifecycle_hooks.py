@@ -300,7 +300,7 @@ class TestBuiltinHooks:
         assert len(_hooks[LifecycleEvent.session_created]) >= 2  # journal + fish
         assert len(_hooks[LifecycleEvent.session_forked]) >= 2  # journal + fish
         assert len(_hooks[LifecycleEvent.session_killed]) >= 1  # fish
-        assert len(_hooks[LifecycleEvent.status_changed]) >= 1  # fish
+        assert len(_hooks[LifecycleEvent.status_changed]) >= 3  # record + journal + fish
 
 
 # ---------------------------------------------------------------------------
@@ -340,3 +340,86 @@ class TestWatcherEmitsStatusChanged:
         call_kwargs = cb.call_args[1]
         assert call_kwargs["old_status"] == SessionStatus.idle
         assert call_kwargs["new_status"] == SessionStatus.waiting
+
+
+# ---------------------------------------------------------------------------
+# Status transition hooks
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestStatusTransitionHooks:
+    async def test_record_hook_saves_to_db(self, mock_dirs: object) -> None:
+        from shoal.core.db import ShoalDB
+        from shoal.services.lifecycle import _hook_record_status_transition
+
+        session = SessionState(
+            id="trans-test",
+            name="trans-session",
+            tool="claude",
+            path="/tmp/repo",
+            tmux_session="_trans-session",
+        )
+
+        await _hook_record_status_transition(
+            LifecycleEvent.status_changed,
+            session=session,
+            old_status=SessionStatus.idle,
+            new_status=SessionStatus.running,
+        )
+
+        db = await ShoalDB.get_instance()
+        transitions = await db.get_status_transitions("trans-test")
+        assert len(transitions) == 1
+        assert transitions[0]["from_status"] == "idle"
+        assert transitions[0]["to_status"] == "running"
+
+    async def test_record_hook_skips_without_session(self) -> None:
+        from shoal.services.lifecycle import _hook_record_status_transition
+
+        # Should not raise
+        await _hook_record_status_transition(LifecycleEvent.status_changed)
+
+    async def test_record_hook_skips_without_statuses(self) -> None:
+        from shoal.services.lifecycle import _hook_record_status_transition
+
+        session = SessionState(
+            id="x",
+            name="x",
+            tool="claude",
+            path="/tmp",
+            tmux_session="_x",
+        )
+        # Missing old_status/new_status — should not raise
+        await _hook_record_status_transition(LifecycleEvent.status_changed, session=session)
+
+    async def test_journal_hook_writes_status_entry(self, mock_dirs: object) -> None:
+        from shoal.services.lifecycle import _hook_journal_on_status_change
+
+        session = SessionState(
+            id="journal-trans",
+            name="journal-session",
+            tool="claude",
+            path="/tmp/repo",
+            tmux_session="_journal-session",
+        )
+
+        with patch("shoal.core.journal.append_entry") as mock_append:
+            await _hook_journal_on_status_change(
+                LifecycleEvent.status_changed,
+                session=session,
+                old_status=SessionStatus.running,
+                new_status=SessionStatus.waiting,
+            )
+
+        mock_append.assert_called_once()
+        args = mock_append.call_args
+        assert args[0][0] == "journal-trans"
+        assert "running" in args[0][1]
+        assert "waiting" in args[0][1]
+        assert args[1]["source"] == "lifecycle"
+
+    async def test_journal_hook_skips_without_session(self) -> None:
+        from shoal.services.lifecycle import _hook_journal_on_status_change
+
+        await _hook_journal_on_status_change(LifecycleEvent.status_changed)
