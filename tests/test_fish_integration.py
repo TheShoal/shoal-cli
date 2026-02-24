@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from shoal.integrations.fish.installer import (
     get_fish_config_dir,
@@ -26,6 +30,7 @@ def test_get_template_dir():
     assert (template_dir / "quick-attach.fish").exists()
     assert (template_dir / "dashboard.fish").exists()
     assert (template_dir / "remote.fish").exists()
+    assert (template_dir / "hooks.fish").exists()
 
 
 def test_is_fish_installed():
@@ -91,8 +96,8 @@ def test_install_fish_integration_success(
     # Should succeed
     assert result is True
 
-    # Verify files were copied (5 files: completions, bootstrap, 3 functions)
-    assert mock_copy.call_count == 5
+    # Verify files were copied (6 files: completions, bootstrap, hooks, 3 functions)
+    assert mock_copy.call_count == 6
 
 
 @patch("shoal.integrations.fish.installer.is_fish_installed")
@@ -125,8 +130,8 @@ def test_install_fish_integration_skip_existing(
     # Should still succeed but skip existing files
     assert result is True
 
-    # Only 3 new files should be copied (the function files)
-    assert mock_copy.call_count == 3
+    # Only 4 new files should be copied (3 functions + hooks)
+    assert mock_copy.call_count == 4
 
 
 @patch("shoal.integrations.fish.installer.is_fish_installed")
@@ -177,14 +182,17 @@ def test_uninstall_fish_integration_success(mock_console, mock_get_config, tmp_p
 
     f1 = completions_dir / "shoal.fish"
     f2 = conf_d_dir / "shoal.fish"
+    f3 = conf_d_dir / "shoal-hooks.fish"
     f1.touch()
     f2.touch()
+    f3.touch()
 
     result = uninstall_fish_integration()
 
     assert result is True
     assert not f1.exists()
     assert not f2.exists()
+    assert not f3.exists()
     # Verify success message printed
     mock_console.return_value.print.assert_called()
 
@@ -201,3 +209,20 @@ def test_uninstall_fish_integration_not_found(mock_console, mock_get_config, tmp
     assert result is True
     # Verify "not found" message printed
     mock_console.return_value.print.assert_called()
+
+
+@pytest.mark.skipif(shutil.which("fish") is None, reason="fish not installed")
+@pytest.mark.parametrize(
+    "template",
+    sorted(get_template_dir().glob("*.fish")),
+    ids=lambda p: p.name,
+)
+def test_fish_template_syntax(template: Path) -> None:
+    """Validate fish template syntax with fish -n."""
+    result = subprocess.run(
+        ["fish", "-n", str(template)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, f"{template.name} syntax error:\n{result.stderr}"
