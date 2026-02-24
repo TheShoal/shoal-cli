@@ -372,6 +372,7 @@ async def step_mcp_orchestration() -> TourResult:
         tool_names = sorted(t.name for t in tools)
         expected_tools = [
             "append_journal",
+            "capture_pane",
             "create_session",
             "kill_session",
             "list_sessions",

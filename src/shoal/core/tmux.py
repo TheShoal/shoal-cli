@@ -60,10 +60,12 @@ def set_environment(session: str, key: str, value: str) -> None:
 
 
 def send_keys(target: str, keys: str, *, enter: bool = True) -> None:
-    args = ["send-keys", "-t", target, keys]
+    # Use -l so text is sent literally (no tmux key-name interpretation).
+    # Enter must be a separate send-keys call without -l so tmux treats
+    # it as an actual key press rather than the literal string "Enter".
+    _run(["send-keys", "-t", target, "-l", keys])
     if enter:
-        args.append("Enter")
-    _run(args)
+        _run(["send-keys", "-t", target, "Enter"])
 
 
 def capture_pane(target: str, lines: int = 20, include_ansi: bool = False) -> str:

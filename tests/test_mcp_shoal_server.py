@@ -299,6 +299,109 @@ async def test_send_keys_not_found() -> None:
 
 
 # ---------------------------------------------------------------------------
+# capture_pane
+# ---------------------------------------------------------------------------
+
+
+async def test_capture_pane_success() -> None:
+    """capture_pane returns pane content for a valid session."""
+    from shoal.services.mcp_shoal_server import capture_pane_tool
+
+    s = _make_session(name="worker-1")
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%1",
+        ) as mock_pane,
+        patch(
+            "shoal.core.tmux.async_capture_pane",
+            new_callable=AsyncMock,
+            return_value="$ echo hello\nhello\n$",
+        ) as mock_capture,
+    ):
+        result = await capture_pane_tool(session="worker-1")
+
+    assert result["content"] == "$ echo hello\nhello\n$"
+    mock_pane.assert_called_once_with("_worker-1", "shoal:abc12345")
+    mock_capture.assert_called_once_with("%1", 20)
+
+
+async def test_capture_pane_custom_lines() -> None:
+    """capture_pane respects the lines parameter."""
+    from shoal.services.mcp_shoal_server import capture_pane_tool
+
+    s = _make_session(name="worker-1")
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%1",
+        ),
+        patch(
+            "shoal.core.tmux.async_capture_pane",
+            new_callable=AsyncMock,
+            return_value="output",
+        ) as mock_capture,
+    ):
+        result = await capture_pane_tool(session="worker-1", lines=50)
+
+    assert result["content"] == "output"
+    mock_capture.assert_called_once_with("%1", 50)
+
+
+async def test_capture_pane_not_found() -> None:
+    """capture_pane raises ToolError for unknown session."""
+    from shoal.services.mcp_shoal_server import capture_pane_tool
+
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value=None),
+        pytest.raises(ToolError, match="Session not found"),
+    ):
+        await capture_pane_tool(session="ghost")
+
+
+async def test_capture_pane_resolve_then_missing() -> None:
+    """capture_pane handles race where resolve succeeds but get returns None."""
+    from shoal.services.mcp_shoal_server import capture_pane_tool
+
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=None),
+        pytest.raises(ToolError, match="Session not found"),
+    ):
+        await capture_pane_tool(session="worker-1")
+
+
+async def test_capture_pane_empty_output() -> None:
+    """capture_pane returns empty string when pane has no output."""
+    from shoal.services.mcp_shoal_server import capture_pane_tool
+
+    s = _make_session(name="worker-1")
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%1",
+        ),
+        patch(
+            "shoal.core.tmux.async_capture_pane",
+            new_callable=AsyncMock,
+            return_value="",
+        ),
+    ):
+        result = await capture_pane_tool(session="worker-1")
+
+    assert result["content"] == ""
+
+
+# ---------------------------------------------------------------------------
 # kill_session
 # ---------------------------------------------------------------------------
 

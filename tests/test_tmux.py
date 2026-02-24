@@ -100,14 +100,24 @@ def test_kill_session():
 
 
 def test_send_keys():
-    """Test send_keys sends keys to a tmux session."""
+    """Test send_keys sends literal text then Enter as separate tmux calls."""
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
         tmux.send_keys("my-session", "echo hello")
 
-        mock_run.assert_called_once_with(
-            ["tmux", "send-keys", "-t", "my-session", "echo hello", "Enter"],
+        assert mock_run.call_count == 2
+        # First call: send literal text with -l flag
+        mock_run.assert_any_call(
+            ["tmux", "send-keys", "-t", "my-session", "-l", "echo hello"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+        # Second call: send Enter key separately (no -l)
+        mock_run.assert_any_call(
+            ["tmux", "send-keys", "-t", "my-session", "Enter"],
             capture_output=True,
             text=True,
             check=True,
@@ -116,14 +126,14 @@ def test_send_keys():
 
 
 def test_send_keys_without_enter() -> None:
-    """Test send_keys with enter=False omits the Enter key token."""
+    """Test send_keys with enter=False sends literal text only."""
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
         tmux.send_keys("my-session", "echo hello", enter=False)
 
         mock_run.assert_called_once_with(
-            ["tmux", "send-keys", "-t", "my-session", "echo hello"],
+            ["tmux", "send-keys", "-t", "my-session", "-l", "echo hello"],
             capture_output=True,
             text=True,
             check=True,
@@ -131,18 +141,22 @@ def test_send_keys_without_enter() -> None:
         )
 
 
-def test_send_keys_enter_is_separate_arg() -> None:
-    """Enter is a separate tmux key token arg, never embedded as \n in the text."""
+def test_send_keys_enter_is_separate_command() -> None:
+    """Enter is sent as a separate tmux send-keys call, not embedded in text."""
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
         tmux.send_keys("my-session", "echo hello")
 
-        args = mock_run.call_args[0][0]
-        text_arg = args[4]  # index: tmux, send-keys, -t, target, TEXT
-        enter_arg = args[5]  # index: ..., Enter
-        assert "\n" not in text_arg, "Enter must not be embedded as \n in the text arg"
-        assert enter_arg == "Enter", "Enter must be a separate 'Enter' key token arg"
+        assert mock_run.call_count == 2
+        # First call sends literal text with -l
+        text_call_args = mock_run.call_args_list[0][0][0]
+        assert "-l" in text_call_args, "Text must be sent with -l flag"
+        assert "\n" not in text_call_args[5], "Text must not contain embedded newline"
+        # Second call sends Enter key without -l
+        enter_call_args = mock_run.call_args_list[1][0][0]
+        assert "-l" not in enter_call_args, "Enter must not use -l flag"
+        assert "Enter" in enter_call_args, "Enter key must be sent separately"
 
 
 def test_switch_client():

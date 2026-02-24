@@ -207,6 +207,39 @@ async def send_keys_tool(session: str, keys: str, enter: bool | None = None) -> 
 
 
 # ---------------------------------------------------------------------------
+# Tool: capture_pane
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="capture_pane",
+    description="Read last N lines from a session's terminal output.",
+    annotations={"readOnlyHint": True},
+)
+async def capture_pane_tool(session: str, lines: int = 20) -> dict[str, str]:
+    """Capture recent terminal output from a session's pane.
+
+    Args:
+        session: Session name or ID.
+        lines: Number of lines to capture (default: 20).
+    """
+    from shoal.core import tmux
+    from shoal.core.state import get_session, resolve_session
+
+    session_id = await resolve_session(session)
+    if not session_id:
+        raise ToolError(f"Session not found: {session}")
+
+    s = await get_session(session_id)
+    if not s:
+        raise ToolError(f"Session not found: {session}")
+
+    pane_target = await tmux.async_preferred_pane(s.tmux_session, f"shoal:{s.id}")
+    content = await tmux.async_capture_pane(pane_target, lines)
+    return {"content": content}
+
+
+# ---------------------------------------------------------------------------
 # Tool: create_session
 # ---------------------------------------------------------------------------
 
