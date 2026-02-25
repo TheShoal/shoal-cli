@@ -49,6 +49,7 @@ complete -c shoal -n "__fish_use_subcommand" -a "watcher" -d "Background status 
 complete -c shoal -n "__fish_use_subcommand" -a "demo" -d "Demo environment"
 complete -c shoal -n "__fish_use_subcommand" -a "setup" -d "Setup shell integrations"
 complete -c shoal -n "__fish_use_subcommand" -a "config" -d "Configuration inspection"
+complete -c shoal -n "__fish_use_subcommand" -a "fin" -d "Fin extension lifecycle"
 
 # Dynamic session name completions for commands that need them
 complete -c shoal -n "__fish_seen_subcommand_from attach" -a "(__shoal_sessions)" -d "Session"
@@ -170,6 +171,18 @@ complete -c shoal -n "__fish_seen_subcommand_from remote; and __fish_seen_subcom
 complete -c shoal -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from show paths" -a "show" -d "Dump effective config"
 complete -c shoal -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from show paths" -a "paths" -d "Show XDG directory paths"
 complete -c shoal -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from show" -l "format" -s "f" -d "Output format" -xa "toml json"
+
+# Fin subcommands
+complete -c shoal -n "__fish_seen_subcommand_from fin; and not __fish_seen_subcommand_from inspect validate run install configure ls" -a "inspect" -d "Inspect fin metadata"
+complete -c shoal -n "__fish_seen_subcommand_from fin; and not __fish_seen_subcommand_from inspect validate run install configure ls" -a "validate" -d "Validate fin and run checks"
+complete -c shoal -n "__fish_seen_subcommand_from fin; and not __fish_seen_subcommand_from inspect validate run install configure ls" -a "run" -d "Run fin capability"
+complete -c shoal -n "__fish_seen_subcommand_from fin; and not __fish_seen_subcommand_from inspect validate run install configure ls" -a "install" -d "Install fin prerequisites"
+complete -c shoal -n "__fish_seen_subcommand_from fin; and not __fish_seen_subcommand_from inspect validate run install configure ls" -a "configure" -d "Configure fin"
+complete -c shoal -n "__fish_seen_subcommand_from fin; and not __fish_seen_subcommand_from inspect validate run install configure ls" -a "ls" -d "List local fins"
+complete -c shoal -n "__fish_seen_subcommand_from fin; and __fish_seen_subcommand_from validate" -l "strict" -d "Enable strict validation mode"
+complete -c shoal -n "__fish_seen_subcommand_from fin; and __fish_seen_subcommand_from run configure" -l "config" -d "Path to fin config file" -r
+complete -c shoal -n "__fish_seen_subcommand_from fin; and __fish_seen_subcommand_from run" -l "output" -d "Output format" -xa "text json"
+complete -c shoal -n "__fish_seen_subcommand_from fin; and __fish_seen_subcommand_from ls" -l "path" -d "Discovery root path" -r
 
 # Nvim subcommands
 complete -c shoal -n "__fish_seen_subcommand_from nvim; and not __fish_seen_subcommand_from send diagnostics" -a "send" -d "Send command to nvim"

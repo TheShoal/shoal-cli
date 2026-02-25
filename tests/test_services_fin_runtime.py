@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
 
-from shoal.services.fin_runtime import FinRuntimeError, load_fin_manifest, run_fin, validate_fin
+from shoal.services.fin_runtime import (
+    FinRuntimeError,
+    configure_fin,
+    install_fin,
+    list_fins,
+    load_fin_manifest,
+    run_fin,
+    validate_fin,
+)
 
 
 def _write_executable(path: Path, body: str) -> None:
@@ -38,11 +47,11 @@ validate = "bin/validate"
 
     _write_executable(
         bin_dir / "install",
-        "#!/bin/sh\nexit 0\n",
+        "#!/bin/sh\necho install-ok\nexit 0\n",
     )
     _write_executable(
         bin_dir / "configure",
-        "#!/bin/sh\nexit 0\n",
+        '#!/bin/sh\necho "configure:$SHOAL_FIN_CONFIG"\nexit 0\n',
     )
     _write_executable(
         bin_dir / "validate",
@@ -59,6 +68,7 @@ validate = "bin/validate"
         '  "root": os.environ.get("SHOAL_FIN_ROOT"),\n'
         '  "config": os.environ.get("SHOAL_FIN_CONFIG"),\n'
         '  "format": os.environ.get("SHOAL_OUTPUT_FORMAT"),\n'
+        '  "log_level": os.environ.get("SHOAL_LOG_LEVEL"),\n'
         "}\n"
         "print(json.dumps(payload))\n"
         "sys.exit(0)\n",
@@ -93,6 +103,22 @@ def test_validate_fin_passes_strict_flag(tmp_path: Path) -> None:
     assert "strict-ok" in result.stdout
 
 
+def test_install_fin_executes_install_entrypoint(tmp_path: Path) -> None:
+    fin_root = _create_fin(tmp_path)
+    result = install_fin(fin_root)
+    assert result.exit_code == 0
+    assert "install-ok" in result.stdout
+
+
+def test_configure_fin_passes_config_env(tmp_path: Path) -> None:
+    fin_root = _create_fin(tmp_path)
+    cfg = tmp_path / "fin.env"
+    cfg.write_text("KEY=VALUE\n")
+    result = configure_fin(fin_root, config_path=str(cfg))
+    assert result.exit_code == 0
+    assert f"configure:{cfg.resolve()}" in result.stdout
+
+
 def test_run_fin_passes_args_and_env(tmp_path: Path) -> None:
     fin_root = _create_fin(tmp_path)
     cfg = tmp_path / "fin.env"
@@ -112,6 +138,16 @@ def test_run_fin_passes_args_and_env(tmp_path: Path) -> None:
     assert payload["format"] == "json"
 
 
+def test_run_fin_includes_shoal_log_level(tmp_path: Path) -> None:
+    fin_root = _create_fin(tmp_path)
+    result = run_fin(fin_root, config_path=None, output_format="json", args=[])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["log_level"] == logging.getLevelName(
+        logging.getLogger("shoal").getEffectiveLevel()
+    )
+
+
 def test_run_fin_non_executable_entrypoint_fails(tmp_path: Path) -> None:
     fin_root = _create_fin(tmp_path)
     run_path = fin_root / "bin" / "run"
@@ -119,3 +155,22 @@ def test_run_fin_non_executable_entrypoint_fails(tmp_path: Path) -> None:
 
     with pytest.raises(FinRuntimeError, match="not executable"):
         run_fin(fin_root, config_path=None, output_format="text", args=[])
+
+
+def test_list_fins_reports_valid_and_invalid(tmp_path: Path) -> None:
+    valid_root = _create_fin(tmp_path)
+    invalid_root = tmp_path / "broken-fin"
+    invalid_root.mkdir(parents=True)
+    (invalid_root / "fin.toml").write_text("name = 'broken'\n")
+
+    items = list_fins(tmp_path)
+    by_root = {item.root: item for item in items}
+
+    valid = by_root[str(valid_root)]
+    assert valid.status == "valid"
+    assert valid.name == "example-fin"
+
+    invalid = by_root[str(invalid_root)]
+    assert invalid.status == "invalid"
+    assert invalid.error is not None
+    assert "Invalid manifest" in invalid.error

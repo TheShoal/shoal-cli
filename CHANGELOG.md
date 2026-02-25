@@ -13,11 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fin contract-v1 adapter**: New `shoal fin` command group with `inspect`, `validate`, and `run` subcommands for path-based fin execution
 - **Fin runtime support**: Manifest parsing, contract-version checks, entrypoint resolution, subprocess invocation, and exit-code propagation in `services/fin_runtime.py`
 - **Extension capability docs**: `docs/EXTENSIONS.md` adds discovery/loading/lifecycle map, gaps, and `shoal-cli` vs `shoal-core` boundary recommendation
+- **Fin lifecycle completeness (Iteration 2)**: Added first-class `shoal fin install` and `shoal fin configure` commands with env/exit parity
+- **Fin discovery basics**: Added `shoal fin ls [--path <dir-or-fin.toml>]` for path-based listing with valid/invalid manifest reporting
+- **Cross-repo contract guard**: Added integration test that bootstraps a fin from `fins-template` and verifies inspect/validate/run roundtrip
 
 ### Changed
 - **Pi-first defaults**: `default_tool` defaults now use `pi` in general config, robo config, profile loading, templates, and demo startup
 - **Watcher pane tracking fallback**: watcher now falls back from `shoal:<session_id>` title to tool-command and single-pane heuristics when titles drift
 - **Tool docs and examples**: README/tool examples now document Pi as primary and OpenCode as compatibility mode
+- **Fin env handshake parity**: Fin subprocess runtime now passes `SHOAL_LOG_LEVEL` when available
 
 ### Fixed
 - **Remote API robustness**: remote GET/POST/DELETE helpers now normalize connection reset OS errors into `RemoteConnectionError`

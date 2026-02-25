@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 
 import typer
 
@@ -49,6 +50,7 @@ def main(
     from shoal.core.logging_config import configure_logging
 
     effective_level = "DEBUG" if debug else log_level
+    os.environ["SHOAL_LOG_LEVEL"] = effective_level
     if debug or effective_level != "WARNING" or json_logs or log_file:
         configure_logging(level=effective_level, json_logs=json_logs, log_file=log_file)
 

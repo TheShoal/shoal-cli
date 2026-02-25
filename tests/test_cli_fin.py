@@ -39,7 +39,7 @@ validate = "bin/validate"
     )
 
     _write_executable(bin_dir / "install", "#!/bin/sh\nexit 0\n")
-    _write_executable(bin_dir / "configure", "#!/bin/sh\nexit 0\n")
+    _write_executable(bin_dir / "configure", '#!/bin/sh\necho "cfg:$SHOAL_FIN_CONFIG"\nexit 0\n')
     _write_executable(
         bin_dir / "validate",
         '#!/bin/sh\nif [ "$1" = "--strict" ]; then echo strict; fi\nexit 0\n',
@@ -50,7 +50,12 @@ validate = "bin/validate"
         "import json\n"
         "import os\n"
         "import sys\n"
-        'print(json.dumps({"args": sys.argv[1:], "config": os.getenv("SHOAL_FIN_CONFIG")}))\n'
+        "payload = {\n"
+        '  "args": sys.argv[1:],\n'
+        '  "config": os.getenv("SHOAL_FIN_CONFIG"),\n'
+        '  "log_level": os.getenv("SHOAL_LOG_LEVEL"),\n'
+        "}\n"
+        "print(json.dumps(payload))\n"
         f"sys.exit({run_exit})\n",
     )
 
@@ -93,3 +98,38 @@ def test_fin_run_preserves_exit_code(tmp_path: Path) -> None:
     fin_root = _create_fin(tmp_path, run_exit=7)
     result = runner.invoke(app, ["fin", "run", str(fin_root)])
     assert result.exit_code == 7
+
+
+def test_fin_install_executes_install_entrypoint(tmp_path: Path) -> None:
+    fin_root = _create_fin(tmp_path)
+    result = runner.invoke(app, ["fin", "install", str(fin_root)])
+    assert result.exit_code == 0
+
+
+def test_fin_configure_passes_config_env(tmp_path: Path) -> None:
+    fin_root = _create_fin(tmp_path)
+    cfg = tmp_path / "fin.env"
+    cfg.write_text("KEY=VALUE\n")
+    result = runner.invoke(app, ["fin", "configure", str(fin_root), "--config", str(cfg)])
+    assert result.exit_code == 0
+    assert f"cfg:{cfg.resolve()}" in result.stdout
+
+
+def test_fin_ls_reports_valid_and_invalid_entries(tmp_path: Path) -> None:
+    valid_root = _create_fin(tmp_path)
+    invalid_root = tmp_path / "invalid-fin"
+    invalid_root.mkdir()
+    (invalid_root / "fin.toml").write_text("name = 'invalid'\n")
+
+    result = runner.invoke(app, ["fin", "ls", "--path", str(tmp_path)])
+    assert result.exit_code == 0
+    assert f"valid\t{valid_root}" in result.stdout
+    assert f"invalid\t{invalid_root}" in result.stdout
+
+
+def test_fin_run_includes_shoal_log_level(tmp_path: Path) -> None:
+    fin_root = _create_fin(tmp_path)
+    result = runner.invoke(app, ["fin", "run", str(fin_root), "--output", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["log_level"]

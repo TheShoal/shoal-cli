@@ -312,8 +312,11 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 | Command          | Description                                            |
 | ---------------- | ------------------------------------------------------ |
 | `inspect <path>` | Show fin manifest metadata and resolved entrypoints    |
+| `install <path>` | Execute fin `install` lifecycle entrypoint             |
+| `configure <path>`| Execute fin `configure` lifecycle entrypoint          |
 | `validate <path>`| Validate manifest and run fin `validate` entrypoint    |
 | `run <path>`     | Execute fin `run` with args passthrough after `--`     |
+| `ls [--path <dir>]` | List local path-based fin candidates and validity   |
 
 ### Demo (`shoal demo`)
 

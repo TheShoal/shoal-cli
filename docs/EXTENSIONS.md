@@ -3,6 +3,11 @@
 This document captures Shoal's current extension surface, known gaps, and a practical
 boundary recommendation for `shoal-cli` vs `shoal-core`.
 
+Related review:
+
+- `docs/EXTENSIONS_REVIEW.md` (2026-02-25 performer review: spec compliance,
+  user exposure analysis, and hardening plan)
+
 ## Contract Baseline
 
 - Shoal targets Fin contract v1 manifests (`fin.toml`) with:
@@ -18,10 +23,13 @@ boundary recommendation for `shoal-cli` vs `shoal-core`.
 ### Discovery
 
 - Path-based discovery is available now:
+  - `shoal fin ls [--path <dir-or-fin.toml>]`
   - `shoal fin inspect <fin-path>`
+  - `shoal fin install <fin-path>`
+  - `shoal fin configure <fin-path> [--config <path>]`
   - `shoal fin validate <fin-path> [--strict]`
   - `shoal fin run <fin-path> [--config <path>] [--output text|json] -- [args...]`
-- Registry/distribution discovery is not implemented yet (`fin ls/install` pending).
+- Registry/distribution discovery is not implemented yet (`fin install` from sources is pending).
 
 ### Loading and Validation
 
@@ -34,10 +42,13 @@ boundary recommendation for `shoal-cli` vs `shoal-core`.
 
 - Shoal invokes fin wrappers as subprocesses (cwd = fin root).
 - Environment handshake for run/validate includes:
+  - `SHOAL_LOG_LEVEL` (when available)
   - `SHOAL_FIN_ROOT` (required)
   - `SHOAL_FIN_CONFIG` (optional)
   - `SHOAL_OUTPUT_FORMAT` (`text` or `json`)
+- Install/configure lifecycle commands use the same subprocess/env/exit behavior.
 - `run` pass-through behavior preserves arguments after `--` in-order.
+- Policy: `run` does not require prior `validate`; validation is recommended but not enforced.
 - Fin non-zero exits propagate back to CLI as non-zero exit codes.
 
 ### Developer Ergonomics
@@ -48,15 +59,13 @@ boundary recommendation for `shoal-cli` vs `shoal-core`.
 
 ## Known Gaps
 
-1. **Lifecycle surface is incomplete in CLI**
-   - `install` and `configure` entrypoints are not first-class CLI commands yet.
-2. **Discovery/packaging gaps**
-   - No registry, install source management, or `fin ls` command.
-3. **Hook integration gaps**
+1. **Discovery/packaging gaps**
+   - No registry or install source management yet.
+2. **Hook integration gaps**
    - No first-class lifecycle hook package loading for fins.
-4. **Isolation and trust model gaps**
+3. **Isolation and trust model gaps**
    - No sandboxing/permission boundary beyond subprocess execution.
-5. **Compatibility policy gaps**
+4. **Compatibility policy gaps**
    - No explicit N/N-1 fin contract support policy yet.
 
 ## Boundary Recommendation

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import tomllib
@@ -24,6 +25,19 @@ class FinExecutionResult:
     exit_code: int
     stdout: str
     stderr: str
+
+
+@dataclass(frozen=True)
+class FinListItem:
+    """Single fin discovery record from ``shoal fin ls``."""
+
+    root: str
+    status: str
+    name: str | None = None
+    version: str | None = None
+    capability: str | None = None
+    fin_contract_version: int | None = None
+    error: str | None = None
 
 
 def resolve_fin_root(fin_path: str | Path) -> Path:
@@ -104,6 +118,10 @@ def _build_env(
     else:
         env.pop("SHOAL_FIN_CONFIG", None)
     env["SHOAL_OUTPUT_FORMAT"] = output_format
+    if not env.get("SHOAL_LOG_LEVEL"):
+        level_name = logging.getLevelName(logging.getLogger("shoal").getEffectiveLevel())
+        if isinstance(level_name, str) and level_name and level_name != "NOTSET":
+            env["SHOAL_LOG_LEVEL"] = level_name
     return env
 
 
@@ -165,6 +183,32 @@ def validate_fin(fin_path: str | Path, *, strict: bool) -> FinExecutionResult:
     )
 
 
+def install_fin(fin_path: str | Path) -> FinExecutionResult:
+    """Execute a fin's ``install`` entrypoint after manifest checks."""
+    fin_root, manifest = load_fin_manifest(fin_path)
+    entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.install)
+    return execute_entrypoint(
+        fin_root=fin_root,
+        entrypoint=entrypoint,
+        args=[],
+        config_path=None,
+        output_format="text",
+    )
+
+
+def configure_fin(fin_path: str | Path, *, config_path: str | None) -> FinExecutionResult:
+    """Execute a fin's ``configure`` entrypoint after manifest checks."""
+    fin_root, manifest = load_fin_manifest(fin_path)
+    entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.configure)
+    return execute_entrypoint(
+        fin_root=fin_root,
+        entrypoint=entrypoint,
+        args=[],
+        config_path=config_path,
+        output_format="text",
+    )
+
+
 def run_fin(
     fin_path: str | Path,
     *,
@@ -182,3 +226,50 @@ def run_fin(
         config_path=config_path,
         output_format=output_format,
     )
+
+
+def list_fins(search_path: str | Path) -> list[FinListItem]:
+    """List path-based fin candidates from a directory or ``fin.toml`` path."""
+    root = Path(search_path).expanduser().resolve()
+    candidates: list[Path] = []
+
+    if root.is_file():
+        if root.name != "fin.toml":
+            raise FinRuntimeError(f"Expected fin.toml file, got: {root}")
+        candidates = [root]
+    elif root.is_dir():
+        direct_manifest = root / "fin.toml"
+        if direct_manifest.exists():
+            candidates.append(direct_manifest)
+        for child in sorted(root.iterdir()):
+            manifest = child / "fin.toml"
+            if child.is_dir() and manifest.exists():
+                candidates.append(manifest)
+    else:
+        raise FinRuntimeError(f"Fin discovery path does not exist: {root}")
+
+    items: list[FinListItem] = []
+    for manifest_path in candidates:
+        fin_root = manifest_path.parent
+        try:
+            _, manifest = load_fin_manifest(manifest_path)
+            items.append(
+                FinListItem(
+                    root=str(fin_root),
+                    status="valid",
+                    name=manifest.name,
+                    version=manifest.version,
+                    capability=manifest.capability,
+                    fin_contract_version=manifest.fin_contract_version,
+                )
+            )
+        except FinRuntimeError as exc:
+            items.append(
+                FinListItem(
+                    root=str(fin_root),
+                    status="invalid",
+                    error=str(exc),
+                )
+            )
+
+    return items
