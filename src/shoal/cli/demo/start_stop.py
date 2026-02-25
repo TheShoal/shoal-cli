@@ -104,7 +104,7 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
     from shoal.core.config import load_config
 
     cfg = load_config()
-    default_tool = cfg.general.default_tool or "opencode"
+    default_tool = cfg.general.default_tool or "pi"
     tool_cfg = load_tool_config(default_tool)
     tool_command = tool_cfg.command
     display_path = str(_demo_dir).replace(str(Path.home()), "~")

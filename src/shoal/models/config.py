@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator,
 class GeneralConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    default_tool: str = "opencode"
+    default_tool: str = "pi"
     worktree_dir: str = ".worktrees"
     use_nerd_fonts: bool = True
 
@@ -46,7 +46,7 @@ class NotificationsConfig(BaseModel):
 class RoboGlobalConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    default_tool: str = "opencode"
+    default_tool: str = "pi"
     default_profile: str = "default"
     session_prefix: str = "__"
 
@@ -127,6 +127,7 @@ class ToolConfig(BaseModel):
     name: str
     command: str
     icon: str = "●"
+    status_provider: Literal["regex", "pi", "opencode_compat"] | None = None
     detection: DetectionPatterns = Field(default_factory=DetectionPatterns)
     mcp: MCPToolConfig = Field(default_factory=MCPToolConfig)
 
@@ -162,7 +163,7 @@ class RoboProfileConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = "default"
-    tool: str = "opencode"
+    tool: str = "pi"
     auto_approve: bool = False
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
     escalation: EscalationConfig = Field(default_factory=EscalationConfig)
@@ -224,7 +225,7 @@ class SessionTemplateConfig(BaseModel):
     description: str = ""
     extends: str | None = None
     mixins: list[str] = Field(default_factory=list)
-    tool: str = "opencode"
+    tool: str = "pi"
     worktree: TemplateWorktreeConfig = Field(default_factory=TemplateWorktreeConfig)
     env: dict[str, str] = Field(default_factory=dict)
     mcp: list[str] = Field(default_factory=list)

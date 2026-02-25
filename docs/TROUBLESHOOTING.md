@@ -26,6 +26,11 @@ This will output DEBUG-level logs to stderr, which can help identify where a pro
 3. Verify tool configuration in `~/.config/shoal/tools/<tool>.toml`. Ensure the `busy_patterns`, `waiting_patterns`, and `error_patterns` match the actual text output by your tool.
 4. Run `shoal logs <session>` to see what the watcher is seeing in the pane.
 
+**Compatibility note:**
+- OpenCode uses the `opencode_compat` status provider (best effort regex matching).
+- Pi uses the primary `pi` status provider and is the reference backend for status fidelity.
+- Run `shoal info <session>` and check the **Detection** field to confirm which provider is active.
+
 ## 3. Database Issues
 
 ### Symptom: `sqlite3.OperationalError: database is locked`

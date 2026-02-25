@@ -8,6 +8,8 @@ name = "claude"
 command = "claude"
 # Icon shown next to sessions using this tool
 icon = "🤖"
+# Status provider adapter (pi, opencode_compat, regex)
+status_provider = "regex"
 
 [detection]
 # Patterns matched against tmux pane output to detect agent status.

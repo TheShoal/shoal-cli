@@ -80,12 +80,19 @@ def _read_robo_pid(profile: str) -> int | None:
 @app.command("setup")
 def robo_setup(
     name: Annotated[str | None, typer.Argument(help="Robo profile name")] = None,
-    tool: Annotated[str | None, typer.Option("-t", "--tool", help="AI tool to use")] = None,
+    tool: Annotated[
+        str | None,
+        typer.Option(
+            "-t",
+            "--tool",
+            help="AI tool to use (pi recommended; opencode status is best-effort)",
+        ),
+    ] = None,
 ) -> None:
     """Create a robo profile."""
     ensure_dirs()
     name = name or "default"
-    tool = tool or "opencode"
+    tool = tool or "pi"
 
     # Try new path first, support old path for backward compat
     profile_file = config_dir() / "robo" / f"{name}.toml"
@@ -406,7 +413,7 @@ async def _robo_ls_impl() -> None:
             profile = load_robo_profile(name)
             tool = profile.tool
         except (FileNotFoundError, ConfigLoadError):
-            tool = "opencode"
+            tool = "pi"
 
         tmux_session = _build_robo_tmux_session(name)
         started = "-"

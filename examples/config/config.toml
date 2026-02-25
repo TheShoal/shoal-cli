@@ -5,7 +5,8 @@
 
 [general]
 # Which AI tool to launch by default (must match a tools/*.toml filename)
-default_tool = "opencode"
+# Pi is the default first-class backend.
+default_tool = "pi"
 # Worktree directory name, relative to the git project root
 worktree_dir = ".worktrees"
 # Use Nerd Font glyphs in CLI output (status icons, tool icons, panel titles)
@@ -23,7 +24,7 @@ popup_key = "S"
 
 # Optional: Commands to run when creating a new session.
 # Available template variables:
-#   {tool_command}  — resolved tool command (e.g. "claude", "opencode")
+#   {tool_command}  — resolved tool command (e.g. "claude", "pi")
 #   {work_dir}      — session working directory
 #   {session_name}  — human-readable session name
 #   {tmux_session}  — tmux session name (with prefix)
@@ -50,7 +51,7 @@ timeout_seconds = 300
 
 [robo]
 # Default AI tool for robo (supervisor) sessions
-default_tool = "opencode"
+default_tool = "pi"
 # Default robo profile name (matches robo/<name>.toml)
 default_profile = "default"
 # Tmux session prefix for robo sessions (double underscore by convention)

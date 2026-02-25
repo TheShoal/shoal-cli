@@ -18,6 +18,7 @@ from shoal.core.state import (
     get_session,
     list_sessions,
 )
+from shoal.core.status_provider import describe_status_provider
 from shoal.core.theme import (
     Colors,
     Icons,
@@ -373,6 +374,8 @@ async def _info_impl(session_name_or_id: str | None, color_setting: str) -> None
     details.add_row(f"{Icons.SESSION} ID", s.id)
     details.add_row(f"{icon.strip()} Name", f"[bold]{s.name}[/bold]")
     details.add_row(f"{Icons.TOOL} Tool", s.tool)
+    if tool_cfg:
+        details.add_row("Detection", describe_status_provider(tool_cfg))
     details.add_row(f"{Icons.STATUS} Status", status_text)
     if s.template_name:
         details.add_row(f"{Symbols.ARROW} Template", s.template_name)

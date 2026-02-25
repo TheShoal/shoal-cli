@@ -362,12 +362,16 @@ shoal --install-completion fish
 
 | Tool        | Command    | Status    |
 | ----------- | ---------- | --------- |
-| OpenCode    | `opencode` | Primary   |
+| Pi          | `pi`       | Primary   |
 | Claude Code | `claude`   | Supported |
-| Pi          | `pi`       | Supported |
+| OpenCode    | `opencode` | Compatible |
 | Gemini      | `gemini`   | Supported |
 
-Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection patterns.
+Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection patterns and
+`status_provider` adapters.
+
+OpenCode runs in compatibility mode for status detection (best effort). Pi is the reference
+backend for status transitions.
 
 ---
 

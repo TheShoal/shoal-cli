@@ -81,7 +81,14 @@ def _branch_name_for_worktree(worktree_name: str) -> str:
 
 def add(
     path: Annotated[str | None, typer.Argument(help="Project directory")] = None,
-    tool: Annotated[str | None, typer.Option("-t", "--tool", help="AI tool to use")] = None,
+    tool: Annotated[
+        str | None,
+        typer.Option(
+            "-t",
+            "--tool",
+            help="AI tool to use (pi recommended; opencode status is best-effort)",
+        ),
+    ] = None,
     template: Annotated[
         str | None, typer.Option("--template", help="Session template name")
     ] = None,

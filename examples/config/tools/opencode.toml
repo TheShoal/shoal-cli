@@ -1,10 +1,12 @@
 # Shoal — OpenCode tool definition
 # Place in ~/.config/shoal/tools/opencode.toml
+# Compatibility backend: status detection is best-effort and regex-based.
 
 [tool]
 name = "opencode"
 command = "opencode"
 icon = "🌐"
+status_provider = "opencode_compat"
 
 [detection]
 # OpenCode uses a TUI with a bordered input box

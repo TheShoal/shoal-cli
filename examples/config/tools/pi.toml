@@ -2,11 +2,13 @@
 # https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
 # Install: npm install -g @mariozechner/pi-coding-agent
 # Place in ~/.config/shoal/tools/pi.toml
+# Pi is the preferred primary backend for Shoal.
 
 [tool]
 name = "pi"
 command = "pi"
 icon = "🥧"
+status_provider = "pi"
 
 [detection]
 # Pi uses a TUI with differential rendering; detect from pane output

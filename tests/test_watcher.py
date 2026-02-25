@@ -171,6 +171,33 @@ class TestWatcherLogic:
 
             mock_capture.assert_called_once_with("%1", 20, False)
 
+    async def test_watcher_falls_back_to_tool_command_when_title_drifts(self, mock_dirs):
+        """When pane title changes, watcher should still track the tool pane by command."""
+        s = await create_session("test-session", "opencode", "/tmp/repo")
+        await update_session(s.id, status=SessionStatus.running, pid=100)
+
+        watcher = Watcher()
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch(
+                "shoal.core.tmux.list_panes",
+                return_value=[
+                    {"id": "%1", "title": "OpenCode", "command": "opencode", "active": "1"},
+                    {"id": "%2", "title": "", "command": "fish", "active": "0"},
+                ],
+            ),
+            patch("shoal.core.tmux.pane_pid", return_value=100),
+            patch("shoal.core.tmux.capture_pane", return_value="some output") as mock_capture,
+            patch("shoal.services.watcher.detect_status", return_value=SessionStatus.idle),
+        ):
+            await watcher._poll_cycle()
+
+            mock_capture.assert_called_once_with("%1", 20, False)
+
+            updated = await get_session(s.id)
+            assert updated.status == SessionStatus.idle
+
     async def test_watcher_warns_on_missing_tool_config(self, mock_dirs):
         """Watcher should log a warning when tool config is missing."""
         s = await create_session("test-session", "claude", "/tmp/repo")

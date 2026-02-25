@@ -43,6 +43,7 @@ session_prefix = "__"
 name = "claude"
 command = "claude"
 icon = "🤖"
+status_provider = "regex"
 
 [detection]
 busy_patterns = ["⠋", "thinking"]
@@ -61,6 +62,7 @@ config_cmd = "claude mcp add"
 name = "opencode"
 command = "opencode"
 icon = "🌐"
+status_provider = "opencode_compat"
 
 [detection]
 busy_patterns = ["working", "thinking"]
@@ -76,6 +78,7 @@ idle_patterns = ["│ >"]
 name = "pi"
 command = "pi"
 icon = "🥧"
+status_provider = "pi"
 
 [detection]
 busy_patterns = ["thinking", "generating", "executing", "reading", "writing", "editing"]

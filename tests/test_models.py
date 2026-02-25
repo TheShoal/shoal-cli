@@ -14,10 +14,10 @@ from shoal.models.state import RoboState, SessionState, SessionStatus
 class TestShoalConfig:
     def test_defaults(self):
         cfg = ShoalConfig()
-        assert cfg.general.default_tool == "opencode"
+        assert cfg.general.default_tool == "pi"
         assert cfg.tmux.session_prefix == "_"
         assert cfg.notifications.enabled is True
-        assert cfg.robo.default_tool == "opencode"
+        assert cfg.robo.default_tool == "pi"
         assert cfg.robo.session_prefix == "__"
 
     def test_override(self):
@@ -29,6 +29,7 @@ class TestToolConfig:
     def test_basic(self):
         cfg = ToolConfig(name="claude", command="claude", icon="🤖")
         assert cfg.name == "claude"
+        assert cfg.status_provider is None
         assert cfg.detection.busy_patterns == []
         assert cfg.mcp.config_cmd == ""
 
@@ -49,7 +50,7 @@ class TestRoboProfileConfig:
     def test_defaults(self):
         cfg = RoboProfileConfig()
         assert cfg.name == "default"
-        assert cfg.tool == "opencode"
+        assert cfg.tool == "pi"
         assert cfg.monitoring.poll_interval == 10
         assert cfg.escalation.notify is True
         assert cfg.tasks.log_file == "task-log.md"

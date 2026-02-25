@@ -10,6 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from shoal.core.status_provider import default_status_provider_for_tool
 from shoal.models.config import (
     DetectionPatterns,
     MCPToolConfig,
@@ -165,10 +166,14 @@ def load_tool_config(name: str) -> ToolConfig:
     mcp_section = data.get("mcp", {})
 
     try:
+        tool_name = tool_section.get("name", name)
         return ToolConfig(
-            name=tool_section.get("name", name),
+            name=tool_name,
             command=tool_section.get("command", name),
             icon=tool_section.get("icon", "●"),
+            status_provider=tool_section.get(
+                "status_provider", default_status_provider_for_tool(tool_name)
+            ),
             detection=DetectionPatterns.model_validate(detection_section),
             mcp=MCPToolConfig.model_validate(mcp_section),
         )
@@ -193,7 +198,7 @@ def load_robo_profile(name: str) -> RoboProfileConfig:
     try:
         return RoboProfileConfig(
             name=robo_section.get("name", name),
-            tool=robo_section.get("tool", "opencode"),
+            tool=robo_section.get("tool", "pi"),
             auto_approve=robo_section.get("auto_approve", False),
             monitoring=data.get("monitoring", {}),
             escalation=data.get("escalation", {}),
@@ -367,7 +372,7 @@ def _parse_template_data(
             description=template_section.get("description", ""),
             extends=template_section.get("extends"),
             mixins=template_section.get("mixins", []),
-            tool=template_section.get("tool", "opencode"),
+            tool=template_section.get("tool", "pi"),
             worktree=TemplateWorktreeConfig.model_validate(worktree_section),
             env=env_section,
             mcp=mcp_section,

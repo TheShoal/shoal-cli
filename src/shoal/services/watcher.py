@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shlex
 import signal
 import subprocess
 from datetime import UTC, datetime
@@ -24,17 +25,53 @@ _MAX_BACKOFF = 300.0  # seconds — cap for exponential backoff on consecutive e
 def _find_session_tool_pane(
     panes: list[dict[str, str]],
     pane_title: str,
+    tool_command: str,
 ) -> str | None:
     """Pick the pane tagged for this session.
 
     We intentionally key on pane title (shoal:<session_id>) because
     pane_current_command is not stable when users split panes, switch focus,
     or when tools spawn subprocesses.
+
+    Fallback when title is missing (tool rewrote it):
+    1. pane whose current command matches the tool executable
+    2. active pane among those command matches
+    3. single-pane tmux session
     """
+    tool_exe = _tool_executable(tool_command)
+
     for pane in panes:
         if pane.get("title") == pane_title:
             return pane.get("id")
+
+    if tool_exe:
+        command_matches = [p for p in panes if p.get("command") == tool_exe]
+        if len(command_matches) == 1:
+            return command_matches[0].get("id")
+        for pane in command_matches:
+            if pane.get("active") == "1":
+                return pane.get("id")
+
+    if len(panes) == 1:
+        return panes[0].get("id")
+
     return None
+
+
+def _tool_executable(tool_command: str) -> str:
+    """Return the executable portion of a tool command string."""
+    if not isinstance(tool_command, str):
+        return ""
+
+    if not tool_command.strip():
+        return ""
+
+    try:
+        parts = shlex.split(tool_command)
+    except ValueError:
+        parts = tool_command.strip().split()
+
+    return os.path.basename(parts[0]) if parts else ""
 
 
 class Watcher:
@@ -145,9 +182,11 @@ class Watcher:
 
             pane_title = f"shoal:{session.id}"
             panes = await tmux.async_list_panes(session.tmux_session)
-            pane_target = _find_session_tool_pane(panes, pane_title)
+            pane_target = _find_session_tool_pane(panes, pane_title, tool_config.command)
             if not pane_target:
-                logger.debug("Session %s: no pane tagged '%s'", session.id, pane_title)
+                logger.debug(
+                    "Session %s: no trackable pane found (title=%s)", session.id, pane_title
+                )
                 continue
 
             # 3. Verify PID if we have one

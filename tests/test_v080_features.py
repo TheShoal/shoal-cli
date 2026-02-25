@@ -31,6 +31,7 @@ class TestPiToolConfig:
         assert cfg.name == "pi"
         assert cfg.command == "pi"
         assert cfg.icon == "🥧"
+        assert cfg.status_provider == "pi"
 
     def test_pi_detection_patterns(self, mock_dirs):
         from shoal.core.config import load_tool_config

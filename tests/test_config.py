@@ -33,7 +33,7 @@ class TestLoadConfig:
         load_config.cache_clear()
         monkeypatch.setattr(config_mod, "config_dir", lambda: tmp_path / "nonexistent")
         cfg = load_config()
-        assert cfg.general.default_tool == "opencode"
+        assert cfg.general.default_tool == "pi"
         load_config.cache_clear()
 
     def test_use_nerd_fonts_default(self, mock_dirs):
@@ -63,6 +63,7 @@ class TestLoadToolConfig:
         assert cfg.name == "claude"
         assert cfg.command == "claude"
         assert cfg.icon == "🤖"
+        assert cfg.status_provider == "regex"
         assert "thinking" in cfg.detection.busy_patterns
         assert "Error:" in cfg.detection.error_patterns
 
@@ -70,6 +71,7 @@ class TestLoadToolConfig:
         cfg = load_tool_config("opencode")
         assert cfg.name == "opencode"
         assert cfg.command == "opencode"
+        assert cfg.status_provider == "opencode_compat"
 
     def test_missing_tool(self, mock_dirs):
         with pytest.raises(FileNotFoundError):

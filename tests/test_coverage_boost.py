@@ -29,23 +29,27 @@ class TestFindSessionToolPane:
             {"id": "%1", "title": "bash", "command": "bash"},
             {"id": "%2", "title": "shoal:abc123", "command": "claude"},
         ]
-        result = _find_session_tool_pane(panes, "shoal:abc123")
+        result = _find_session_tool_pane(panes, "shoal:abc123", "claude")
         assert result == "%2"
 
     def test_returns_none_when_no_match(self) -> None:
         panes = [
             {"id": "%1", "title": "bash", "command": "bash"},
+            {"id": "%2", "title": "notes", "command": "fish"},
         ]
-        result = _find_session_tool_pane(panes, "shoal:abc123")
+        result = _find_session_tool_pane(panes, "shoal:abc123", "claude")
         assert result is None
 
     def test_returns_none_for_empty_panes(self) -> None:
-        result = _find_session_tool_pane([], "shoal:abc123")
+        result = _find_session_tool_pane([], "shoal:abc123", "claude")
         assert result is None
 
     def test_pane_missing_title_key(self) -> None:
-        panes: list[dict[str, str]] = [{"id": "%1", "command": "bash"}]
-        result = _find_session_tool_pane(panes, "shoal:abc123")
+        panes: list[dict[str, str]] = [
+            {"id": "%1", "command": "bash"},
+            {"id": "%2", "command": "fish"},
+        ]
+        result = _find_session_tool_pane(panes, "shoal:abc123", "claude")
         assert result is None
 
 
@@ -390,8 +394,8 @@ class TestWatcherPollCycle:
             await watcher._poll_cycle()
             mock_logger.warning.assert_called_once()
 
-    async def test_no_tagged_pane_skips(self, mock_dirs: tuple[Path, Path]) -> None:
-        """Watcher should skip sessions where no pane has the shoal:<id> title."""
+    async def test_no_trackable_pane_skips(self, mock_dirs: tuple[Path, Path]) -> None:
+        """Watcher should skip sessions with no title/command fallback match."""
         s = await create_session("no-pane", "claude", "/tmp/repo")
         await update_session(s.id, status=SessionStatus.running)
 
@@ -401,7 +405,10 @@ class TestWatcherPollCycle:
             patch("shoal.core.tmux.has_session", return_value=True),
             patch(
                 "shoal.core.tmux.list_panes",
-                return_value=[{"id": "%1", "title": "bash", "command": "bash"}],
+                return_value=[
+                    {"id": "%1", "title": "bash", "command": "bash"},
+                    {"id": "%2", "title": "notes", "command": "fish"},
+                ],
             ),
             patch("shoal.core.tmux.capture_pane") as mock_capture,
         ):
