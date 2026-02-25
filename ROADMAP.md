@@ -148,6 +148,25 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-02-25 — Pi-first defaults + status-provider abstraction
+
+**What we did:**
+
+- Switched defaults to Pi across config and CLI surfaces (`GeneralConfig.default_tool`, robo defaults, template defaults, demo fallback, example config)
+- Added explicit status-provider architecture: `core/status_provider.py` with providers `pi`, `opencode_compat`, and `regex`; `core/detection.py` now delegates through provider resolution
+- Extended tool schema with `tool.status_provider` and wired config loader defaults (`pi` for Pi, `opencode_compat` for OpenCode, `regex` otherwise)
+- Hardened watcher pane resolution when pane titles drift (fallback to tool executable, active pane, then single-pane session)
+- Updated docs for degraded compatibility behavior (README + TROUBLESHOOTING), and added `Detection` display in `shoal info`
+- Added/updated tests for provider selection, watcher fallback behavior, and config defaults
+- Fixed CI flakiness surfaced during this work (`test_mcp_pool` AF_UNIX path length, `test_api_load` concurrent DB lock race) and remote API connection-reset normalization
+- Full validation passed: `just ci` green (990 passed, 1 skipped)
+
+**What to do next:**
+
+- Implement the first non-regex Pi provider path once explicit Pi event contracts are available (keep current adapter seam)
+- Decide whether to expose provider selection directly in `shoal config`/template docs (currently in tool TOML docs + `shoal info` visibility)
+- Continue extension-system backlog work (Fins capability map + CLI/core boundary recommendation)
+
 ### Session: 2026-02-24 — v0.18.0 Phase 4 complete + env fix
 
 **What we did:**

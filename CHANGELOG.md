@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Status provider abstraction**: Explicit backend adapters in `core/status_provider.py` (`pi`, `opencode_compat`, `regex`) with tool-level selection via `tool.status_provider`
+- **Detection mode visibility**: `shoal info` now shows a `Detection` field so sessions surface provider mode, including compatibility markers
+
+### Changed
+- **Pi-first defaults**: `default_tool` defaults now use `pi` in general config, robo config, profile loading, templates, and demo startup
+- **Watcher pane tracking fallback**: watcher now falls back from `shoal:<session_id>` title to tool-command and single-pane heuristics when titles drift
+- **Tool docs and examples**: README/tool examples now document Pi as primary and OpenCode as compatibility mode
+
+### Fixed
+- **Remote API robustness**: remote GET/POST/DELETE helpers now normalize connection reset OS errors into `RemoteConnectionError`
+- **Flaky tests**: stabilized concurrent API load and Unix socket server tests for deterministic CI behavior
+
 ## [0.18.0] - 2026-02-24
 
 ### Added
