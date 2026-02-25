@@ -148,6 +148,23 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-02-26 — Fin contract-v1 adapter (inspect/validate/run)
+
+**What we did:**
+
+- Implemented `shoal fin` command group with `inspect`, `validate`, and `run`
+- Added `models/fin.py` and `services/fin_runtime.py` for manifest parsing, contract-v1 validation, entrypoint resolution, subprocess execution, and exit-code propagation
+- Added tests for CLI and service behavior (`tests/test_cli_fin.py`, `tests/test_services_fin_runtime.py`)
+- Added extension capability and boundary doc: `docs/EXTENSIONS.md`
+- Updated README command/docs sections and SHOAL next-work status to reflect fin adapter progress
+
+**What to do next:**
+
+- Add first-class `shoal fin install` and `shoal fin configure` commands
+- Add basic discovery (`shoal fin ls`) and local fin source management
+- Define explicit contract version support window policy (v1 now, migration policy for v2)
+- Decide hook package loading model for fins with isolation guarantees
+
 ### Session: 2026-02-25 — Pi-first defaults + status-provider abstraction
 
 **What we did:**

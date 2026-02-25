@@ -307,6 +307,14 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 | `validate <name>` | Validate a template against the schema  |
 | `mixins`          | List available template mixins          |
 
+### Extensions (`shoal fin`)
+
+| Command          | Description                                            |
+| ---------------- | ------------------------------------------------------ |
+| `inspect <path>` | Show fin manifest metadata and resolved entrypoints    |
+| `validate <path>`| Validate manifest and run fin `validate` entrypoint    |
+| `run <path>`     | Execute fin `run` with args passthrough after `--`     |
+
 ### Demo (`shoal demo`)
 
 | Command    | Description                                           |
@@ -417,6 +425,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 - [docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md) — MCP HTTP transport setup
 - [docs/CLAUDE_CODE_SETUP.md](docs/CLAUDE_CODE_SETUP.md) — Claude Code integration guide
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — Common issues and solutions
+- [docs/EXTENSIONS.md](docs/EXTENSIONS.md) — Fin extension capability map and boundaries
 - [ARCHITECTURE.md](ARCHITECTURE.md) — System design and concepts
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Development setup and guidelines
 - [ROADMAP.md](ROADMAP.md) — Upcoming features and milestones

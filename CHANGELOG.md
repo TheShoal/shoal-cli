@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Status provider abstraction**: Explicit backend adapters in `core/status_provider.py` (`pi`, `opencode_compat`, `regex`) with tool-level selection via `tool.status_provider`
 - **Detection mode visibility**: `shoal info` now shows a `Detection` field so sessions surface provider mode, including compatibility markers
+- **Fin contract-v1 adapter**: New `shoal fin` command group with `inspect`, `validate`, and `run` subcommands for path-based fin execution
+- **Fin runtime support**: Manifest parsing, contract-version checks, entrypoint resolution, subprocess invocation, and exit-code propagation in `services/fin_runtime.py`
+- **Extension capability docs**: `docs/EXTENSIONS.md` adds discovery/loading/lifecycle map, gaps, and `shoal-cli` vs `shoal-core` boundary recommendation
 
 ### Changed
 - **Pi-first defaults**: `default_tool` defaults now use `pi` in general config, robo config, profile loading, templates, and demo startup

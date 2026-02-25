@@ -39,10 +39,11 @@ Shoal is the orchestration core. It coordinates parallel coding-agent sessions, 
 
 ## Next work (roadmap-aligned)
 
-- Document current extension/plugin capabilities end-to-end (discovery, loading, runtime lifecycle, developer ergonomics).
-- Identify concrete extension gaps, especially lifecycle hooks, isolation boundaries, and compatibility guarantees.
-- Produce a recommendation for `shoal-cli` vs `shoal-core` responsibility boundaries with a phased migration sequence.
-- Define the first milestone for extension system hardening and tie it to a minimal fin contract.
+- Add first-class `shoal fin install` and `shoal fin configure` commands to complete v1 lifecycle UX.
+- Add discovery/registry basics (`shoal fin ls`) with local install sources.
+- Define explicit contract version support policy (v1 only now, N/N-1 migration policy for v2).
+- Add lifecycle hook package loading for fins with clear isolation boundaries.
+- Validate Fin/Pisces interoperability through concrete adapter examples.
 - Keep Pisces compatibility stable while extension boundaries are clarified.
 
 ## Recently completed (2026-02-25)
@@ -50,6 +51,12 @@ Shoal is the orchestration core. It coordinates parallel coding-agent sessions, 
 - Added explicit status-provider adapters (`pi`, `opencode_compat`, `regex`) with tool-level selection.
 - Documented compatibility-mode degraded status behavior in CLI/help/docs and surfaced detection mode in `shoal info`.
 - Shifted defaults toward Pi-first operation while keeping OpenCode compatibility stable.
+
+## Recently completed (2026-02-26)
+
+- Implemented Fin contract-v1 adapter commands: `shoal fin inspect|validate|run`.
+- Added fin manifest/runtime support with contract checks, entrypoint resolution, env handshake, and exit-code propagation.
+- Published extension capability map and boundary recommendation in `docs/EXTENSIONS.md`.
 
 ## Next planned review
 
