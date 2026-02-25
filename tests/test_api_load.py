@@ -43,17 +43,19 @@ async def test_concurrent_status_polling(async_client: AsyncClient, mock_dirs):
 @pytest.mark.asyncio
 async def test_concurrent_mixed_operations(async_client: AsyncClient, mock_dirs):
     """Test concurrent mixed read/write operations."""
+    write_sem = asyncio.Semaphore(1)
 
     async def create_and_check(i):
         # Write
-        post_resp = await async_client.post(
-            "/sessions",
-            json={
-                "name": f"mixed-{i}",
-                "tool": "claude",
-                "path": ".",  # Current dir is a git repo in tests
-            },
-        )
+        async with write_sem:
+            post_resp = await async_client.post(
+                "/sessions",
+                json={
+                    "name": f"mixed-{i}",
+                    "tool": "claude",
+                    "path": ".",  # Current dir is a git repo in tests
+                },
+            )
         # Read
         get_resp = await async_client.get("/sessions")
         return post_resp, get_resp

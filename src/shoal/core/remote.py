@@ -260,9 +260,10 @@ def remote_api_get(host: str, path: str) -> Any:
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310  # nosec B310
             return json.loads(resp.read().decode())
-    except urllib.error.URLError as e:
+    except (urllib.error.URLError, OSError) as e:
+        reason = e.reason if isinstance(e, urllib.error.URLError) else str(e)
         raise RemoteConnectionError(
-            f"Failed to connect to '{host}': {e.reason}",
+            f"Failed to connect to '{host}': {reason}",
             host=host,
         ) from e
     except json.JSONDecodeError as e:
@@ -281,9 +282,10 @@ def remote_api_post(host: str, path: str, data: dict[str, Any] | None = None) ->
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310  # nosec B310
             return json.loads(resp.read().decode())
-    except urllib.error.URLError as e:
+    except (urllib.error.URLError, OSError) as e:
+        reason = e.reason if isinstance(e, urllib.error.URLError) else str(e)
         raise RemoteConnectionError(
-            f"Failed to connect to '{host}': {e.reason}",
+            f"Failed to connect to '{host}': {reason}",
             host=host,
         ) from e
     except json.JSONDecodeError as e:
@@ -300,9 +302,10 @@ def remote_api_delete(host: str, path: str) -> Any:
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310  # nosec B310
             return json.loads(resp.read().decode())
-    except urllib.error.URLError as e:
+    except (urllib.error.URLError, OSError) as e:
+        reason = e.reason if isinstance(e, urllib.error.URLError) else str(e)
         raise RemoteConnectionError(
-            f"Failed to connect to '{host}': {e.reason}",
+            f"Failed to connect to '{host}': {reason}",
             host=host,
         ) from e
     except json.JSONDecodeError as e:

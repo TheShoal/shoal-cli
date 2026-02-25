@@ -6,6 +6,7 @@ import signal
 import sys
 from contextlib import suppress
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -483,14 +484,20 @@ async def test_handle_client_spawn_failure():
 @pytest.mark.asyncio
 async def test_serve_creates_unix_server(tmp_path):
     """_serve creates a Unix socket server that can be cancelled."""
-    sock_path = str(tmp_path / "test.sock")
+    sock_path = f"/tmp/shoal-test-{uuid4().hex[:8]}.sock"
 
     task = asyncio.create_task(mcp_pool._serve(sock_path, "echo hello"))
-    await asyncio.sleep(0.1)
+    try:
+        for _ in range(40):
+            if pathlib.Path(sock_path).exists():
+                break
+            if task.done() and task.exception() is not None:
+                raise task.exception()
+            await asyncio.sleep(0.05)
 
-    # Verify socket was created
-    assert pathlib.Path(sock_path).exists()
-
-    task.cancel()
-    with suppress(asyncio.CancelledError):
-        await task
+        assert pathlib.Path(sock_path).exists()
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+        pathlib.Path(sock_path).unlink(missing_ok=True)
