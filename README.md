@@ -26,7 +26,7 @@
 
 <!-- Row 3 — Quality -->
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-986_passing-A6DA95?style=flat-square" alt="Tests: 986 passing">
+  <img src="https://img.shields.io/badge/tests-990_passing-A6DA95?style=flat-square" alt="Tests: 990 passing">
   <img src="https://img.shields.io/badge/coverage-82%25-8BD5CA?style=flat-square" alt="Coverage: 82%">
   <img src="https://img.shields.io/badge/mypy-strict-CBA6F7?style=flat-square" alt="mypy strict">
   <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
@@ -401,7 +401,7 @@ just cov         # tests with coverage report
 just setup       # install pre-commit hooks
 ```
 
-**986 tests** | **82% coverage** | **mypy --strict** | **pre-commit enforced** | **conventional commits**
+**990 tests** | **82% coverage** | **mypy --strict** | **pre-commit enforced** | **conventional commits**
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 

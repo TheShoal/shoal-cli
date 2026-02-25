@@ -44,8 +44,12 @@ Shoal is the orchestration core. It coordinates parallel coding-agent sessions, 
 - Produce a recommendation for `shoal-cli` vs `shoal-core` responsibility boundaries with a phased migration sequence.
 - Define the first milestone for extension system hardening and tie it to a minimal fin contract.
 - Keep Pisces compatibility stable while extension boundaries are clarified.
-- Add a status-provider abstraction so backend-specific adapters (Pi first, OpenCode compat) are explicit.
-- Document degraded-status behavior for compatibility backends in CLI help/docs.
+
+## Recently completed (2026-02-25)
+
+- Added explicit status-provider adapters (`pi`, `opencode_compat`, `regex`) with tool-level selection.
+- Documented compatibility-mode degraded status behavior in CLI/help/docs and surfaced detection mode in `shoal info`.
+- Shifted defaults toward Pi-first operation while keeping OpenCode compatibility stable.
 
 ## Next planned review
 
