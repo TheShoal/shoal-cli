@@ -1,0 +1,41 @@
+# Shoal — Pi coding agent development template
+# Extends base-dev with a second window for build/test runner.
+# Designed for pi-tmux workflows with fish shell.
+# Usage: shoal new --template pi-dev
+
+[template]
+name = "pi-dev"
+description = "Pi coding agent with terminal pane for pi-tmux workflows"
+extends = "base-dev"
+tool = "pi"
+
+[template.env]
+SHOAL_TOOL = "pi"
+
+# Child windows REPLACE parent windows entirely (not merged).
+# Define the full window layout here.
+[[windows]]
+name = "editor"
+focus = true
+
+[[windows.panes]]
+split = "root"
+size = "65%"
+title = "pi-agent"
+command = "{tool_command}"
+
+[[windows.panes]]
+split = "right"
+size = "35%"
+title = "terminal"
+command = "echo 'Terminal ready — use for pi-tmux, git, tests'"
+
+# Additional window for build/test runner
+[[windows]]
+name = "tools"
+cwd = "{work_dir}"
+
+[[windows.panes]]
+split = "root"
+title = "runner"
+command = "echo 'Build/test runner — fish shell ready'"

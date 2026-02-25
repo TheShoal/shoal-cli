@@ -1,0 +1,17 @@
+# Shoal — Claude development template
+# Inherits base-dev layout, overrides tool to Claude, adds MCP memory.
+# Usage: shoal new --template claude-dev
+
+[template]
+name = "claude-dev"
+description = "Claude agent with MCP memory"
+# Single inheritance: inherits windows, worktree config from base-dev
+extends = "base-dev"
+# Override the tool (base-dev uses opencode)
+tool = "claude"
+# MCP servers to auto-provision on session creation (union with parent)
+mcp = ["memory"]
+
+[template.env]
+# Environment variables set in the tmux session
+CLAUDE_MODEL = "opus"

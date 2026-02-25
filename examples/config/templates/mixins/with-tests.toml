@@ -1,0 +1,17 @@
+# Shoal — Test runner window mixin
+# Appends a test runner window to any template.
+# Usage in a template: mixins = ["with-tests"]
+# Mixin windows are APPENDED after the template's existing windows.
+
+[mixin]
+name = "with-tests"
+description = "Adds a test runner window"
+
+# This window will be appended to the template's window list
+[[windows]]
+name = "tests"
+
+[[windows.panes]]
+split = "root"
+title = "test-runner"
+command = "echo 'Run: just test'"

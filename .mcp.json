@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "shoal-orchestrator": {
+      "command": "uv",
+      "args": ["run", "shoal-mcp-server"],
+      "type": "stdio"
+    }
+  }
+}

@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shoal"
+version = "0.18.0"
+description = "Terminal-first orchestration for parallel AI coding agents"
+readme = "README.md"
+license = {text = "Proprietary"}
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.15.0",
+    "pydantic>=2.10.0",
+    "rich>=13.0.0",
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "aiosqlite>=0.20.0",
+]
+
+[project.scripts]
+shoal = "shoal.cli:app"
+shoal-mcp-proxy = "shoal.services.mcp_proxy:main"
+shoal-mcp-server = "shoal.services.mcp_shoal_server:main"
+shoal-robo-supervisor = "shoal.services.robo_supervisor:main"
+shoal-status = "shoal.services.status_bar:main"
+
+[project.optional-dependencies]
+mcp = [
+    "fastmcp>=3.0.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "httpx>=0.28.0",
+    "gitlint>=0.19.0",
+    "pytest-xdist>=3.5.0",
+    "fastmcp>=3.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/shoal"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/shoal/integrations/fish/templates" = "shoal/integrations/fish/templates"
+"src/shoal/py.typed" = "shoal/py.typed"
+"examples/config" = "shoal/examples/config"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "PERF", "RUF", "LOG", "G", "C4", "PIE", "DTZ", "RET", "RSE", "S"]
+ignore = ["ASYNC240", "RUF001", "S101", "S603", "S607", "S108"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_test_loop_scope = "function"
+markers = [
+    "integration: tests that require tmux and external tools",
+]
+
+[tool.coverage.run]
+source = ["src/shoal"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = false
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101", "B404", "B603", "B607", "B108"]
+
+[tool.uv]
+link-mode = "copy"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.38.1",
+]

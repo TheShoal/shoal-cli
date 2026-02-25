@@ -1,0 +1,41 @@
+repos:
+  # Standard file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+
+  # Ruff — lint + format check (uses pre-commit mirror, no Python env needed)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.1
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Commit message validation
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
+
+  # Local hooks — skipped when SHOAL_AGENT=1 (Shoal-spawned agent sessions)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy strict
+        entry: bash -c 'if [ "$SHOAL_AGENT" = "1" ]; then exit 0; fi; exec uv run mypy --strict src/shoal/'
+        language: system
+        pass_filenames: false
+        files: \.py$
+        types: [python]
+      - id: fish-syntax
+        name: fish syntax check
+        entry: bash -c 'if [ "$SHOAL_AGENT" = "1" ]; then exit 0; fi; exec fish -n "$@"' bash
+        language: system
+        files: \.fish$
+        types: [file]

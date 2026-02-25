@@ -1,0 +1,54 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/srv/dev/.shoal/.claude/hooks/git-guard.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | grep '\\.py$' | xargs -I{} sh -c 'ruff format \"{}\" 2>/dev/null; ruff check --fix \"{}\" 2>/dev/null' || true",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | grep '\\.py$' | xargs -I{} sh -c 'uv run mypy --strict --no-error-summary \"{}\" 2>&1 | head -5' || true",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/srv/dev/.shoal/.claude/hooks/test-reminder.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '<shoal-context>Shoal project: Python 3.12+, async-first. `just ci` for verification. See CLAUDE.md. mypy --strict, conventional commits, 618 tests, 80% coverage gate.</shoal-context>'"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+# Shoal — global configuration
+# Copy to ~/.config/shoal/config.toml
+# All fields shown below are optional — defaults are used if omitted.
+# Unknown fields are rejected (typos will produce an error on load).
+
+[general]
+# Which AI tool to launch by default (must match a tools/*.toml filename)
+default_tool = "opencode"
+# Worktree directory name, relative to the git project root
+worktree_dir = ".worktrees"
+# Use Nerd Font glyphs in CLI output (status icons, tool icons, panel titles)
+# Set to false if your terminal font lacks Nerd Font support
+use_nerd_fonts = true
+
+[tmux]
+# Prefix added to tmux session names (e.g. "_my-session")
+session_prefix = "_"
+# Popup dashboard dimensions (used by shoal popup / Prefix+S)
+popup_width = "90%"
+popup_height = "90%"
+# Tmux prefix key for the popup (Prefix + this key opens the dashboard)
+popup_key = "S"
+
+# Optional: Commands to run when creating a new session.
+# Available template variables:
+#   {tool_command}  — resolved tool command (e.g. "claude", "opencode")
+#   {work_dir}      — session working directory
+#   {session_name}  — human-readable session name
+#   {tmux_session}  — tmux session name (with prefix)
+# startup_commands = [
+#     "send-keys -t {tmux_session} 'nvim .' Enter",
+#     "new-window -t {tmux_session} -n tool '{tool_command}'",
+#     "new-window -t {tmux_session} -d -n monitor 'btop'",
+#     "select-window -t {tmux_session}:2"
+# ]
+
+[status_bar]
+# Maximum number of sessions shown in the fish status bar
+max_display = 5
+# Separator between session indicators
+separator = "  "
+# Flash the status indicator when a session is waiting for input
+flash_waiting = true
+
+[notifications]
+# Enable macOS osascript notifications for waiting sessions
+enabled = true
+# Seconds before a waiting session triggers a notification
+timeout_seconds = 300
+
+[robo]
+# Default AI tool for robo (supervisor) sessions
+default_tool = "opencode"
+# Default robo profile name (matches robo/<name>.toml)
+default_profile = "default"
+# Tmux session prefix for robo sessions (double underscore by convention)
+session_prefix = "__"

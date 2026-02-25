@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 60" width="700" height="60">
+  <defs>
+    <style>
+      @media (prefers-color-scheme: light) {
+        .strip-bg { fill: #EFF1F5; }
+        .pill-fill { fill: #DCE0E8; }
+        .pill-stroke { stroke: #BCC0CC; }
+        .pill-text { fill: #4C4F69; }
+        .conn-line { stroke: #BCC0CC; }
+      }
+      @media (prefers-color-scheme: dark) {
+        .strip-bg { fill: #1E2030; }
+        .pill-fill { fill: #363A4F; }
+        .pill-stroke { stroke: #494D64; }
+        .pill-text { fill: #CAD3F5; }
+        .conn-line { stroke: #494D64; }
+      }
+      /* Default dark */
+      .strip-bg { fill: #1E2030; }
+      .pill-fill { fill: #363A4F; }
+      .pill-stroke { stroke: #494D64; }
+      .pill-text { fill: #CAD3F5; }
+      .conn-line { stroke: #494D64; }
+
+      .pill-font { font-family: 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace; font-size: 12px; font-weight: 500; }
+
+      @keyframes pulseActive {
+        0%, 100% { r: 5; opacity: 1; }
+        50% { r: 7; opacity: 0.6; }
+      }
+      @keyframes pulseWaiting {
+        0%, 100% { r: 4; opacity: 0.8; }
+        50% { r: 6; opacity: 0.4; }
+      }
+      @keyframes pulseIdle {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.15; }
+      }
+      @keyframes travelDot {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(540px); }
+      }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect class="strip-bg" width="700" height="60" rx="8"/>
+
+  <!-- Connecting line -->
+  <line class="conn-line" x1="80" y1="48" x2="620" y2="48" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Traveling dot along connector -->
+  <circle r="3" fill="#8BD5CA" opacity="0.7" cy="48">
+    <animateMotion dur="6s" repeatCount="indefinite" path="M80,0 L620,0"/>
+  </circle>
+
+  <!-- Pill 1: Claude — Thinking -->
+  <g transform="translate(30, 8)">
+    <rect class="pill-fill pill-stroke" width="130" height="32" rx="16" stroke-width="1"/>
+    <circle cx="22" cy="16" r="5" fill="#A6DA95" style="animation: pulseActive 1.5s ease-in-out infinite;"/>
+    <text class="pill-font pill-text" x="38" y="21">Claude</text>
+  </g>
+
+  <!-- Pill 2: Pi — Waiting -->
+  <g transform="translate(190, 8)">
+    <rect class="pill-fill pill-stroke" width="130" height="32" rx="16" stroke-width="1"/>
+    <circle cx="22" cy="16" r="4" fill="#EED49F" style="animation: pulseWaiting 3s ease-in-out infinite;"/>
+    <text class="pill-font pill-text" x="38" y="21">Pi</text>
+  </g>
+
+  <!-- Pill 3: Gemini — Thinking -->
+  <g transform="translate(350, 8)">
+    <rect class="pill-fill pill-stroke" width="130" height="32" rx="16" stroke-width="1"/>
+    <circle cx="22" cy="16" r="5" fill="#A6DA95" style="animation: pulseActive 2s ease-in-out infinite;"/>
+    <text class="pill-font pill-text" x="38" y="21">Gemini</text>
+  </g>
+
+  <!-- Pill 4: OpenCode — Idle -->
+  <g transform="translate(510, 8)">
+    <rect class="pill-fill pill-stroke" width="150" height="32" rx="16" stroke-width="1"/>
+    <circle cx="22" cy="16" r="4" fill="#6E738D" style="animation: pulseIdle 5s ease-in-out infinite;"/>
+    <text class="pill-font pill-text" x="38" y="21">OpenCode</text>
+  </g>
+</svg>

@@ -1,0 +1,42 @@
+# Shoal — Base development template
+# Two-pane layout: AI agent + terminal.
+# Extend this for tool-specific templates via: extends = "base-dev"
+# Place in ~/.config/shoal/templates/base-dev.toml
+
+[template]
+name = "base-dev"
+description = "Base development template with editor + terminal"
+# Default tool (child templates can override with tool = "claude" etc.)
+tool = "opencode"
+
+[template.worktree]
+# Worktree name pattern. Available variables: {template_name}
+name = "feat/{template_name}"
+# Automatically create a new git branch for the worktree
+create_branch = true
+
+# Window definitions. Each [[windows]] block creates a tmux window.
+# The first pane in each window must have split = "root".
+[[windows]]
+name = "editor"
+# Focus this window on session creation
+focus = true
+
+# Pane definitions within the window.
+# split: "root" (first pane), "right" (vertical split), "down" (horizontal)
+# size: percentage of the parent split (e.g. "65%")
+# title: tmux pane title (used by status watcher for detection)
+# command: shell command to run. Available variables:
+#   {tool_command}, {work_dir}, {session_name}, {tmux_session},
+#   {root}, {branch_name}, {worktree_name}
+[[windows.panes]]
+split = "root"
+size = "65%"
+title = "agent"
+command = "{tool_command}"
+
+[[windows.panes]]
+split = "right"
+size = "35%"
+title = "terminal"
+command = "echo 'Terminal ready — fish shell'"
