@@ -124,6 +124,8 @@ class TestWatcherLogic:
 
     async def test_watcher_tracks_titled_pane_even_if_command_changes(self, mock_dirs):
         """Watcher should track the session-titled pane regardless of current command."""
+        from shoal.core.state import get_session
+
         s = await create_session("test-session", "claude", "/tmp/repo")
         await update_session(s.id, status=SessionStatus.running, pid=100)
 
@@ -147,8 +149,14 @@ class TestWatcherLogic:
             mock_capture.assert_called_once_with("%1", 20, False)
             mock_detect.assert_called_once()
 
+        updated = await get_session(s.id)
+        assert updated is not None
+        assert updated.status == SessionStatus.running
+
     async def test_watcher_ignores_active_pane_drift(self, mock_dirs):
         """Watcher should ignore active pane changes and keep tracking the titled pane."""
+        from shoal.core.state import get_session
+
         s = await create_session("test-session", "claude", "/tmp/repo")
         await update_session(s.id, status=SessionStatus.running, pid=100)
 
@@ -170,6 +178,10 @@ class TestWatcherLogic:
             await watcher._poll_cycle()
 
             mock_capture.assert_called_once_with("%1", 20, False)
+
+        updated = await get_session(s.id)
+        assert updated is not None
+        assert updated.status == SessionStatus.running
 
     async def test_watcher_falls_back_to_tool_command_when_title_drifts(self, mock_dirs):
         """When pane title changes, watcher should still track the tool pane by command."""

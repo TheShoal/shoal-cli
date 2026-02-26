@@ -1,6 +1,6 @@
 """Tests for cli/watcher.py."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -11,14 +11,21 @@ runner = CliRunner()
 
 def test_watcher_start_foreground(mock_dirs):
     """Test watcher start in foreground."""
+
+    def _close_coro(coro):
+        if hasattr(coro, "close"):
+            coro.close()
+
     with (
         patch("shoal.cli.watcher._read_pid", return_value=None),
         patch("shoal.services.watcher.Watcher") as mock_watcher_class,
-        patch("shoal.core.db.with_db"),
+        patch("shoal.core.db.with_db", new=lambda coro: coro),
         patch("asyncio.run") as mock_asyncio_run,
     ):
         mock_watcher_instance = MagicMock()
+        mock_watcher_instance.run = AsyncMock(return_value=None)
         mock_watcher_class.return_value = mock_watcher_instance
+        mock_asyncio_run.side_effect = _close_coro
 
         result = runner.invoke(app, ["start", "--foreground"])
         assert result.exit_code == 0

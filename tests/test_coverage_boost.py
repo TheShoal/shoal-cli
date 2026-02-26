@@ -366,6 +366,8 @@ split = "root"
 class TestWatcherPollCycle:
     async def test_skips_stopped_sessions(self, mock_dirs: tuple[Path, Path]) -> None:
         """Watcher _poll_cycle should skip sessions with status=stopped."""
+        from shoal.core.state import get_session
+
         s = await create_session("stopped-sess", "claude", "/tmp/repo")
         await update_session(s.id, status=SessionStatus.stopped)
 
@@ -376,8 +378,14 @@ class TestWatcherPollCycle:
             await watcher._poll_cycle()
             mock_has.assert_not_called()
 
+        updated = await get_session(s.id)
+        assert updated is not None
+        assert updated.status == SessionStatus.stopped
+
     async def test_missing_tool_config_skips_session(self, mock_dirs: tuple[Path, Path]) -> None:
         """Watcher should log warning and skip when tool config is missing."""
+        from shoal.core.state import get_session
+
         s = await create_session("no-tool", "claude", "/tmp/repo")
         await update_session(s.id, status=SessionStatus.running)
 
@@ -394,8 +402,14 @@ class TestWatcherPollCycle:
             await watcher._poll_cycle()
             mock_logger.warning.assert_called_once()
 
+        updated = await get_session(s.id)
+        assert updated is not None
+        assert updated.status == SessionStatus.running
+
     async def test_no_trackable_pane_skips(self, mock_dirs: tuple[Path, Path]) -> None:
         """Watcher should skip sessions with no title/command fallback match."""
+        from shoal.core.state import get_session
+
         s = await create_session("no-pane", "claude", "/tmp/repo")
         await update_session(s.id, status=SessionStatus.running)
 
@@ -415,8 +429,14 @@ class TestWatcherPollCycle:
             await watcher._poll_cycle()
             mock_capture.assert_not_called()
 
+        updated = await get_session(s.id)
+        assert updated is not None
+        assert updated.status == SessionStatus.running
+
     async def test_empty_pane_content_skips(self, mock_dirs: tuple[Path, Path]) -> None:
         """Watcher should skip when pane capture returns empty string."""
+        from shoal.core.state import get_session
+
         s = await create_session("empty-pane", "claude", "/tmp/repo")
         await update_session(s.id, status=SessionStatus.running, pid=100)
 
@@ -434,6 +454,10 @@ class TestWatcherPollCycle:
         ):
             await watcher._poll_cycle()
             mock_detect.assert_not_called()
+
+        updated = await get_session(s.id)
+        assert updated is not None
+        assert updated.status == SessionStatus.running
 
     async def test_status_transition_running_to_waiting(self, mock_dirs: tuple[Path, Path]) -> None:
         """Watcher should update status and notify on running->waiting."""

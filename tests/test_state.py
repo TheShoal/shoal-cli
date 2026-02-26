@@ -46,7 +46,7 @@ class TestValidateSessionName:
             "very-long-but-valid-name-with-many-parts",
         ]
         for name in valid_names:
-            validate_session_name(name)  # Should not raise
+            assert validate_session_name(name) is None
 
     def test_empty_name(self):
         """Test that empty name fails."""

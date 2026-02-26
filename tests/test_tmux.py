@@ -88,7 +88,8 @@ def test_kill_session():
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
-        tmux.kill_session("old-session")
+        result = tmux.kill_session("old-session")
+        assert result is None
 
         mock_run.assert_called_once_with(
             ["tmux", "kill-session", "-t", "old-session"],
@@ -130,7 +131,8 @@ def test_send_keys_without_enter() -> None:
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
-        tmux.send_keys("my-session", "echo hello", enter=False)
+        result = tmux.send_keys("my-session", "echo hello", enter=False)
+        assert result is None
 
         mock_run.assert_called_once_with(
             ["tmux", "send-keys", "-t", "my-session", "-l", "echo hello"],
@@ -164,7 +166,8 @@ def test_switch_client():
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
-        tmux.switch_client("target-session")
+        result = tmux.switch_client("target-session")
+        assert result is None
 
         mock_run.assert_called_once_with(
             ["tmux", "switch-client", "-t", "target-session"],
@@ -195,7 +198,8 @@ def test_set_environment():
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
-        tmux.set_environment("my-session", "MY_VAR", "my-value")
+        result = tmux.set_environment("my-session", "MY_VAR", "my-value")
+        assert result is None
 
         mock_run.assert_called_once_with(
             ["tmux", "set-environment", "-t", "my-session", "MY_VAR", "my-value"],
@@ -211,7 +215,8 @@ def test_popup():
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
-        tmux.popup("shoal ls")
+        result = tmux.popup("shoal ls")
+        assert result is None
 
         mock_run.assert_called_once_with(
             ["tmux", "popup", "-E", "-w", "90%", "-h", "80%", "shoal ls"],
@@ -227,7 +232,8 @@ def test_popup_custom_size():
     with patch("shoal.core.tmux.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
-        tmux.popup("shoal status", width="50%", height="60%")
+        result = tmux.popup("shoal status", width="50%", height="60%")
+        assert result is None
 
         mock_run.assert_called_once_with(
             ["tmux", "popup", "-E", "-w", "50%", "-h", "60%", "shoal status"],

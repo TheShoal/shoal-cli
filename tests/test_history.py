@@ -92,8 +92,9 @@ def test_history_limit_passed_to_db(mock_dirs: object) -> None:
         patch("shoal.cli.history.resolve_session", side_effect=mock_resolve),
         patch("shoal.cli.history.get_db", return_value=mock_db),
     ):
-        runner.invoke(app, ["history", "my-session", "--limit", "5"])
+        result = runner.invoke(app, ["history", "my-session", "--limit", "5"])
 
+    assert result.exit_code == 0
     mock_db.get_status_transitions.assert_awaited_once_with("sess-id-1", limit=5)
 
 

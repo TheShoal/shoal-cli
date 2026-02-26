@@ -58,10 +58,14 @@ class TestHookRegistry:
         on(LifecycleEvent.session_created, cb)
         await emit(LifecycleEvent.session_created, session="fake")
         cb.assert_awaited_once_with(LifecycleEvent.session_created, session="fake")
+        assert cb.await_count == 1
 
     async def test_emit_no_listeners(self) -> None:
-        # Should not raise
+        from shoal.services.lifecycle import _hooks
+
+        assert LifecycleEvent.session_killed not in _hooks
         await emit(LifecycleEvent.session_killed, session="x")
+        assert LifecycleEvent.session_killed not in _hooks
 
     async def test_multiple_callbacks_fire_in_order(self) -> None:
         order: list[int] = []
@@ -83,6 +87,7 @@ class TestHookRegistry:
         clear_hooks()
         await emit(LifecycleEvent.session_created)
         cb.assert_not_awaited()
+        assert cb.await_count == 0
 
     async def test_error_in_hook_does_not_propagate(self) -> None:
         async def bad_hook(event: LifecycleEvent, **kwargs: object) -> None:
@@ -95,6 +100,7 @@ class TestHookRegistry:
         # Should not raise — error is logged, second hook still fires
         await emit(LifecycleEvent.session_created)
         good_cb.assert_awaited_once()
+        assert good_cb.await_count == 1
 
     async def test_events_are_independent(self) -> None:
         cb_created = AsyncMock()
@@ -105,6 +111,8 @@ class TestHookRegistry:
         await emit(LifecycleEvent.session_created, session="a")
         cb_created.assert_awaited_once()
         cb_killed.assert_not_awaited()
+        assert cb_created.await_count == 1
+        assert cb_killed.await_count == 0
 
 
 # ---------------------------------------------------------------------------
@@ -230,8 +238,11 @@ class TestBuiltinHooks:
         assert args[1]["source"] == "lifecycle"
 
     async def test_journal_hook_skips_without_session(self) -> None:
-        # Should not raise when session kwarg is missing
-        await _hook_journal_on_create(LifecycleEvent.session_created)
+        with patch("shoal.core.journal.append_entry") as mock_append:
+            await _hook_journal_on_create(LifecycleEvent.session_created)
+
+        mock_append.assert_not_called()
+        assert mock_append.call_count == 0
 
     async def test_fish_event_hook_calls_fish(self, mock_dirs: object) -> None:
         session = SessionState(
@@ -273,8 +284,11 @@ class TestBuiltinHooks:
         assert "waiting" in fish_cmd
 
     async def test_fish_event_skips_without_session(self) -> None:
-        # Should not raise
-        await _hook_fish_event(LifecycleEvent.session_created)
+        with patch("shoal.services.lifecycle.subprocess.run") as mock_run:
+            await _hook_fish_event(LifecycleEvent.session_created)
+
+        mock_run.assert_not_called()
+        assert mock_run.call_count == 0
 
     async def test_fish_not_found_is_swallowed(self) -> None:
         session = SessionState(
@@ -285,14 +299,19 @@ class TestBuiltinHooks:
             tmux_session="_test-session",
         )
 
-        with patch(
-            "shoal.services.lifecycle.subprocess.run",
-            side_effect=FileNotFoundError("fish"),
+        with (
+            patch(
+                "shoal.services.lifecycle.subprocess.run",
+                side_effect=FileNotFoundError("fish"),
+            ),
+            patch("shoal.services.lifecycle.logger.debug") as mock_debug,
         ):
-            # Should not raise
             await _hook_fish_event(LifecycleEvent.session_created, session=session)
 
-    def test_register_builtin_hooks(self) -> None:
+        mock_debug.assert_called_once_with("fish not found, skipping event emission")
+        assert mock_debug.call_count == 1
+
+    async def test_register_builtin_hooks(self) -> None:
         register_builtin_hooks()
         # Verify hooks are registered for all events
         from shoal.services.lifecycle import _hooks
@@ -377,8 +396,11 @@ class TestStatusTransitionHooks:
     async def test_record_hook_skips_without_session(self) -> None:
         from shoal.services.lifecycle import _hook_record_status_transition
 
-        # Should not raise
-        await _hook_record_status_transition(LifecycleEvent.status_changed)
+        with patch("shoal.core.db.get_db", new_callable=AsyncMock) as mock_get_db:
+            await _hook_record_status_transition(LifecycleEvent.status_changed)
+
+        mock_get_db.assert_not_awaited()
+        assert mock_get_db.await_count == 0
 
     async def test_record_hook_skips_without_statuses(self) -> None:
         from shoal.services.lifecycle import _hook_record_status_transition
@@ -390,8 +412,11 @@ class TestStatusTransitionHooks:
             path="/tmp",
             tmux_session="_x",
         )
-        # Missing old_status/new_status — should not raise
-        await _hook_record_status_transition(LifecycleEvent.status_changed, session=session)
+        with patch("shoal.core.db.get_db", new_callable=AsyncMock) as mock_get_db:
+            await _hook_record_status_transition(LifecycleEvent.status_changed, session=session)
+
+        mock_get_db.assert_not_awaited()
+        assert mock_get_db.await_count == 0
 
     async def test_journal_hook_writes_status_entry(self, mock_dirs: object) -> None:
         from shoal.services.lifecycle import _hook_journal_on_status_change
@@ -422,4 +447,8 @@ class TestStatusTransitionHooks:
     async def test_journal_hook_skips_without_session(self) -> None:
         from shoal.services.lifecycle import _hook_journal_on_status_change
 
-        await _hook_journal_on_status_change(LifecycleEvent.status_changed)
+        with patch("shoal.core.journal.append_entry") as mock_append:
+            await _hook_journal_on_status_change(LifecycleEvent.status_changed)
+
+        mock_append.assert_not_called()
+        assert mock_append.call_count == 0

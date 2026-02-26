@@ -244,6 +244,8 @@ class TestHandleWaiting:
 
             mock_send.assert_not_called()
             mock_journal.assert_not_called()
+            assert mock_send.call_count == 0
+            assert mock_journal.call_count == 0
 
 
 # ------------------------------------------------------------------
@@ -269,6 +271,7 @@ class TestPoll:
         with patch.object(sup, "_handle_waiting", new_callable=AsyncMock) as mock_handle:
             await sup._poll()
             mock_handle.assert_not_called()
+            assert mock_handle.await_count == 0
 
     async def test_handles_waiting_sessions(self, mock_dirs: object) -> None:
         """Poll processes only sessions with 'waiting' status."""
@@ -328,11 +331,14 @@ def test_main_reads_profile_from_argv(mock_dirs):
             "shoal.core.config.load_robo_profile",
             side_effect=FileNotFoundError("not found"),
         ) as mock_load,
+        patch("shoal.services.robo_supervisor.asyncio.run") as mock_asyncio_run,
         patch("sys.argv", ["shoal-robo-supervisor", "my-profile"]),
         contextlib.suppress(FileNotFoundError),
     ):
         main()
     mock_load.assert_called_once_with("my-profile")
+    mock_asyncio_run.assert_not_called()
+    assert mock_asyncio_run.call_count == 0
 
 
 def test_main_defaults_to_default_profile(mock_dirs):
@@ -347,11 +353,14 @@ def test_main_defaults_to_default_profile(mock_dirs):
             "shoal.core.config.load_robo_profile",
             side_effect=FileNotFoundError("not found"),
         ) as mock_load,
+        patch("shoal.services.robo_supervisor.asyncio.run") as mock_asyncio_run,
         patch("sys.argv", ["shoal-robo-supervisor"]),
         contextlib.suppress(FileNotFoundError),
     ):
         main()
     mock_load.assert_called_once_with("default")
+    mock_asyncio_run.assert_not_called()
+    assert mock_asyncio_run.call_count == 0
 
 
 # ------------------------------------------------------------------

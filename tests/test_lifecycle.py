@@ -1181,6 +1181,7 @@ class TestStartupCommandHelpers:
             )
 
         mock_run.assert_called_once_with("send-keys -t _test-session 'echo test-session' Enter")
+        assert mock_run.call_count == 1
 
     async def test_run_default_startup_commands_skips_bad_variable(self, mock_dirs):
         """Sync startup commands skip commands with missing variables."""
@@ -1253,6 +1254,7 @@ class TestAsyncStartupCommands:
             )
 
         mock_run.assert_called_once_with("send-keys -t _test-async 'claude' Enter")
+        assert mock_run.await_count == 1
 
     async def test_async_startup_commands_skip_bad_variable(self, mock_dirs):
         """Async startup commands skip commands with missing variables."""
@@ -1592,6 +1594,8 @@ class TestTemplateStartup:
 
         mock_run_cmd.assert_not_called()
         mock_send.assert_not_called()
+        assert mock_run_cmd.call_count == 0
+        assert mock_send.call_count == 0
 
 
 @pytest.mark.asyncio
@@ -1718,6 +1722,8 @@ class TestTemplateStartupAsync:
 
         mock_run.assert_not_called()
         mock_send.assert_not_called()
+        assert mock_run.await_count == 0
+        assert mock_send.await_count == 0
 
     async def test_async_template_root_split_converted(self, mock_dirs):
         """Pane with split='root' in non-first position is treated as 'down'."""

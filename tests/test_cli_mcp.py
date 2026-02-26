@@ -1,7 +1,7 @@
 """Tests for cli/mcp.py."""
 
 import asyncio
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from typer.testing import CliRunner
 
@@ -209,8 +209,7 @@ def test_mcp_doctor_probe_success(mock_dirs):
 
     with (
         patch("shoal.cli.mcp.is_mcp_running", return_value=True),
-        patch("shoal.cli.mcp._probe_server", return_value=probe_result),
-        patch("shoal.cli.mcp.asyncio.run", return_value=probe_result),
+        patch("shoal.cli.mcp._probe_server", new_callable=AsyncMock, return_value=probe_result),
     ):
         result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -238,8 +237,7 @@ def test_mcp_doctor_probe_timeout(mock_dirs):
 
     with (
         patch("shoal.cli.mcp.is_mcp_running", return_value=True),
-        patch("shoal.cli.mcp._probe_server", return_value=probe_result),
-        patch("shoal.cli.mcp.asyncio.run", return_value=probe_result),
+        patch("shoal.cli.mcp._probe_server", new_callable=AsyncMock, return_value=probe_result),
     ):
         result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -263,8 +261,7 @@ def test_mcp_doctor_probe_error(mock_dirs):
 
     with (
         patch("shoal.cli.mcp.is_mcp_running", return_value=True),
-        patch("shoal.cli.mcp._probe_server", return_value=probe_result),
-        patch("shoal.cli.mcp.asyncio.run", return_value=probe_result),
+        patch("shoal.cli.mcp._probe_server", new_callable=AsyncMock, return_value=probe_result),
     ):
         result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0

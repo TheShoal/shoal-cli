@@ -140,12 +140,17 @@ def test_run_fin_passes_args_and_env(tmp_path: Path) -> None:
 
 def test_run_fin_includes_shoal_log_level(tmp_path: Path) -> None:
     fin_root = _create_fin(tmp_path)
-    result = run_fin(fin_root, config_path=None, output_format="json", args=[])
+    logger = logging.getLogger("shoal")
+    original_level = logger.level
+    try:
+        logger.setLevel(logging.WARNING)
+        result = run_fin(fin_root, config_path=None, output_format="json", args=[])
+    finally:
+        logger.setLevel(original_level)
+
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
-    assert payload["log_level"] == logging.getLevelName(
-        logging.getLogger("shoal").getEffectiveLevel()
-    )
+    assert payload["log_level"] == "WARNING"
 
 
 def test_run_fin_non_executable_entrypoint_fails(tmp_path: Path) -> None:

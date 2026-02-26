@@ -103,7 +103,8 @@ def test_worktree_add(tmp_path):
     with patch("shoal.core.git.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
-        git.worktree_add(str(repo), str(worktree), branch="feature")
+        result = git.worktree_add(str(repo), str(worktree), branch="feature")
+        assert result is None
 
         mock_run.assert_called_once_with(
             ["git", "worktree", "add", str(worktree), "-b", "feature"],
@@ -124,7 +125,8 @@ def test_worktree_add_no_branch(tmp_path):
     with patch("shoal.core.git.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
 
-        git.worktree_add(str(repo), str(worktree))
+        result = git.worktree_add(str(repo), str(worktree))
+        assert result is None
 
         mock_run.assert_called_once_with(
             ["git", "worktree", "add", str(worktree)],

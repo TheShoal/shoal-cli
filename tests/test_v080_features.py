@@ -286,7 +286,7 @@ command = "echo runner"
 class TestMcpNameValidation:
     def test_valid_names(self):
         for name in ["memory", "filesystem", "my-server", "test_123", "a"]:
-            validate_mcp_name(name)  # should not raise
+            assert validate_mcp_name(name) is None
 
     def test_empty_name(self):
         with pytest.raises(ValueError, match="cannot be empty"):
@@ -317,7 +317,7 @@ class TestMcpNameValidation:
             validate_mcp_name("a" * 65)
 
     def test_max_length(self):
-        validate_mcp_name("a" * 64)  # should not raise
+        assert validate_mcp_name("a" * 64) is None
 
 
 # ---------------------------------------------------------------------------

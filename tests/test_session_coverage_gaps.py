@@ -276,5 +276,6 @@ class TestPopupFlow:
         with patch("shoal.dashboard.popup.run_popup") as mock_run:
             from shoal.cli.session import _popup_inner_impl
 
-            _popup_inner_impl()
+            result = _popup_inner_impl()
         mock_run.assert_called_once()
+        assert result is None

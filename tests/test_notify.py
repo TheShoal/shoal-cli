@@ -30,5 +30,6 @@ def test_notify_darwin(mock_run):
 def test_notify_non_darwin(mock_run):
     """Test notify on non-macOS (Linux/Windows)."""
     with patch("shoal.core.notify.sys.platform", "linux"):
-        notify("Title", "Message")
+        result = notify("Title", "Message")
+        assert result is None
         mock_run.assert_not_called()

@@ -121,7 +121,12 @@ def test_robo_watch_shows_config(mock_dirs):
     """Test robo watch prints config summary."""
     runner.invoke(app, ["setup", "watch-me"])
 
-    with patch("shoal.cli.robo.asyncio.run"):
+    def _close_coro(coro: object) -> None:
+        if hasattr(coro, "close"):
+            coro.close()  # type: ignore[call-arg]
+        return None
+
+    with patch("shoal.cli.robo.asyncio.run", side_effect=_close_coro):
         result = runner.invoke(app, ["watch", "watch-me"])
     assert result.exit_code == 0
     assert "Robo watch" in result.stdout
@@ -134,7 +139,12 @@ def test_robo_watch_default_profile(mock_dirs):
     """Test robo watch uses 'default' profile when no arg given."""
     runner.invoke(app, ["setup", "default"])
 
-    with patch("shoal.cli.robo.asyncio.run"):
+    def _close_coro(coro: object) -> None:
+        if hasattr(coro, "close"):
+            coro.close()  # type: ignore[call-arg]
+        return None
+
+    with patch("shoal.cli.robo.asyncio.run", side_effect=_close_coro):
         result = runner.invoke(app, ["watch"])
     assert result.exit_code == 0
     assert "profile: default" in result.stdout

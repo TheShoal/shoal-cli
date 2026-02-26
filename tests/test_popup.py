@@ -69,7 +69,8 @@ def test_run_popup_success(mock_dirs, tmp_path):
         patch("shoal.core.tmux.switch_client") as mock_switch,
     ):
         run_popup()
-        mock_switch.assert_called_once()
+        mock_switch.assert_called_once_with("_test-popup")
+        assert mock_switch.call_count == 1
 
 
 def test_print_popup_list(mock_dirs, capsys):

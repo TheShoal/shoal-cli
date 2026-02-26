@@ -70,13 +70,19 @@ async def test_step_create_session(tmp_path, mock_dirs):
 @pytest.mark.asyncio
 async def test_step_check_status(tmp_path, mock_dirs):
     """Test step 2 lists sessions without error."""
+    from rich.table import Table
+
     from shoal.core.state import create_session
 
     s = await create_session("tutorial-main", "claude", str(tmp_path))
     ctx = TutorialContext(tutorial_path=tmp_path, session_ids=[s.id], step=2)
 
-    with patch("shoal.cli.demo.tutorial.console.print"):
+    with patch("shoal.cli.demo.tutorial.console.print") as mock_print:
         await _step_check_status(ctx)
+
+    assert any(isinstance(call.args[0], Table) for call in mock_print.call_args_list if call.args)
+    rendered = "\n".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
+    assert "1 session(s) found" in rendered
 
 
 @pytest.mark.asyncio
@@ -105,8 +111,12 @@ async def test_step_write_journal(tmp_path, mock_dirs):
 @pytest.mark.asyncio
 async def test_cleanup_idempotent(tmp_path, mock_dirs):
     """Test cleanup works when no resources exist."""
-    with patch("shoal.cli.demo.tutorial.console.print"):
-        await _cleanup(tmp_path)
+    missing = tmp_path / "missing-tutorial"
+    with patch("shoal.cli.demo.tutorial.console.print") as mock_print:
+        await _cleanup(missing)
+
+    mock_print.assert_called_once_with("[dim]Nothing to clean up.[/dim]")
+    assert not missing.exists()
 
 
 @pytest.mark.asyncio

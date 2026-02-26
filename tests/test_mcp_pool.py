@@ -230,7 +230,9 @@ def test_truncate_log_large_file(tmp_path):
 
 def test_truncate_log_missing_file(tmp_path):
     """Missing files should be a no-op."""
-    mcp_pool._truncate_log(tmp_path / "nonexistent.log")
+    missing = tmp_path / "nonexistent.log"
+    mcp_pool._truncate_log(missing)
+    assert not missing.exists()
 
 
 def test_pool_timeout_constants():
@@ -253,8 +255,8 @@ def test_validate_mcp_name_invalid():
 
 
 def test_validate_mcp_name_valid():
-    mcp_pool.validate_mcp_name("memory")
-    mcp_pool.validate_mcp_name("my-server-01")
+    assert mcp_pool.validate_mcp_name("memory") is None
+    assert mcp_pool.validate_mcp_name("my-server-01") is None
 
 
 # --- read_port ---
@@ -448,11 +450,15 @@ def test_pool_main_insufficient_args(mock_dirs):
 
 
 def test_pool_main_runs_serve(mock_dirs):
+    def _close_and_interrupt(coro):
+        coro.close()
+        raise KeyboardInterrupt
+
     with (
         patch("sys.argv", ["mcp_pool", "memory", "echo hello"]),
         patch("asyncio.run") as mock_run,
     ):
-        mock_run.side_effect = KeyboardInterrupt
+        mock_run.side_effect = _close_and_interrupt
         mcp_pool._pool_main()
 
         mock_run.assert_called_once()
@@ -476,6 +482,7 @@ async def test_handle_client_spawn_failure():
         await mcp_pool._handle_client(reader, writer, "nonexistent-command")
 
     transport.close.assert_called()
+    assert transport.close.call_count == 1
 
 
 # --- _serve (starts and stops unix server) ---
@@ -491,8 +498,10 @@ async def test_serve_creates_unix_server(tmp_path):
         for _ in range(40):
             if pathlib.Path(sock_path).exists():
                 break
-            if task.done() and task.exception() is not None:
-                raise task.exception()
+            if task.done():
+                exc = task.exception()
+                if exc is not None:
+                    raise exc
             await asyncio.sleep(0.05)
 
         assert pathlib.Path(sock_path).exists()

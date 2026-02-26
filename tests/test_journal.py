@@ -325,12 +325,15 @@ class TestPruneArchiveAsync:
             patch(
                 "shoal.cli.session.delete_session",
                 new_callable=AsyncMock,
-            ),
+            ) as mock_delete,
             patch("shoal.cli.session.archive_journal") as mock_archive,
         ):
             mock_archive.return_value = True
             asyncio.run(_prune_impl(force=True))
             mock_archive.assert_called_once_with("prune-1")
+            mock_delete.assert_awaited_once_with("prune-1")
+            assert mock_archive.call_count == 1
+            assert mock_delete.await_count == 1
 
 
 class TestJournalCLI:

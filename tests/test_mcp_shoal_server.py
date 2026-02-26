@@ -49,7 +49,10 @@ def _make_session(
 
 def test_import() -> None:
     """Module can be imported without errors."""
-    from shoal.services import mcp_shoal_server  # noqa: F401
+    from shoal.services import mcp_shoal_server
+
+    assert hasattr(mcp_shoal_server, "mcp")
+    assert hasattr(mcp_shoal_server, "main")
 
 
 def test_server_name() -> None:
@@ -425,12 +428,13 @@ async def test_send_keys_targets_shoal_pane() -> None:
         ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
     ):
-        await send_keys_tool(session="worker-2", keys="ls -la")
+        result = await send_keys_tool(session="worker-2", keys="ls -la")
 
     # Pane title is "shoal:<session_id>" matching the Shoal pane identity contract
     mock_pane.assert_called_once_with("_worker-2", "shoal:deadbeef")
     # Keys go to the resolved pane ID, not the raw session name
     mock_send.assert_called_once_with("%3", "ls -la", enter=True)
+    assert result["message"] == "Keys sent to session 'worker-2'"
 
 
 async def test_kill_session_success() -> None:

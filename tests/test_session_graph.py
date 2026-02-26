@@ -17,6 +17,7 @@ from shoal.core.state import (
     add_tag,
     create_session,
     get_session,
+    list_sessions,
     remove_tag,
 )
 from shoal.models.state import SessionState
@@ -123,10 +124,16 @@ class TestTags:
         assert reloaded.tags == ["a", "b"]
 
     async def test_add_tag_nonexistent_session(self, mock_dirs: object) -> None:
+        before = await list_sessions()
         await add_tag("nonexistent", "tag")  # Should not raise
+        after = await list_sessions()
+        assert [s.id for s in after] == [s.id for s in before]
 
     async def test_remove_tag_nonexistent_session(self, mock_dirs: object) -> None:
+        before = await list_sessions()
         await remove_tag("nonexistent", "tag")  # Should not raise
+        after = await list_sessions()
+        assert [s.id for s in after] == [s.id for s in before]
 
 
 @pytest.mark.asyncio

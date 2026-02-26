@@ -44,6 +44,11 @@ def test_mcp_proxy_socket_not_found(tmp_path: object, caplog: pytest.LogCaptureF
 
 def test_mcp_proxy_runs_bridge(tmp_path: object) -> None:
     """Proxy should call asyncio.run with _run_bridge when socket exists."""
+
+    def _close_coro(coro) -> None:
+        if hasattr(coro, "close"):
+            coro.close()
+
     state = tmp_path / "state"  # type: ignore[operator]
     socket_path = state / "mcp-pool" / "sockets" / "test-server.sock"
     socket_path.parent.mkdir(parents=True)
@@ -52,10 +57,14 @@ def test_mcp_proxy_runs_bridge(tmp_path: object) -> None:
     with (
         patch.object(sys, "argv", ["shoal-mcp-proxy", "test-server"]),
         patch("shoal.services.mcp_proxy.state_dir", return_value=state),
+        patch("shoal.services.mcp_proxy._run_bridge") as mock_bridge,
         patch("shoal.services.mcp_proxy.asyncio.run") as mock_run,
     ):
+        mock_run.side_effect = _close_coro
         main()
         mock_run.assert_called_once()
+        mock_bridge.assert_called_once_with(str(socket_path))
+        assert mock_run.call_count == 1
 
 
 def test_mcp_proxy_invalid_name(caplog: pytest.LogCaptureFixture) -> None:
