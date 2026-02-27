@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: LicenseRef-USMobile-Proprietary
+# SPDX-License-Identifier: MIT
 """Session state CRUD — all state stored in SQLite."""
 
 from __future__ import annotations

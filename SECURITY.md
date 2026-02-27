@@ -11,11 +11,9 @@ Only the latest version of Shoal is supported for security updates.
 
 ## Reporting a Vulnerability
 
-**This tool is for internal US Mobile use only.**
-
 If you discover a security vulnerability, please do not open a public issue. Instead, report it through one of the following channels:
 
-1.  **Slack**: Reach out in `#security` or message the maintainers directly.
-2.  **Email**: Contact the core platform team.
+1.  **GitHub Security Advisory**: Open a private report via the repository's "Security" tab.
+2.  **Direct maintainer contact**: Use the maintainer contact details published in this repository.
 
 Please include as much information as possible, including steps to reproduce the issue and any potential impact.

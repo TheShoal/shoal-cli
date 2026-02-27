@@ -47,14 +47,14 @@ git push origin main --tags
 ```
 
 ### 4. GitHub Release
-- Go to [Releases](https://github.com/usmobile/shoal/releases) → "Draft a new release"
+- Go to your repository's **Releases** page → "Draft a new release"
 - Select the tag `vX.Y.Z`
 - Release title: `vX.Y.Z: <One-Liner Summary>`
 - Description: Copy the relevant section from `CHANGELOG.md`
 - Attach any demo videos, screenshots, or binary assets
 
 ### 5. Internal Announcement
-- Notify the team in Slack/email
+- Announce the release in your project communication channels
 - Highlight key changes and migration steps (if any)
 
 ### 6. Post-Release: Prepare Next Version
@@ -101,7 +101,7 @@ git push origin main --tags
 4. **Tag**: `git tag -a v0.5.0 -m "Release v0.5.0: Export command"`
 5. **Push**: `git push origin main --tags`
 6. **GitHub**: Create release from tag, copy changelog
-7. **Announce**: Post in Slack with usage example
+7. **Announce**: Post release notes with a short usage example
 
 ---
 
@@ -136,7 +136,7 @@ Add a follow-up commit before tagging. If you already tagged, create a new PATCH
 GitHub releases can be deleted, but **git tags should not be deleted** once pushed. If you made a mistake, create a new PATCH release.
 
 **Q: When do we hit v1.0.0?**  
-When the CLI surface, config schema, and core workflows are stable enough for production use at US Mobile without frequent breaking changes.
+When the CLI surface, config schema, and core workflows are stable enough for broad production use without frequent breaking changes.
 
 ---
 

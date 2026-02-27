@@ -10,7 +10,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/v0.18.0-beta-EED49F?style=flat-square" alt="v0.18.0 beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
-  <img src="https://img.shields.io/badge/license-Proprietary-ED8796?style=flat-square" alt="License: Proprietary">
+  <img src="https://img.shields.io/badge/license-MIT-A6DA95?style=flat-square" alt="License: MIT">
 </p>
 
 <!-- Row 2 — Stack -->
@@ -439,7 +439,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
 ## License
 
-Proprietary. Copyright (c) 2026 US Mobile.
+MIT License. See `LICENSE` for details.
 
 <p align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0:94e2d5,30:45475a,70:1e1e2e,100:11111b&height=120&section=footer" alt="footer" width="100%">
