@@ -44,7 +44,7 @@
 
 ## TL;DR
 
-You're an engineer running AI coding agents — Claude, Pi, Gemini, OpenCode. You want them working in parallel without stomping on each other's files. You need to know when they're thinking, when they're waiting for approval, and when they've errored out.
+You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenCode. You want them working in parallel without stomping on each other's files. You need to know when they're thinking, when they're waiting for approval, and when they've errored out.
 
 **Shoal is `docker-compose` for AI coding agents.** You declare sessions, Shoal gives each one a git worktree, a tmux session, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all.
 
@@ -175,7 +175,7 @@ shoal demo stop       # tear down when done
 ```bash
 # Create 3 parallel agents, each in its own worktree
 shoal new -t claude -w auth -b
-shoal new -t pi -w api-refactor -b
+shoal new -t codex -w api-refactor -b
 shoal new -t gemini -w docs -b
 
 # Check on everyone
@@ -204,7 +204,7 @@ Work on frontend, backend, and docs simultaneously:
 
 ```bash
 shoal new -t claude -w feature-ui -b
-shoal new -t pi -w feature-api -b --template pi-dev
+shoal new -t codex -w feature-api -b --template codex-dev
 shoal new -t gemini -w feature-docs -b
 ```
 
@@ -219,7 +219,7 @@ Have one agent write code, another review it:
 
 ```bash
 shoal new -t claude -w implement-auth -b
-shoal new -t pi -w review-auth -b
+shoal new -t codex -w review-auth -b
 # Reviewer accesses implementer's worktree via shared filesystem MCP
 ```
 
@@ -375,6 +375,7 @@ shoal --install-completion fish
 | ----------- | ---------- | --------- |
 | Pi          | `pi`       | Primary   |
 | Claude Code | `claude`   | Supported |
+| Codex       | `codex`    | Compatible |
 | OpenCode    | `opencode` | Compatible |
 | Gemini      | `gemini`   | Supported |
 

@@ -142,7 +142,7 @@ Commit `.shoal/templates/` to version control so collaborators inherit the same 
 | Use case | Location |
 |----------|----------|
 | Shared base layouts (`base-dev`) | Global (`~/.config/shoal/templates/`) |
-| Tool-specific defaults (`claude-dev`) | Global |
+| Tool-specific defaults (`claude-dev`, `codex-dev`, `pi-dev`) | Global |
 | Project-specific sessions | Local (`.shoal/templates/`) |
 | Project-specific MCP sets | Local mixins (`.shoal/templates/mixins/`) |
 

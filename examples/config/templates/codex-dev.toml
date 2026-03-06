@@ -1,0 +1,10 @@
+# Shoal — Codex development template
+# Inherits base-dev layout and switches the agent tool to Codex.
+# Usage: shoal new --template codex-dev
+
+[template]
+name = "codex-dev"
+description = "Codex agent with MCP memory"
+extends = "base-dev"
+tool = "codex"
+mcp = ["memory"]

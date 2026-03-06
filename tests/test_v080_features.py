@@ -49,6 +49,7 @@ class TestPiToolConfig:
         tools = available_tools()
         assert "pi" in tools
         assert "claude" in tools
+        assert "codex" in tools
         assert "opencode" in tools
 
 

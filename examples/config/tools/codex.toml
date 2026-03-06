@@ -1,0 +1,22 @@
+# Shoal — Codex CLI tool definition
+# Place in ~/.config/shoal/tools/codex.toml
+
+[tool]
+name = "codex"
+command = "codex"
+icon = "⚙️"
+status_provider = "regex"
+
+[detection]
+# Codex is terminal-driven; keep patterns broad for compatibility across versions.
+busy_patterns = ["thinking", "analyzing", "running", "executing", "working"]
+waiting_patterns = ["approve", "allow", "deny", "yes/no", "\\[y/N\\]", "continue\\?"]
+error_patterns = ["Error:", "error:", "ERROR", "failed", "exception"]
+idle_patterns = ["❯", "\\$"]
+
+[mcp]
+# MCP auto-configuration is intentionally disabled by default.
+# Configure manually based on your Codex installation.
+config_cmd = ""
+config_file = ""
+socket_env = ""

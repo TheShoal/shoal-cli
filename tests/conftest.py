@@ -72,6 +72,27 @@ idle_patterns = ["│ >"]
 """
     )
 
+    (tools / "codex.toml").write_text(
+        """
+[tool]
+name = "codex"
+command = "codex"
+icon = "⚙️"
+status_provider = "regex"
+
+[detection]
+busy_patterns = ["thinking", "analyzing", "running"]
+waiting_patterns = ["approve", "allow", "yes/no"]
+error_patterns = ["Error:", "error:", "failed"]
+idle_patterns = ["❯", "$"]
+
+[mcp]
+config_cmd = ""
+config_file = ""
+socket_env = ""
+"""
+    )
+
     (tools / "pi.toml").write_text(
         """
 [tool]

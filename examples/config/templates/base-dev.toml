@@ -6,7 +6,7 @@
 [template]
 name = "base-dev"
 description = "Base development template with editor + terminal"
-# Default tool (child templates can override with tool = "claude" etc.)
+# Default tool (child templates can override with tool = "claude", "codex", etc.)
 tool = "opencode"
 
 [template.worktree]

@@ -9,7 +9,7 @@ This guide covers the Claude Code configuration that ships with the shoal reposi
 ```
 .claude/
 ├── settings.json              # Shared hooks (auto-format, compact recovery)
-├── settings.local.json        # Personal permissions (gitignored)
+├── settings.local.json        # Optional personal permissions (gitignored)
 ├── agents/
 │   └── shoal-test-runner.md   # Haiku-based test runner subagent
 └── skills/
@@ -48,12 +48,15 @@ Hooks are defined in `.claude/settings.json` and run automatically at specific l
 
 **Trigger**: After every `Edit` or `Write` tool call on a `.py` file.
 
-**What it does**: Runs `ruff format` and `ruff check --fix` on the edited file. This means:
+**What it does**: Runs `uv run ruff format` and `uv run ruff check --fix` on the edited file. This means:
 - Code is always formatted before you see it
 - Simple lint issues (unused imports, import ordering) are fixed automatically
 - Pre-commit hooks won't fail on formatting issues
 
 You don't need to do anything — this runs silently in the background.
+
+Hook commands in `.claude/settings.json` use repo-relative paths (`./.claude/hooks/...`) so
+the same config works across laptops, CI workers, and remote dev boxes.
 
 ### Compact Recovery (SessionStart)
 
@@ -84,6 +87,19 @@ Run the full CI pipeline or targeted checks from within Claude Code.
 - After finishing a feature or fix, before committing
 - When you want Claude to run checks and interpret the results (not just raw output)
 - As a quick sanity check mid-session
+
+---
+
+## Cross-Agent Compatibility
+
+Shoal keeps Claude-specific automation in `.claude/`, while shared orchestration lives in
+Shoal tool profiles/templates:
+
+- Tool profiles: `examples/config/tools/` (`claude`, `codex`, `gemini`, `opencode`, `pi`)
+- Session templates: `examples/config/templates/` (`base-dev` + tool-specific overlays)
+
+This separation lets Claude Code be your primary daily driver without locking the project to a
+single vendor runtime.
 
 ---
 
@@ -152,9 +168,7 @@ Permissions in `.claude/settings.local.json` control which Bash commands Claude 
 | Permission | Why |
 |------------|-----|
 | `just:*` | All justfile targets (ci, test, lint, fmt, etc.) |
-| `uv run:*` | Python tool execution via uv |
-| `ruff check:*` / `ruff format:*` | Lint and format (also used by auto-format hook) |
-| `mypy:*` | Type checking |
+| `uv run:*` | Python tool execution via uv (including `ruff` and `mypy`) |
 | `fish -n:*` | Fish template syntax validation |
 | `git:*` | All git operations |
 | `pre-commit run:*` | Pre-commit hook execution |

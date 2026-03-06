@@ -28,6 +28,7 @@ This will output DEBUG-level logs to stderr, which can help identify where a pro
 
 **Compatibility note:**
 - OpenCode uses the `opencode_compat` status provider (best effort regex matching).
+- Codex uses the `regex` status provider (pattern-based detection).
 - Pi uses the primary `pi` status provider and is the reference backend for status fidelity.
 - Run `shoal info <session>` and check the **Detection** field to confirm which provider is active.
 

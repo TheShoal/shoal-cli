@@ -73,6 +73,12 @@ class TestLoadToolConfig:
         assert cfg.command == "opencode"
         assert cfg.status_provider == "opencode_compat"
 
+    def test_loads_codex(self, mock_dirs):
+        cfg = load_tool_config("codex")
+        assert cfg.name == "codex"
+        assert cfg.command == "codex"
+        assert cfg.status_provider == "regex"
+
     def test_missing_tool(self, mock_dirs):
         with pytest.raises(FileNotFoundError):
             load_tool_config("nonexistent")
@@ -95,6 +101,7 @@ class TestAvailableTools:
     def test_lists_tools(self, mock_dirs):
         tools = available_tools()
         assert "claude" in tools
+        assert "codex" in tools
         assert "opencode" in tools
 
 
@@ -282,6 +289,7 @@ class TestExamplesDir:
     def test_examples_dir_has_tool_configs(self):
         tools = _examples_dir() / "tools"
         assert (tools / "claude.toml").is_file()
+        assert (tools / "codex.toml").is_file()
         assert (tools / "opencode.toml").is_file()
 
 
@@ -295,6 +303,7 @@ class TestScaffoldDefaults:
         assert len(created) > 0
         assert "config.toml" in created
         assert "tools/claude.toml" in created
+        assert "tools/codex.toml" in created
         assert "tools/opencode.toml" in created
         # Verify files actually exist
         assert (cfg / "config.toml").is_file()

@@ -74,6 +74,7 @@ def test_auto_enter_tools() -> None:
     from shoal.services.mcp_shoal_server import _AUTO_ENTER_TOOLS
 
     assert "claude" in _AUTO_ENTER_TOOLS
+    assert "codex" in _AUTO_ENTER_TOOLS
     assert "gemini" in _AUTO_ENTER_TOOLS
     assert "pi" in _AUTO_ENTER_TOOLS
     assert "opencode" not in _AUTO_ENTER_TOOLS
@@ -245,6 +246,28 @@ async def test_send_keys_claude_auto_enter() -> None:
     mock_pane.assert_called_once_with("_worker-1", "shoal:abc12345")
     # Claude is a CLI tool → auto-enter=True
     mock_send.assert_called_once_with("%1", "y", enter=True)
+
+
+async def test_send_keys_codex_auto_enter() -> None:
+    """Codex (CLI tool) gets auto-enter by default."""
+    from shoal.services.mcp_shoal_server import send_keys_tool
+
+    s = _make_session(name="worker-codex", tool="codex", session_id="codex123")
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="codex123"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%3",
+        ) as mock_pane,
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        result = await send_keys_tool(session="worker-codex", keys="continue")
+
+    assert "worker-codex" in result["message"]
+    mock_pane.assert_called_once_with("_worker-codex", "shoal:codex123")
+    mock_send.assert_called_once_with("%3", "continue", enter=True)
 
 
 async def test_send_keys_opencode_no_auto_enter() -> None:
