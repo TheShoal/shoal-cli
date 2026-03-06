@@ -108,6 +108,8 @@ shoal robo watch default --daemon
 
 Use this when you want one agent writing, one critiquing, and one reducing approval latency.
 
+![Author, reviewer, supervisor topology](assets/operator-topology.svg)
+
 ### Planner, implementer, closer
 
 ```bash
@@ -251,6 +253,8 @@ shoal remote send devbox feat/auth-api "run the focused test subset"
 ```
 
 Consistency matters more than novelty when you are operating across machines.
+
+![Remote fleet operating topology](assets/remote-fleet-topology.svg)
 
 ## Advanced configurations that actually help
 

@@ -1,0 +1,41 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="720" rx="36" fill="#FBF8F2"/>
+  <rect x="48" y="48" width="1104" height="624" rx="30" fill="url(#fleetbg)"/>
+  <rect x="84" y="118" width="300" height="430" rx="26" fill="#11242F"/>
+  <rect x="450" y="118" width="300" height="220" rx="26" fill="#FFF9F0" stroke="#0E5F64" stroke-width="4"/>
+  <rect x="450" y="388" width="300" height="160" rx="26" fill="#F4FBF8" stroke="#0E5F64" stroke-width="4"/>
+  <rect x="816" y="118" width="300" height="220" rx="26" fill="#FFF9F0" stroke="#0E5F64" stroke-width="4"/>
+  <rect x="816" y="388" width="300" height="160" rx="26" fill="#FFF2EA" stroke="#C45A2D" stroke-width="4"/>
+  <path d="M384 226H450" stroke="#0E5F64" stroke-width="8" stroke-linecap="round"/>
+  <path d="M750 226H816" stroke="#0E5F64" stroke-width="8" stroke-linecap="round"/>
+  <path d="M384 468H450" stroke="#0E5F64" stroke-width="8" stroke-linecap="round"/>
+  <path d="M750 468H816" stroke="#C45A2D" stroke-width="8" stroke-linecap="round"/>
+  <text x="116" y="168" fill="#F8F4EC" font-family="Space Grotesk, sans-serif" font-size="30" font-weight="700">Local control plane</text>
+  <text x="116" y="214" fill="#DFF3EE" font-family="IBM Plex Mono, monospace" font-size="20">shoal popup</text>
+  <text x="116" y="248" fill="#DFF3EE" font-family="IBM Plex Mono, monospace" font-size="20">shoal status</text>
+  <text x="116" y="282" fill="#DFF3EE" font-family="IBM Plex Mono, monospace" font-size="20">journals + task logs</text>
+  <text x="116" y="336" fill="#F8F4EC" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="700">Rules</text>
+  <text x="116" y="372" fill="#F4EFE7" font-family="IBM Plex Mono, monospace" font-size="18">same naming</text>
+  <text x="116" y="404" fill="#F4EFE7" font-family="IBM Plex Mono, monospace" font-size="18">same templates</text>
+  <text x="116" y="436" fill="#F4EFE7" font-family="IBM Plex Mono, monospace" font-size="18">same review lane</text>
+  <text x="116" y="468" fill="#F4EFE7" font-family="IBM Plex Mono, monospace" font-size="18">same escalation path</text>
+  <text x="482" y="170" fill="#08484C" font-family="Space Grotesk, sans-serif" font-size="26" font-weight="700">Remote devbox</text>
+  <text x="482" y="212" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">author: feat/auth-api</text>
+  <text x="482" y="244" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">review: review/auth-api</text>
+  <text x="482" y="276" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">transport: ssh tunnel</text>
+  <text x="482" y="432" fill="#08484C" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="700">Shared MCP + state</text>
+  <text x="482" y="472" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">consistent operator semantics</text>
+  <text x="848" y="170" fill="#08484C" font-family="Space Grotesk, sans-serif" font-size="26" font-weight="700">Remote batch box</text>
+  <text x="848" y="212" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">nightly test pass</text>
+  <text x="848" y="244" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">docs refresh</text>
+  <text x="848" y="276" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">long-running worktrees</text>
+  <text x="848" y="432" fill="#8A3B18" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="700">Escalation lane</text>
+  <text x="848" y="472" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">robo routes ambiguity back home</text>
+  <defs>
+    <linearGradient id="fleetbg" x1="80" y1="80" x2="1086" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2EBDE"/>
+      <stop offset="0.54" stop-color="#E2F2EE"/>
+      <stop offset="1" stop-color="#F6E4D7"/>
+    </linearGradient>
+  </defs>
+</svg>

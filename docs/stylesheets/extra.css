@@ -6,6 +6,8 @@
   --shoal-foam-strong: #e9dfcf;
   --shoal-coral: #c45a2d;
   --shoal-mint: #dff3ee;
+  --shoal-sand: #f8f4ec;
+  --shoal-shadow: rgba(16, 34, 46, 0.14);
 }
 
 [data-md-color-scheme="default"] {
@@ -35,6 +37,10 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent 12rem);
 }
 
+.md-main__inner {
+  animation: shoal-rise 260ms ease-out;
+}
+
 .md-typeset h1,
 .md-typeset h2,
 .md-typeset h3 {
@@ -55,11 +61,29 @@
   border-radius: 1rem;
 }
 
+.md-sidebar--primary .md-nav__title,
+.md-sidebar--secondary .md-nav__title {
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.md-nav--primary .md-nav__item--section > .md-nav__link {
+  font-weight: 700;
+  color: var(--shoal-deep-strong);
+}
+
 .shoal-hero {
   display: grid;
   gap: 2rem;
   align-items: center;
-  padding: 1.4rem 0 0.8rem;
+  padding: 1.6rem;
+  margin: 0 0 1.5rem;
+  background:
+    radial-gradient(circle at top right, rgba(196, 90, 45, 0.14), transparent 16rem),
+    linear-gradient(145deg, rgba(255, 249, 240, 0.95), rgba(223, 243, 238, 0.88));
+  border: 1px solid rgba(14, 95, 100, 0.12);
+  border-radius: 1.8rem;
+  box-shadow: 0 24px 60px var(--shoal-shadow);
 }
 
 .shoal-eyebrow {
@@ -92,6 +116,7 @@
 .shoal-hero-art img {
   width: min(18rem, 100%);
   filter: drop-shadow(0 20px 35px rgba(8, 72, 76, 0.18));
+  animation: shoal-float 5.5s ease-in-out infinite;
 }
 
 .shoal-card-grid {
@@ -116,6 +141,15 @@
     box-shadow 160ms ease;
 }
 
+.shoal-card:nth-child(1) { animation: shoal-rise 260ms ease-out both; }
+.shoal-card:nth-child(2) { animation: shoal-rise 320ms ease-out both; }
+.shoal-card:nth-child(3) { animation: shoal-rise 380ms ease-out both; }
+.shoal-card:nth-child(4) { animation: shoal-rise 440ms ease-out both; }
+.shoal-card:nth-child(5) { animation: shoal-rise 500ms ease-out both; }
+.shoal-card:nth-child(6) { animation: shoal-rise 560ms ease-out both; }
+.shoal-card:nth-child(7) { animation: shoal-rise 620ms ease-out both; }
+.shoal-card:nth-child(8) { animation: shoal-rise 680ms ease-out both; }
+
 .shoal-card:hover {
   transform: translateY(-2px);
   border-color: rgba(196, 90, 45, 0.35);
@@ -133,6 +167,77 @@
   font-size: 0.92rem;
 }
 
+.shoal-demo-frame {
+  margin: 1.6rem 0 2rem;
+  padding: 1rem;
+  background: linear-gradient(180deg, rgba(17, 36, 47, 0.98), rgba(14, 95, 100, 0.94));
+  border-radius: 1.6rem;
+  box-shadow: 0 20px 42px rgba(16, 34, 46, 0.18);
+}
+
+.shoal-demo-frame img,
+.md-typeset img[src$=".svg"] {
+  display: block;
+  width: 100%;
+  border-radius: 1rem;
+}
+
+.shoal-principles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 2rem;
+}
+
+.shoal-principle,
+.shoal-band > div {
+  padding: 1rem 1.05rem;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(14, 95, 100, 0.11);
+  border-radius: 1rem;
+  box-shadow: 0 12px 28px rgba(16, 34, 46, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+.shoal-principle strong,
+.shoal-band h3 {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--shoal-deep-strong);
+}
+
+.shoal-principle span,
+.shoal-band p {
+  font-size: 0.94rem;
+}
+
+.shoal-band {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 2rem;
+}
+
+@keyframes shoal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shoal-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
 @media screen and (min-width: 76.25em) {
   .shoal-hero {
     grid-template-columns: 1.2fr 0.8fr;
@@ -140,6 +245,11 @@
 }
 
 @media screen and (max-width: 44.9375em) {
+  .shoal-hero {
+    padding: 1.15rem;
+    border-radius: 1.35rem;
+  }
+
   .shoal-lede {
     font-size: 1rem;
   }
@@ -147,5 +257,28 @@
   .shoal-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .shoal-card-grid,
+  .shoal-principles,
+  .shoal-band {
+    grid-template-columns: 1fr;
+  }
+
+  .shoal-demo-frame {
+    padding: 0.7rem;
+    border-radius: 1.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-main__inner,
+  .shoal-card,
+  .shoal-hero-art img {
+    animation: none !important;
+  }
+
+  .shoal-card {
+    transition: none;
   }
 }

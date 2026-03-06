@@ -1,0 +1,42 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="720" rx="36" fill="#FBF8F2"/>
+  <rect x="40" y="40" width="1120" height="640" rx="30" fill="url(#bg)"/>
+  <rect x="90" y="116" width="300" height="170" rx="24" fill="#FFF9F0" stroke="#0E5F64" stroke-width="4"/>
+  <rect x="450" y="116" width="300" height="170" rx="24" fill="#F4FBF8" stroke="#0E5F64" stroke-width="4"/>
+  <rect x="810" y="116" width="300" height="170" rx="24" fill="#FFF2EA" stroke="#C45A2D" stroke-width="4"/>
+  <rect x="250" y="386" width="700" height="190" rx="28" fill="#11242F"/>
+  <rect x="290" y="436" width="180" height="90" rx="18" fill="#183946"/>
+  <rect x="510" y="436" width="180" height="90" rx="18" fill="#183946"/>
+  <rect x="730" y="436" width="180" height="90" rx="18" fill="#183946"/>
+  <path d="M390 201H450" stroke="#0E5F64" stroke-width="8" stroke-linecap="round"/>
+  <path d="M750 201H810" stroke="#C45A2D" stroke-width="8" stroke-linecap="round"/>
+  <path d="M240 286C240 338 340 338 340 386" stroke="#0E5F64" stroke-width="8" stroke-linecap="round"/>
+  <path d="M600 286V386" stroke="#0E5F64" stroke-width="8" stroke-linecap="round"/>
+  <path d="M960 286C960 338 860 338 860 386" stroke="#C45A2D" stroke-width="8" stroke-linecap="round"/>
+  <text x="122" y="162" fill="#08484C" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="700">Author Session</text>
+  <text x="122" y="198" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="20">feat/payment-retry</text>
+  <text x="122" y="234" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">codex-dev template</text>
+  <text x="482" y="162" fill="#08484C" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="700">Reviewer Session</text>
+  <text x="482" y="198" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="20">review/payment-retry</text>
+  <text x="482" y="234" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">claude-review template</text>
+  <text x="842" y="162" fill="#8A3B18" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="700">Supervisor</text>
+  <text x="842" y="198" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="20">robo watch default</text>
+  <text x="842" y="234" fill="#10222E" font-family="IBM Plex Mono, monospace" font-size="18">escalation + approvals</text>
+  <text x="296" y="338" fill="#08484C" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">handoff journal</text>
+  <text x="536" y="338" fill="#08484C" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">visible status + popup</text>
+  <text x="845" y="338" fill="#8A3B18" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">waiting-state relief</text>
+  <text x="282" y="418" fill="#F8F4EC" font-family="Space Grotesk, sans-serif" font-size="28" font-weight="700">Shared operator surface</text>
+  <text x="323" y="474" fill="#DFF3EE" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">Status board</text>
+  <text x="323" y="502" fill="#F4EFE7" font-family="IBM Plex Mono, monospace" font-size="16">shoal status</text>
+  <text x="543" y="474" fill="#DFF3EE" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">Supervision view</text>
+  <text x="543" y="502" fill="#F4EFE7" font-family="IBM Plex Mono, monospace" font-size="16">shoal popup</text>
+  <text x="763" y="474" fill="#DFF3EE" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">Narrative memory</text>
+  <text x="763" y="502" fill="#F4EFE7" font-family="IBM Plex Mono, monospace" font-size="16">journals + task logs</text>
+  <defs>
+    <linearGradient id="bg" x1="76" y1="76" x2="1120" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6EEE0"/>
+      <stop offset="0.5" stop-color="#E6F3EF"/>
+      <stop offset="1" stop-color="#F5E5DC"/>
+    </linearGradient>
+  </defs>
+</svg>

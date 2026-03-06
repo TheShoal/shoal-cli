@@ -19,7 +19,9 @@
   </div>
 </div>
 
-![Shoal terminal workflow demo](assets/terminal-demo.svg)
+<div class="shoal-demo-frame">
+  <img src="assets/terminal-demo.svg" alt="Shoal terminal workflow demo">
+</div>
 
 ## Why Shoal exists
 
@@ -94,11 +96,48 @@ shoal attach auth
 
 ## Operating principles
 
-1. Use defaults aggressively so sessions start without negotiation.
-2. Keep each session name legible enough to function as routing metadata.
-3. Treat `waiting` as a queue to clear quickly, not background noise.
-4. Use journals and templates so interrupted work is easy to resume.
-5. Keep authority human and throughput agent-driven.
+<div class="shoal-principles">
+  <div class="shoal-principle">
+    <strong>Bias toward defaulted starts</strong>
+    <span>Sessions should open faster than you can second-guess the setup.</span>
+  </div>
+  <div class="shoal-principle">
+    <strong>Keep state visible</strong>
+    <span>Status, waiting prompts, and handoff context should stay one gesture away.</span>
+  </div>
+  <div class="shoal-principle">
+    <strong>Name work like an operator</strong>
+    <span>Readable session names turn the fleet into a working board instead of a pile of panes.</span>
+  </div>
+  <div class="shoal-principle">
+    <strong>Make interruption cheap</strong>
+    <span>Journals, templates, and role-separated sessions should preserve narrative continuity.</span>
+  </div>
+  <div class="shoal-principle">
+    <strong>Keep authority human</strong>
+    <span>Agents should increase throughput, not silently absorb judgment calls.</span>
+  </div>
+</div>
+
+## Signature operating modes
+
+<div class="shoal-band">
+  <div>
+    <p class="shoal-eyebrow">Mode 01</p>
+    <h3>Author, reviewer, supervisor</h3>
+    <p>One agent writes, one critiques, and robo keeps the approval loop short.</p>
+  </div>
+  <div>
+    <p class="shoal-eyebrow">Mode 02</p>
+    <h3>Planner, implementer, closer</h3>
+    <p>Use this when orchestration and decision sequencing matter more than raw code throughput.</p>
+  </div>
+  <div>
+    <p class="shoal-eyebrow">Mode 03</p>
+    <h3>Local control, remote execution</h3>
+    <p>Keep one operator surface while sending long-running work to remote boxes and batch lanes.</p>
+  </div>
+</div>
 
 ## Documentation map
 
