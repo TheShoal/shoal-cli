@@ -286,7 +286,7 @@ shoal remote sessions devbox
 
 ## See Also
 
-- [Shoal README](../README.md) — General documentation
+- [Shoal Overview](index.md) — General documentation
 - [Fish Integration Guide](FISH_INTEGRATION.md) — Fish shell setup
 - [Robo Guide](ROBO_GUIDE.md) — Supervisor patterns
-- [Architecture](../ARCHITECTURE.md) — System design
+- [Architecture](architecture.md) — System design

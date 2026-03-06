@@ -156,4 +156,4 @@ with `append_journal` explaining your reasoning.
 ## Further Reading
 
 - [Robo Supervisor Guide](ROBO_GUIDE.md) — Coordination patterns using journals
-- [Shoal README](../README.md) — Overview of Shoal
+- [Shoal Overview](index.md) — Overview of Shoal

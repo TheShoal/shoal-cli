@@ -412,6 +412,6 @@ cat ~/.local/state/shoal/robo/overnight-batch/task-log.md
 
 ## Further Reading
 
-- [Shoal README](../README.md) — Overview of Shoal
-- [Shoal API](../src/shoal/api/server.py) — Programmatic access to session state
-- [Robo Source](../src/shoal/cli/robo.py) — Implementation details
+- [Shoal Overview](index.md) — Overview of Shoal
+- [Python API Reference](reference/python-api.md) — Programmatic access to session state
+- [CLI Reference](cli-reference.md) — Robo command surface and entry points

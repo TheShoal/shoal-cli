@@ -319,7 +319,7 @@ shoal diag --json   # Machine-readable output
 
 ## See Also
 
-- [Shoal README](../README.md) - General documentation
+- [Shoal Overview](index.md) - General documentation
 - [Robo Guide](ROBO_GUIDE.md) - Robo workflow documentation
 - [Fish Shell Documentation](https://fishshell.com/docs/current/) - Official fish docs
 - [Fish Completions Guide](https://fishshell.com/docs/current/completions.html) - How fish completions work

@@ -70,3 +70,15 @@ jobs:
           python-version: "3.12"
       - name: Security scan with ruff S rules
         run: uvx ruff check src/shoal/ --select S --config pyproject.toml
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv pip install -e ".[docs]" --system
+      - name: Build documentation
+        run: mkdocs build --strict

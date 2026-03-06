@@ -44,6 +44,14 @@ fmt-check:
 cov:
     uv run pytest --cov --cov-report=term-missing -m "not integration"
 
+# Serve documentation site locally
+docs-serve:
+    uv run --extra docs mkdocs serve
+
+# Build documentation site (fails on warnings)
+docs-build:
+    uv run --extra docs mkdocs build --strict
+
 # Install pre-commit hooks
 setup:
     pre-commit install

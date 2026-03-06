@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="900" height="500">
+  <defs>
+    <style>
+      .terminal-bg { fill: #1E2030; }
+      .titlebar { fill: #363A4F; }
+      .dim { fill: #6E738D; }
+      .fg { fill: #CAD3F5; }
+      .green { fill: #A6DA95; }
+      .blue { fill: #8AADF4; }
+      .mauve { fill: #C6A0F6; }
+      .yellow { fill: #EED49F; }
+      .peach { fill: #F5A97F; }
+      .teal { fill: #8BD5CA; }
+      .mono { font-family: 'SFMono-Regular', 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace; }
+      .f14 { font-size: 14px; }
+      .f13 { font-size: 13px; }
+      .f12 { font-size: 12px; }
+
+      /* Cursor blink */
+      @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+      .cursor { animation: blink 1s step-end infinite; }
+
+      /* Sequential reveal — each step fades in then stays */
+      .step1 { opacity: 0; animation: reveal 20s infinite; }
+      .step2 { opacity: 0; animation: reveal 20s 2s infinite; }
+      .step3 { opacity: 0; animation: reveal 20s 4s infinite; }
+      .step4 { opacity: 0; animation: reveal 20s 6s infinite; }
+      .step5 { opacity: 0; animation: reveal 20s 7s infinite; }
+
+      @keyframes reveal {
+        0%, 4% { opacity: 0; }
+        6% { opacity: 1; }
+        90% { opacity: 1; }
+        95%, 100% { opacity: 0; }
+      }
+
+      /* Cursor appears at step1, hides at step2 start, etc. */
+      .cursor1 { opacity: 0; animation: cursorPhase1 20s infinite; }
+      @keyframes cursorPhase1 {
+        0%, 4% { opacity: 0; }
+        6%, 14% { opacity: 1; }
+        15%, 100% { opacity: 0; }
+      }
+
+      .cursor2 { opacity: 0; animation: cursorPhase2 20s infinite; }
+      @keyframes cursorPhase2 {
+        0%, 24% { opacity: 0; }
+        26%, 90% { opacity: 1; }
+        95%, 100% { opacity: 0; }
+      }
+
+      /* Status dot pulses */
+      @keyframes pulseGreen {
+        0%, 100% { fill: #A6DA95; }
+        50% { fill: #8BD5CA; }
+      }
+      @keyframes pulseYellow {
+        0%, 100% { fill: #EED49F; }
+        50% { fill: #F5A97F; }
+      }
+    </style>
+  </defs>
+
+  <!-- Window frame -->
+  <rect class="titlebar" width="900" height="500" rx="12"/>
+  <rect class="terminal-bg" x="1" y="38" width="898" height="461" rx="0"/>
+  <!-- Bottom rounded corners -->
+  <rect class="terminal-bg" x="1" y="476" width="898" height="23" rx="12"/>
+  <!-- Title bar -->
+  <rect class="titlebar" width="900" height="38" rx="12"/>
+  <rect class="titlebar" x="0" y="26" width="900" height="12"/>
+
+  <!-- Window dots -->
+  <circle cx="24" cy="19" r="7" fill="#ED8796"/>
+  <circle cx="48" cy="19" r="7" fill="#EED49F"/>
+  <circle cx="72" cy="19" r="7" fill="#A6DA95"/>
+
+  <!-- Title -->
+  <text x="450" y="24" text-anchor="middle" class="mono f13 fg">shoal — fish</text>
+
+  <!-- ═══ Step 1: First command ═══ -->
+  <g class="step1">
+    <text x="24" y="72" class="mono f14 blue">~/projects</text>
+    <text x="132" y="72" class="mono f14 mauve">❯</text>
+    <text x="152" y="72" class="mono f14 fg">shoal new -w auth -b</text>
+  </g>
+
+  <!-- Cursor after first command -->
+  <g class="cursor1">
+    <rect x="324" y="59" width="9" height="17" class="fg cursor"/>
+  </g>
+
+  <!-- ═══ Step 2: First output block ═══ -->
+  <g class="step2">
+    <text x="24" y="102" class="mono f14 green">✓ Created worktree .worktrees/auth</text>
+    <text x="24" y="124" class="mono f14 green">✓ Branch feat/auth created</text>
+    <text x="24" y="146" class="mono f14 teal">✓ Session auth started (claude)</text>
+    <text x="24" y="168" class="mono f14 dim">  MCP pool: memory, filesystem, github</text>
+  </g>
+
+  <!-- ═══ Step 3: Second command ═══ -->
+  <g class="step3">
+    <text x="24" y="204" class="mono f14 blue">~/projects</text>
+    <text x="132" y="204" class="mono f14 mauve">❯</text>
+    <text x="152" y="204" class="mono f14 fg">shoal status --compact</text>
+  </g>
+
+  <!-- ═══ Step 4: Status table header ═══ -->
+  <g class="step4">
+    <text x="24" y="240" class="mono f12 dim">SESSION          TOOL       BRANCH          STATUS       WORKTREE</text>
+    <line x1="24" y1="248" x2="780" y2="248" stroke="#363A4F" stroke-width="1"/>
+  </g>
+
+  <!-- ═══ Step 5: Status table rows + footer ═══ -->
+  <g class="step5">
+    <!-- Row 1 -->
+    <text x="24"  y="270" class="mono f14 fg">auth</text>
+    <text x="168" y="270" class="mono f14 mauve">claude</text>
+    <text x="280" y="270" class="mono f14 teal">feat/auth</text>
+    <circle cx="430" cy="266" r="5" fill="#A6DA95" style="animation: pulseGreen 2s ease-in-out infinite;"/>
+    <text x="442" y="270" class="mono f14 green">Thinking</text>
+    <text x="544" y="270" class="mono f14 dim">.worktrees/auth</text>
+
+    <!-- Row 2 -->
+    <text x="24"  y="296" class="mono f14 fg">api-refactor</text>
+    <text x="168" y="296" class="mono f14 peach">pi</text>
+    <text x="280" y="296" class="mono f14 teal">feat/api-v2</text>
+    <circle cx="430" cy="292" r="5" fill="#EED49F" style="animation: pulseYellow 3s ease-in-out infinite;"/>
+    <text x="442" y="296" class="mono f14 yellow">Waiting</text>
+    <text x="544" y="296" class="mono f14 dim">.worktrees/api-refactor</text>
+
+    <!-- Row 3 -->
+    <text x="24"  y="322" class="mono f14 fg">docs-update</text>
+    <text x="168" y="322" class="mono f14 blue">gemini</text>
+    <text x="280" y="322" class="mono f14 teal">feat/docs</text>
+    <circle cx="430" cy="318" r="5" fill="#A6DA95" style="animation: pulseGreen 2.5s ease-in-out infinite;"/>
+    <text x="442" y="322" class="mono f14 green">Thinking</text>
+    <text x="544" y="322" class="mono f14 dim">.worktrees/docs-update</text>
+
+    <!-- Row 4 -->
+    <text x="24"  y="348" class="mono f14 fg">robo-default</text>
+    <text x="168" y="348" class="mono f14 fg">opencode</text>
+    <text x="280" y="348" class="mono f14 dim">main</text>
+    <circle cx="430" cy="344" r="5" fill="#A6DA95" style="animation: pulseGreen 1.8s ease-in-out infinite;"/>
+    <text x="442" y="348" class="mono f14 green">Thinking</text>
+    <text x="544" y="348" class="mono f14 dim">—</text>
+
+    <!-- Separator + summary -->
+    <line x1="24" y1="368" x2="780" y2="368" stroke="#363A4F" stroke-width="1"/>
+    <text x="24" y="390" class="mono f14 dim">4 sessions · 3 worktrees · MCP pool active (3 servers)</text>
+
+    <!-- Final prompt -->
+    <text x="24" y="430" class="mono f14 blue">~/projects</text>
+    <text x="132" y="430" class="mono f14 mauve">❯</text>
+  </g>
+
+  <!-- Cursor at final prompt -->
+  <g class="cursor2">
+    <rect x="152" y="417" width="9" height="17" class="fg cursor"/>
+  </g>
+</svg>

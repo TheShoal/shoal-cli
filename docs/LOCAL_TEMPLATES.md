@@ -150,5 +150,5 @@ Commit `.shoal/templates/` to version control so collaborators inherit the same 
 
 ## Further Reading
 
-- [Template Inheritance](../ARCHITECTURE.md#7-template-inheritance-and-composition) — Merge semantics for `extends` and `mixins`
-- [Shoal README](../README.md) — Overview of Shoal
+- [Template Inheritance](architecture.md#template-inheritance-and-composition) — Merge semantics for `extends` and `mixins`
+- [Shoal Overview](index.md) — Overview of Shoal

@@ -40,6 +40,13 @@ dev = [
     "pytest-xdist>=3.5.0",
     "fastmcp>=3.0.0",
 ]
+docs = [
+    "mkdocs<2.0",
+    "mkdocs-gen-files>=0.6.0",
+    "mkdocs-material>=9.7.4",
+    "mkdocstrings-python>=2.0.3",
+    "ruff>=0.8.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/shoal"]

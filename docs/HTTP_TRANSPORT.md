@@ -168,4 +168,4 @@ Socket transport remains the default for stateless MCP servers (`memory`, `files
 
 - [Transport Spike](transport-spike.md) — Benchmark data comparing UDS vs HTTP
 - [Robo Supervisor Guide](ROBO_GUIDE.md) — Using the orchestrator with robo workflows
-- [Shoal README](../README.md) — Overview of Shoal
+- [Shoal Overview](index.md) — Overview of Shoal

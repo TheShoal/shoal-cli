@@ -14,8 +14,8 @@ We use `uv` for dependency management.
 
 ```fish
 # Clone and install in editable mode
-git clone git@github.com:usm-ricardoroche/shoal.git
-cd shoal
+git clone https://github.com/TheShoal/shoal-cli.git
+cd shoal-cli
 uv pip install -e ".[dev]"
 ```
 
@@ -109,7 +109,7 @@ The `main` branch is protected with the following rules:
 
 ## Code Reviews
 
-We maintain a standing code review prompt in [CODE_REVIEW.md](CODE_REVIEW.md). Run it periodically (after major milestones or before releases) to audit observability, logging, security, and overall code health. Record dated findings in the review log at the bottom of that file.
+Run a standing code review pass periodically, especially after major milestones or before releases. Focus on observability, logging, security, workflow regressions, and documentation drift, and record the findings in the review artifact you are using for that cycle.
 
 ## Release Process
 

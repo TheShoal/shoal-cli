@@ -146,8 +146,8 @@ uv tool install ".[mcp]"
 ### From Source (dev)
 
 ```bash
-git clone git@github.com:usm-ricardoroche/shoal.git
-cd shoal
+git clone https://github.com/TheShoal/shoal-cli.git
+cd shoal-cli
 uv tool install -e ".[dev,mcp]"
 uv tool install pre-commit
 just setup                   # install pre-commit + commit-msg hooks
@@ -421,6 +421,21 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
 ## Documentation
 
+```bash
+just docs-serve   # serve the docs site locally
+just docs-build   # build the docs site with strict validation
+```
+
+Core docs entry points:
+
+- [docs/index.md](docs/index.md) — Docs site homepage and documentation map
+- [docs/getting-started.md](docs/getting-started.md) — Installation, initialization, and first-session workflow
+- [docs/cli-reference.md](docs/cli-reference.md) — Command groups, quick examples, and feature map
+- [docs/architecture.md](docs/architecture.md) — Control plane, lifecycle, storage, and transport model
+- [docs/reference/python-api.md](docs/reference/python-api.md) — Starter API reference rendered from Python modules
+
+Guides and supporting material:
+
 - [docs/JOURNALS.md](docs/JOURNALS.md) — Session journals and frontmatter
 - [docs/LOCAL_TEMPLATES.md](docs/LOCAL_TEMPLATES.md) — Project-local template guide
 - [docs/REMOTE_GUIDE.md](docs/REMOTE_GUIDE.md) — Remote session management guide
@@ -430,7 +445,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 - [docs/CLAUDE_CODE_SETUP.md](docs/CLAUDE_CODE_SETUP.md) — Claude Code integration guide
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — Common issues and solutions
 - [docs/EXTENSIONS.md](docs/EXTENSIONS.md) — Fin extension capability map and boundaries
-- [ARCHITECTURE.md](ARCHITECTURE.md) — System design and concepts
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Repository root architecture deep-dive
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Development setup and guidelines
 - [ROADMAP.md](ROADMAP.md) — Upcoming features and milestones
 - [RELEASE_PROCESS.md](RELEASE_PROCESS.md) — Versioning and release workflow
