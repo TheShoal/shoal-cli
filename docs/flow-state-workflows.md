@@ -22,6 +22,9 @@ The intended daily-driver stack is:
 - Journals for handoffs and longitudinal context.
 - Robo supervision for waiting-state pressure relief.
 
+The design mistake to avoid is optimizing each tool in isolation. Optimize the end-to-end loop
+from "work appears" to "work is reviewed or escalated."
+
 ## Set the control plane defaults
 
 Start with a clean `~/.config/shoal/config.toml` that reflects how you actually work:
@@ -50,6 +53,13 @@ api_port = 8080
 ```
 
 The goal is to remove choice at the point where work should begin. Use defaults aggressively.
+
+Also decide where your active attention will live:
+
+- `shoal popup` for rapid supervision,
+- a pinned tmux window for `shoal status`,
+- one naming convention for sessions and branches,
+- one default review topology that you can reach for without thinking.
 
 ## Design stable worker templates
 
@@ -163,6 +173,8 @@ Good robo behavior:
 - log decisions,
 - avoid becoming a silent source of hidden automation.
 
+The robo should shorten waiting time, not make the system feel more mysterious.
+
 ## Make waiting states cheap to resolve
 
 The fastest way to destroy flow is to let approvals pile up.
@@ -175,6 +187,27 @@ Use this loop:
 4. Approve or redirect fast.
 
 The point is not endless autonomy. The point is low-latency intervention.
+
+## Build an explicit review lane
+
+The highest-leverage teams usually separate implementation from review even when both are agent
+driven.
+
+Example:
+
+```bash
+shoal new -t codex -w feat/payment-retry -b --template codex-dev
+shoal new -t claude -w review/payment-retry -b --template claude-review
+shoal journal feat/payment-retry --append "Primary goal: stabilize retry semantics without widening API surface."
+shoal journal review/payment-retry --append "Review for regression risk in idempotency and migration paths."
+```
+
+This creates:
+
+- a clear author lane,
+- a clear critic lane,
+- a durable handoff boundary,
+- faster merge confidence.
 
 ## Separate human intent from agent throughput
 
@@ -218,6 +251,42 @@ shoal remote send devbox feat/auth-api "run the focused test subset"
 ```
 
 Consistency matters more than novelty when you are operating across machines.
+
+## Advanced configurations that actually help
+
+These are worth adopting once the basics are stable.
+
+### 1. Use templates for role clarity
+
+Create separate templates for authoring, review, planning, and overnight batch work. The point is
+not more templates. The point is fewer ambiguous sessions.
+
+### 2. Keep a standing meta session
+
+Reserve one session for orchestration, release prep, or escalation handling. This prevents your
+active implementation lanes from becoming cluttered with control-plane work.
+
+### 3. Standardize journals
+
+Use the same structure in journal entries:
+
+- goal,
+- constraints,
+- current blocker,
+- next expected human decision.
+
+That makes interruption recovery dramatically faster.
+
+### 4. Tune supervision latency
+
+If you work in short bursts, decrease robo polling and keep the popup bound close at hand. If you
+prefer deep uninterrupted blocks, raise the polling interval and rely on a reviewer lane to catch
+drift before you intervene.
+
+### 5. Favor a few stable workflows
+
+If a pattern happens more than twice, template it. If it happens once, do not immortalize it in
+configuration. Flow state comes from repeatability, not maximal optionality.
 
 ## Developer enjoyment is an operational concern
 

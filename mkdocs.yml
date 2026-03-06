@@ -15,7 +15,6 @@ theme:
     code: IBM Plex Mono
   features:
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - search.suggest
     - search.highlight
@@ -67,37 +66,40 @@ nav:
   - Start Here:
       - Getting Started: getting-started.md
       - CLI Reference: cli-reference.md
-      - Architecture: architecture.md
-  - User Guides:
+  - Operate Shoal:
       - Flow-State Workflows: flow-state-workflows.md
+      - Robo Supervisor: ROBO_GUIDE.md
+      - Remote Sessions: REMOTE_GUIDE.md
       - Fish Integration: FISH_INTEGRATION.md
       - Local Templates: LOCAL_TEMPLATES.md
-      - Remote Sessions: REMOTE_GUIDE.md
-      - Robo Supervisor: ROBO_GUIDE.md
       - Journals: JOURNALS.md
       - HTTP Transport: HTTP_TRANSPORT.md
       - Troubleshooting: TROUBLESHOOTING.md
       - Claude Code Setup: CLAUDE_CODE_SETUP.md
-  - Reference:
+  - Design the Loop:
+      - Terminal Interaction Design: terminal-interaction-design.md
+      - Architecture: architecture.md
       - Implementation Audit: implementation-audit.md
+  - Reference:
       - Python API: reference/python-api.md
       - Extensions: EXTENSIONS.md
       - Extensions Review: EXTENSIONS_REVIEW.md
-  - Project Docs:
-      - Architecture Guide: project/architecture-guide.md
-      - Changelog: project/changelog.md
-      - Commit Guidelines: project/commit-guidelines.md
-      - Contributing: project/contributing.md
-      - Roadmap: project/roadmap.md
-      - Release Process: project/release-process.md
-      - Security Policy: project/security.md
-  - Design Notes:
-      - Worktree Environment Init: WORKTREE_ENV_INIT.md
-      - Composition Gateway: composition-gateway.md
-      - Transport Spike: transport-spike.md
-  - Archive:
-      - Overview: archive/README.md
-      - Phase 2 Handoff: archive/PHASE_2_HANDOFF.md
-      - Review Notes: archive/REVIEW.md
-      - Refocus Plan: archive/REFOCUS_PLAN.md
-      - Gemini Notes: archive/GEMINI.md
+  - Project Records:
+      - Delivery:
+          - Roadmap: project/roadmap.md
+          - Changelog: project/changelog.md
+          - Release Process: project/release-process.md
+          - Commit Guidelines: project/commit-guidelines.md
+          - Contributing: project/contributing.md
+          - Security Policy: project/security.md
+      - Design Notes:
+          - Architecture Guide: project/architecture-guide.md
+          - Worktree Environment Init: WORKTREE_ENV_INIT.md
+          - Composition Gateway: composition-gateway.md
+          - Transport Spike: transport-spike.md
+      - Archive:
+          - Overview: archive/README.md
+          - Phase 2 Handoff: archive/PHASE_2_HANDOFF.md
+          - Review Notes: archive/REVIEW.md
+          - Refocus Plan: archive/REFOCUS_PLAN.md
+          - Gemini Notes: archive/GEMINI.md
