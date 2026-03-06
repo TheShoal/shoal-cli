@@ -48,6 +48,10 @@ Shoal is built for the point where "open another terminal" stops scaling.
     <strong>Robo supervision</strong>
     <span>Automate approvals, routing, and escalation with a supervisor session.</span>
   </a>
+  <a class="shoal-card" href="flow-state-workflows/">
+    <strong>Flow-state patterns</strong>
+    <span>Design session topology, supervision loops, and shell ergonomics for momentum.</span>
+  </a>
   <a class="shoal-card" href="REMOTE_GUIDE/">
     <strong>Remote fleets</strong>
     <span>Control sessions on other machines over SSH tunnels without changing the UX.</span>
@@ -84,6 +88,7 @@ shoal attach auth
 ### Workflow guides
 
 - [Fish Integration](FISH_INTEGRATION.md) for completions, bindings, and helper functions.
+- [Flow-State Workflows](flow-state-workflows.md) for high-leverage setups, templates, and supervision loops.
 - [Local Templates](LOCAL_TEMPLATES.md) for project-scoped templates and mixins.
 - [Remote Sessions](REMOTE_GUIDE.md) for SSH-backed control of remote fleets.
 - [Robo Supervisor](ROBO_GUIDE.md) for automation patterns and escalation rules.
@@ -93,6 +98,7 @@ shoal attach auth
 ### Reference and design notes
 
 - [Python API Reference](reference/python-api.md) for rendered module docs.
+- [Implementation Audit](implementation-audit.md) for a code-versus-claims review of the current product surface.
 - [Extensions](EXTENSIONS.md) and [Extensions Review](EXTENSIONS_REVIEW.md) for fin boundaries and gaps.
 - [Worktree Environment Init](WORKTREE_ENV_INIT.md), [Composition Gateway](composition-gateway.md), and [Transport Spike](transport-spike.md) for design investigations.
 

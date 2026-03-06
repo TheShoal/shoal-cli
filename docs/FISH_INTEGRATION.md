@@ -51,7 +51,8 @@ This command will install the following files to `$XDG_CONFIG_HOME/fish/` (defau
 Restart your fish shell or source the configuration:
 
 ```fish
-source ~/.config/fish/conf.d/shoal.fish
+set -l shoal_fish_dir (test -n "$XDG_CONFIG_HOME"; and echo $XDG_CONFIG_HOME; or echo ~/.config)/fish
+source $shoal_fish_dir/conf.d/shoal.fish
 ```
 
 ## Usage
@@ -228,7 +229,8 @@ This will overwrite existing integration files with the latest versions.
    ```
 3. Restart your fish shell or run:
    ```fish
-   source ~/.config/fish/conf.d/shoal.fish
+   set -l shoal_fish_dir (test -n "$XDG_CONFIG_HOME"; and echo $XDG_CONFIG_HOME; or echo ~/.config)/fish
+   source $shoal_fish_dir/conf.d/shoal.fish
    ```
 
 ### Key Bindings Not Working
@@ -249,7 +251,8 @@ bind \ea 'shoal-quick-attach; commandline -f repaint'
 If not, source the bootstrap script manually:
 
 ```fish
-source ~/.config/fish/conf.d/shoal.fish
+set -l shoal_fish_dir (test -n "$XDG_CONFIG_HOME"; and echo $XDG_CONFIG_HOME; or echo ~/.config)/fish
+source $shoal_fish_dir/conf.d/shoal.fish
 ```
 
 ### Session Names Not Completing

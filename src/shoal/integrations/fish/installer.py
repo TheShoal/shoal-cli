@@ -26,6 +26,12 @@ def get_fish_config_dir() -> Path | None:
     return fish_config if fish_config.exists() or fish_config.parent.exists() else None
 
 
+def expected_fish_config_dir() -> Path:
+    """Return the fish config directory implied by the current XDG environment."""
+    xdg_config = os.environ.get("XDG_CONFIG_HOME")
+    return Path(xdg_config) / "fish" if xdg_config else Path.home() / ".config" / "fish"
+
+
 def is_fish_installed() -> bool:
     """Check if fish shell is installed."""
     return shutil.which("fish") is not None
@@ -65,7 +71,7 @@ def install_fish_integration(force: bool = False) -> bool:
         console.print(
             create_panel(
                 "[red]Could not locate fish configuration directory![/red]\n\n"
-                "Expected location: [cyan]~/.config/fish[/cyan]",
+                f"Expected location: [cyan]{expected_fish_config_dir()}[/cyan]",
                 title=f"[bold red]{Icons.ERROR} Installation Failed[/bold red]",
                 title_align="left",
             )
@@ -158,9 +164,10 @@ def install_fish_integration(force: bool = False) -> bool:
     # Success message
     errors = [r for r in results if r[2] == "error"]
     if not errors:
+        source_path = conf_d_dir / "shoal.fish"
         console.print(
             "\n[green]Fish integration installed successfully![/green]\n\n"
-            "Restart your fish shell or run: [cyan]source ~/.config/fish/conf.d/shoal.fish[/cyan]\n"
+            f"Restart your fish shell or run: [cyan]source {source_path}[/cyan]\n"
             "to start using the integration."
         )
         return True

@@ -24,9 +24,11 @@ shoal robo setup default --tool opencode
 
 This creates:
 - `~/.config/shoal/robo/default.toml` — Configuration profile
-- `~/.local/state/shoal/robo/default/` — Runtime directory with:
+- `~/.local/share/shoal/robo/default/` — Robo working directory with:
   - `AGENTS.md` — Instructions for the robo agent
   - `task-log.md` — Activity log
+
+The robo supervision daemon also writes its PID and logs under `~/.local/state/shoal/`.
 
 ### 2. Start the Robo
 
@@ -148,7 +150,7 @@ shoal robo approve feature-auth
 **Use case**: You have a backlog of tasks. As agents finish, the robo assigns the next task.
 
 **Setup**:
-Create a task list in `~/.local/state/shoal/robo/default/tasks.md`:
+Create a task list in `~/.local/share/shoal/robo/default/tasks.md`:
 
 ```md
 # Task Backlog
@@ -284,7 +286,7 @@ Have a "meta-robo" that monitors other robos:
 shoal robo setup meta --tool gemini
 ```
 
-Edit `~/.local/state/shoal/robo/meta/AGENTS.md`:
+Edit `~/.local/share/shoal/robo/meta/AGENTS.md`:
 
 ```md
 You are the meta-robo. Monitor all robo sessions:
@@ -303,7 +305,7 @@ The default `AGENTS.md` includes these safety rules:
 2. **Log every action** in task-log.md
 3. **Prefer asking the user** over making assumptions
 
-You can customize these rules by editing `~/.local/state/shoal/robo/<name>/AGENTS.md`.
+You can customize these rules by editing `~/.local/share/shoal/robo/<name>/AGENTS.md`.
 
 ---
 
@@ -324,7 +326,7 @@ tmux attach -t __default
 Review the task log:
 
 ```bash
-cat ~/.local/state/shoal/robo/default/task-log.md
+cat ~/.local/share/shoal/robo/default/task-log.md
 ```
 
 If needed, stop the robo and manually intervene:
@@ -405,7 +407,7 @@ Log any errors for morning review.
 
 **Morning review**:
 ```bash
-cat ~/.local/state/shoal/robo/overnight-batch/task-log.md
+cat ~/.local/share/shoal/robo/overnight-batch/task-log.md
 ```
 
 ---

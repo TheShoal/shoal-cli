@@ -69,6 +69,7 @@ nav:
       - CLI Reference: cli-reference.md
       - Architecture: architecture.md
   - User Guides:
+      - Flow-State Workflows: flow-state-workflows.md
       - Fish Integration: FISH_INTEGRATION.md
       - Local Templates: LOCAL_TEMPLATES.md
       - Remote Sessions: REMOTE_GUIDE.md
@@ -78,6 +79,7 @@ nav:
       - Troubleshooting: TROUBLESHOOTING.md
       - Claude Code Setup: CLAUDE_CODE_SETUP.md
   - Reference:
+      - Implementation Audit: implementation-audit.md
       - Python API: reference/python-api.md
       - Extensions: EXTENSIONS.md
       - Extensions Review: EXTENSIONS_REVIEW.md

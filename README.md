@@ -117,7 +117,7 @@ Shoal requires these tools on your system:
 | Tool | Install | Why |
 | ---- | ------- | --- |
 | **[uv](https://docs.astral.sh/uv/)** | `curl -LsSf https://astral.sh/uv/install.sh \| sh` | Python package manager — installs Shoal and its dependencies |
-| **[fish](https://fishshell.com/)** | `sudo apt install fish` / `brew install fish` | Shell integration — completions, key bindings, abbreviations |
+| **[fish](https://fishshell.com/)** | `sudo apt install fish` / `brew install fish` | Recommended for the reference shell experience — completions, key bindings, abbreviations |
 | **[tmux](https://github.com/tmux/tmux)** | `sudo apt install tmux` / `brew install tmux` | Session multiplexer — each agent runs in its own tmux pane |
 | **[git](https://git-scm.com/)** | `sudo apt install git` / `brew install git` | Worktree isolation and branch management |
 | **[fzf](https://github.com/junegunn/fzf)** | `sudo apt install fzf` / `brew install fzf` | Interactive session picker for `shoal attach` |
@@ -129,7 +129,7 @@ Optional:
 | **[gh](https://cli.github.com/)** | `sudo apt install gh` / `brew install gh` | GitHub CLI — used by `shoal wt finish --pr` |
 | **[nvr](https://github.com/mhinz/neovim-remote)** | `pip install neovim-remote` | Neovim remote control integration |
 
-> **Minimum versions**: Python 3.12+, tmux 3.3+, fish 3.6+
+> **Reference stack**: Python 3.12+, tmux 3.3+, fish 3.6+. Core Shoal workflows work without fish, but the intended shell UX is fish-first.
 
 `shoal init` checks for tmux, git, fzf, gh, and nvr and reports what's missing.
 
@@ -160,7 +160,7 @@ shoal init          # create DB, scaffold configs, check dependencies
 shoal setup fish    # install fish completions, keybindings, abbreviations
 ```
 
-`shoal init` creates `~/.config/shoal/` (config, tool profiles, templates) and `~/.local/state/shoal/` (database, MCP sockets). It also checks that required tools are installed and reports anything missing.
+`shoal init` creates `~/.config/shoal/` (config, tool profiles, templates), `~/.local/share/shoal/` (database, journals, robo data, MCP pool state), and `~/.local/state/shoal/` (runtime logs and PID files). It also checks that required tools are installed and reports anything missing.
 
 ### Try the Demo
 

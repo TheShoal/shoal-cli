@@ -18,9 +18,13 @@ def test_robo_setup_success(mock_dirs):
     assert "Created profile" in result.stdout
     assert "Robo 'test-robo' ready" in result.stdout
 
-    config_dir, _ = mock_dirs
+    config_dir, state_dir = mock_dirs
     profile_path = config_dir / "robo" / "test-robo.toml"
+    robo_dir = state_dir / "robo" / "test-robo"
     assert profile_path.exists()
+    assert robo_dir.exists()
+    assert (robo_dir / "AGENTS.md").exists()
+    assert (robo_dir / "task-log.md").exists()
 
 
 def test_robo_start_success(mock_dirs):

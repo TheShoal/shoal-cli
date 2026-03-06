@@ -12,12 +12,13 @@ Shoal assumes a terminal-centric workflow and relies on a small set of system to
 | `uv` | Installs Shoal and manages the Python environment |
 | `tmux` | Runs each agent in an isolated session or pane |
 | `git` | Creates worktrees and branches safely |
-| `fish` | Powers completions, key bindings, and helper functions |
+| `fish` | Recommended reference shell for completions, key bindings, and helper functions |
 | `fzf` | Enables interactive selection in commands like `shoal attach` |
 
 Optional but useful:
 
 - `gh` for `shoal wt finish --pr`
+- `fish` if you want the intended shell ergonomics
 - `nvr` for Neovim integration
 
 ## Install

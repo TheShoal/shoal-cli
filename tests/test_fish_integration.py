@@ -99,6 +99,13 @@ def test_install_fish_integration_success(
     # Verify files were copied (6 files: completions, bootstrap, hooks, 3 functions)
     assert mock_copy.call_count == 6
 
+    printed = "\n".join(
+        str(call.args[0])
+        for call in mock_console.return_value.print.call_args_list
+        if call.args
+    )
+    assert str(fish_config / "conf.d" / "shoal.fish") in printed
+
 
 @patch("shoal.integrations.fish.installer.is_fish_installed")
 @patch("shoal.integrations.fish.installer.get_fish_config_dir")
