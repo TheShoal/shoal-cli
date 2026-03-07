@@ -87,3 +87,78 @@ def test_wt_cleanup_with_orphans(mock_dirs, tmp_path):
         assert "Orphaned worktrees" in result.stdout
         assert "orphan" in result.stdout
         mock_remove.assert_called_once()
+
+
+def test_wt_cleanup_cwd_fallback_no_sessions(mock_dirs, tmp_path, monkeypatch):
+    """CWD .worktrees/ is scanned even when DB has no sessions for that repo."""
+    repo_path = tmp_path / "repo"
+    wt_base = repo_path / ".worktrees"
+    wt_base.mkdir(parents=True)
+    orphan = wt_base / "stale-wt"
+    orphan.mkdir()
+
+    # No sessions in DB for repo_path — the for-sessions loop never visits it.
+    monkeypatch.chdir(repo_path)
+
+    with (
+        patch("shoal.core.tmux.has_session", return_value=True),
+        patch("typer.confirm", return_value=False),
+    ):
+        result = runner.invoke(app, ["cleanup"])
+        assert result.exit_code == 0
+        assert "Orphaned worktrees" in result.stdout
+        assert "stale-wt" in result.stdout
+
+
+def test_wt_cleanup_cwd_fallback_tracked_excluded(mock_dirs, tmp_path, monkeypatch):
+    """A tracked worktree inside CWD's .worktrees/ is NOT listed as an orphan."""
+    repo_path = tmp_path / "repo"
+    wt_base = repo_path / ".worktrees"
+    wt_base.mkdir(parents=True)
+    tracked_wt = wt_base / "tracked"
+    tracked_wt.mkdir()
+
+    async def setup():
+        # Session lives in a *different* repo but its worktree is in our .worktrees/
+        await create_session(
+            "s-tracked", "claude", str(tmp_path / "other-repo"),
+            worktree=str(tracked_wt),
+        )
+
+    asyncio.run(with_db(setup()))
+
+    monkeypatch.chdir(repo_path)
+
+    with patch("shoal.core.tmux.has_session", return_value=True):
+        result = runner.invoke(app, ["cleanup"])
+        assert result.exit_code == 0
+        assert "No orphaned worktrees found" in result.stdout
+
+
+def test_wt_cleanup_cwd_in_checked_repos_not_double_scanned(mock_dirs, tmp_path, monkeypatch):
+    """When a session already references CWD, the CWD fallback block is skipped."""
+    repo_path = tmp_path / "repo"
+    wt_base = repo_path / ".worktrees"
+    wt_base.mkdir(parents=True)
+    orphan = wt_base / "orphan"
+    orphan.mkdir()
+
+    async def setup():
+        # Session path == CWD → repo is added to checked_repos by the for-sessions loop.
+        await create_session("s-cwd", "claude", str(repo_path))
+
+    asyncio.run(with_db(setup()))
+
+    monkeypatch.chdir(repo_path)
+
+    with (
+        patch("shoal.core.tmux.has_session", return_value=True),
+        patch("typer.confirm", return_value=True),
+        patch("shoal.core.git.worktree_remove", return_value=True) as mock_remove,
+        patch("shoal.core.git.git_root", return_value=str(repo_path)),
+    ):
+        result = runner.invoke(app, ["cleanup"])
+        assert result.exit_code == 0
+        # The orphan is found exactly once — mock_remove called once proves no double-scan.
+        assert "Orphaned worktrees" in result.stdout
+        mock_remove.assert_called_once()
