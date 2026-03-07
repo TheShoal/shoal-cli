@@ -40,7 +40,7 @@ app = typer.Typer(
 def _version_callback(value: bool) -> None:
     if value:
         print(f"shoal {shoal.__version__}")
-        raise typer.Exit()
+        raise typer.Exit
 
 
 @app.callback()
