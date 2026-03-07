@@ -94,29 +94,66 @@ async def list_sessions_tool() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
+async def _session_status_single(session: str) -> dict[str, Any]:
+    from shoal.core.state import get_session, resolve_session
+
+    session_id = await resolve_session(session)
+    if not session_id:
+        raise ToolError(f"Session not found: {session}")
+
+    s = await get_session(session_id)
+    if not s:
+        raise ToolError(f"Session not found: {session}")
+
+    return {"name": s.name, "status": s.status.value}
+
+
 @mcp.tool(
     name="session_status",
-    description="Get aggregate status counts across all sessions.",
+    description=(
+        "Get aggregate status counts across all sessions, or the status of "
+        "specific sessions by name."
+    ),
     annotations={"readOnlyHint": True},
 )
-async def session_status_tool() -> dict[str, int]:
-    """Get aggregate counts of session statuses (total, running, waiting, etc.)."""
+async def session_status_tool(
+    session: str | list[str] | None = None,
+) -> dict[str, Any]:
+    """Get session status counts or per-session status.
+
+    Args:
+        session: Optional session name, ID, or list thereof. When omitted,
+                 returns aggregate counts across all sessions. When provided,
+                 returns status for the specified session(s).
+    """
     from shoal.core.state import list_sessions
 
-    sessions = await list_sessions()
-    counts: dict[str, int] = {
-        "total": len(sessions),
-        "running": 0,
-        "waiting": 0,
-        "error": 0,
-        "idle": 0,
-        "stopped": 0,
-        "unknown": 0,
-    }
-    for s in sessions:
-        key = s.status.value
-        counts[key] = counts.get(key, 0) + 1
-    return counts
+    if session is None:
+        sessions = await list_sessions()
+        counts: dict[str, Any] = {
+            "total": len(sessions),
+            "running": 0,
+            "waiting": 0,
+            "error": 0,
+            "idle": 0,
+            "stopped": 0,
+            "unknown": 0,
+        }
+        for s in sessions:
+            key = s.status.value
+            counts[key] = counts.get(key, 0) + 1
+        return counts
+
+    if isinstance(session, list):
+        results: dict[str, Any] = {}
+        for name in session:
+            try:
+                results[name] = await _session_status_single(name)
+            except ToolError as e:
+                results[name] = {"error": str(e)}
+        return {"results": results}
+
+    return await _session_status_single(session)
 
 
 # ---------------------------------------------------------------------------
@@ -171,24 +208,9 @@ async def session_info_tool(session: str) -> dict[str, Any]:
 _AUTO_ENTER_TOOLS: frozenset[str] = frozenset({"claude", "codex", "gemini", "pi"})
 
 
-@mcp.tool(
-    name="send_keys",
-    description=(
-        "Send keystrokes to a session's tmux pane. Use this to interact with agents. "
-        "Whether Enter is pressed depends on the session's tool profile — "
-        "override with the enter parameter if needed."
-    ),
-    annotations={"destructiveHint": True},
-)
-async def send_keys_tool(session: str, keys: str, enter: bool | None = None) -> dict[str, str]:
-    """Send keys to a session.
-
-    Args:
-        session: Session name or ID.
-        keys: The keystrokes to send (e.g., 'y' or 'ls -la').
-        enter: Whether to press Enter after keys. Auto-detected from tool
-               profile if not specified (True for claude/codex/gemini/pi).
-    """
+async def _send_keys_single(
+    session: str, keys: str, enter: bool | None
+) -> dict[str, str]:
     import asyncio
 
     from shoal.core import tmux
@@ -220,23 +242,44 @@ async def send_keys_tool(session: str, keys: str, enter: bool | None = None) -> 
     return {"message": f"Keys sent to session '{s.name}'"}
 
 
+@mcp.tool(
+    name="send_keys",
+    description=(
+        "Send keystrokes to a session's tmux pane. Use this to interact with agents. "
+        "Whether Enter is pressed depends on the session's tool profile — "
+        "override with the enter parameter if needed."
+    ),
+    annotations={"destructiveHint": True},
+)
+async def send_keys_tool(
+    session: str | list[str], keys: str, enter: bool | None = None
+) -> dict[str, Any]:
+    """Send keys to a session.
+
+    Args:
+        session: Session name, ID, or list thereof.
+        keys: The keystrokes to send (e.g., 'y' or 'ls -la').
+        enter: Whether to press Enter after keys. Auto-detected from tool
+               profile if not specified (True for claude/codex/gemini/pi).
+    """
+    if isinstance(session, list):
+        results: dict[str, Any] = {}
+        for name in session:
+            try:
+                results[name] = await _send_keys_single(name, keys, enter)
+            except ToolError as e:
+                results[name] = {"error": str(e)}
+        return {"results": results}
+
+    return await _send_keys_single(session, keys, enter)
+
+
 # ---------------------------------------------------------------------------
 # Tool: capture_pane
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool(
-    name="capture_pane",
-    description="Read last N lines from a session's terminal output.",
-    annotations={"readOnlyHint": True},
-)
-async def capture_pane_tool(session: str, lines: int = 20) -> dict[str, str]:
-    """Capture recent terminal output from a session's pane.
-
-    Args:
-        session: Session name or ID.
-        lines: Number of lines to capture (default: 20).
-    """
+async def _capture_pane_single(session: str, lines: int) -> dict[str, str]:
     from shoal.core import tmux
     from shoal.core.state import get_session, resolve_session
 
@@ -251,6 +294,32 @@ async def capture_pane_tool(session: str, lines: int = 20) -> dict[str, str]:
     pane_target = await tmux.async_preferred_pane(s.tmux_session, f"shoal:{s.id}")
     content = await tmux.async_capture_pane(pane_target, lines)
     return {"content": content}
+
+
+@mcp.tool(
+    name="capture_pane",
+    description="Read last N lines from a session's terminal output.",
+    annotations={"readOnlyHint": True},
+)
+async def capture_pane_tool(
+    session: str | list[str], lines: int = 20
+) -> dict[str, Any]:
+    """Capture recent terminal output from a session's pane.
+
+    Args:
+        session: Session name, ID, or list thereof.
+        lines: Number of lines to capture (default: 20).
+    """
+    if isinstance(session, list):
+        results: dict[str, Any] = {}
+        for name in session:
+            try:
+                results[name] = await _capture_pane_single(name, lines)
+            except ToolError as e:
+                results[name] = {"error": str(e)}
+        return {"results": results}
+
+    return await _capture_pane_single(session, lines)
 
 
 # ---------------------------------------------------------------------------
@@ -432,13 +501,9 @@ async def create_session_tool(
         raise ToolError(f"Invalid session configuration: {e}") from e
 
     if prompt and tool_cfg.input_mode == "keys":
-        import asyncio
-
         from shoal.core import tmux
 
-        # Brief delay to let the tool finish launching in the pane,
-        # then send the prompt with tool-profile delay between paste and Enter.
-        await asyncio.sleep(1)
+        await tmux.async_wait_for_ready(f"{session.tmux_session}:0.0", tool_cfg, timeout=5.0)
         await tmux.async_send_keys(session.tmux_session, prompt, delay=tool_cfg.send_keys_delay)
 
     return {
@@ -457,23 +522,11 @@ async def create_session_tool(
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool(
-    name="kill_session",
-    description="Kill a session and optionally remove its git worktree.",
-    annotations={"destructiveHint": True},
-)
-async def kill_session_tool(
+async def _kill_session_single(
     session: str,
     remove_worktree: bool = False,
     force: bool = False,
 ) -> dict[str, Any]:
-    """Kill a session.
-
-    Args:
-        session: Session name or ID.
-        remove_worktree: Also remove the git worktree and branch.
-        force: Force removal even if worktree has uncommitted changes.
-    """
     from shoal.core.state import get_session, resolve_session
     from shoal.services.lifecycle import DirtyWorktreeError, kill_session_lifecycle
 
@@ -510,6 +563,35 @@ async def kill_session_tool(
         "db_deleted": summary["db_deleted"],
         "journal_archived": summary["journal_archived"],
     }
+
+
+@mcp.tool(
+    name="kill_session",
+    description="Kill a session and optionally remove its git worktree.",
+    annotations={"destructiveHint": True},
+)
+async def kill_session_tool(
+    session: str | list[str],
+    remove_worktree: bool = False,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Kill a session.
+
+    Args:
+        session: Session name, ID, or list thereof.
+        remove_worktree: Also remove the git worktree and branch.
+        force: Force removal even if worktree has uncommitted changes.
+    """
+    if isinstance(session, list):
+        results: dict[str, Any] = {}
+        for name in session:
+            try:
+                results[name] = await _kill_session_single(name, remove_worktree, force)
+            except ToolError as e:
+                results[name] = {"error": str(e)}
+        return {"results": results}
+
+    return await _kill_session_single(session, remove_worktree, force)
 
 
 # ---------------------------------------------------------------------------

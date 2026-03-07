@@ -10,8 +10,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shlex
 import subprocess
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from shoal.models.config import ToolConfig
 
 logger = logging.getLogger("shoal.tmux")
 
@@ -248,3 +253,37 @@ async def async_pane_coordinates(target: str) -> tuple[str, str] | None:
 
 async def async_run_command(command: str) -> None:
     await asyncio.to_thread(run_command, command)
+
+
+async def async_wait_for_ready(
+    pane: str,
+    tool_cfg: ToolConfig,
+    timeout: float = 5.0,  # noqa: ASYNC109
+    poll_interval: float = 0.1,
+) -> bool:
+    """Poll pane content until a tool's busy or waiting pattern appears or timeout.
+
+    Args:
+        pane: Tmux pane target to capture.
+        tool_cfg: Tool config containing detection patterns.
+        timeout: Maximum seconds to wait before giving up.
+        poll_interval: Seconds between capture attempts.
+
+    Returns:
+        True if a ready signal was detected, False if timeout reached.
+        In both cases the caller should proceed — False means proceed anyway.
+    """
+    all_patterns = tool_cfg.detection.busy_patterns + tool_cfg.detection.waiting_patterns
+    if not all_patterns:
+        return False
+
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        content = await asyncio.to_thread(capture_pane, pane)
+        for pat in all_patterns:
+            if re.search(pat, content, re.IGNORECASE):
+                return True
+        await asyncio.sleep(poll_interval)
+
+    return False  # timeout — proceed anyway

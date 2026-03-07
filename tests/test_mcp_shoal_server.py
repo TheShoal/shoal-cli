@@ -1063,3 +1063,146 @@ async def test_lifespan_init_cleanup() -> None:
         async with _lifespan(None) as ctx:
             assert ctx == {}
         mock_reset.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# async_wait_for_ready
+# ---------------------------------------------------------------------------
+
+
+async def test_async_wait_for_ready_detects_pattern() -> None:
+    """Returns True when a busy_pattern appears in pane content."""
+    from unittest.mock import patch
+
+    from shoal.core.tmux import async_wait_for_ready
+    from shoal.models.config import DetectionPatterns, ToolConfig
+
+    cfg = ToolConfig(
+        name="pi",
+        command="pi",
+        detection=DetectionPatterns(busy_patterns=[r"\$\s"]),
+    )
+    with patch("shoal.core.tmux.capture_pane", return_value="user@host:~$ ") as mock_cap:
+        result = await async_wait_for_ready("test-session:0.0", cfg, timeout=1.0)
+
+    assert result is True
+    mock_cap.assert_called()
+
+
+async def test_async_wait_for_ready_timeout() -> None:
+    """Returns False after timeout when no pattern matches content."""
+    from unittest.mock import patch
+
+    from shoal.core.tmux import async_wait_for_ready
+    from shoal.models.config import DetectionPatterns, ToolConfig
+
+    cfg = ToolConfig(
+        name="pi",
+        command="pi",
+        detection=DetectionPatterns(busy_patterns=["THIS_PATTERN_NEVER_MATCHES_XYZ"]),
+    )
+    with patch("shoal.core.tmux.capture_pane", return_value="launching..."):
+        result = await async_wait_for_ready(
+            "test-session:0.0", cfg, timeout=0.2, poll_interval=0.05
+        )
+
+    assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Batch operations
+# ---------------------------------------------------------------------------
+
+
+async def test_capture_pane_batch_returns_results_dict() -> None:
+    """Batch capture_pane with a list of sessions returns {results: {name: data}}."""
+    from shoal.services.mcp_shoal_server import capture_pane_tool
+
+    s1 = _make_session(name="alpha", session_id="id1")
+    s2 = _make_session(name="beta", session_id="id2")
+    with (
+        patch(
+            "shoal.core.state.resolve_session",
+            new_callable=AsyncMock,
+            side_effect=["id1", "id2"],
+        ),
+        patch(
+            "shoal.core.state.get_session",
+            new_callable=AsyncMock,
+            side_effect=[s1, s2],
+        ),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            side_effect=["%1", "%2"],
+        ),
+        patch(
+            "shoal.core.tmux.async_capture_pane",
+            new_callable=AsyncMock,
+            side_effect=["output-alpha", "output-beta"],
+        ),
+    ):
+        result = await capture_pane_tool(session=["alpha", "beta"])
+
+    assert "results" in result
+    assert result["results"]["alpha"] == {"content": "output-alpha"}
+    assert result["results"]["beta"] == {"content": "output-beta"}
+
+
+async def test_capture_pane_single_backwards_compat() -> None:
+    """Single string input returns same shape as before — no 'results' wrapper."""
+    from shoal.services.mcp_shoal_server import capture_pane_tool
+
+    s = _make_session(name="worker-1")
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane", new_callable=AsyncMock, return_value="%1"
+        ),
+        patch(
+            "shoal.core.tmux.async_capture_pane", new_callable=AsyncMock, return_value="hello"
+        ),
+    ):
+        result = await capture_pane_tool(session="worker-1")
+
+    assert result == {"content": "hello"}
+    assert "results" not in result
+
+
+async def test_kill_session_batch_kills_all() -> None:
+    """Batch kill_session with a list kills all named sessions."""
+    from shoal.services.mcp_shoal_server import kill_session_tool
+
+    s1 = _make_session(name="alpha", session_id="id1")
+    s2 = _make_session(name="beta", session_id="id2")
+    summary = {
+        "tmux_killed": True,
+        "worktree_removed": False,
+        "branch_deleted": False,
+        "db_deleted": True,
+        "journal_archived": False,
+    }
+    with (
+        patch(
+            "shoal.core.state.resolve_session",
+            new_callable=AsyncMock,
+            side_effect=["id1", "id2"],
+        ),
+        patch(
+            "shoal.core.state.get_session",
+            new_callable=AsyncMock,
+            side_effect=[s1, s2],
+        ),
+        patch(
+            "shoal.services.lifecycle.kill_session_lifecycle",
+            new_callable=AsyncMock,
+            return_value=summary,
+        ) as mock_kill,
+    ):
+        result = await kill_session_tool(session=["alpha", "beta"])
+
+    assert "results" in result
+    assert result["results"]["alpha"]["session"] == "alpha"
+    assert result["results"]["beta"]["session"] == "beta"
+    assert mock_kill.call_count == 2
