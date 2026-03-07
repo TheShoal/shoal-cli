@@ -85,6 +85,24 @@
   border-radius: 1rem;
 }
 
+.md-typeset ul,
+.md-typeset ol {
+  padding-left: 1.3rem;
+}
+
+.md-typeset li + li {
+  margin-top: 0.42rem;
+}
+
+.md-typeset ul li::marker {
+  color: var(--shoal-coral);
+}
+
+.md-typeset ol li::marker {
+  color: var(--shoal-deep);
+  font-weight: 700;
+}
+
 .md-sidebar--primary .md-nav__title,
 .md-sidebar--secondary .md-nav__title {
   font-family: "Space Grotesk", sans-serif;
@@ -116,6 +134,10 @@
 
 .md-nav--secondary .md-nav__item .md-nav__link {
   line-height: 1.25;
+}
+
+.md-nav--secondary .md-nav .md-nav {
+  display: none;
 }
 
 .md-content__inner {
