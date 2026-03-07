@@ -37,6 +37,12 @@ app = typer.Typer(
 )
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        print(f"shoal {shoal.__version__}")
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
     debug: bool = typer.Option(False, "--debug", help="Enable DEBUG-level logging to stderr."),
@@ -45,6 +51,13 @@ def main(
     ),
     log_file: str | None = typer.Option(None, "--log-file", help="Log to file instead of stderr."),
     json_logs: bool = typer.Option(False, "--json-logs", help="Emit logs as JSON lines."),
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Print version and exit.",
+    ),
 ) -> None:
     """Orchestrate AI coding agents."""
     from shoal.core.logging_config import configure_logging
