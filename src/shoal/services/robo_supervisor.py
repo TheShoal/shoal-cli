@@ -258,7 +258,8 @@ class RoboSupervisor:
 
         # Send prompt to escalation agent
         logger.info("[%s] Sending escalation prompt to session '%s'", session.id, esc_name)
-        await tmux.async_send_keys(esc_pane_target, prompt, enter=True)
+        keys_payload = self._escalation_keys_payload(prompt, esc_session.id, esc_session.tool)
+        await tmux.async_send_keys(esc_pane_target, keys_payload, enter=True)
         await self._journal_decision(
             session,
             "escalated-to-llm",
@@ -299,6 +300,34 @@ class RoboSupervisor:
                 "declined-by-llm",
                 f"LLM agent '{esc_name}' declined: {response.strip()}",
             )
+
+    def _escalation_keys_payload(
+        self,
+        prompt: str,
+        esc_session_id: str,
+        esc_tool: str,
+    ) -> str:
+        """Return the string to send via ``send_keys`` to the escalation agent.
+
+        For tools that support file-based prompt delivery (``input_mode="arg"``
+        with a ``prompt_file_prefix``, e.g. omp's ``@`` syntax), the prompt is
+        written to a file and the file reference is returned instead of the raw
+        text.  This avoids garbling long, multi-line prompts during tmux paste.
+
+        For all other tools the raw prompt is returned unchanged.
+        """
+        try:
+            esc_tool_cfg = load_tool_config(esc_tool)
+        except FileNotFoundError:
+            return prompt
+
+        if esc_tool_cfg.input_mode == "arg" and esc_tool_cfg.prompt_file_prefix:
+            from shoal.core.prompt_delivery import write_prompt_file
+
+            prompt_path = write_prompt_file(esc_session_id, prompt)
+            return f"{esc_tool_cfg.prompt_file_prefix}{prompt_path}"
+
+        return prompt
 
     def _build_escalation_prompt(
         self,

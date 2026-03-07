@@ -13,6 +13,11 @@ name = "omp"
 command = "omp"
 icon = "🥧"
 status_provider = "pi"
+# Prompt delivery: write prompt to a file and pass "@/path/to/file.md" as a
+# positional argument.  omp's native "@file" syntax expands the file contents
+# inline before the LLM sees it, giving clean multi-line delivery.
+input_mode = "arg"
+prompt_file_prefix = "@"
 
 [detection]
 # omp uses a TUI with differential rendering; patterns matched against pane output.

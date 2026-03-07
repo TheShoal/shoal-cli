@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastmcp.exceptions import ToolError
 
+from shoal.models.config import ToolConfig
 from shoal.models.state import SessionState, SessionStatus
 
 
@@ -613,7 +615,7 @@ def _mock_create_deps(
         ),
         "tool_cfg": patch(
             "shoal.core.config.load_tool_config",
-            return_value=MagicMock(command="claude"),
+            return_value=ToolConfig(name="claude", command="claude", input_mode="keys"),
         ),
         "find": patch(
             "shoal.core.state.find_by_name",
@@ -786,6 +788,203 @@ async def test_create_session_template_not_found() -> None:
         pytest.raises(ToolError, match="Template not found"),
     ):
         await create_session_tool(name="test", template="missing")
+
+
+async def test_create_session_keys_prompt_uses_send_keys() -> None:
+    """When input_mode='keys', prompt is delivered via send_keys after launch."""
+    from shoal.services.mcp_shoal_server import create_session_tool
+
+    session = _make_session(name="new-session", session_id="new12345")
+    keys_tool_cfg = ToolConfig(name="pi", command="pi", input_mode="keys")
+    with (
+        patch("shoal.core.git.is_git_repo", return_value=True),
+        patch("shoal.core.git.git_root", return_value="/tmp/project"),
+        patch("shoal.core.git.current_branch", return_value="main"),
+        patch("shoal.core.config.ensure_dirs"),
+        patch(
+            "shoal.core.config.load_config",
+            return_value=MagicMock(
+                general=MagicMock(default_tool="pi"),
+                tmux=MagicMock(startup_commands=[]),
+            ),
+        ),
+        patch("shoal.core.config.load_tool_config", return_value=keys_tool_cfg),
+        patch("shoal.core.state.find_by_name", new_callable=AsyncMock, return_value=None),
+        patch(
+            "shoal.services.lifecycle.create_session_lifecycle",
+            new_callable=AsyncMock,
+            return_value=session,
+        ) as mock_create,
+        patch("asyncio.sleep", new_callable=AsyncMock),
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        result = await create_session_tool(
+            name="new-session", path="/tmp/project", prompt="do the thing"
+        )
+
+    assert result["name"] == "new-session"
+    # tool_command passed to lifecycle should be the bare command (no prompt baked in)
+    call_kwargs = mock_create.call_args.kwargs  # type: ignore[attr-defined]
+    assert call_kwargs["tool_command"] == "pi"
+    # send_keys must have been called with the prompt
+    mock_send.assert_called_once()
+    assert mock_send.call_args.args[1] == "do the thing"
+
+
+async def test_create_session_arg_mode_prompt_baked_into_command() -> None:
+    """When input_mode='arg', prompt is baked into tool_command; send_keys skipped."""
+    from shoal.services.mcp_shoal_server import create_session_tool
+
+    session = _make_session(name="new-session", session_id="new12345")
+    arg_tool_cfg = ToolConfig(name="claude", command="claude", input_mode="arg")
+    with (
+        patch("shoal.core.git.is_git_repo", return_value=True),
+        patch("shoal.core.git.git_root", return_value="/tmp/project"),
+        patch("shoal.core.git.current_branch", return_value="main"),
+        patch("shoal.core.config.ensure_dirs"),
+        patch(
+            "shoal.core.config.load_config",
+            return_value=MagicMock(
+                general=MagicMock(default_tool="claude"),
+                tmux=MagicMock(startup_commands=[]),
+            ),
+        ),
+        patch("shoal.core.config.load_tool_config", return_value=arg_tool_cfg),
+        patch("shoal.core.state.find_by_name", new_callable=AsyncMock, return_value=None),
+        patch(
+            "shoal.services.lifecycle.create_session_lifecycle",
+            new_callable=AsyncMock,
+            return_value=session,
+        ) as mock_create,
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        result = await create_session_tool(
+            name="new-session", path="/tmp/project", prompt="fix the issue"
+        )
+
+    assert result["name"] == "new-session"
+    # Prompt must be baked into the launch command
+    call_kwargs = mock_create.call_args.kwargs  # type: ignore[attr-defined]
+    assert "fix the issue" in call_kwargs["tool_command"]
+    assert call_kwargs["tool_command"].startswith("claude")
+    # send_keys must NOT have been called for native delivery
+    mock_send.assert_not_called()
+
+
+async def test_create_session_flag_mode_prompt_baked_into_command() -> None:
+    """When input_mode='flag', prompt is baked via --prompt flag; send_keys skipped."""
+    from shoal.services.mcp_shoal_server import create_session_tool
+
+    session = _make_session(name="new-session", session_id="new12345")
+    flag_tool_cfg = ToolConfig(
+        name="opencode", command="opencode", input_mode="flag", prompt_flag="--prompt"
+    )
+    with (
+        patch("shoal.core.git.is_git_repo", return_value=True),
+        patch("shoal.core.git.git_root", return_value="/tmp/project"),
+        patch("shoal.core.git.current_branch", return_value="main"),
+        patch("shoal.core.config.ensure_dirs"),
+        patch(
+            "shoal.core.config.load_config",
+            return_value=MagicMock(
+                general=MagicMock(default_tool="opencode"),
+                tmux=MagicMock(startup_commands=[]),
+            ),
+        ),
+        patch("shoal.core.config.load_tool_config", return_value=flag_tool_cfg),
+        patch("shoal.core.state.find_by_name", new_callable=AsyncMock, return_value=None),
+        patch(
+            "shoal.services.lifecycle.create_session_lifecycle",
+            new_callable=AsyncMock,
+            return_value=session,
+        ) as mock_create,
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        result = await create_session_tool(
+            name="new-session", path="/tmp/project", prompt="write tests"
+        )
+
+    assert result["name"] == "new-session"
+    call_kwargs = mock_create.call_args.kwargs  # type: ignore[attr-defined]
+    assert "--prompt" in call_kwargs["tool_command"]
+    assert "write tests" in call_kwargs["tool_command"]
+    mock_send.assert_not_called()
+
+
+async def test_create_session_omp_prompt_written_to_file(tmp_path: Path) -> None:
+    """omp (arg+prefix mode) writes prompt file and passes @/path in tool_command."""
+    from shoal.services.mcp_shoal_server import create_session_tool
+
+    session = _make_session(name="new-session", session_id="new12345")
+    omp_tool_cfg = ToolConfig(name="omp", command="omp", input_mode="arg", prompt_file_prefix="@")
+    with (
+        patch("shoal.core.git.is_git_repo", return_value=True),
+        patch("shoal.core.git.git_root", return_value="/tmp/project"),
+        patch("shoal.core.git.current_branch", return_value="main"),
+        patch("shoal.core.config.ensure_dirs"),
+        patch(
+            "shoal.core.config.load_config",
+            return_value=MagicMock(
+                general=MagicMock(default_tool="omp"),
+                tmux=MagicMock(startup_commands=[]),
+            ),
+        ),
+        patch("shoal.core.config.load_tool_config", return_value=omp_tool_cfg),
+        patch("shoal.core.state.find_by_name", new_callable=AsyncMock, return_value=None),
+        patch(
+            "shoal.services.lifecycle.create_session_lifecycle",
+            new_callable=AsyncMock,
+            return_value=session,
+        ) as mock_create,
+        patch("shoal.core.prompt_delivery._prompts_dir", return_value=tmp_path),
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        result = await create_session_tool(
+            name="new-session", path="/tmp/project", prompt="build the thing"
+        )
+
+    assert result["name"] == "new-session"
+    call_kwargs = mock_create.call_args.kwargs  # type: ignore[attr-defined]
+    tool_cmd = call_kwargs["tool_command"]
+    assert tool_cmd.startswith("omp @")
+    # The file referenced in the command should contain the prompt
+    file_path = tool_cmd[len("omp @") :]
+    assert Path(file_path).read_text(encoding="utf-8") == "build the thing"
+    mock_send.assert_not_called()
+
+
+async def test_create_session_no_prompt_no_send_keys() -> None:
+    """When no prompt is given, send_keys is never called regardless of input_mode."""
+    from shoal.services.mcp_shoal_server import create_session_tool
+
+    session = _make_session(name="new-session", session_id="new12345")
+    with (
+        patch("shoal.core.git.is_git_repo", return_value=True),
+        patch("shoal.core.git.git_root", return_value="/tmp/project"),
+        patch("shoal.core.git.current_branch", return_value="main"),
+        patch("shoal.core.config.ensure_dirs"),
+        patch(
+            "shoal.core.config.load_config",
+            return_value=MagicMock(
+                general=MagicMock(default_tool="pi"),
+                tmux=MagicMock(startup_commands=[]),
+            ),
+        ),
+        patch(
+            "shoal.core.config.load_tool_config",
+            return_value=ToolConfig(name="pi", command="pi", input_mode="keys"),
+        ),
+        patch("shoal.core.state.find_by_name", new_callable=AsyncMock, return_value=None),
+        patch(
+            "shoal.services.lifecycle.create_session_lifecycle",
+            new_callable=AsyncMock,
+            return_value=session,
+        ),
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+    ):
+        await create_session_tool(name="new-session", path="/tmp/project")
+
+    mock_send.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

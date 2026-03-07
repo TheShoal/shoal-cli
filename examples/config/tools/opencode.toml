@@ -7,6 +7,10 @@ name = "opencode"
 command = "opencode"
 icon = "🌐"
 status_provider = "opencode_compat"
+# Prompt delivery: --prompt flag delivers the initial message to the TUI at
+# launch time, avoiding the post-launch send_keys race on startup.
+input_mode = "flag"
+prompt_flag = "--prompt"
 
 [detection]
 # OpenCode uses a TUI with a bordered input box

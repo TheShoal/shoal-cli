@@ -13,12 +13,15 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 import shoal
+
+if TYPE_CHECKING:
+    from shoal.models.config import ToolConfig
 
 logger = logging.getLogger("shoal.mcp_server")
 
@@ -279,6 +282,30 @@ async def read_history_tool(session: str, limit: int = 50) -> list[dict[str, Any
 
 
 # ---------------------------------------------------------------------------
+# Prompt delivery helper
+# ---------------------------------------------------------------------------
+
+
+def _tool_command_for_session(
+    tool_cfg: ToolConfig,
+    prompt: str | None,
+    session_id: str,
+) -> str:
+    """Return the tool launch command, with prompt baked in for native modes.
+
+    For ``input_mode = "keys"`` (or when there is no prompt) the plain base
+    command is returned unchanged so the existing post-launch ``send_keys``
+    path fires as before.
+    """
+    if not prompt or tool_cfg.input_mode == "keys":
+        return tool_cfg.command
+
+    from shoal.core.prompt_delivery import build_tool_command_with_prompt
+
+    return build_tool_command_with_prompt(tool_cfg, prompt, session_id)
+
+
+# ---------------------------------------------------------------------------
 # Tool: create_session
 # ---------------------------------------------------------------------------
 
@@ -389,7 +416,7 @@ async def create_session_tool(
             wt_path=wt_path,
             work_dir=work_dir,
             branch_name=branch_name,
-            tool_command=tool_cfg.command,
+            tool_command=_tool_command_for_session(tool_cfg, prompt, name),
             startup_commands=cfg.tmux.startup_commands,
             template_cfg=template_cfg,
             worktree_name=worktree or "",
@@ -404,7 +431,7 @@ async def create_session_tool(
     except ValueError as e:
         raise ToolError(f"Invalid session configuration: {e}") from e
 
-    if prompt:
+    if prompt and tool_cfg.input_mode == "keys":
         import asyncio
 
         from shoal.core import tmux

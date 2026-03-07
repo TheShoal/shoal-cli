@@ -10,6 +10,9 @@ command = "claude"
 icon = "🤖"
 # Status provider adapter (pi, opencode_compat, regex)
 status_provider = "regex"
+# Prompt delivery: "arg" passes the prompt as a positional argument at launch
+# time, which avoids the post-launch send_keys race on startup.
+input_mode = "arg"
 
 [detection]
 # Patterns matched against tmux pane output to detect agent status.

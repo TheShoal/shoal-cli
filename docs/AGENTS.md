@@ -7,6 +7,22 @@ Shoal maintains first-class support for three agents. This document records thei
 
 ---
 
+## Prompt delivery overview
+
+Shoal uses each tool's native input mechanism for initial session prompts rather than a generic `send_keys` post-launch sequence. The mechanism is configured via `input_mode` in the tool profile:
+
+| `input_mode` | Mechanism | Tools |
+|---|---|---|
+| `"keys"` | `send_keys` after launch (legacy fallback) | unknown/custom tools, mid-session turns |
+| `"arg"` | Positional CLI argument at launch; if `prompt_file_prefix` is set, writes to `~/.local/share/shoal/prompts/<name>.md` first | `claude`, `omp`, `pi` |
+| `"flag"` | Named flag (`prompt_flag`) at launch | `opencode` |
+
+Implementation: `src/shoal/core/prompt_delivery.py` — `build_tool_command_with_prompt()` and `write_prompt_file()`.
+
+Prompt files written to disk are **never deleted** — they serve as an audit trail.
+
+---
+
 ## claude (Claude Code)
 
 **Binary:** `claude`  
@@ -54,7 +70,7 @@ claude "Implement feature X per ROADMAP.md"
 echo "Summarise the API" | claude -p --input-format text
 ```
 
-> **Shoal implication:** `create_session` sends the initial prompt via `send_keys` after the TUI launches. A file-based delivery mechanism is not applicable in TUI mode for claude; the delay (`send_keys_delay`) remains the relevant knob for Enter-racing issues.
+> **Shoal implication:** `create_session` passes the initial prompt as a positional argument at launch time (`input_mode = "arg"` in the tool profile). This eliminates the post-launch `send_keys` race for initial prompts. Mid-session interactions still use `send_keys`. No file mechanism is used for `claude`; the prompt is inlined directly into the launch command via `shlex.quote`.
 
 ### `--file` flag — not a prompt file
 
@@ -155,7 +171,7 @@ omp "@/tmp/shoal-abc123.md"
 
 This is the **recommended file-based input mechanism** for `omp`. The file is kept on disk as an audit trail; Shoal is responsible for writing it before session launch.
 
-> **Shoal implication:** `create_session` can write the prompt to a tmp file and pass `@/tmp/shoal-<id>.md` as the startup argument instead of relying on `send_keys` post-launch. This eliminates the Enter-racing problem entirely for initial prompts. Mid-session `send_keys` still applies for interactive turns.
+> **Shoal implication:** `create_session` writes the prompt to `~/.local/share/shoal/prompts/<session-name>.md` and passes `@<path>` as the startup argument (`input_mode = "arg"`, `prompt_file_prefix = "@"` in the tool profile). This eliminates the Enter-racing problem entirely for initial prompts. The file is kept on disk as an audit trail. Mid-session `send_keys` still applies for interactive turns. Robo escalation uses the same file-path mechanism to avoid garbling long multi-line prompts.
 
 ### Session continuity
 
@@ -243,7 +259,7 @@ opencode run -f /tmp/shoal-prompt.txt "See attached"
 
 The `run -f` flag attaches files as message context, not as a replacement for the prompt text. There is no TUI-mode `--file` equivalent that reads a prompt from disk.
 
-> **Shoal implication:** `--prompt` is the clean path for TUI initial prompts — it avoids `send_keys` entirely for session startup. Use `opencode --prompt "..."` instead of send-keys post-launch. The `send_keys_delay` is still relevant for mid-session interactions.
+> **Shoal implication:** `create_session` passes `--prompt "..."` at launch time (`input_mode = "flag"`, `prompt_flag = "--prompt"` in the tool profile), avoiding `send_keys` entirely for session startup. Mid-session interactions still use `send_keys`.
 
 ### Session continuity
 
@@ -282,7 +298,7 @@ Shoal's `config_file = ".opencode.json"` in the tool profile is used by `shoal m
 |---|---|---|---|
 | **Binary** | `claude` | `omp` | `opencode` |
 | **TUI initial prompt** | positional arg | positional arg | `--prompt` flag |
-| **File-based prompt** | not supported in TUI | `@/tmp/file.md` (native) | not supported in TUI |
+| **File-based prompt** | not supported in TUI | `@/path/to/file.md` (native) | not supported in TUI |
 | **Non-interactive** | `-p` / `--print` | `-p` / `--print` | `opencode run` |
 | **Session continue** | `-c` / `--continue` | `-c` / `--continue` | `-c` / `--continue` |
 | **Session resume** | `-r` / `--resume [id]` | `-r [id-prefix\|path]` | `-s <id>` |
@@ -290,6 +306,7 @@ Shoal's `config_file = ".opencode.json"` in the tool profile is used by `shoal m
 | **Skip permissions** | `--dangerously-skip-permissions` | n/a | n/a |
 | **Status provider** | `regex` | `pi` | `opencode_compat` |
 | **Auto-enter (send_keys)** | yes | yes | no |
+| **Shoal `input_mode`** | `"arg"` | `"arg"` + `prompt_file_prefix="@"` | `"flag"` + `prompt_flag="--prompt"` |
 
 ---
 
