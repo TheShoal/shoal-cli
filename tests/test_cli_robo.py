@@ -128,7 +128,7 @@ def test_robo_watch_shows_config(mock_dirs):
     def _close_coro(coro: object) -> None:
         if hasattr(coro, "close"):
             coro.close()  # type: ignore[call-arg]
-        return None
+        return
 
     with patch("shoal.cli.robo.asyncio.run", side_effect=_close_coro):
         result = runner.invoke(app, ["watch", "watch-me"])
@@ -146,7 +146,7 @@ def test_robo_watch_default_profile(mock_dirs):
     def _close_coro(coro: object) -> None:
         if hasattr(coro, "close"):
             coro.close()  # type: ignore[call-arg]
-        return None
+        return
 
     with patch("shoal.cli.robo.asyncio.run", side_effect=_close_coro):
         result = runner.invoke(app, ["watch"])
