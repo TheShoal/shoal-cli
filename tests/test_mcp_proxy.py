@@ -31,7 +31,7 @@ def test_mcp_proxy_socket_not_found(tmp_path: object, caplog: pytest.LogCaptureF
     with (
         caplog.at_level(logging.ERROR, logger="shoal.mcp_proxy"),
         patch.object(sys, "argv", ["shoal-mcp-proxy", "test-server"]),
-        patch("shoal.services.mcp_proxy.state_dir", return_value=state),
+        patch("shoal.services.mcp_proxy.data_dir", return_value=state),
     ):
         with pytest.raises(SystemExit) as exc_info:
             main()
@@ -56,7 +56,7 @@ def test_mcp_proxy_runs_bridge(tmp_path: object) -> None:
 
     with (
         patch.object(sys, "argv", ["shoal-mcp-proxy", "test-server"]),
-        patch("shoal.services.mcp_proxy.state_dir", return_value=state),
+        patch("shoal.services.mcp_proxy.data_dir", return_value=state),
         patch("shoal.services.mcp_proxy._run_bridge") as mock_bridge,
         patch("shoal.services.mcp_proxy.asyncio.run") as mock_run,
     ):

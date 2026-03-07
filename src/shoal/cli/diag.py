@@ -8,13 +8,13 @@ import os
 import typer
 from rich.console import Console
 
-from shoal.core.config import runtime_dir, state_dir
+from shoal.core.config import data_dir, state_dir
 from shoal.core.theme import Icons, Symbols, create_panel, create_table
 
 
 def _check_db() -> tuple[bool, str]:
     """Check if the SQLite database file exists and return its size."""
-    db_path = state_dir() / "shoal.db"
+    db_path = data_dir() / "shoal.db"
     if not db_path.exists():
         return False, "not found"
     size_kb = db_path.stat().st_size / 1024
@@ -23,7 +23,7 @@ def _check_db() -> tuple[bool, str]:
 
 def _check_watcher() -> tuple[bool, str]:
     """Check if the watcher PID file exists and the process is alive."""
-    pid_file = runtime_dir() / "watcher.pid"
+    pid_file = state_dir() / "watcher.pid"
     if not pid_file.exists():
         return False, "not running"
     try:
@@ -58,7 +58,7 @@ def _check_tmux() -> tuple[bool, str]:
 
 def _check_mcp_sockets() -> tuple[bool, str]:
     """Count active MCP sockets."""
-    socket_dir = state_dir() / "mcp-pool" / "sockets"
+    socket_dir = data_dir() / "mcp-pool" / "sockets"
     if not socket_dir.exists():
         return True, "0 sockets"
     sockets = list(socket_dir.glob("*.sock"))

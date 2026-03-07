@@ -247,7 +247,7 @@ async def _step_write_journal(ctx: TutorialContext) -> None:
 
 async def _step_run_diagnostics(ctx: TutorialContext) -> None:
     """Step 5: Run diagnostics."""
-    from shoal.core.config import config_dir, state_dir
+    from shoal.core.config import config_dir, data_dir
 
     console.print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Run Diagnostics[/bold]"))
     console.print("[dim]Health checks for all Shoal components.[/dim]")
@@ -258,7 +258,7 @@ async def _step_run_diagnostics(ctx: TutorialContext) -> None:
 
     checks: list[tuple[str, bool, str]] = []
 
-    db_path = state_dir() / "shoal.db"
+    db_path = data_dir() / "shoal.db"
     if db_path.exists():
         size_kb = db_path.stat().st_size / 1024
         checks.append(("database", True, f"{size_kb:.1f} KB"))

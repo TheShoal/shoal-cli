@@ -418,7 +418,7 @@ class TestMcpCleanup:
         (pid_dir / "dead-server.pid").write_text("99999")
 
         with (
-            patch("shoal.services.mcp_pool.state_dir", return_value=tmp_state),
+            patch("shoal.services.mcp_pool.data_dir", return_value=tmp_state),
             patch("shoal.services.mcp_pool.is_mcp_running", return_value=False),
         ):
             cleaned = reconcile_mcp_pool()
@@ -438,7 +438,7 @@ class TestMcpCleanup:
         (pid_dir / "running-server.pid").write_text("12345")
 
         with (
-            patch("shoal.services.mcp_pool.state_dir", return_value=tmp_state),
+            patch("shoal.services.mcp_pool.data_dir", return_value=tmp_state),
             patch("shoal.services.mcp_pool.is_mcp_running", return_value=True),
         ):
             cleaned = reconcile_mcp_pool()
@@ -455,7 +455,7 @@ class TestMcpCleanup:
         # Orphaned socket (no PID file)
         (socket_dir / "orphan.sock").touch()
 
-        with patch("shoal.services.mcp_pool.state_dir", return_value=tmp_state):
+        with patch("shoal.services.mcp_pool.data_dir", return_value=tmp_state):
             cleaned = reconcile_mcp_pool()
         assert "orphan" in cleaned
         assert not (socket_dir / "orphan.sock").exists()

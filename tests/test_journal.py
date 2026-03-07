@@ -35,10 +35,10 @@ from shoal.core.journal import (
 
 @pytest.fixture()
 def journals_dir(tmp_path: Path) -> Path:
-    """Create a temporary journals directory and patch state_dir."""
+    """Create a temporary journals directory and patch data_dir."""
     jdir = tmp_path / "journals"
     jdir.mkdir()
-    with patch("shoal.core.journal.state_dir", return_value=tmp_path):
+    with patch("shoal.core.journal.data_dir", return_value=tmp_path):
         yield jdir
 
 

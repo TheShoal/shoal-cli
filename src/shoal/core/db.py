@@ -42,10 +42,10 @@ class ShoalDB:
         """Get or create the singleton database instance."""
         if cls._instance is None:
             if db_path is None:
-                from shoal.core.config import ensure_dirs, state_dir
+                from shoal.core.config import data_dir, ensure_dirs
 
                 ensure_dirs()
-                db_path = state_dir() / "shoal.db"
+                db_path = data_dir() / "shoal.db"
             cls._instance = cls(db_path)
         return cls._instance
 

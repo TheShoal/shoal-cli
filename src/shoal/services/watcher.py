@@ -11,7 +11,7 @@ import subprocess
 from datetime import UTC, datetime
 
 from shoal.core import tmux
-from shoal.core.config import ensure_dirs, load_tool_config, runtime_dir
+from shoal.core.config import ensure_dirs, load_tool_config, state_dir
 from shoal.core.detection import detect_status
 from shoal.core.notify import notify
 from shoal.core.state import list_sessions, update_session
@@ -84,7 +84,7 @@ class Watcher:
         """Main loop with signal handling + PID file."""
         ensure_dirs()
 
-        log_file = runtime_dir() / "logs" / "watcher.log"
+        log_file = state_dir() / "logs" / "watcher.log"
         handler = logging.FileHandler(str(log_file))
         handler.setFormatter(
             logging.Formatter(
@@ -100,7 +100,7 @@ class Watcher:
         shoal_logger.setLevel(logging.INFO)
         shoal_logger.addHandler(handler)
 
-        pid_file = runtime_dir() / "watcher.pid"
+        pid_file = state_dir() / "watcher.pid"
         pid_file.write_text(str(os.getpid()))
 
         logger.info("Watcher started (pid: %d)", os.getpid())

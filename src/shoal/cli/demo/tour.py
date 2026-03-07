@@ -14,7 +14,7 @@ from pathlib import Path
 from rich.rule import Rule
 
 from shoal.cli.demo import console
-from shoal.core.config import config_dir, state_dir, templates_dir
+from shoal.core.config import config_dir, data_dir, templates_dir
 from shoal.core.db import with_db
 from shoal.core.state import list_sessions
 from shoal.core.theme import (
@@ -321,7 +321,7 @@ async def step_diagnostics() -> TourResult:
     checks: list[tuple[str, bool, str]] = []
 
     # DB check
-    db_path = state_dir() / "shoal.db"
+    db_path = data_dir() / "shoal.db"
     if db_path.exists():
         size_kb = db_path.stat().st_size / 1024
         checks.append(("database", True, f"{size_kb:.1f} KB"))
@@ -333,7 +333,7 @@ async def step_diagnostics() -> TourResult:
     checks.append(("tmux", tmux_found, "installed" if tmux_found else "not found"))
 
     # MCP socket check
-    socket_dir = state_dir() / "mcp-pool" / "sockets"
+    socket_dir = data_dir() / "mcp-pool" / "sockets"
     if socket_dir.exists():
         sockets = list(socket_dir.glob("*.sock"))
         checks.append(("mcp sockets", True, f"{len(sockets)} active"))

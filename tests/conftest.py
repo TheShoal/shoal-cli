@@ -159,7 +159,7 @@ def tmp_runtime(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
-    """Patch config_dir(), state_dir(), and runtime_dir() to use temp directories."""
+    """Patch config_dir(), data_dir(), and state_dir() to use temp directories."""
     from shoal.core.config import load_config
     from shoal.core.db import ShoalDB
 
@@ -171,21 +171,21 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
     asyncio.run(ShoalDB.reset_instance())
 
     config_patch = patch("shoal.core.config.config_dir", return_value=tmp_config)
-    state_dir_patch = patch("shoal.core.config.state_dir", return_value=tmp_state)
-    runtime_dir_patch = patch("shoal.core.config.runtime_dir", return_value=tmp_runtime)
+    data_dir_patch = patch("shoal.core.config.data_dir", return_value=tmp_state)
+    state_dir_patch = patch("shoal.core.config.state_dir", return_value=tmp_runtime)
 
     with (
         config_patch,
+        data_dir_patch,
         state_dir_patch,
-        runtime_dir_patch,
         # Patch imported references in all modules that import these
         patch("shoal.cli.session_create.config_dir", return_value=tmp_config),
-        patch("shoal.cli.mcp.state_dir", return_value=tmp_state),
+        patch("shoal.cli.mcp.data_dir", return_value=tmp_state),
         patch("shoal.cli.robo.config_dir", return_value=tmp_config),
-        patch("shoal.cli.robo.state_dir", return_value=tmp_state),
-        patch("shoal.cli.watcher.runtime_dir", return_value=tmp_runtime),
-        patch("shoal.services.mcp_pool.state_dir", return_value=tmp_state),
-        patch("shoal.services.mcp_proxy.state_dir", return_value=tmp_state),
+        patch("shoal.cli.robo.data_dir", return_value=tmp_state),
+        patch("shoal.cli.watcher.state_dir", return_value=tmp_runtime),
+        patch("shoal.services.mcp_pool.data_dir", return_value=tmp_state),
+        patch("shoal.services.mcp_proxy.data_dir", return_value=tmp_state),
     ):
         yield tmp_config, tmp_state
         load_config.cache_clear()
