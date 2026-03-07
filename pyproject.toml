@@ -76,8 +76,6 @@ docs = [
 packages = ["src/shoal"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/shoal/integrations/fish/templates" = "shoal/integrations/fish/templates"
-"src/shoal/py.typed" = "shoal/py.typed"
 "examples/config" = "shoal/examples/config"
 
 [tool.ruff]
