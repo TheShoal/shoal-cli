@@ -148,6 +148,24 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-03-07 — CI green-up + send_keys reliability
+
+**What we did:**
+
+- Fixed RET501 lint regression in `tests/test_cli_robo.py` (removed explicit `return None`)
+- Fixed mypy assignment error in `fin_runtime.py` (`manifest` → `child_manifest`, `Path` vs `FinManifest` type conflict)
+- Extracted `infer_branch_name()`, `validate_branch_name()`, and `ALLOWED_BRANCH_CATEGORIES` to `core/git.py`; fixed double `feat/` prefix bug in API server and MCP server; added 27 branch-naming tests
+- Added `send_keys_delay: float = 0.0` to `ToolConfig`; updated `async_send_keys` to split paste + Enter with configurable sleep; wired through `send_keys_tool` and `create_session` prompt dispatch; added 4 new tests
+
+All four fixes committed atomically; CI is fully green (1040 passed, 1 skipped).
+
+**What to do next:**
+
+- Decide fin contract version support window policy (v1-only vs N/N-1 overlap)
+- Add registry/local-source install semantics for `shoal fin install`
+- Add optional subprocess timeout controls for fin lifecycle commands
+- Consider setting `send_keys_delay` to a non-zero default (e.g. `0.05`) for TUI tools in built-in tool profiles
+
 ### Session: 2026-02-27 — Fin adapter Iteration 2 (lifecycle + discovery + parity)
 
 **What we did:**

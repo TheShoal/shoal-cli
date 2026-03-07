@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Remote API robustness**: remote GET/POST/DELETE helpers now normalize connection reset OS errors into `RemoteConnectionError`
 - **Flaky tests**: stabilized concurrent API load and Unix socket server tests for deterministic CI behavior
+- **Lint regression**: removed explicit `return None` in robo watch test helpers (RET501)
+- **mypy assignment error**: renamed shadowed `manifest` variable to `child_manifest` in `fin_runtime.py` to resolve `Path` vs `FinManifest` type conflict
+- **Double `feat/` branch prefix**: extracted `infer_branch_name()` to `core/git.py` so the API server and MCP server no longer prepend `feat/` when input already carries a category prefix (e.g. `feat/foo` no longer became `feat/feat/foo`)
+- **`send_keys` Enter racing TUI rendering**: added `send_keys_delay` float field to `ToolConfig` (default `0.0`); when non-zero, `async_send_keys` splits the text paste and Enter keypress into separate `asyncio.to_thread` calls with a configurable sleep in between
 
 ## [0.18.0] - 2026-02-24
 
