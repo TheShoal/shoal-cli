@@ -3,7 +3,7 @@ site_description: Terminal-first orchestration for parallel AI coding agents
 docs_dir: docs
 site_dir: site
 repo_url: https://github.com/TheShoal/shoal-cli
-repo_name: TheShoal/shoal-cli
+repo_name: GitHub
 
 theme:
   name: material
@@ -68,6 +68,7 @@ nav:
       - CLI Reference: cli-reference.md
   - Operate Shoal:
       - Flow-State Workflows: flow-state-workflows.md
+      - Operator Playbooks: operator-playbooks.md
       - Robo Supervisor: ROBO_GUIDE.md
       - Remote Sessions: REMOTE_GUIDE.md
       - Fish Integration: FISH_INTEGRATION.md

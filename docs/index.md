@@ -1,3 +1,8 @@
+---
+hide:
+  - toc
+---
+
 # Shoal
 
 <div class="shoal-hero">
@@ -68,6 +73,10 @@ Shoal is a terminal interaction system for human-AI collaboration.
   <a class="shoal-card" href="flow-state-workflows/">
     <strong>Flow-state patterns</strong>
     <span>Design session topology, supervision loops, and shell ergonomics for momentum.</span>
+  </a>
+  <a class="shoal-card" href="operator-playbooks/">
+    <strong>Operator playbooks</strong>
+    <span>Adopt concrete daily patterns for triage, feature work, remote execution, and release control.</span>
   </a>
   <a class="shoal-card" href="REMOTE_GUIDE/">
     <strong>Remote fleets</strong>
@@ -149,6 +158,7 @@ shoal attach auth
 ### Operate Shoal
 
 - [Flow-State Workflows](flow-state-workflows.md) for high-leverage setups, templates, and supervision loops.
+- [Operator Playbooks](operator-playbooks.md) for concrete day-to-day operating patterns.
 - [Robo Supervisor](ROBO_GUIDE.md) for automation patterns and escalation rules.
 - [Remote Sessions](REMOTE_GUIDE.md) for SSH-backed control of remote fleets.
 - [Fish Integration](FISH_INTEGRATION.md) for completions, bindings, and helper functions.
