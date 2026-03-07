@@ -242,9 +242,9 @@ def list_fins(search_path: str | Path) -> list[FinListItem]:
         if direct_manifest.exists():
             candidates.append(direct_manifest)
         for child in sorted(root.iterdir()):
-            manifest = child / "fin.toml"
-            if child.is_dir() and manifest.exists():
-                candidates.append(manifest)
+            child_manifest = child / "fin.toml"
+            if child.is_dir() and child_manifest.exists():
+                candidates.append(child_manifest)
     else:
         raise FinRuntimeError(f"Fin discovery path does not exist: {root}")
 
