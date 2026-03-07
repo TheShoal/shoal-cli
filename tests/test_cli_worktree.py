@@ -55,14 +55,16 @@ def test_wt_finish_success(mock_dirs):
         mock_wt_remove.assert_called_once()
 
 
-def test_wt_cleanup_no_orphans(mock_dirs):
+def test_wt_cleanup_no_orphans(mock_dirs, tmp_path, monkeypatch):
     """Test wt cleanup with no orphans."""
+    # Isolate CWD so the CWD fallback doesn't pick up real .worktrees/ dirs.
+    monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["cleanup"])
     assert result.exit_code == 0
     assert "No orphaned worktrees found" in result.stdout
 
 
-def test_wt_cleanup_with_orphans(mock_dirs, tmp_path):
+def test_wt_cleanup_with_orphans(mock_dirs, tmp_path, monkeypatch):
     """Test wt cleanup finds orphans."""
     repo_path = tmp_path / "repo"
     wt_base = repo_path / ".worktrees"
@@ -75,6 +77,10 @@ def test_wt_cleanup_with_orphans(mock_dirs, tmp_path):
         await create_session("s1", "claude", str(repo_path))
 
     asyncio.run(with_db(setup()))
+
+    # Isolate CWD: tmp_path root has no .worktrees/ dir, so the CWD fallback
+    # won't pick up real worktrees from the main repo.
+    monkeypatch.chdir(tmp_path)
 
     with (
         patch("shoal.core.tmux.has_session", return_value=True),
