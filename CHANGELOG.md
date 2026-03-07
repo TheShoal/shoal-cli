@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-03-07
+
 ### Added
 - **Tool-native prompt delivery**: Three `input_mode` mechanisms in `ToolConfig` for initial session prompts — `"arg"` (positional CLI arg, e.g. `claude "prompt"`), `"flag"` (named flag, e.g. `opencode --prompt "prompt"`), `"keys"` (post-launch `send_keys`, legacy). For `omp`, `prompt_file_prefix="@"` writes to `~/.local/share/shoal/prompts/<session>.md` and passes `@/path` for native expansion. Eliminates TUI render race for initial prompts. Robo escalation uses `@file` for omp sessions to avoid garbling multi-line prompts. New `core/prompt_delivery.py` module with `write_prompt_file()` and `build_tool_command_with_prompt()`.
 - **Status provider abstraction**: Explicit backend adapters in `core/status_provider.py` (`pi`, `opencode_compat`, `regex`) with tool-level selection via `tool.status_provider`
@@ -31,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **mypy assignment error**: renamed shadowed `manifest` variable to `child_manifest` in `fin_runtime.py` to resolve `Path` vs `FinManifest` type conflict
 - **Double `feat/` branch prefix**: extracted `infer_branch_name()` to `core/git.py` so the API server and MCP server no longer prepend `feat/` when input already carries a category prefix (e.g. `feat/foo` no longer became `feat/feat/foo`)
 - **`send_keys` Enter racing TUI rendering**: added `send_keys_delay` float field to `ToolConfig` (default `0.0`); when non-zero, `async_send_keys` splits the text paste and Enter keypress into separate `asyncio.to_thread` calls with a configurable sleep in between
+- **`shoal --version` flag**: Standard `--version` flag now supported in addition to `shoal version` subcommand; exits 0 with `shoal <version>` output
+- **XDG directory naming**: Corrected `state_dir()` → `data_dir()` (`XDG_DATA_HOME`) and `runtime_dir()` → `state_dir()` (`XDG_STATE_HOME`) across 26 files; function names now match the XDG Base Directory spec
+- **`shoal journal --archived` post-kill lookup**: Archived journals are now findable by session name after the session is deleted from DB; new `find_archived_session_id()` scans frontmatter title/aliases as fallback when DB resolution fails
 
 ## [0.18.0] - 2026-02-24
 
