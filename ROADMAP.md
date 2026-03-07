@@ -2,7 +2,7 @@
 
 This roadmap outlines the planned development for Shoal as a fish-first, personal workflow tool that may still be useful to others.
 
-> **Release history**: See [CHANGELOG.md](CHANGELOG.md) for completed releases (v0.4.0–v0.17.0).
+> **Release history**: See [CHANGELOG.md](CHANGELOG.md) for completed releases (v0.4.0–v0.20.0).
 
 ## v0.15.0: FastMCP Integration
 
@@ -125,12 +125,23 @@ Released 2026-03-07
 
 ## v0.20.0
 
-In progress — 2026-03-07
+Released 2026-03-07
 
 - **Template `setup_commands`**: New `setup_commands: list[str]` field on `SessionTemplateConfig` and `TemplateMixinConfig`; commands run via `send-keys` before agent launch
 - **Orphaned worktree detection**: `wt cleanup` now detects orphaned worktrees in CWD even when no sessions exist for that repo in the DB
 - **Agent readiness signals**: Replace `asyncio.sleep(1)` hack with poll-until-pattern readiness check; new `async_wait_for_ready()` helper in `core/tmux.py`
 - **Batch MCP operations**: `send_keys`, `capture_pane`, `session_status`, `kill_session` now accept `session: str | list[str]`; batch input returns `{"results": {name: data}}`
+
+
+## v0.21.0
+
+Released 2026-03-07
+
+- **PyPI publish**: Package name `shoal-cli` on PyPI; `pipx install shoal-cli` / `uv tool install shoal-cli` as primary install path
+- **pyproject.toml metadata**: Added `authors`, `keywords`, `classifiers` (Development Status :: 4 - Beta), and `[project.urls]`
+- **PyPI trusted publisher**: `.github/workflows/release.yml` publish job using OIDC via `pypa/gh-action-pypi-publish`
+- **README badge/copy refresh**: Version badge v0.21.0-beta, test count 1087, ecosystem note removed, status table updated through v0.21.0
+- **Docs copy fixes**: CONTRIBUTING.md and ARCHITECTURE.md stack reference updated to Pi as primary; getting-started.md PyPI install as primary
 
 ## Backlog
 
@@ -161,6 +172,31 @@ In progress — 2026-03-07
 ## Handoff
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
+
+### Session: 2026-03-07 — v0.21.0 public beta ship
+
+**What we did:**
+
+- Published `shoal-cli` to PyPI (trusted publisher via GitHub Actions OIDC)
+- Updated pyproject.toml: name=`shoal-cli`, version=0.21.0, classifiers, authors, project URLs
+- Added PyPI publish job to `.github/workflows/release.yml`
+- README: version badge v0.21.0-beta, test count 1087, removed ecosystem note, updated install section and status table
+- CONTRIBUTING.md + ARCHITECTURE.md: Pi as primary default backend (replaces OpenCode/Neovim references)
+- docs/getting-started.md: PyPI as primary install path
+- ROADMAP.md: v0.20.0 marked complete, v0.21.0 section added
+- CHANGELOG.md: v0.21.0 release entry
+
+**Current state:**
+
+- Branch: `main` at HEAD
+- v0.21.0 tagged, pushed, PyPI publish triggered via GitHub Actions
+
+**What to do next:**
+
+- Verify `pipx install shoal-cli` works from PyPI
+- Decide fin contract version support window policy
+- Consider `send_keys_delay` non-zero default for TUI tools (0.05s)
+
 
 ### Session: 2026-03-07 — Roadmap cleanup + v0.19.0 milestone
 

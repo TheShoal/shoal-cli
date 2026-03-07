@@ -22,8 +22,8 @@ Design Principles covers: Terminal-First, Async+SQLite, Git Worktrees, MCP Pool,
 
 ### Scope
 
-- Shoal is intentionally optimized for a personal stack: **Fish + tmux + Neovim + OpenCode**.
-- Claude and Gemini remain supported as secondary tool profiles.
+- Shoal is intentionally optimized for a personal stack: **Fish + tmux + Pi**. Pi is the primary reference backend for status detection and prompt delivery.
+- Claude Code and Gemini remain supported as secondary tool profiles; OpenCode runs in compatibility mode.
 - Bash/Zsh compatibility is out of scope for now to keep maintenance overhead low.
 
 ### The Problem

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-03-07
+
+### Changed
+- **PyPI package name**: Project published as `shoal-cli` on PyPI. Install with `pipx install shoal-cli` or `uv tool install shoal-cli`. The CLI command remains `shoal`.
+- **pyproject.toml metadata**: Added `authors`, `keywords`, `classifiers` (Development Status :: 4 - Beta), and `[project.urls]` (Homepage, Documentation, Repository, Issues, Changelog).
+- **GitHub Actions release workflow**: Added `publish` job with OIDC trusted publisher support (`pypa/gh-action-pypi-publish`) — runs after GitHub Release is created.
+- **Default backend docs**: CONTRIBUTING.md and ARCHITECTURE.md updated to document Pi as the primary reference backend; OpenCode referenced as compatibility mode.
+- **Install docs**: README and getting-started.md now show `pipx install shoal-cli` / `uv tool install shoal-cli` as the primary install path; from-source instructions moved to secondary.
+
+### Fixed
+- **Flaky `test_post_success`**: `_MockHandler.do_POST` in `tests/test_remote.py` now reads the request body before responding, eliminating a connection-reset race that caused intermittent CI failures under parallel test execution.
 ## [0.20.0] - 2026-03-07
 
 ### Added

@@ -261,6 +261,9 @@ class _MockHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(self.response_data).encode())
 
     def do_POST(self) -> None:
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length:
+            self.rfile.read(content_length)
         self.do_GET()
 
     def do_DELETE(self) -> None:

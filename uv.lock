@@ -1817,8 +1817,8 @@ wheels = [
 ]
 
 [[package]]
-name = "shoal"
-version = "0.18.0"
+name = "shoal-cli"
+version = "0.21.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },

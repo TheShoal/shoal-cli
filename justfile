@@ -65,9 +65,10 @@ release version:
         echo "Error: working tree is dirty" >&2; exit 1
     fi
     current=$(grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
-    echo "Bumping version: $current → {{version}}"
+    echo "Bumping version: $current -> {{version}}"
     sed -i "s/^version = \"$current\"/version = \"{{version}}\"/" pyproject.toml
-    git add pyproject.toml
+    sed -i "s/__version__ = \"$current\"/__version__ = \"{{version}}\"/" src/shoal/__init__.py
+    git add pyproject.toml src/shoal/__init__.py
     git commit -m "chore: bump version to {{version}}"
     git tag -a "v{{version}}" -m "Release v{{version}}"
     echo "Tagged v{{version}}. Push with: git push && git push --tags"

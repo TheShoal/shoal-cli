@@ -50,16 +50,16 @@ Optional but useful:
 
 ## Install
 
-### Recommended
+### From PyPI (recommended)
 
 ```bash
-uv tool install .
-```
+pipx install shoal-cli
 
-### With MCP support
+# or with uv
+uv tool install shoal-cli
 
-```bash
-uv tool install ".[mcp]"
+# With MCP support (enables shoal-orchestrator MCP server)
+uv tool install "shoal-cli[mcp]"
 ```
 
 ### From source for development

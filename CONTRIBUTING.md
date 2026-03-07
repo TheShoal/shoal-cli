@@ -1,6 +1,6 @@
 # Contributing to Shoal
 
-Shoal is a personal-first project. Contributions are welcome, but the default scope is the maintainer's workflow: fish + tmux + neovim + opencode.
+Shoal is a personal-first project. Contributions are welcome, but the default scope is the maintainer's workflow: fish + tmux + pi.
 
 ## Scope and Compatibility
 

@@ -8,7 +8,7 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.18.0-beta-EED49F?style=flat-square" alt="v0.18.0 beta">
+  <img src="https://img.shields.io/badge/v0.21.0-beta-EED49F?style=flat-square" alt="v0.21.0 beta">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-MIT-A6DA95?style=flat-square" alt="License: MIT">
 </p>
@@ -26,7 +26,7 @@
 
 <!-- Row 3 — Quality -->
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-990_passing-A6DA95?style=flat-square" alt="Tests: 990 passing">
+  <img src="https://img.shields.io/badge/tests-1082_passing-A6DA95?style=flat-square" alt="Tests: 1082 passing">
   <img src="https://img.shields.io/badge/coverage-82%25-8BD5CA?style=flat-square" alt="Coverage: 82%">
   <img src="https://img.shields.io/badge/mypy-strict-CBA6F7?style=flat-square" alt="mypy strict">
   <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
@@ -47,8 +47,6 @@
 You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenCode. You want them working in parallel without stomping on each other's files. You need to know when they're thinking, when they're waiting for approval, and when they've errored out.
 
 **Shoal is `docker-compose` for AI coding agents.** You declare sessions, Shoal gives each one a git worktree, a tmux session, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all.
-
-> Shoal ecosystem note: this is the orchestration core in a larger multi-repo system (Driftwood Template, Tidepool, Periwinkle, Pisces, Fins, Dotfiles). Integration surfaces are still evolving and are currently documented as work in progress in the meta workspace.
 
 ---
 
@@ -135,15 +133,19 @@ Optional:
 
 ### Install
 
-```bash
-# Recommended
-uv tool install .
+#### From PyPI (recommended)
 
-# With MCP support (enables shoal-orchestrator)
-uv tool install ".[mcp]"
+```bash
+pipx install shoal-cli
+
+# or with uv
+uv tool install shoal-cli
+
+# With MCP support (enables shoal-orchestrator MCP server)
+uv tool install "shoal-cli[mcp]"
 ```
 
-### From Source (dev)
+#### From source
 
 ```bash
 git clone https://github.com/TheShoal/shoal-cli.git
@@ -391,11 +393,11 @@ backend for status transitions.
 
 | Milestone   | Focus                                                   | Status   |
 | ----------- | ------------------------------------------------------- | -------- |
-| **v0.18.0** | Lifecycle hooks, observability, session graph, robo supervisor | Current  |
+| **v0.21.0** | Public beta: PyPI publish, docs polish, core loop verification | Current  |
+| **v0.20.0** | Template setup_commands, batch MCP ops, agent readiness signals | Complete |
+| **v0.19.0** | Prompt delivery, status providers, fin adapter, XDG fixes | Complete |
+| **v0.18.0** | Lifecycle hooks, observability, session graph, robo supervisor | Complete |
 | **v0.17.0** | Demo overhaul, diagnostics, journals, remote sessions   | Complete |
-| **v0.16.0** | Remote sessions via SSH tunnel                          | Complete |
-| **v0.15.0** | FastMCP integration, Shoal MCP server                   | Complete |
-| **v0.14.0** | Template inheritance and mixins                         | Complete |
 
 See [ROADMAP.md](ROADMAP.md) for the full plan.
 
@@ -413,7 +415,7 @@ just cov         # tests with coverage report
 just setup       # install pre-commit hooks
 ```
 
-**990 tests** | **82% coverage** | **mypy --strict** | **pre-commit enforced** | **conventional commits**
+**1082 tests** | **82% coverage** | **mypy --strict** | **pre-commit enforced** | **conventional commits**
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
