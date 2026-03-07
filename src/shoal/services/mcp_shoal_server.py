@@ -353,7 +353,7 @@ async def create_session_tool(
         wt_path = f"{root}/.worktrees/{wt_dir_name}"
         Path(root, ".worktrees").mkdir(parents=True, exist_ok=True)
         if branch:
-            branch_name = f"feat/{worktree}"
+            branch_name = git.infer_branch_name(worktree)
             git.worktree_add(root, wt_path, branch=branch_name)
         else:
             git.worktree_add(root, wt_path)

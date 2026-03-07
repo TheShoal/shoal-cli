@@ -370,7 +370,7 @@ async def create_session_api(data: SessionCreate) -> SessionResponse:
         wt_path = f"{root}/.worktrees/{wt_dir_name}"
         Path(root, ".worktrees").mkdir(parents=True, exist_ok=True)
         if data.branch:
-            branch_name = f"feat/{data.worktree}"
+            branch_name = git.infer_branch_name(data.worktree)
             git.worktree_add(root, wt_path, branch=branch_name)
         else:
             git.worktree_add(root, wt_path)

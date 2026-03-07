@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import subprocess
 
 logger = logging.getLogger("shoal.git")
@@ -140,3 +141,54 @@ def worktree_is_dirty(path: str) -> bool:
 
 async def async_worktree_is_dirty(path: str) -> bool:
     return await asyncio.to_thread(worktree_is_dirty, path)
+
+
+# ---------------------------------------------------------------------------
+# Branch naming utilities
+# ---------------------------------------------------------------------------
+
+ALLOWED_BRANCH_CATEGORIES: tuple[str, ...] = (
+    "feat",
+    "fix",
+    "bug",
+    "chore",
+    "docs",
+    "refactor",
+    "test",
+)
+
+
+def infer_branch_name(worktree_name: str) -> str:
+    """Infer a branch name from a worktree name.
+
+    If the worktree name already contains a ``/``, it is returned as-is
+    (assumed to carry a valid category prefix like ``fix/`` or ``feat/``).
+    Otherwise ``feat/`` is prepended as the default category.
+
+    Examples::
+
+        fix/tmux-status  -> fix/tmux-status   (pass-through)
+        feat/my-feature  -> feat/my-feature   (pass-through)
+        tmux-status      -> feat/tmux-status  (default prefix)
+        my-feature       -> feat/my-feature   (default prefix)
+    """
+    if "/" in worktree_name:
+        return worktree_name
+    return f"feat/{worktree_name}"
+
+
+def validate_branch_name(branch_name: str) -> None:
+    """Raise ``ValueError`` if *branch_name* does not follow ``category/slug``.
+
+    Valid categories: feat, fix, bug, chore, docs, refactor, test.
+    Slug must be lowercase alphanumeric with hyphens (``[a-z0-9][a-z0-9-]*``).
+    """
+    categories = "|".join(ALLOWED_BRANCH_CATEGORIES)
+    pattern = rf"^({categories})/[a-z0-9][a-z0-9-]*$"
+    if re.match(pattern, branch_name):
+        return
+    allowed = ", ".join(ALLOWED_BRANCH_CATEGORIES)
+    raise ValueError(
+        "Branch name must follow category/slug (for example: feat/my-change) "
+        f"with category in: {allowed}"
+    )

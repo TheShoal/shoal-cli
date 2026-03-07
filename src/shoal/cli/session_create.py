@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from pathlib import Path
 from typing import Annotated
 
@@ -20,6 +19,7 @@ from shoal.core.config import (
     load_tool_config,
 )
 from shoal.core.db import with_db
+from shoal.core.git import infer_branch_name, validate_branch_name
 from shoal.core.state import (
     _get_tool_icon,
     _resolve_session_interactive_impl,
@@ -40,42 +40,10 @@ from shoal.services.lifecycle import (
 
 console = Console()
 
-ALLOWED_BRANCH_CATEGORIES = ("feat", "fix", "bug", "chore", "docs", "refactor", "test")
-
-
-def _infer_branch_name(worktree_name: str) -> str:
-    """Infer branch name from worktree name.
-
-    If the worktree name contains a '/', use it as-is
-    (assumes it has a prefix like fix/, feat/, chore/).
-    Otherwise, prepend 'feat/' as the default prefix.
-
-    Examples:
-        fix/tmux-status -> fix/tmux-status
-        chore/cleanup -> chore/cleanup
-        tmux-status -> feat/tmux-status
-        my-feature -> feat/my-feature
-    """
-    if "/" in worktree_name:
-        return worktree_name
-    return f"feat/{worktree_name}"
-
-
-def _validate_category_slug_branch(branch_name: str) -> None:
-    categories = "|".join(ALLOWED_BRANCH_CATEGORIES)
-    pattern = rf"^({categories})/[a-z0-9][a-z0-9-]*$"
-    if re.match(pattern, branch_name):
-        return
-    allowed = ", ".join(ALLOWED_BRANCH_CATEGORIES)
-    raise ValueError(
-        "Branch name must follow category/slug (for example: feat/my-change) "
-        f"with category in: {allowed}"
-    )
-
 
 def _branch_name_for_worktree(worktree_name: str) -> str:
-    branch_name = _infer_branch_name(worktree_name)
-    _validate_category_slug_branch(branch_name)
+    branch_name = infer_branch_name(worktree_name)
+    validate_branch_name(branch_name)
     return branch_name
 
 
