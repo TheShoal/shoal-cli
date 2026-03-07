@@ -1,3 +1,11 @@
+<div class="shoal-page-head">
+  <p class="shoal-eyebrow">Operate Shoal</p>
+  <p class="shoal-page-lede">
+    Standardize how the team names sessions, structures journals, routes reviews, and escalates
+    ambiguity so the fleet stays readable under load.
+  </p>
+</div>
+
 # Team Doctrine
 
 Shoal gets better when a team agrees on a few operating rules instead of inventing a new ritual for
@@ -162,3 +170,5 @@ If the team remembers only five rules, use these:
 3. Write journals for interruption recovery, not memoir.
 4. Keep authority human and throughput agent-driven.
 5. Standardize a few stable workflows and reuse them aggressively.
+
+Use [Review Checklist](review-checklist.md) as the default contract for reviewer sessions.

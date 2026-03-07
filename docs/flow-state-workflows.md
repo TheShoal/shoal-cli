@@ -1,3 +1,11 @@
+<div class="shoal-page-head">
+  <p class="shoal-eyebrow">Operate Shoal</p>
+  <p class="shoal-page-lede">
+    Build the operator environment that keeps multiple agents legible: stable topology, fast
+    supervision, durable journals, and explicit human checkpoints.
+  </p>
+</div>
+
 # Flow-State Workflows
 
 Shoal is not just a command launcher. At its best, it becomes a terminal interface for distributed
@@ -307,3 +315,5 @@ Shoal should feel like:
 If a workflow makes the tool feel heavier, slower, or more ceremonial, simplify it. Shoal is at
 its best when it disappears into the terminal and leaves only clear intent, quick feedback, and a
 sense of momentum.
+
+For a reviewer-lane contract you can reuse across tasks, see [Review Checklist](review-checklist.md).

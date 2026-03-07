@@ -1,3 +1,11 @@
+<div class="shoal-page-head">
+  <p class="shoal-eyebrow">Operate Shoal</p>
+  <p class="shoal-page-lede">
+    Use these playbooks as reusable operating modes for triage, feature lanes, release work,
+    remote execution, and overnight throughput.
+  </p>
+</div>
+
 # Operator Playbooks
 
 Shoal is easiest to adopt when you stop thinking in commands and start thinking in operating
@@ -140,3 +148,4 @@ If you only keep three rules, keep these:
 3. Every workflow should be easier to resume tomorrow than to explain from memory.
 
 For team-wide naming, review, and escalation conventions, see [Team Doctrine](team-doctrine.md).
+For review-specific triage and escalation order, see [Review Checklist](review-checklist.md).

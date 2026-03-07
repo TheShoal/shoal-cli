@@ -116,11 +116,62 @@
 
 .md-typeset code {
   border-radius: 0.35rem;
+  padding: 0.12rem 0.32rem;
+  background: rgba(16, 34, 46, 0.06);
 }
 
 .md-typeset .admonition,
 .md-typeset details {
   border-radius: 1rem;
+  border: 1px solid rgba(14, 95, 100, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 239, 231, 0.9));
+  box-shadow: 0 10px 28px rgba(16, 34, 46, 0.05);
+}
+
+.md-typeset .admonition-title,
+.md-typeset summary {
+  font-weight: 700;
+}
+
+.md-typeset pre > code {
+  padding: 0;
+  background: transparent;
+}
+
+.md-typeset .highlight {
+  border: 1px solid rgba(14, 95, 100, 0.14);
+  border-radius: 1.1rem;
+  box-shadow: 0 14px 34px rgba(16, 34, 46, 0.07);
+  overflow: hidden;
+}
+
+.md-typeset .highlight pre {
+  margin: 0;
+}
+
+.md-typeset table:not([class]) {
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid rgba(14, 95, 100, 0.14);
+  border-radius: 1rem;
+  box-shadow: 0 12px 28px rgba(16, 34, 46, 0.05);
+}
+
+.md-typeset table:not([class]) thead {
+  background: linear-gradient(180deg, rgba(223, 243, 238, 0.95), rgba(233, 223, 207, 0.82));
+}
+
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
+  padding: 0.9rem 1rem;
+  border-top: 1px solid rgba(14, 95, 100, 0.08);
+}
+
+.md-typeset table:not([class]) tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .md-typeset ul,
@@ -211,6 +262,18 @@
   box-shadow: 0 24px 60px var(--shoal-shadow);
 }
 
+.shoal-page-head {
+  margin: 0 0 0.8rem;
+}
+
+.shoal-page-lede {
+  max-width: 46rem;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: rgba(16, 34, 46, 0.84);
+}
+
 .shoal-eyebrow {
   margin: 0 0 0.7rem;
   font-size: 0.78rem;
@@ -275,6 +338,8 @@
 .shoal-card:nth-child(7) { animation: shoal-rise 620ms ease-out both; }
 .shoal-card:nth-child(8) { animation: shoal-rise 680ms ease-out both; }
 .shoal-card:nth-child(9) { animation: shoal-rise 740ms ease-out both; }
+.shoal-card:nth-child(10) { animation: shoal-rise 800ms ease-out both; }
+.shoal-card:nth-child(11) { animation: shoal-rise 860ms ease-out both; }
 
 .shoal-card:hover {
   transform: translateY(-2px);
@@ -382,6 +447,10 @@
 
   .shoal-lede {
     font-size: 1rem;
+  }
+
+  .shoal-page-lede {
+    font-size: 0.96rem;
   }
 
   .shoal-actions {
