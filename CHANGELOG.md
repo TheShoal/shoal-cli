@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-03-07
+
+### Added
+- **Template `setup_commands`**: New `setup_commands: list[str]` field on `SessionTemplateConfig` and `TemplateMixinConfig` — commands run via `send-keys` in the initial pane before the agent tool launches. Canonical use-case: venv activation (`uv sync`, `source .venv/bin/activate.fish`). Inheritance: `extends` replaces, `mixins` append. (+266 lines: `models/config.py`, `core/config.py`, `services/lifecycle.py`, 243 lines of tests).
+- **Batch MCP session operations**: `capture_pane`, `send_keys`, `kill_session`, and `session_status` MCP tools now accept `session: str | list[str]`. String input returns the same shape as before (backwards-compatible); list input returns `{"results": {name: per-session-result}}` with per-session errors collected rather than raised.
+- **Agent readiness signals**: Replaced `asyncio.sleep(1)` after session creation with `async_wait_for_ready(pane, tool_cfg, timeout=5.0)` in `core/tmux.py` — polls capture_pane every 100ms until the tool's busy/waiting detection patterns appear or timeout is reached. Returns `False` immediately when no patterns are configured.
+
+### Fixed
+- **Orphaned worktree detection**: `wt cleanup` now detects orphaned worktrees in `$CWD/.worktrees/` even when no sessions exist in the DB for the current repo — critical for post-kill cleanup flows where all sessions have been removed.
+- **Test CWD isolation**: Pre-existing `test_wt_cleanup_no_orphans` and `test_wt_cleanup_with_orphans` now `monkeypatch.chdir(tmp_path)` to prevent the new CWD fallback from leaking real `.worktrees/` state into unit tests.
 ## [0.19.0] - 2026-03-07
 
 ### Added
