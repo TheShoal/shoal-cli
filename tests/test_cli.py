@@ -17,6 +17,11 @@ class TestVersion:
         assert result.exit_code == 0
         assert f"shoal {shoal.__version__}" in result.output
 
+    def test_version_flag(self):
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert f"shoal {shoal.__version__}" in result.output
+
 
 class TestLs:
     def test_empty(self, mock_dirs):
