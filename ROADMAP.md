@@ -114,13 +114,30 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - **Robo autonomy**: Layered — deterministic Python loop handles simple cases (auto-approve known-safe prompts, timeout escalation). Ambiguous cases escalated to LLM agent session. Programmatic layer uses Python API directly; LLM layer uses MCP tools (each interface used where it's designed for).
 - **MCP interface principle**: MCP is the agent interface, Python is the infrastructure interface. They share the same underlying functions. Programmatic code calls Python directly; LLM agents call MCP tools.
 
+## v0.19.0
+
+Released 2026-03-07
+
+- **`--version` flag**: Added `shoal --version` / `shoal version` CLI command
+- **XDG directory naming**: Renamed `state_dir()` → `data_dir()` and `runtime_dir()` → `state_dir()` to match XDG spec; updated all callers
+- **Archived journal lookup**: `shoal journal <name>` now searches archived sessions too; added `shoal history <name>` command for status transition history
+- **Branch naming**: Extracted `infer_branch_name()`, `validate_branch_name()`, `ALLOWED_BRANCH_CATEGORIES` to `core/git.py`; fixed double `feat/` prefix bug
+
+## v0.20.0
+
+In progress — 2026-03-07
+
+- **Template `setup_commands`**: New `setup_commands: list[str]` field on `SessionTemplateConfig` and `TemplateMixinConfig`; commands run via `send-keys` before agent launch
+- **Orphaned worktree detection**: `wt cleanup` now detects orphaned worktrees in CWD even when no sessions exist for that repo in the DB
+- **Agent readiness signals**: Replace `asyncio.sleep(1)` hack with poll-until-pattern readiness check; new `async_wait_for_ready()` helper in `core/tmux.py`
+- **Batch MCP operations**: `send_keys`, `capture_pane`, `session_status`, `kill_session` now accept `session: str | list[str]`; batch input returns `{"results": {name: data}}`
+
 ## Backlog
 
 ### Worktree & Environment Initialization
 
 > Full design: [docs/WORKTREE_ENV_INIT.md](docs/WORKTREE_ENV_INIT.md)
 
-- **Fix template env gap** (bug): `template_cfg.env` is parsed and merged but never applied in `create_session_lifecycle` or `fork_session_lifecycle`. Requires both `tmux set-environment` (for subsequent panes) and fish `set -gx` via `send-keys` (for the initial pane, which is already running). ~10 lines, no schema change. Files: `services/lifecycle.py`
 - **Template `setup_commands`** (feature): New `setup_commands: list[str]` field on `SessionTemplateConfig` and `TemplateMixinConfig`. Commands run via `send-keys` in the initial pane before the agent launches. Canonical answer for venv activation (`uv sync`, `source .venv/bin/activate.fish`). Inheritance: extends=replace, mixins=append. Files: `models/config.py`, `services/lifecycle.py`, `docs/LOCAL_TEMPLATES.md`
 - **Project-level `.shoal.toml`** (feature, lower priority): Committed config at project root with `[env]` and `[setup]` sections. Precedence: `.shoal.toml` < `template.env` < CLI flags. Discovered via `git_root`. Files: `core/config.py`, `services/lifecycle.py`
 - **direnv/mise integration** (deferred): Opt-in `env_manager` field on templates. NEVER auto-detect `.envrc`/`mise.toml` — explicit opt-in only.
@@ -137,9 +154,6 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 - **Robo merge/worktree workflow**: Document merge-back-to-main lifecycle for robo supervisor — concrete instructions in default `AGENTS.md` template and ROBO_GUIDE section covering: branch readiness checks, test verification before merge, safe auto-merge patterns vs. human review, worktree cleanup after merge, and post-session branch deletion. Consider dedicated MCP tools (`merge_branch`, `branch_status`) so robo doesn't need raw `send_keys` for git operations.
 - **Batch MCP commands**: Adapt existing MCP tools (`send_keys`, `session_status`, `kill_session`, `capture_pane`, etc.) to accept lists of sessions for batch operations. Add batch variants or overload existing tools to handle `session: str | list[str]` — enables robo supervisors and orchestrators to approve/kill/query multiple sessions in a single MCP call instead of N sequential calls. Consider a `batch_execute` meta-tool that takes `[(tool, params), ...]` for arbitrary batching.
 - **Per-session git practices**: Unblocked once template env gap is fixed — support git identity and conventions per session via `[template.env]` (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Longer-term: dedicated `[template.git]` section for commit conventions, hook profiles, and branch naming rules — enabling different practices for admin agents, robo supervisors, and task workers.
-- **`state_dir`/`runtime_dir` naming inversion** (refactor): `core/config.py` has swapped names — `state_dir()` reads `XDG_DATA_HOME` (returns `~/.local/share`), `runtime_dir()` reads `XDG_STATE_HOME` (returns `~/.local/state`). Names are inverted relative to the XDG spec. Rename to `data_dir` and `state_dir` respectively. Breaking internal rename — grep all callers across `core/`, `services/`, `cli/` before landing.
-- **`send_keys` prompt submission bug** (bug): Prompts pasted into Claude Code panes via `send_keys` are not reliably submitted — text appears but Enter doesn't trigger execution. Current implementation sends `-l` literal text then a separate `send-keys Enter`, but Claude Code may not process the Enter if it arrives before the TUI has finished rendering the pasted text. Investigate: (1) adding a small delay between text paste and Enter, (2) using `send-keys -H` hex codes for newline, (3) chunked sending for long prompts, (4) readiness detection (wait for TUI idle before sending Enter). Affects `core/tmux.py:send_keys()`, MCP `send_keys_tool`, and `create_session` prompt delivery. This is the #1 reliability blocker for robo supervisor and orchestrator workflows.
-- **Double `feat/` branch prefix bug**: `f"feat/{worktree}"` in `cli/session_create.py:61`, `api/server.py:373`, and `services/mcp_shoal_server.py:356` produces `feat/feat/...` when the worktree name already includes a `feat/` prefix (e.g. from backlog worker branch naming). Fix: strip existing prefix before prepending, or let callers control the full branch name.
 - **Fins (extension system)**: Plugin/extension architecture for Shoal — let users and third parties extend functionality without modifying core. Consider: custom tool profiles, lifecycle hook packages, MCP server bundles, CLI subcommand plugins, and template libraries as installable Fins. Design decisions: discovery mechanism (entry points vs config registry), sandboxing, API surface contract, naming (`shoal fin install`, `shoal fin ls`). Look at FastMCP's plugin patterns and Click's plugin system for inspiration.
 
 ---
@@ -147,6 +161,26 @@ This roadmap outlines the planned development for Shoal as a fish-first, persona
 ## Handoff
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
+
+### Session: 2026-03-07 — Roadmap cleanup + v0.19.0 milestone
+
+**What we did:**
+
+- Removed 4 resolved backlog items (Fix template env gap, `state_dir`/`runtime_dir` naming, `send_keys` submission bug, double `feat/` prefix) — shipped in v0.18.0/v0.19.0
+- Added `## v0.19.0` section documenting version flag, XDG naming, archived journal lookup, branch naming fix
+- Added `## v0.20.0` in-progress section (setup_commands, orphan worktrees, readiness signals, batch MCP)
+- v0.19.0 tagged at `4b1daa9`, pushed to origin; `main` at `03fc750`
+
+**Current state:**
+
+- Branch: `main` at `03fc750`
+- v0.20.0 in progress — 4 parallel worktrees: `fix/setup-commands`, `fix/orphan-worktrees`, `fix/mcp-readiness-batch`, `fix/roadmap-cleanup`
+
+**What to do next:**
+
+- Merge all four v0.20.0 worker branches
+- Run `just ci` to verify
+- Cut v0.20.0 release
 
 ### Session: 2026-03-07 — CI green-up + send_keys reliability
 
