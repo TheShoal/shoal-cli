@@ -90,8 +90,13 @@
   padding-left: 1.3rem;
 }
 
+.md-typeset li {
+  padding-left: 0.18rem;
+  line-height: 1.55;
+}
+
 .md-typeset li + li {
-  margin-top: 0.42rem;
+  margin-top: 0.52rem;
 }
 
 .md-typeset ul li::marker {
