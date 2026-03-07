@@ -1,0 +1,29 @@
+# Shoal — oh-my-pi (omp) tool definition
+# https://github.com/can1357/oh-my-pi
+# Install: bun install -g @oh-my-pi/pi-coding-agent
+# Place in ~/.config/shoal/tools/omp.toml
+#
+# oh-my-pi is the actively maintained fork of pi-coding-agent.
+# Binary: omp  (v13+)
+# Use this profile if you installed via @oh-my-pi/pi-coding-agent.
+# See docs/AGENTS.md for the full CLI reference.
+
+[tool]
+name = "omp"
+command = "omp"
+icon = "🥧"
+status_provider = "pi"
+
+[detection]
+# omp uses a TUI with differential rendering; patterns matched against pane output.
+busy_patterns = ["thinking", "generating", "executing", "reading", "writing", "editing"]
+waiting_patterns = ["permission", "confirm", "approve", "y/n"]
+error_patterns = ["Error:", "error:", "ERROR", "FAILED"]
+
+[mcp]
+# omp uses a YAML config file, not a CLI registration command.
+# Add servers to ~/.omp/agent/config.yml or .omp/config.yml.
+# See docs/AGENTS.md — MCP section for the expected format.
+config_cmd = ""
+config_file = ".omp/config.yml"
+socket_env = ""

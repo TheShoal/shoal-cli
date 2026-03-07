@@ -1,8 +1,11 @@
-# Shoal — Pi coding agent tool definition
+# Shoal — pi coding agent tool definition (legacy)
 # https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
 # Install: npm install -g @mariozechner/pi-coding-agent
 # Place in ~/.config/shoal/tools/pi.toml
-# Pi is the preferred primary backend for Shoal.
+#
+# NOTE: The actively maintained fork is oh-my-pi (binary: omp).
+# Use omp.toml instead unless you specifically need the original pi binary.
+# See docs/AGENTS.md for the full CLI reference.
 
 [tool]
 name = "pi"
