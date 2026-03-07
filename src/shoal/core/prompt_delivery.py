@@ -79,16 +79,13 @@ def build_tool_command_with_prompt(
     base = tool_cfg.command
 
     if tool_cfg.input_mode == "flag":
-        # e.g. "opencode --prompt 'Do the thing'"
         flag = tool_cfg.prompt_flag or "--prompt"
         return f"{base} {flag} {shlex.quote(prompt)}"
 
     if tool_cfg.input_mode == "arg":
         if tool_cfg.prompt_file_prefix:
-            # Write to file; prepend prefix to path (e.g. "@/path/to/prompt.md")
             prompt_path = write_prompt_file(session_id, prompt)
             return f"{base} {tool_cfg.prompt_file_prefix}{prompt_path}"
-        # No file mechanism — inline as a positional argument
         return f"{base} {shlex.quote(prompt)}"
 
     # "keys" or unknown — return base command unmodified
