@@ -11,24 +11,24 @@
 Shoal gets better when a team agrees on a few operating rules instead of inventing a new ritual for
 every task. This page is the minimal doctrine that keeps multi-agent work legible and reviewable.
 
-<div class="shoal-step-grid">
-  <div class="shoal-step" data-icon="map">
+<div class="shoal-step-grid shoal-step-grid--plain">
+  <div class="shoal-step">
     <strong>Readable names</strong>
     <p>Session names should reveal role and scope fast enough that `shoal ls` reads like an operations board.</p>
   </div>
-  <div class="shoal-step" data-icon="review">
+  <div class="shoal-step">
     <strong>Review symmetry</strong>
     <p>Meaningful work gets a reviewer lane or an explicit human checkpoint before risky decisions land.</p>
   </div>
-  <div class="shoal-step" data-icon="journal">
+  <div class="shoal-step">
     <strong>Operational journals</strong>
     <p>Write for interruption recovery, not narration, so the next operator sees goals, blockers, and decisions immediately.</p>
   </div>
-  <div class="shoal-step" data-icon="shield">
+  <div class="shoal-step">
     <strong>Human authority</strong>
     <p>Automation should accelerate throughput while destructive choices, merges, and policy calls stay human-owned.</p>
   </div>
-  <div class="shoal-step" data-icon="stack">
+  <div class="shoal-step">
     <strong>Shared templates</strong>
     <p>Use templates as team contracts for stable work modes, not as hidden bundles of one-off behavior.</p>
   </div>

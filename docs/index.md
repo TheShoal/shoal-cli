@@ -117,23 +117,23 @@ shoal attach auth
 ## Operating principles
 
 <div class="shoal-principles">
-  <div class="shoal-principle shoal-icon-panel" data-icon="bolt">
+  <div class="shoal-principle">
     <strong>Bias toward defaulted starts</strong>
     <span>Sessions should open faster than you can second-guess the setup.</span>
   </div>
-  <div class="shoal-principle shoal-icon-panel" data-icon="control">
+  <div class="shoal-principle">
     <strong>Keep state visible</strong>
     <span>Status, waiting prompts, and handoff context should stay one gesture away.</span>
   </div>
-  <div class="shoal-principle shoal-icon-panel" data-icon="map">
+  <div class="shoal-principle">
     <strong>Name work like an operator</strong>
     <span>Readable session names turn the fleet into a working board instead of a pile of panes.</span>
   </div>
-  <div class="shoal-principle shoal-icon-panel" data-icon="journal">
+  <div class="shoal-principle">
     <strong>Make interruption cheap</strong>
     <span>Journals, templates, and role-separated sessions should preserve narrative continuity.</span>
   </div>
-  <div class="shoal-principle shoal-icon-panel" data-icon="shield">
+  <div class="shoal-principle">
     <strong>Keep authority human</strong>
     <span>Agents should increase throughput, not silently absorb judgment calls.</span>
   </div>
@@ -142,7 +142,7 @@ shoal attach auth
 ## Signature operating modes
 
 <div class="shoal-band">
-  <div class="shoal-icon-panel" data-icon="review">
+  <div class="shoal-icon-panel" data-icon="team">
     <p class="shoal-eyebrow">Mode 01</p>
     <h3>Author, reviewer, supervisor</h3>
     <p>One agent writes, one critiques, and robo keeps the approval loop short.</p>

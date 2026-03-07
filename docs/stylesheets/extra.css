@@ -544,6 +544,10 @@
   font-size: 0.94rem;
 }
 
+.shoal-band .shoal-eyebrow {
+  margin-right: 2.7rem;
+}
+
 .shoal-band {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
@@ -556,11 +560,41 @@
   padding-top: 3rem;
 }
 
+.shoal-band .shoal-icon-panel {
+  padding-top: 1rem;
+  padding-right: 3rem;
+}
+
+.shoal-band .shoal-icon-panel[data-icon]::before {
+  top: 1rem;
+  right: 1rem;
+  left: auto;
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.shoal-band .shoal-icon-panel[data-icon]::after {
+  top: 0.72rem;
+  right: 0.72rem;
+  left: auto;
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
 .shoal-step-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
   gap: 1rem;
   margin: 1.25rem 0 2rem;
+}
+
+.shoal-step-grid--plain .shoal-step {
+  padding-top: 1rem;
+}
+
+.shoal-step-grid--plain .shoal-step::before,
+.shoal-step-grid--plain .shoal-step::after {
+  display: none;
 }
 
 .shoal-step {

@@ -12,20 +12,20 @@
     The point of review is risk reduction, not aesthetic commentary. Style polish comes after
     behavioral confidence.
 
-<div class="shoal-step-grid">
-  <div class="shoal-step" data-icon="shield">
+<div class="shoal-step-grid shoal-step-grid--plain">
+  <div class="shoal-step">
     <strong>Behavior first</strong>
     <p>Start with runtime regressions and user-facing contract drift before you spend energy on polish.</p>
   </div>
-  <div class="shoal-step" data-icon="system">
+  <div class="shoal-step">
     <strong>Config and tests</strong>
     <p>Check environment movement, deployment risk, and whether the risky path is covered instead of only the happy path.</p>
   </div>
-  <div class="shoal-step" data-icon="map">
+  <div class="shoal-step">
     <strong>Docs alignment</strong>
     <p>Compare the code against setup flow, examples, and operator guidance so the docs do not silently drift.</p>
   </div>
-  <div class="shoal-step" data-icon="control">
+  <div class="shoal-step">
     <strong>Escalate early</strong>
     <p>Pull a human in quickly when release semantics, destructive operations, or approval automation are involved.</p>
   </div>

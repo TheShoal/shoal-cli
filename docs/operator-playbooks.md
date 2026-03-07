@@ -11,28 +11,28 @@
 Shoal is easiest to adopt when you stop thinking in commands and start thinking in operating
 patterns. These playbooks are opinionated defaults for common high-leverage modes.
 
-<div class="shoal-step-grid">
-  <div class="shoal-step" data-icon="bolt">
+<div class="shoal-step-grid shoal-step-grid--plain">
+  <div class="shoal-step">
     <strong>Fast triage burst</strong>
     <p>Split reproduction from critique when you need answers faster than architecture.</p>
   </div>
-  <div class="shoal-step" data-icon="review">
+  <div class="shoal-step">
     <strong>Feature lane with review</strong>
     <p>Pair author and reviewer sessions up front when the change is meaningful enough to need both.</p>
   </div>
-  <div class="shoal-step" data-icon="compass">
+  <div class="shoal-step">
     <strong>Planner, implementer, closer</strong>
     <p>Use role separation when sequencing and release control are the real bottlenecks.</p>
   </div>
-  <div class="shoal-step" data-icon="remote">
+  <div class="shoal-step">
     <strong>Remote execution</strong>
     <p>Send heavy work elsewhere without changing naming, templates, or escalation semantics.</p>
   </div>
-  <div class="shoal-step" data-icon="loop">
+  <div class="shoal-step">
     <strong>Overnight batch</strong>
     <p>Keep throughput moving while you are away, but preserve explicit checkpoints and escalation.</p>
   </div>
-  <div class="shoal-step" data-icon="shield">
+  <div class="shoal-step">
     <strong>Release control room</strong>
     <p>Hold the merge and release decision surface in one human-owned place when risk is concentrated.</p>
   </div>
