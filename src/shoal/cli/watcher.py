@@ -12,7 +12,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from shoal.core.config import ensure_dirs, runtime_dir
+from shoal.core.config import ensure_dirs, state_dir
 
 console = Console()
 
@@ -20,7 +20,7 @@ app = typer.Typer(no_args_is_help=True)
 
 
 def _pid_file() -> Path:
-    return runtime_dir() / "watcher.pid"
+    return state_dir() / "watcher.pid"
 
 
 def _read_pid() -> int | None:

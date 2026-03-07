@@ -13,7 +13,7 @@ Three delivery modes (``ToolConfig.input_mode``):
               with the prefix prepended.
 * ``"flag"``  — bake the prompt via a named flag (e.g. ``--prompt``).
 
-Prompt files are written to ``state_dir()/prompts/<session_id>.md`` and
+Prompt files are written to ``data_dir()/prompts/<session_id>.md`` and
 kept on disk as an audit trail — they are never deleted.
 """
 
@@ -27,15 +27,15 @@ from shoal.models.config import ToolConfig
 
 def _prompts_dir() -> Path:
     """Return (and create) the directory used for persisted prompt files."""
-    from shoal.core.config import state_dir
+    from shoal.core.config import data_dir
 
-    d = state_dir() / "prompts"
+    d = data_dir() / "prompts"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
 def write_prompt_file(session_id: str, prompt: str) -> Path:
-    """Write *prompt* to ``<state_dir>/prompts/<session_id>.md`` and return the path.
+    """Write *prompt* to ``<data_dir>/prompts/<session_id>.md`` and return the path.
 
     The file is created with mode 0o600 (owner-readable only).
     If a file for *session_id* already exists it is overwritten so that

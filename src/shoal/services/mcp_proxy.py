@@ -11,7 +11,7 @@ import logging
 import sys
 from contextlib import suppress
 
-from shoal.core.config import state_dir
+from shoal.core.config import data_dir
 from shoal.services.mcp_pool import validate_mcp_name
 
 logger = logging.getLogger("shoal.mcp_proxy")
@@ -90,7 +90,7 @@ def main() -> None:
         logger.error("Invalid MCP name: %s", e)
         sys.exit(1)
 
-    socket = state_dir() / "mcp-pool" / "sockets" / f"{name}.sock"
+    socket = data_dir() / "mcp-pool" / "sockets" / f"{name}.sock"
 
     if not socket.exists():
         logger.error("MCP socket not found: %s", socket)

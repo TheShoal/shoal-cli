@@ -460,7 +460,7 @@ class TestExtraFieldsRejected:
             """
 [general]
 default_tool = "opencode"
-state_dir = "~/.local/share/shoal"
+data_dir = "~/.local/share/shoal"
 """
         )
         with pytest.raises(ConfigLoadError, match="invalid config"):

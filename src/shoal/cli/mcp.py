@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from shoal.core.config import ensure_dirs, state_dir
+from shoal.core.config import data_dir, ensure_dirs
 from shoal.core.db import with_db
 from shoal.core.state import (
     _resolve_session_interactive_impl,
@@ -51,7 +51,7 @@ def mcp_ls() -> None:
 
 def _discover_servers() -> list[str]:
     """Discover running MCP servers by scanning PID files."""
-    pid_dir = state_dir() / "mcp-pool" / "pids"
+    pid_dir = data_dir() / "mcp-pool" / "pids"
     if not pid_dir.exists():
         return []
     return sorted(p.stem for p in pid_dir.glob("*.pid"))

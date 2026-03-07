@@ -37,6 +37,12 @@ app = typer.Typer(
 )
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        print(f"shoal {shoal.__version__}")
+        raise typer.Exit
+
+
 @app.callback()
 def main(
     debug: bool = typer.Option(False, "--debug", help="Enable DEBUG-level logging to stderr."),
@@ -45,6 +51,13 @@ def main(
     ),
     log_file: str | None = typer.Option(None, "--log-file", help="Log to file instead of stderr."),
     json_logs: bool = typer.Option(False, "--json-logs", help="Emit logs as JSON lines."),
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Print version and exit.",
+    ),
 ) -> None:
     """Orchestrate AI coding agents."""
     from shoal.core.logging_config import configure_logging
@@ -111,7 +124,7 @@ def _check_environment() -> None:
     from rich.console import Console
     from rich.table import Table
 
-    from shoal.core.config import config_dir, runtime_dir, state_dir
+    from shoal.core.config import config_dir, data_dir, state_dir
     from shoal.core.theme import Icons, Symbols, create_panel, create_table
 
     console = Console()
@@ -151,8 +164,8 @@ def _check_environment() -> None:
 
     for dir_name, dir_path in [
         ("Config", config_dir()),
+        ("Data", data_dir()),
         ("State", state_dir()),
-        ("Runtime", runtime_dir()),
     ]:
         exists = "[green]exists[/green]" if dir_path.exists() else "[yellow]not created[/yellow]"
         dir_info.add_row(dir_name, f"{dir_path} [dim]({exists})[/dim]")

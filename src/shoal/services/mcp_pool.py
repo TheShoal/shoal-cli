@@ -20,7 +20,7 @@ import time
 from contextlib import suppress
 from pathlib import Path
 
-from shoal.core.config import state_dir
+from shoal.core.config import data_dir
 
 logger = logging.getLogger("shoal.mcp_pool")
 
@@ -80,7 +80,7 @@ def get_transport(name: str) -> str:
 
 def mcp_log_dir() -> Path:
     """Return the MCP pool log directory."""
-    return state_dir() / "mcp-pool" / "logs"
+    return data_dir() / "mcp-pool" / "logs"
 
 
 def mcp_log_file(name: str) -> Path:
@@ -105,16 +105,16 @@ def _truncate_log(path: Path, max_bytes: int = 10 * 1024 * 1024) -> None:
 
 
 def mcp_socket(name: str) -> Path:
-    return state_dir() / "mcp-pool" / "sockets" / f"{name}.sock"
+    return data_dir() / "mcp-pool" / "sockets" / f"{name}.sock"
 
 
 def mcp_pid_file(name: str) -> Path:
-    return state_dir() / "mcp-pool" / "pids" / f"{name}.pid"
+    return data_dir() / "mcp-pool" / "pids" / f"{name}.pid"
 
 
 def mcp_port_file(name: str) -> Path:
     """Return the port file path for a named HTTP-mode MCP server."""
-    return state_dir() / "mcp-pool" / "ports" / f"{name}.port"
+    return data_dir() / "mcp-pool" / "ports" / f"{name}.port"
 
 
 def read_port(name: str) -> int | None:

@@ -14,7 +14,7 @@ import signal
 from datetime import UTC, datetime
 
 from shoal.core import tmux
-from shoal.core.config import ensure_dirs, load_tool_config, runtime_dir
+from shoal.core.config import ensure_dirs, load_tool_config, state_dir
 from shoal.core.db import get_db
 from shoal.core.journal import append_entry, read_journal
 from shoal.core.state import find_by_name, get_session, list_sessions
@@ -54,7 +54,7 @@ class RoboSupervisor:
         """Start the supervision loop with signal handling and PID file."""
         ensure_dirs()
 
-        log_file = runtime_dir() / "logs" / f"robo-{self.profile.name}.log"
+        log_file = state_dir() / "logs" / f"robo-{self.profile.name}.log"
         handler = logging.FileHandler(str(log_file))
         handler.setFormatter(
             logging.Formatter(
@@ -66,7 +66,7 @@ class RoboSupervisor:
         shoal_logger.setLevel(logging.INFO)
         shoal_logger.addHandler(handler)
 
-        pid_file = runtime_dir() / f"robo-{self.profile.name}.pid"
+        pid_file = state_dir() / f"robo-{self.profile.name}.pid"
         pid_file.write_text(str(os.getpid()))
 
         logger.info(

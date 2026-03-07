@@ -63,7 +63,7 @@ def config_dir() -> Path:
     return Path(base) / "shoal"
 
 
-def state_dir() -> Path:
+def data_dir() -> Path:
     """Return Shoal persistent data directory (sessions, robo state).
 
     Reads ``XDG_DATA_HOME`` env var, falling back to ``~/.local/share/shoal``.
@@ -72,8 +72,8 @@ def state_dir() -> Path:
     return Path(base) / "shoal"
 
 
-def runtime_dir() -> Path:
-    """Return Shoal transient runtime directory (PIDs, logs).
+def state_dir() -> Path:
+    """Return Shoal transient state directory (PIDs, logs).
 
     Reads ``XDG_STATE_HOME`` env var, falling back to ``~/.local/state/shoal``.
     """
@@ -82,15 +82,15 @@ def runtime_dir() -> Path:
 
 
 def ensure_dirs() -> None:
-    """Create all required state and runtime directories."""
+    """Create all required data and state directories."""
     cfg = config_dir()
     for subdir in ("templates", "templates/mixins"):
         (cfg / subdir).mkdir(parents=True, exist_ok=True)
 
-    base = state_dir()
+    base = data_dir()
     for subdir in ("sessions", "journals", "mcp-pool/pids", "mcp-pool/sockets", "robo", "remote"):
         (base / subdir).mkdir(parents=True, exist_ok=True)
-    rt = runtime_dir()
+    rt = state_dir()
     for subdir in ("logs",):
         (rt / subdir).mkdir(parents=True, exist_ok=True)
 

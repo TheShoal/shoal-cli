@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import shoal
-from shoal.core.config import state_dir
+from shoal.core.config import data_dir
 
 logger = logging.getLogger("shoal.journal")
 
@@ -123,17 +123,13 @@ def _render_frontmatter(meta: JournalMetadata) -> str:
 _FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 
 
-def _strip_frontmatter(text: str) -> str:
-    """Remove YAML frontmatter from the beginning of text."""
-    return _FRONTMATTER_RE.sub("", text)
+def _parse_frontmatter_text(text: str) -> dict[str, str] | None:
+    """Parse YAML frontmatter from raw journal text.
 
-
-def read_frontmatter(session_id: str) -> dict[str, str] | None:
-    """Read YAML frontmatter from a journal file. Returns None if absent."""
-    path = journal_path(session_id)
-    if not path.exists():
-        return None
-    text = path.read_text()
+    Returns a string-valued dict of key→value pairs, or None if no
+    frontmatter block is present.  Values are returned as raw strings
+    (YAML inline lists such as ``[a, b]`` are not decoded here).
+    """
     m = _FRONTMATTER_RE.match(text)
     if not m:
         return None
@@ -148,6 +144,19 @@ def read_frontmatter(session_id: str) -> dict[str, str] | None:
     return result
 
 
+def _strip_frontmatter(text: str) -> str:
+    """Remove YAML frontmatter from the beginning of text."""
+    return _FRONTMATTER_RE.sub("", text)
+
+
+def read_frontmatter(session_id: str) -> dict[str, str] | None:
+    """Read YAML frontmatter from a journal file. Returns None if absent."""
+    path = journal_path(session_id)
+    if not path.exists():
+        return None
+    return _parse_frontmatter_text(path.read_text())
+
+
 _ENTRY_RE = re.compile(
     r"^## (\d{4}-\d{2}-\d{2}T[\d:.+Z-]+)\s*\[([^\]]*)\]\s*\n\n(.*?)(?=\n---|\Z)",
     re.MULTILINE | re.DOTALL,
@@ -155,7 +164,7 @@ _ENTRY_RE = re.compile(
 
 
 def _journals_dir() -> Path:
-    return state_dir() / "journals"
+    return data_dir() / "journals"
 
 
 def journal_path(session_id: str) -> Path:
@@ -265,6 +274,46 @@ def read_archived_journal(session_id: str, limit: int | None = None) -> list[Jou
     if limit is not None:
         entries = entries[-limit:]
     return entries
+
+
+def find_archived_session_id(identifier: str) -> str | None:
+    """Find an archived session ID by scanning frontmatter for a name match.
+
+    Used as fallback when DB resolution fails (session already deleted).
+    Scans the archive directory for a journal whose frontmatter ``title`` or
+    ``aliases`` field matches *identifier* (case-insensitive).
+
+    Args:
+        identifier: Session name or alias to search for.
+
+    Returns:
+        Session ID (file stem) if found, None otherwise.
+    """
+    archive_dir = _journals_dir() / "archive"
+    if not archive_dir.exists():
+        return None
+    identifier_lower = identifier.lower()
+    for journal_file in archive_dir.glob("*.md"):
+        text = journal_file.read_text()
+        # Quick pre-check before parsing to skip unrelated files
+        if identifier_lower not in text.lower():
+            continue
+        frontmatter = _parse_frontmatter_text(text)
+        if frontmatter is None:
+            continue
+        title = frontmatter.get("title", "")
+        aliases_raw = frontmatter.get("aliases", "")
+        # aliases stored as YAML inline list: "[name1, name2]" — decode manually
+        if aliases_raw.startswith("[") and aliases_raw.endswith("]"):
+            aliases: list[str] = [a.strip() for a in aliases_raw[1:-1].split(",") if a.strip()]
+        elif aliases_raw:
+            aliases = [aliases_raw]
+        else:
+            aliases = []
+        candidates = [title, *aliases]
+        if any(c.lower() == identifier_lower for c in candidates if c):
+            return journal_file.stem
+    return None
 
 
 @dataclass(frozen=True)
