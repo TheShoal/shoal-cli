@@ -1086,7 +1086,7 @@ def reconcile_mcp_pool() -> list[str]:
     """Scan MCP pool for dead processes and clean up stale files."""
     from shoal.services.mcp_pool import is_mcp_running, mcp_pid_file, mcp_socket, read_pid
 
-    # Use mcp_socket to get the socket dir (consistent with mcp_pool's state_dir)
+    # Use mcp_socket to get the socket dir (consistent with mcp_pool's data_dir)
     socket_dir = mcp_socket("").parent
     if not socket_dir.exists():
         return []

@@ -280,9 +280,9 @@ async def health() -> dict[str, object]:
 
     pid_file = Path.home()  # placeholder
     try:
-        from shoal.core.config import runtime_dir
+        from shoal.core.config import state_dir
 
-        pid_file = runtime_dir() / "watcher.pid"
+        pid_file = state_dir() / "watcher.pid"
         if pid_file.exists():
             pid = int(pid_file.read_text().strip())
             os.kill(pid, 0)

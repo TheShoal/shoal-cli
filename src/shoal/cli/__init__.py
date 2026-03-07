@@ -111,7 +111,7 @@ def _check_environment() -> None:
     from rich.console import Console
     from rich.table import Table
 
-    from shoal.core.config import config_dir, runtime_dir, state_dir
+    from shoal.core.config import config_dir, data_dir, state_dir
     from shoal.core.theme import Icons, Symbols, create_panel, create_table
 
     console = Console()
@@ -151,8 +151,8 @@ def _check_environment() -> None:
 
     for dir_name, dir_path in [
         ("Config", config_dir()),
+        ("Data", data_dir()),
         ("State", state_dir()),
-        ("Runtime", runtime_dir()),
     ]:
         exists = "[green]exists[/green]" if dir_path.exists() else "[yellow]not created[/yellow]"
         dir_info.add_row(dir_name, f"{dir_path} [dim]({exists})[/dim]")

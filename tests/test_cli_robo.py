@@ -18,9 +18,9 @@ def test_robo_setup_success(mock_dirs):
     assert "Created profile" in result.stdout
     assert "Robo 'test-robo' ready" in result.stdout
 
-    config_dir, state_dir = mock_dirs
+    config_dir, data_dir = mock_dirs
     profile_path = config_dir / "robo" / "test-robo.toml"
-    robo_dir = state_dir / "robo" / "test-robo"
+    robo_dir = data_dir / "robo" / "test-robo"
     assert profile_path.exists()
     assert robo_dir.exists()
     assert (robo_dir / "AGENTS.md").exists()
@@ -184,7 +184,7 @@ def test_robo_watch_with_supervisor(mock_dirs):
 
 
 def test_robo_pid_file_path(mock_dirs):
-    """_robo_pid_file returns expected path within runtime_dir."""
+    """_robo_pid_file returns expected path within state_dir."""
     pid_file = _robo_pid_file("myprofile")
     assert pid_file.name == "robo-myprofile.pid"
 

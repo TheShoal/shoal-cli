@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from shoal.core.config import ConfigLoadError, config_dir, load_config, runtime_dir, state_dir
+from shoal.core.config import ConfigLoadError, config_dir, data_dir, load_config, state_dir
 
 console = Console()
 
@@ -67,8 +67,8 @@ def config_paths() -> None:
 
     dirs = [
         ("Config", config_dir(), "XDG_CONFIG_HOME"),
-        ("State", state_dir(), "XDG_DATA_HOME"),
-        ("Runtime", runtime_dir(), "XDG_STATE_HOME"),
+        ("Data", data_dir(), "XDG_DATA_HOME"),
+        ("State", state_dir(), "XDG_STATE_HOME"),
     ]
 
     for label, path, env_var in dirs:

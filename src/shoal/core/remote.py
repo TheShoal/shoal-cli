@@ -13,7 +13,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from shoal.core.config import load_config, state_dir
+from shoal.core.config import data_dir, load_config
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class RemoteConnectionError(Exception):
 
 def _remote_dir() -> Path:
     """Return the remote tunnel state directory."""
-    return state_dir() / "remote"
+    return data_dir() / "remote"
 
 
 def tunnel_pid_file(host: str) -> Path:

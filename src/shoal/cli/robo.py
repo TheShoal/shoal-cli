@@ -18,10 +18,10 @@ from shoal.core import tmux
 from shoal.core.config import (
     ConfigLoadError,
     config_dir,
+    data_dir,
     ensure_dirs,
     load_config,
     load_robo_profile,
-    runtime_dir,
     state_dir,
 )
 from shoal.core.db import get_db, with_db
@@ -40,8 +40,8 @@ def robo_default(ctx: typer.Context) -> None:
         robo_ls()
 
 
-def _robo_runtime_dir(name: str) -> Path:
-    return state_dir() / "robo" / name
+def _robo_data_dir(name: str) -> Path:
+    return data_dir() / "robo" / name
 
 
 def _robo_session_prefix() -> str:
@@ -60,7 +60,7 @@ def _build_robo_tmux_session(name: str) -> str:
 
 def _robo_pid_file(profile: str) -> Path:
     """Return the PID file path for a robo supervision daemon."""
-    return runtime_dir() / f"robo-{profile}.pid"
+    return state_dir() / f"robo-{profile}.pid"
 
 
 def _read_robo_pid(profile: str) -> int | None:
@@ -96,7 +96,7 @@ def robo_setup(
 
     # Try new path first, support old path for backward compat
     profile_file = config_dir() / "robo" / f"{name}.toml"
-    robo_rt_dir = _robo_runtime_dir(name)
+    robo_rt_dir = _robo_data_dir(name)
 
     # Create profile if it doesn't exist
     if not profile_file.exists():
@@ -206,7 +206,7 @@ async def _robo_start_impl(name: str | None) -> None:
     ensure_dirs()
     name = name or "default"
 
-    robo_rt_dir = _robo_runtime_dir(name)
+    robo_rt_dir = _robo_data_dir(name)
 
     try:
         profile = load_robo_profile(name)

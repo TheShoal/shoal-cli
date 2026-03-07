@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import shoal
-from shoal.core.config import state_dir
+from shoal.core.config import data_dir
 
 logger = logging.getLogger("shoal.journal")
 
@@ -155,7 +155,7 @@ _ENTRY_RE = re.compile(
 
 
 def _journals_dir() -> Path:
-    return state_dir() / "journals"
+    return data_dir() / "journals"
 
 
 def journal_path(session_id: str) -> Path:
