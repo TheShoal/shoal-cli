@@ -3,7 +3,10 @@ hide:
   - toc
 ---
 
-# Shoal
+<div class="shoal-home-heading">
+  <p class="shoal-home-word">shoal</p>
+  <p class="shoal-home-definition"><span>verb</span> to gather and move together.</p>
+</div>
 
 <div class="shoal-hero">
   <div>
