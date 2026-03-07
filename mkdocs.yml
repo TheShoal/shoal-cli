@@ -70,6 +70,7 @@ nav:
   - Operate Shoal:
       - Flow-State Workflows: flow-state-workflows.md
       - Operator Playbooks: operator-playbooks.md
+      - Team Doctrine: team-doctrine.md
       - Robo Supervisor: ROBO_GUIDE.md
       - Remote Sessions: REMOTE_GUIDE.md
       - Fish Integration: FISH_INTEGRATION.md

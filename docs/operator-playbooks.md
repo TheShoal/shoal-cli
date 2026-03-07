@@ -138,3 +138,5 @@ If you only keep three rules, keep these:
 1. Every meaningful session should have a readable name.
 2. Every risky change should have a reviewer lane or explicit human checkpoint.
 3. Every workflow should be easier to resume tomorrow than to explain from memory.
+
+For team-wide naming, review, and escalation conventions, see [Team Doctrine](team-doctrine.md).

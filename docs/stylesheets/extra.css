@@ -65,6 +65,10 @@
   animation: shoal-rise 260ms ease-out;
 }
 
+.md-content {
+  max-width: 54rem;
+}
+
 .md-typeset h1,
 .md-typeset h2,
 .md-typeset h3 {
@@ -74,6 +78,40 @@
 .md-typeset h1 {
   margin-bottom: 0.8rem;
   color: var(--shoal-deep-strong);
+}
+
+.md-typeset h2 {
+  margin-top: 2.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(14, 95, 100, 0.12);
+  color: var(--shoal-deep-strong);
+}
+
+.md-typeset h3 {
+  margin-top: 1.8rem;
+  color: var(--shoal-ink);
+}
+
+.md-typeset > p,
+.md-typeset > ul,
+.md-typeset > ol,
+.md-typeset > blockquote,
+.md-typeset > .highlight,
+.md-typeset > .admonition,
+.md-typeset > details,
+.md-typeset > figure {
+  max-width: 46rem;
+}
+
+.md-typeset > h1 + p {
+  max-width: 48rem;
+  font-size: 1.08rem;
+  line-height: 1.72;
+  color: rgba(16, 34, 46, 0.9);
+}
+
+.md-typeset p {
+  line-height: 1.72;
 }
 
 .md-typeset code {
@@ -121,6 +159,16 @@
 .md-nav--primary .md-nav__item--section > .md-nav__link {
   font-weight: 700;
   color: var(--shoal-deep-strong);
+}
+
+.md-nav--primary .md-nav .md-nav .md-nav__link {
+  font-size: 0.76rem;
+  color: rgba(16, 34, 46, 0.82);
+}
+
+.md-nav--primary .md-nav .md-nav .md-nav .md-nav__link {
+  font-size: 0.72rem;
+  color: rgba(16, 34, 46, 0.62);
 }
 
 .md-nav--primary .md-nav__link,
