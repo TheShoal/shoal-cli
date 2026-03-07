@@ -186,7 +186,10 @@ async def send_keys_tool(session: str, keys: str, enter: bool | None = None) -> 
         enter: Whether to press Enter after keys. Auto-detected from tool
                profile if not specified (True for claude/codex/gemini/pi).
     """
+    import asyncio
+
     from shoal.core import tmux
+    from shoal.core.config import load_tool_config
     from shoal.core.state import get_session, resolve_session
 
     session_id = await resolve_session(session)
@@ -198,11 +201,19 @@ async def send_keys_tool(session: str, keys: str, enter: bool | None = None) -> 
         raise ToolError(f"Session not found: {session}")
 
     auto_enter = enter if enter is not None else s.tool in _AUTO_ENTER_TOOLS
+
+    # Load send_keys_delay from the tool's config profile (default 0.0)
+    try:
+        tool_cfg = await asyncio.to_thread(load_tool_config, s.tool)
+        delay = tool_cfg.send_keys_delay
+    except FileNotFoundError:
+        delay = 0.0
+
     # Use preferred_pane to target the titled pane (shoal:<id>), not just the
     # active pane in the session.  Without this, keys land in whatever pane
     # happens to be active, which may not be the tool pane.
     pane_target = await tmux.async_preferred_pane(s.tmux_session, f"shoal:{s.id}")
-    await tmux.async_send_keys(pane_target, keys, enter=auto_enter)
+    await tmux.async_send_keys(pane_target, keys, enter=auto_enter, delay=delay)
     return {"message": f"Keys sent to session '{s.name}'"}
 
 
@@ -398,9 +409,10 @@ async def create_session_tool(
 
         from shoal.core import tmux
 
-        # Brief delay to let the tool finish launching in the pane
+        # Brief delay to let the tool finish launching in the pane,
+        # then send the prompt with tool-profile delay between paste and Enter.
         await asyncio.sleep(1)
-        await tmux.async_send_keys(session.tmux_session, prompt)
+        await tmux.async_send_keys(session.tmux_session, prompt, delay=tool_cfg.send_keys_delay)
 
     return {
         "id": session.id,

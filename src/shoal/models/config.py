@@ -128,6 +128,7 @@ class ToolConfig(BaseModel):
     command: str
     icon: str = "●"
     status_provider: Literal["regex", "pi", "opencode_compat"] | None = None
+    send_keys_delay: float = 0.0
     detection: DetectionPatterns = Field(default_factory=DetectionPatterns)
     mcp: MCPToolConfig = Field(default_factory=MCPToolConfig)
 

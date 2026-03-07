@@ -200,8 +200,26 @@ async def async_set_environment(session: str, key: str, value: str) -> None:
     await asyncio.to_thread(set_environment, session, key, value)
 
 
-async def async_send_keys(target: str, keys: str, *, enter: bool = True) -> None:
-    await asyncio.to_thread(send_keys, target, keys, enter=enter)
+async def async_send_keys(
+    target: str, keys: str, *, enter: bool = True, delay: float = 0.0
+) -> None:
+    """Send keys to a tmux pane asynchronously.
+
+    Args:
+        target: Tmux pane target (session, window, or pane address).
+        keys: Text to send literally to the pane.
+        enter: Whether to press Enter after sending keys.
+        delay: Seconds to wait between the text paste and the Enter keystroke.
+            Use a small value (e.g. 0.1) for TUI tools that need time to render
+            pasted text before they can process a newline (e.g. Claude Code).
+    """
+    if delay > 0 and enter:
+        # Split paste and Enter so we can sleep in between
+        await asyncio.to_thread(send_keys, target, keys, enter=False)
+        await asyncio.sleep(delay)
+        await asyncio.to_thread(_run, ["send-keys", "-t", target, "Enter"])
+    else:
+        await asyncio.to_thread(send_keys, target, keys, enter=enter)
 
 
 async def async_capture_pane(target: str, lines: int = 20, include_ansi: bool = False) -> str:

@@ -245,7 +245,7 @@ async def test_send_keys_claude_auto_enter() -> None:
     # Must target the titled pane, not just the session name
     mock_pane.assert_called_once_with("_worker-1", "shoal:abc12345")
     # Claude is a CLI tool → auto-enter=True
-    mock_send.assert_called_once_with("%1", "y", enter=True)
+    mock_send.assert_called_once_with("%1", "y", enter=True, delay=0.0)
 
 
 async def test_send_keys_codex_auto_enter() -> None:
@@ -267,7 +267,7 @@ async def test_send_keys_codex_auto_enter() -> None:
 
     assert "worker-codex" in result["message"]
     mock_pane.assert_called_once_with("_worker-codex", "shoal:codex123")
-    mock_send.assert_called_once_with("%3", "continue", enter=True)
+    mock_send.assert_called_once_with("%3", "continue", enter=True, delay=0.0)
 
 
 async def test_send_keys_opencode_no_auto_enter() -> None:
@@ -289,7 +289,7 @@ async def test_send_keys_opencode_no_auto_enter() -> None:
 
     assert "worker-2" in result["message"]
     mock_pane.assert_called_once_with("_worker-2", "shoal:def67890")
-    mock_send.assert_called_once_with("%2", "y", enter=False)
+    mock_send.assert_called_once_with("%2", "y", enter=False, delay=0.0)
 
 
 async def test_send_keys_explicit_enter_override() -> None:
@@ -311,7 +311,7 @@ async def test_send_keys_explicit_enter_override() -> None:
 
     assert "worker-3" in result["message"]
     mock_pane.assert_called_once_with("_worker-3", "shoal:ghi11111")
-    mock_send.assert_called_once_with("%4", "y", enter=True)
+    mock_send.assert_called_once_with("%4", "y", enter=True, delay=0.0)
 
 
 async def test_send_keys_not_found() -> None:
@@ -456,8 +456,32 @@ async def test_send_keys_targets_shoal_pane() -> None:
     # Pane title is "shoal:<session_id>" matching the Shoal pane identity contract
     mock_pane.assert_called_once_with("_worker-2", "shoal:deadbeef")
     # Keys go to the resolved pane ID, not the raw session name
-    mock_send.assert_called_once_with("%3", "ls -la", enter=True)
+    mock_send.assert_called_once_with("%3", "ls -la", enter=True, delay=0.0)
     assert result["message"] == "Keys sent to session 'worker-2'"
+
+
+async def test_send_keys_delay_forwarded_from_tool_config() -> None:
+    """send_keys_delay from tool config is forwarded to async_send_keys."""
+    from shoal.models.config import ToolConfig
+    from shoal.services.mcp_shoal_server import send_keys_tool
+
+    s = _make_session(name="worker-slow", tool="claude", session_id="slow0001")
+    slow_cfg = ToolConfig(name="claude", command="claude", send_keys_delay=0.1)
+    with (
+        patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="slow0001"),
+        patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
+        patch(
+            "shoal.core.tmux.async_preferred_pane",
+            new_callable=AsyncMock,
+            return_value="%9",
+        ),
+        patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
+        patch("shoal.core.config.load_tool_config", return_value=slow_cfg),
+    ):
+        result = await send_keys_tool(session="worker-slow", keys="y")
+
+    assert "worker-slow" in result["message"]
+    mock_send.assert_called_once_with("%9", "y", enter=True, delay=0.1)
 
 
 async def test_kill_session_success() -> None:

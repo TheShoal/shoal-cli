@@ -1,6 +1,8 @@
 """Tests for core.tmux module."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from shoal.core import tmux
 
@@ -242,3 +244,67 @@ def test_popup_custom_size():
             check=True,
             timeout=30,
         )
+
+
+# ---------------------------------------------------------------------------
+# async_send_keys — delay behaviour
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_async_send_keys_no_delay_delegates_to_sync() -> None:
+    """With delay=0 async_send_keys is a simple thread delegation."""
+    with patch("shoal.core.tmux.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+        await tmux.async_send_keys("my-session", "hello", enter=True, delay=0.0)
+        mock_thread.assert_called_once_with(tmux.send_keys, "my-session", "hello", enter=True)
+
+
+@pytest.mark.asyncio
+async def test_async_send_keys_with_delay_splits_paste_and_enter() -> None:
+    """With delay>0 text paste and Enter are sent as separate to_thread calls."""
+    sleep_called_with: list[float] = []
+
+    async def fake_sleep(secs: float) -> None:
+        sleep_called_with.append(secs)
+
+    to_thread_calls: list[tuple[object, ...]] = []
+
+    async def fake_to_thread(fn: object, *args: object, **kwargs: object) -> None:
+        to_thread_calls.append((fn, args, kwargs))
+
+    with (
+        patch("shoal.core.tmux.asyncio.to_thread", side_effect=fake_to_thread),
+        patch("shoal.core.tmux.asyncio.sleep", side_effect=fake_sleep),
+    ):
+        await tmux.async_send_keys("my-session", "hello", enter=True, delay=0.15)
+
+    # Sleep called once with the requested delay
+    assert sleep_called_with == [0.15]
+
+    # First to_thread call: paste text without Enter
+    first_fn, first_args, first_kwargs = to_thread_calls[0]
+    assert first_fn is tmux.send_keys
+    assert first_args == ("my-session", "hello")
+    assert first_kwargs == {"enter": False}
+
+    # Second to_thread call: send Enter key via _run
+    second_fn, second_args, _second_kwargs = to_thread_calls[1]
+    assert second_fn is tmux._run
+    assert second_args == (["send-keys", "-t", "my-session", "Enter"],)
+
+
+@pytest.mark.asyncio
+async def test_async_send_keys_delay_skipped_when_no_enter() -> None:
+    """Delay is irrelevant when enter=False — sleep must not be called."""
+    sleep_calls: list[float] = []
+
+    async def fake_sleep(secs: float) -> None:
+        sleep_calls.append(secs)
+
+    with (
+        patch("shoal.core.tmux.asyncio.to_thread", new_callable=AsyncMock),
+        patch("shoal.core.tmux.asyncio.sleep", side_effect=fake_sleep),
+    ):
+        await tmux.async_send_keys("my-session", "hello", enter=False, delay=0.5)
+
+    assert sleep_calls == [], "sleep must not be called when enter=False"
