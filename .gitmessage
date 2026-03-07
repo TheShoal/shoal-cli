@@ -1,6 +1,7 @@
-# <type>: <description>
+# <type>(<scope>): <description>
 #
 # Types: feat, fix, docs, style, refactor, perf, test, chore
+# Scope: optional — narrow the change: fix(session):, docs(cli):, feat(api):
 #
 # Description:
 # - Use imperative mood ("add" not "added")

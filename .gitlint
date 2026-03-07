@@ -4,5 +4,7 @@ contrib=contrib-title-conventional-commits
 [title-max-length]
 line-length=88
 
+# scope is optional: type(scope): or type:
+
 [contrib-title-conventional-commits]
 types=feat,fix,docs,style,refactor,perf,test,chore

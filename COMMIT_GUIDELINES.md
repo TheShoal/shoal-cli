@@ -5,7 +5,7 @@ Shoal follows the [Conventional Commits](https://www.conventionalcommits.org/) s
 ## Format
 
 ```
-<type>: <description>
+<type>(<scope>): <description>
 
 [optional body]
 
@@ -24,6 +24,14 @@ Must be one of the following:
 - **perf**: Performance improvement
 - **test**: Adding missing tests or correcting existing tests
 - **chore**: Changes to build process, dependencies, or auxiliary tools
+
+### Scope
+
+Optional. Narrows the area of change. Keep it short and lowercase.
+
+Common scopes: `session`, `mcp`, `cli`, `api`, `fish`, `db`, `config`, `status`
+
+Omit scope when a change touches too many areas to name one meaningfully.
 
 ### Description
 
@@ -49,7 +57,7 @@ Must be one of the following:
 ### Good Commits
 
 ```
-feat: add session name validation at all entry points
+feat(session): add name validation at all entry points
 
 - Validate session names in SessionState and SessionCreate models
 - Add validation to update_session() when name parameter provided
@@ -58,14 +66,14 @@ feat: add session name validation at all entry points
 ```
 
 ```
-fix: prevent N+1 query in MCP listing
+fix(mcp): prevent N+1 query in MCP listing
 
 Use single list_sessions() call instead of fetching sessions individually
 for each MCP server, reducing database queries from O(n) to O(1).
 ```
 
 ```
-test: expand status bar test coverage
+test(status): expand status bar test coverage
 
 - Add test for multiple mixed statuses
 - Verify stopped and unknown sessions excluded from display
@@ -73,7 +81,7 @@ test: expand status bar test coverage
 ```
 
 ```
-docs: refresh README with improved layout
+docs(readme): refresh README with improved layout
 
 - Reorganize sections for better flow
 - Add examples for common workflows
@@ -81,7 +89,7 @@ docs: refresh README with improved layout
 ```
 
 ```
-chore: bump version to 0.4.4
+chore(deps): bump version to 0.4.4
 ```
 
 ### Bad Commits
