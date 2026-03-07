@@ -13,6 +13,7 @@ from shoal.core.journal import (
     JournalEntry,
     append_entry,
     archived_journal_path,
+    find_archived_session_id,
     journal_exists,
     read_archived_journal,
     read_journal,
@@ -102,10 +103,15 @@ def _view_archived(session: str, *, limit: int | None = None) -> None:
             return await resolve_session(session)
 
         resolved = asyncio.run(with_db(_resolve()))
-        if not resolved:
-            console.print(f"[red]No archived journal found for '{session}'[/red]")
-            raise typer.Exit(1)
-        session_id = resolved
+        if resolved:
+            session_id = resolved
+        else:
+            # Last resort: scan archive frontmatter when session is deleted from DB
+            found = find_archived_session_id(session)
+            if not found:
+                console.print(f"[red]No archived journal found for '{session}'[/red]")
+                raise typer.Exit(1)
+            session_id = found
 
     entries = read_archived_journal(session_id, limit=limit)
     if not entries:

@@ -24,6 +24,7 @@ from shoal.core.journal import (
     archived_journal_path,
     build_journal_metadata,
     delete_journal,
+    find_archived_session_id,
     journal_exists,
     journal_path,
     read_archived_journal,
@@ -485,6 +486,72 @@ class TestArchivedCLI:
             result = runner.invoke(app, ["journal", "my-session-name", "--archived"])
         assert result.exit_code == 0
         assert "resolved content" in result.output
+
+    def test_archived_by_name_when_session_deleted(
+        self, runner: CliRunner, journals_dir: Path
+    ) -> None:
+        """Falls back to frontmatter scan when session is no longer in the DB."""
+        from shoal.cli import app
+
+        meta = JournalMetadata(session_id="killed-id", session_name="killed-session")
+        append_entry("killed-id", "post-kill content", source="agent", metadata=meta)
+        archive_journal("killed-id")
+
+        # Simulate session removed from DB after kill
+        async def mock_resolve(name: str) -> None:
+            return None
+
+        with patch("shoal.cli.journal.resolve_session", side_effect=mock_resolve):
+            result = runner.invoke(app, ["journal", "killed-session", "--archived"])
+        assert result.exit_code == 0
+        assert "post-kill content" in result.output
+        assert "Archived journal" in result.output
+
+
+class TestFindArchivedSessionId:
+    """Test find_archived_session_id core function."""
+
+    def test_finds_by_title(self, journals_dir: Path) -> None:
+        """Returns session ID when title in frontmatter matches identifier."""
+        meta = JournalMetadata(session_id="abc-find", session_name="findable-session")
+        append_entry("abc-find", "some content", source="agent", metadata=meta)
+        archive_journal("abc-find")
+
+        assert find_archived_session_id("findable-session") == "abc-find"
+
+    def test_finds_by_alias(self, journals_dir: Path) -> None:
+        """Returns session ID when aliases field in frontmatter matches identifier."""
+        meta = JournalMetadata(session_id="def-find", session_name="aliased-session")
+        append_entry("def-find", "alias content", source="agent", metadata=meta)
+        archive_journal("def-find")
+
+        assert find_archived_session_id("aliased-session") == "def-find"
+
+    def test_case_insensitive(self, journals_dir: Path) -> None:
+        """Match ignores case on both sides."""
+        meta = JournalMetadata(session_id="case-find", session_name="Case-Session")
+        append_entry("case-find", "case content", source="agent", metadata=meta)
+        archive_journal("case-find")
+
+        assert find_archived_session_id("case-session") == "case-find"
+
+    def test_no_match_returns_none(self, journals_dir: Path) -> None:
+        """Returns None when no archived journal matches the identifier."""
+        assert find_archived_session_id("nonexistent-session") is None
+
+    def test_no_archive_dir_returns_none(self, journals_dir: Path) -> None:
+        """Returns None when the archive directory does not exist yet."""
+        # journals_dir fixture creates the journals dir but NOT the archive subdir
+        assert find_archived_session_id("anything") is None
+
+    def test_ignores_journal_without_frontmatter(self, journals_dir: Path) -> None:
+        """Returns None for journals that have no YAML frontmatter block."""
+        archive_dir = journals_dir / "archive"
+        archive_dir.mkdir()
+        bare_entry = "## 2026-01-01T00:00:00+00:00 [cli]\n\nhello\n\n---\n\n"
+        (archive_dir / "bare.md").write_text(bare_entry)
+
+        assert find_archived_session_id("bare") is None
 
 
 class TestJournalMCP:
