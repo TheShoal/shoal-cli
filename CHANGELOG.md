@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Tool-native prompt delivery**: Three `input_mode` mechanisms in `ToolConfig` for initial session prompts — `"arg"` (positional CLI arg, e.g. `claude "prompt"`), `"flag"` (named flag, e.g. `opencode --prompt "prompt"`), `"keys"` (post-launch `send_keys`, legacy). For `omp`, `prompt_file_prefix="@"` writes to `~/.local/share/shoal/prompts/<session>.md` and passes `@/path` for native expansion. Eliminates TUI render race for initial prompts. Robo escalation uses `@file` for omp sessions to avoid garbling multi-line prompts. New `core/prompt_delivery.py` module with `write_prompt_file()` and `build_tool_command_with_prompt()`.
 - **Status provider abstraction**: Explicit backend adapters in `core/status_provider.py` (`pi`, `opencode_compat`, `regex`) with tool-level selection via `tool.status_provider`
 - **Detection mode visibility**: `shoal info` now shows a `Detection` field so sessions surface provider mode, including compatibility markers
 - **Fin contract-v1 adapter**: New `shoal fin` command group with `inspect`, `validate`, and `run` subcommands for path-based fin execution

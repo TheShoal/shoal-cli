@@ -129,6 +129,14 @@ class ToolConfig(BaseModel):
     icon: str = "●"
     status_provider: Literal["regex", "pi", "opencode_compat"] | None = None
     send_keys_delay: float = 0.0
+    # Prompt delivery mode for initial session prompts:
+    #   "keys"  — send_keys after launch (default, works with any tool)
+    #   "arg"   — bake prompt into the launch command as a positional argument
+    #             if prompt_file_prefix is set (e.g. "@"), writes to a file first
+    #   "flag"  — bake prompt into the launch command via prompt_flag (e.g. "--prompt")
+    input_mode: Literal["keys", "arg", "flag"] = "keys"
+    prompt_flag: str = ""  # flag name for "flag" mode, e.g. "--prompt"
+    prompt_file_prefix: str = ""  # prefix for "arg" mode file path, e.g. "@" for omp
     detection: DetectionPatterns = Field(default_factory=DetectionPatterns)
     mcp: MCPToolConfig = Field(default_factory=MCPToolConfig)
 
