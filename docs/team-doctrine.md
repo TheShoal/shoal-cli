@@ -1,4 +1,4 @@
-<div class="shoal-page-head">
+<div class="shoal-page-head" data-icon="team">
   <p class="shoal-eyebrow">Operate Shoal</p>
   <p class="shoal-page-lede">
     Standardize how the team names sessions, structures journals, routes reviews, and escalates
@@ -10,6 +10,29 @@
 
 Shoal gets better when a team agrees on a few operating rules instead of inventing a new ritual for
 every task. This page is the minimal doctrine that keeps multi-agent work legible and reviewable.
+
+<div class="shoal-step-grid">
+  <div class="shoal-step" data-icon="map">
+    <strong>Readable names</strong>
+    <p>Session names should reveal role and scope fast enough that `shoal ls` reads like an operations board.</p>
+  </div>
+  <div class="shoal-step" data-icon="review">
+    <strong>Review symmetry</strong>
+    <p>Meaningful work gets a reviewer lane or an explicit human checkpoint before risky decisions land.</p>
+  </div>
+  <div class="shoal-step" data-icon="journal">
+    <strong>Operational journals</strong>
+    <p>Write for interruption recovery, not narration, so the next operator sees goals, blockers, and decisions immediately.</p>
+  </div>
+  <div class="shoal-step" data-icon="shield">
+    <strong>Human authority</strong>
+    <p>Automation should accelerate throughput while destructive choices, merges, and policy calls stay human-owned.</p>
+  </div>
+  <div class="shoal-step" data-icon="stack">
+    <strong>Shared templates</strong>
+    <p>Use templates as team contracts for stable work modes, not as hidden bundles of one-off behavior.</p>
+  </div>
+</div>
 
 ## Standardize the namespace
 

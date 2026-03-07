@@ -8,6 +8,19 @@
   --shoal-mint: #dff3ee;
   --shoal-sand: #f8f4ec;
   --shoal-shadow: rgba(16, 34, 46, 0.14);
+  --shoal-icon-launch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L14.6 8.4L21 11L14.6 13.6L12 20L9.4 13.6L3 11L9.4 8.4Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-map: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15 4.5L9 2L3 4.5V19.5L9 17L15 19.5L21 17V2.5L15 4.5ZM15 6.72L19 5.39V15.65L15 16.98V6.72ZM13 16.98L11 16.15V5.85L13 6.68V16.98ZM5 5.39L9 4.02V14.28L5 15.65V5.39Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-system: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 5H20V11H4V5ZM6 7V9H18V7H6ZM4 13H12V19H4V13ZM6 15V17H10V15H6ZM14 13H20V19H14V13ZM16 15V17H18V15H16Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-loop: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7.1 6.1A7 7 0 0 1 18.6 7H16V9H22V3H20V5.4A9 9 0 0 0 4.7 4.7L7.1 6.1ZM17 12A5 5 0 0 1 8.2 15.2L6.8 16.6A7 7 0 0 0 19 12H17ZM6 12A5 5 0 0 1 15.8 10.8L17.2 9.4A7 7 0 0 0 5 12H6ZM3.9 17.9A9 9 0 0 0 19.3 19.3L16.9 17.9A7 7 0 0 1 5.4 17H8V15H2V21H4V18.6L3.9 17.9Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-remote: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 5H20V15H13V17H16V19H8V17H11V15H4V5ZM6 7V13H18V7H6ZM9 9H15V11H9V9Z' fill='black'/%3E%3Cpath d='M18.2 16.2L16.8 17.6L18.6 19.4L16.8 21.2L18.2 22.6L21.4 19.4L18.2 16.2Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-review: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14 3H6C4.9 3 4 3.9 4 5V19C4 20.1 4.9 21 6 21H18C19.1 21 20 20.1 20 19V9L14 3ZM14 5.8L17.2 9H14V5.8ZM6 19V5H12V11H18V19H6ZM9.4 14.6L8 16L10.5 18.5L16.5 12.5L15.1 11.1L10.5 15.7L9.4 14.6Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-journal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 3H17C18.1 3 19 3.9 19 5V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V5C5 3.9 5.9 3 7 3ZM7 5V19H17V5H7ZM9 8H15V10H9V8ZM9 12H15V14H9V12ZM9 16H13V18H9V16Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-team: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M16 11C17.66 11 19 9.66 19 8S17.66 5 16 5 13 6.34 13 8 14.34 11 16 11ZM8 11C9.66 11 11 9.66 11 8S9.66 5 8 5 5 6.34 5 8 6.34 11 8 11ZM8 13C5.33 13 0 14.34 0 17V19H16V17C16 14.34 10.67 13 8 13ZM16 13C15.67 13 15.29 13.02 14.89 13.05C16.21 14.01 17 15.32 17 17V19H24V17C24 14.34 18.67 13 16 13Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-shield: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L20 5V11C20 16.55 16.16 21.74 12 23C7.84 21.74 4 16.55 4 11V5L12 2ZM12 4.13L6 6.38V11C6 15.46 8.9 19.51 12 20.78C15.1 19.51 18 15.46 18 11V6.38L12 4.13ZM10.9 15.3L7.6 12L9 10.6L10.9 12.5L15 8.4L16.4 9.8L10.9 15.3Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-control: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 3H4V9H10V3ZM8 7H6V5H8V7ZM20 3H14V9H20V3ZM18 7H16V5H18V7ZM10 15H4V21H10V15ZM8 19H6V17H8V19ZM20 12H14V14H12V20H18V18H20V12ZM18 16H14V14H18V16Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-compass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12S6.48 22 12 22 22 17.52 22 12 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12S7.59 4 12 4 20 7.59 20 12 16.41 20 12 20ZM15.5 8.5L10 11L8.5 15.5L14 13L15.5 8.5Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-stack: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3L2 8L12 13L22 8L12 3ZM4.7 12.2L12 16L19.3 12.2L22 13.6L12 19L2 13.6L4.7 12.2ZM4.7 16.2L12 20L19.3 16.2L22 17.6L12 23L2 17.6L4.7 16.2Z' fill='black'/%3E%3C/svg%3E");
+  --shoal-icon-bolt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13 2L4 14H11L10 22L20 9H13L13 2Z' fill='black'/%3E%3C/svg%3E");
 }
 
 [data-md-color-scheme="default"] {
@@ -134,7 +147,7 @@
 }
 
 .md-typeset pre > code {
-  padding: 0;
+  padding: 0.95rem 1.1rem;
   background: transparent;
 }
 
@@ -266,6 +279,65 @@
   margin: 0 0 0.8rem;
 }
 
+.shoal-page-head[data-icon] {
+  position: relative;
+  min-height: 2.75rem;
+  padding-left: 3.35rem;
+}
+
+.shoal-page-head[data-icon]::before,
+.shoal-icon-card[data-icon]::before,
+.shoal-icon-panel[data-icon]::before,
+.shoal-step[data-icon]::before {
+  content: "";
+  display: block;
+  mask: var(--shoal-icon) no-repeat center / contain;
+  -webkit-mask: var(--shoal-icon) no-repeat center / contain;
+  background: linear-gradient(160deg, var(--shoal-deep), var(--shoal-coral));
+}
+
+.shoal-page-head[data-icon]::after,
+.shoal-icon-card[data-icon]::after,
+.shoal-icon-panel[data-icon]::after,
+.shoal-step[data-icon]::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(223, 243, 238, 0.95), rgba(244, 239, 231, 0.92));
+  border: 1px solid rgba(14, 95, 100, 0.12);
+  box-shadow: 0 10px 24px rgba(16, 34, 46, 0.08);
+}
+
+.shoal-page-head[data-icon]::before {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.8rem;
+  z-index: 1;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.shoal-page-head[data-icon]::after {
+  top: 0;
+  left: 0;
+  width: 2.7rem;
+  height: 2.7rem;
+}
+
+[data-icon="launch"] { --shoal-icon: var(--shoal-icon-launch); }
+[data-icon="map"] { --shoal-icon: var(--shoal-icon-map); }
+[data-icon="system"] { --shoal-icon: var(--shoal-icon-system); }
+[data-icon="loop"] { --shoal-icon: var(--shoal-icon-loop); }
+[data-icon="remote"] { --shoal-icon: var(--shoal-icon-remote); }
+[data-icon="review"] { --shoal-icon: var(--shoal-icon-review); }
+[data-icon="journal"] { --shoal-icon: var(--shoal-icon-journal); }
+[data-icon="team"] { --shoal-icon: var(--shoal-icon-team); }
+[data-icon="shield"] { --shoal-icon: var(--shoal-icon-shield); }
+[data-icon="control"] { --shoal-icon: var(--shoal-icon-control); }
+[data-icon="compass"] { --shoal-icon: var(--shoal-icon-compass); }
+[data-icon="stack"] { --shoal-icon: var(--shoal-icon-stack); }
+[data-icon="bolt"] { --shoal-icon: var(--shoal-icon-bolt); }
+
 .shoal-page-lede {
   max-width: 46rem;
   margin: 0;
@@ -316,6 +388,7 @@
 
 .shoal-card {
   display: block;
+  position: relative;
   padding: 1rem 1.05rem;
   color: inherit;
   text-decoration: none;
@@ -356,6 +429,38 @@
 .shoal-card span {
   display: block;
   font-size: 0.92rem;
+}
+
+.shoal-icon-card {
+  padding-top: 3.15rem;
+}
+
+.shoal-icon-card[data-icon]::before,
+.shoal-icon-card[data-icon]::after,
+.shoal-icon-panel[data-icon]::before,
+.shoal-icon-panel[data-icon]::after,
+.shoal-step[data-icon]::before,
+.shoal-step[data-icon]::after {
+  position: absolute;
+}
+
+.shoal-icon-card[data-icon]::before,
+.shoal-icon-panel[data-icon]::before,
+.shoal-step[data-icon]::before {
+  top: 1.1rem;
+  left: 1.1rem;
+  z-index: 1;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.shoal-icon-card[data-icon]::after,
+.shoal-icon-panel[data-icon]::after,
+.shoal-step[data-icon]::after {
+  top: 0.72rem;
+  left: 0.72rem;
+  width: 1.9rem;
+  height: 1.9rem;
 }
 
 .shoal-demo-frame {
@@ -409,6 +514,42 @@
   margin: 1.25rem 0 2rem;
 }
 
+.shoal-icon-panel {
+  position: relative;
+  padding-top: 3rem;
+}
+
+.shoal-step-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 2rem;
+}
+
+.shoal-step {
+  position: relative;
+  padding: 2.95rem 1.05rem 1rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(14, 95, 100, 0.11);
+  border-radius: 1rem;
+  box-shadow: 0 12px 28px rgba(16, 34, 46, 0.06);
+}
+
+.shoal-step strong {
+  display: block;
+  margin-bottom: 0.32rem;
+  color: var(--shoal-deep-strong);
+}
+
+.shoal-step p {
+  margin: 0;
+  font-size: 0.93rem;
+}
+
+.shoal-step code {
+  white-space: nowrap;
+}
+
 @keyframes shoal-rise {
   from {
     opacity: 0;
@@ -460,7 +601,8 @@
 
   .shoal-card-grid,
   .shoal-principles,
-  .shoal-band {
+  .shoal-band,
+  .shoal-step-grid {
     grid-template-columns: 1fr;
   }
 

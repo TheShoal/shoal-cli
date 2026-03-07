@@ -1,4 +1,4 @@
-<div class="shoal-page-head">
+<div class="shoal-page-head" data-icon="loop">
   <p class="shoal-eyebrow">Operate Shoal</p>
   <p class="shoal-page-lede">
     Build the operator environment that keeps multiple agents legible: stable topology, fast
@@ -15,20 +15,51 @@ attention: one place to stage intent, route work, supervise approvals, and keep 
 
 The highest-leverage Shoal setup optimizes for four things:
 
-1. Low-friction session creation.
-2. Minimal context switching.
-3. Fast approval and escalation loops.
-4. Durable narrative memory through journals and stable naming.
+<div class="shoal-step-grid">
+  <div class="shoal-step" data-icon="launch">
+    <strong>Low-friction starts</strong>
+    <p>Session creation should feel defaulted, not like a ritual that burns attention before work begins.</p>
+  </div>
+  <div class="shoal-step" data-icon="compass">
+    <strong>Minimal context switching</strong>
+    <p>Keep the operator surface stable so supervision, review, and intervention stay near the work.</p>
+  </div>
+  <div class="shoal-step" data-icon="control">
+    <strong>Fast approval loops</strong>
+    <p>Shorten the distance between waiting prompts, escalation signals, and human decisions.</p>
+  </div>
+  <div class="shoal-step" data-icon="journal">
+    <strong>Durable narrative memory</strong>
+    <p>Use journals and naming conventions so interruption recovery costs less than re-explaining the task.</p>
+  </div>
+</div>
 
 ## Build the reference environment
 
 The intended daily-driver stack is:
 
-- `fish` for shell-level ergonomics.
-- `tmux` for persistent session topology.
-- Shoal templates for repeatable session shapes.
-- Journals for handoffs and longitudinal context.
-- Robo supervision for waiting-state pressure relief.
+<div class="shoal-step-grid">
+  <div class="shoal-step" data-icon="bolt">
+    <strong>`fish`</strong>
+    <p>Use shell ergonomics that keep navigation, completions, and helper functions fast enough to disappear.</p>
+  </div>
+  <div class="shoal-step" data-icon="system">
+    <strong>`tmux`</strong>
+    <p>Anchor the fleet in a durable topology instead of reopening fragile terminal layouts all day.</p>
+  </div>
+  <div class="shoal-step" data-icon="stack">
+    <strong>Templates</strong>
+    <p>Reuse stable pane shapes and tool defaults so the system reads the same way every time.</p>
+  </div>
+  <div class="shoal-step" data-icon="journal">
+    <strong>Journals</strong>
+    <p>Capture intent, blockers, and handoff state where the next operator can actually use it.</p>
+  </div>
+  <div class="shoal-step" data-icon="control">
+    <strong>Robo supervision</strong>
+    <p>Relieve waiting-state pressure without hiding the approvals and escalation points that still need a human.</p>
+  </div>
+</div>
 
 The design mistake to avoid is optimizing each tool in isolation. Optimize the end-to-end loop
 from "work appears" to "work is reviewed or escalated."

@@ -1,4 +1,4 @@
-<div class="shoal-page-head">
+<div class="shoal-page-head" data-icon="review">
   <p class="shoal-eyebrow">Operate Shoal</p>
   <p class="shoal-page-lede">
     Use this checklist when a reviewer lane needs a clear contract: what to inspect first, what to
@@ -11,6 +11,25 @@
 !!! note
     The point of review is risk reduction, not aesthetic commentary. Style polish comes after
     behavioral confidence.
+
+<div class="shoal-step-grid">
+  <div class="shoal-step" data-icon="shield">
+    <strong>Behavior first</strong>
+    <p>Start with runtime regressions and user-facing contract drift before you spend energy on polish.</p>
+  </div>
+  <div class="shoal-step" data-icon="system">
+    <strong>Config and tests</strong>
+    <p>Check environment movement, deployment risk, and whether the risky path is covered instead of only the happy path.</p>
+  </div>
+  <div class="shoal-step" data-icon="map">
+    <strong>Docs alignment</strong>
+    <p>Compare the code against setup flow, examples, and operator guidance so the docs do not silently drift.</p>
+  </div>
+  <div class="shoal-step" data-icon="control">
+    <strong>Escalate early</strong>
+    <p>Pull a human in quickly when release semantics, destructive operations, or approval automation are involved.</p>
+  </div>
+</div>
 
 ## Default review order
 

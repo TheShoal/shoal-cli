@@ -50,47 +50,47 @@ Shoal is a terminal interaction system for human-AI collaboration.
 ## What you get
 
 <div class="shoal-card-grid">
-  <a class="shoal-card" href="getting-started/">
+  <a class="shoal-card shoal-icon-card" href="getting-started/" data-icon="launch">
     <strong>Fast start</strong>
     <span>Install Shoal, scaffold config, and launch a first session in minutes.</span>
   </a>
-  <a class="shoal-card" href="cli-reference/">
+  <a class="shoal-card shoal-icon-card" href="cli-reference/" data-icon="map">
     <strong>CLI map</strong>
     <span>See the top-level commands, subcommands, and the workflows they support.</span>
   </a>
-  <a class="shoal-card" href="architecture/">
+  <a class="shoal-card shoal-icon-card" href="architecture/" data-icon="system">
     <strong>System model</strong>
     <span>Understand how tmux, SQLite, FastAPI, and the MCP pool fit together.</span>
   </a>
-  <a class="shoal-card" href="terminal-interaction-design/">
+  <a class="shoal-card shoal-icon-card" href="terminal-interaction-design/" data-icon="compass">
     <strong>Interaction design</strong>
     <span>See how Shoal turns naming, topology, visibility, and approvals into a usable human loop.</span>
   </a>
-  <a class="shoal-card" href="ROBO_GUIDE/">
+  <a class="shoal-card shoal-icon-card" href="ROBO_GUIDE/" data-icon="control">
     <strong>Robo supervision</strong>
     <span>Automate approvals, routing, and escalation with a supervisor session.</span>
   </a>
-  <a class="shoal-card" href="flow-state-workflows/">
+  <a class="shoal-card shoal-icon-card" href="flow-state-workflows/" data-icon="loop">
     <strong>Flow-state patterns</strong>
     <span>Design session topology, supervision loops, and shell ergonomics for momentum.</span>
   </a>
-  <a class="shoal-card" href="operator-playbooks/">
+  <a class="shoal-card shoal-icon-card" href="operator-playbooks/" data-icon="bolt">
     <strong>Operator playbooks</strong>
     <span>Adopt concrete daily patterns for triage, feature work, remote execution, and release control.</span>
   </a>
-  <a class="shoal-card" href="team-doctrine/">
+  <a class="shoal-card shoal-icon-card" href="team-doctrine/" data-icon="team">
     <strong>Team doctrine</strong>
     <span>Standardize naming, review lanes, journals, and escalation rules across the whole crew.</span>
   </a>
-  <a class="shoal-card" href="review-checklist/">
+  <a class="shoal-card shoal-icon-card" href="review-checklist/" data-icon="review">
     <strong>Review checklist</strong>
     <span>Give reviewer sessions a concrete risk-first contract instead of vague “look it over” work.</span>
   </a>
-  <a class="shoal-card" href="REMOTE_GUIDE/">
+  <a class="shoal-card shoal-icon-card" href="REMOTE_GUIDE/" data-icon="remote">
     <strong>Remote fleets</strong>
     <span>Control sessions on other machines over SSH tunnels without changing the UX.</span>
   </a>
-  <a class="shoal-card" href="reference/python-api/">
+  <a class="shoal-card shoal-icon-card" href="reference/python-api/" data-icon="stack">
     <strong>Python API</strong>
     <span>Browse the current configuration, state, and MCP server internals.</span>
   </a>
@@ -114,23 +114,23 @@ shoal attach auth
 ## Operating principles
 
 <div class="shoal-principles">
-  <div class="shoal-principle">
+  <div class="shoal-principle shoal-icon-panel" data-icon="bolt">
     <strong>Bias toward defaulted starts</strong>
     <span>Sessions should open faster than you can second-guess the setup.</span>
   </div>
-  <div class="shoal-principle">
+  <div class="shoal-principle shoal-icon-panel" data-icon="control">
     <strong>Keep state visible</strong>
     <span>Status, waiting prompts, and handoff context should stay one gesture away.</span>
   </div>
-  <div class="shoal-principle">
+  <div class="shoal-principle shoal-icon-panel" data-icon="map">
     <strong>Name work like an operator</strong>
     <span>Readable session names turn the fleet into a working board instead of a pile of panes.</span>
   </div>
-  <div class="shoal-principle">
+  <div class="shoal-principle shoal-icon-panel" data-icon="journal">
     <strong>Make interruption cheap</strong>
     <span>Journals, templates, and role-separated sessions should preserve narrative continuity.</span>
   </div>
-  <div class="shoal-principle">
+  <div class="shoal-principle shoal-icon-panel" data-icon="shield">
     <strong>Keep authority human</strong>
     <span>Agents should increase throughput, not silently absorb judgment calls.</span>
   </div>
@@ -139,17 +139,17 @@ shoal attach auth
 ## Signature operating modes
 
 <div class="shoal-band">
-  <div>
+  <div class="shoal-icon-panel" data-icon="review">
     <p class="shoal-eyebrow">Mode 01</p>
     <h3>Author, reviewer, supervisor</h3>
     <p>One agent writes, one critiques, and robo keeps the approval loop short.</p>
   </div>
-  <div>
+  <div class="shoal-icon-panel" data-icon="compass">
     <p class="shoal-eyebrow">Mode 02</p>
     <h3>Planner, implementer, closer</h3>
     <p>Use this when orchestration and decision sequencing matter more than raw code throughput.</p>
   </div>
-  <div>
+  <div class="shoal-icon-panel" data-icon="remote">
     <p class="shoal-eyebrow">Mode 03</p>
     <h3>Local control, remote execution</h3>
     <p>Keep one operator surface while sending long-running work to remote boxes and batch lanes.</p>
