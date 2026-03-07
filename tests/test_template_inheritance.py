@@ -468,6 +468,62 @@ extends = "base"
         t = load_template("child")
         assert t.extends is None
 
+    def test_setup_commands_child_replaces_parent(
+        self,
+        mock_dirs: tuple[Path, Path],
+    ) -> None:
+        """Child setup_commands replaces parent's when explicitly set."""
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        _write_template(templates, "base", BASE_TEMPLATE)
+        _write_template(
+            templates,
+            "child-cmds",
+            """\
+[template]
+name = "child-cmds"
+extends = "base"
+setup_commands = ["uv sync", "source .venv/bin/activate.fish"]
+""",
+        )
+        t = load_template("child-cmds")
+        assert t.setup_commands == ["uv sync", "source .venv/bin/activate.fish"]
+
+    def test_setup_commands_inherits_from_parent(
+        self,
+        mock_dirs: tuple[Path, Path],
+    ) -> None:
+        """Child without setup_commands inherits parent's."""
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        _write_template(
+            templates,
+            "base-cmds",
+            """\
+[template]
+name = "base-cmds"
+setup_commands = ["echo setup"]
+
+[[windows]]
+name = "main"
+
+[[windows.panes]]
+split = "root"
+command = "x"
+""",
+        )
+        _write_template(
+            templates,
+            "child-no-cmds",
+            """\
+[template]
+name = "child-no-cmds"
+extends = "base-cmds"
+""",
+        )
+        t = load_template("child-no-cmds")
+        assert t.setup_commands == ["echo setup"]
+
 
 # ---------------------------------------------------------------------------
 # Mixin tests
@@ -562,6 +618,37 @@ mcp = ["memory"]
         assert len(result.windows) == 2
         assert result.windows[0].name == "main"
         assert result.windows[1].name == "tests"
+
+    def test_apply_mixin_setup_commands_append(self) -> None:
+        """Mixin setup_commands are appended to the template's."""
+        template = SessionTemplateConfig(
+            name="t",
+            setup_commands=["cmd1"],
+            windows=[
+                TemplateWindowConfig(
+                    name="w",
+                    panes=[TemplatePaneConfig(split="root", command="x")],
+                )
+            ],
+        )
+        mixin = TemplateMixinConfig(name="m", setup_commands=["cmd2", "cmd3"])
+        result = _apply_mixin(template, mixin)
+        assert result.setup_commands == ["cmd1", "cmd2", "cmd3"]
+
+    def test_apply_mixin_setup_commands_empty_template(self) -> None:
+        """Mixin setup_commands work when template has none."""
+        template = SessionTemplateConfig(
+            name="t",
+            windows=[
+                TemplateWindowConfig(
+                    name="w",
+                    panes=[TemplatePaneConfig(split="root", command="x")],
+                )
+            ],
+        )
+        mixin = TemplateMixinConfig(name="m", setup_commands=["uv sync"])
+        result = _apply_mixin(template, mixin)
+        assert result.setup_commands == ["uv sync"]
 
     def test_resolve_with_mixins(
         self,

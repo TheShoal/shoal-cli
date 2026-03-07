@@ -688,6 +688,12 @@ async def create_session_lifecycle(
                     enter=True,
                 )
 
+    # 3.5. Run template setup_commands in initial pane
+    if template_cfg and template_cfg.setup_commands:
+        initial_pane = f"{tmux_session}:0.0"
+        for cmd in template_cfg.setup_commands:
+            await tmux.async_send_keys(initial_pane, cmd, enter=True)
+
     # 4. Run startup commands
     try:
         if template_cfg and template_cfg.windows:
@@ -839,6 +845,12 @@ async def fork_session_lifecycle(
                     f"set -gx {shlex.quote(key)} {shlex.quote(value)}",
                     enter=True,
                 )
+
+    # 3.5. Run template setup_commands in initial pane
+    if template_cfg and template_cfg.setup_commands:
+        initial_pane = f"{tmux_session}:0.0"
+        for cmd in template_cfg.setup_commands:
+            await tmux.async_send_keys(initial_pane, cmd, enter=True)
 
     # 4. Run startup commands — full rollback on failure (fixes previous gap)
     try:

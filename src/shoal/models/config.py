@@ -239,6 +239,7 @@ class SessionTemplateConfig(BaseModel):
     env: dict[str, str] = Field(default_factory=dict)
     mcp: list[str] = Field(default_factory=list)
     windows: list[TemplateWindowConfig] = Field(default_factory=list)
+    setup_commands: list[str] = Field(default_factory=list)
 
     @field_validator("name")
     @classmethod
@@ -264,6 +265,7 @@ class TemplateMixinConfig(BaseModel):
     env: dict[str, str] = Field(default_factory=dict)
     mcp: list[str] = Field(default_factory=list)
     windows: list[TemplateWindowConfig] = Field(default_factory=list)
+    setup_commands: list[str] = Field(default_factory=list)
 
     @field_validator("name")
     @classmethod

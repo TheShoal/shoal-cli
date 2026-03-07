@@ -377,6 +377,7 @@ def _parse_template_data(
             env=env_section,
             mcp=mcp_section,
             windows=windows_section,
+            setup_commands=template_section.get("setup_commands", []),
         )
     except ValidationError as e:
         raise ConfigLoadError(f"template '{name}'", f"invalid template: {e}") from e
@@ -395,6 +396,7 @@ def _merge_templates(
     - env: parent | child (child wins on conflicts)
     - mcp: union, deduplicated, sorted
     - windows: child replaces parent entirely if child defines any
+    - setup_commands: child replaces parent if explicitly set in TOML
     """
     child_tmpl = child_raw.get("template", {})
 
@@ -404,6 +406,9 @@ def _merge_templates(
     merged_env = {**parent.env, **child.env}
     merged_mcp = sorted(set(parent.mcp) | set(child.mcp))
     merged_windows = child.windows if child.windows else parent.windows
+    setup_commands = (
+        child.setup_commands if "setup_commands" in child_tmpl else parent.setup_commands
+    )
 
     return SessionTemplateConfig(
         name=child.name,
@@ -415,6 +420,7 @@ def _merge_templates(
         env=merged_env,
         mcp=merged_mcp,
         windows=merged_windows,
+        setup_commands=setup_commands,
     )
 
 
@@ -481,6 +487,7 @@ def load_mixin(name: str) -> TemplateMixinConfig:
             env=mixin_section.get("env", {}),
             mcp=mixin_section.get("mcp", []),
             windows=windows_section,
+            setup_commands=mixin_section.get("setup_commands", []),
         )
     except ValidationError as e:
         raise ConfigLoadError(path, f"invalid mixin: {e}") from e
@@ -496,12 +503,14 @@ def _apply_mixin(
     - env: mixin values merge in (mixin wins on conflict)
     - mcp: union, deduplicated, sorted
     - windows: mixin windows appended
+    - setup_commands: mixin commands appended
     """
     return template.model_copy(
         update={
             "env": {**template.env, **mixin.env},
             "mcp": sorted(set(template.mcp) | set(mixin.mcp)),
             "windows": list(template.windows) + list(mixin.windows),
+            "setup_commands": list(template.setup_commands) + list(mixin.setup_commands),
         }
     )
 

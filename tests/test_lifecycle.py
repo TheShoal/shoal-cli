@@ -2172,3 +2172,159 @@ class TestLifecycleErrorAttributes:
         send_keys_cmds = [call.args[1] for call in mock_async_send_keys.call_args_list]
         assert any("set -gx MY_VAR hello" in cmd for cmd in send_keys_cmds)
         assert any("set -gx OTHER world" in cmd for cmd in send_keys_cmds)
+
+
+@pytest.mark.asyncio
+class TestSetupCommandsLifecycle:
+    """Tests for template setup_commands execution in lifecycle."""
+
+    async def test_setup_commands_sent_before_tool_launch(self, mock_dirs):
+        """setup_commands are sent to the initial pane before the tool starts."""
+        from shoal.models.config import (
+            SessionTemplateConfig,
+            TemplatePaneConfig,
+            TemplateWindowConfig,
+        )
+
+        mock_async_send_keys = AsyncMock()
+        with (
+            patch("shoal.core.tmux.new_session"),
+            patch("shoal.core.tmux.async_set_environment", AsyncMock()),
+            patch("shoal.core.tmux.async_new_session", AsyncMock()),
+            patch("shoal.core.tmux.async_set_pane_title", AsyncMock()),
+            patch("shoal.core.tmux.async_preferred_pane", AsyncMock(return_value="_sc-test:0.0")),
+            patch("shoal.core.tmux.async_pane_pid", AsyncMock(return_value=42)),
+            patch("shoal.core.tmux.async_pane_coordinates", AsyncMock(return_value=("$1", "@0"))),
+            patch("shoal.core.tmux.async_run_command", AsyncMock()),
+            patch("shoal.core.tmux.async_send_keys", mock_async_send_keys),
+        ):
+            template = SessionTemplateConfig(
+                name="sc-test",
+                setup_commands=["uv sync", "source .venv/bin/activate.fish"],
+                windows=[
+                    TemplateWindowConfig(
+                        name="main",
+                        panes=[TemplatePaneConfig(split="root", command="{tool_command}")],
+                    ),
+                ],
+            )
+            await create_session_lifecycle(
+                session_name="sc-test",
+                tool="claude",
+                git_root="/tmp/repo",
+                wt_path="",
+                work_dir="/tmp/repo",
+                branch_name="main",
+                tool_command="claude",
+                startup_commands=[],
+                template_cfg=template,
+            )
+
+        all_send_keys = [call.args[1] for call in mock_async_send_keys.call_args_list]
+        # Both setup commands must appear
+        assert "uv sync" in all_send_keys
+        assert "source .venv/bin/activate.fish" in all_send_keys
+        # setup_commands come before the tool launch (claude)
+        uv_idx = all_send_keys.index("uv sync")
+        venv_idx = all_send_keys.index("source .venv/bin/activate.fish")
+        tool_idx = next(i for i, cmd in enumerate(all_send_keys) if "claude" in cmd)
+        assert uv_idx < tool_idx
+        assert venv_idx < tool_idx
+
+    async def test_empty_setup_commands_no_extra_send_keys(self, mock_dirs):
+        """A template with no setup_commands does not add extra send_keys calls."""
+        from shoal.models.config import (
+            SessionTemplateConfig,
+            TemplatePaneConfig,
+            TemplateWindowConfig,
+        )
+
+        mock_async_send_keys = AsyncMock()
+        with (
+            patch("shoal.core.tmux.new_session"),
+            patch("shoal.core.tmux.async_set_environment", AsyncMock()),
+            patch("shoal.core.tmux.async_new_session", AsyncMock()),
+            patch("shoal.core.tmux.async_set_pane_title", AsyncMock()),
+            patch("shoal.core.tmux.async_preferred_pane", AsyncMock(return_value="_empty:0.0")),
+            patch("shoal.core.tmux.async_pane_pid", AsyncMock(return_value=42)),
+            patch("shoal.core.tmux.async_pane_coordinates", AsyncMock(return_value=("$1", "@0"))),
+            patch("shoal.core.tmux.async_run_command", AsyncMock()),
+            patch("shoal.core.tmux.async_send_keys", mock_async_send_keys),
+        ):
+            template = SessionTemplateConfig(
+                name="empty-cmds",
+                # setup_commands defaults to []
+                windows=[
+                    TemplateWindowConfig(
+                        name="main",
+                        panes=[TemplatePaneConfig(split="root", command="{tool_command}")],
+                    ),
+                ],
+            )
+            await create_session_lifecycle(
+                session_name="empty-cmds",
+                tool="claude",
+                git_root="/tmp/repo",
+                wt_path="",
+                work_dir="/tmp/repo",
+                branch_name="main",
+                tool_command="claude",
+                startup_commands=[],
+                template_cfg=template,
+            )
+
+        # Only the tool launch itself should be in send_keys; no setup cmds
+        all_send_keys = [call.args[1] for call in mock_async_send_keys.call_args_list]
+        assert "uv sync" not in all_send_keys
+        assert "source .venv/bin/activate.fish" not in all_send_keys
+
+    async def test_fork_setup_commands_sent(self, mock_dirs):
+        """setup_commands are sent in fork_session_lifecycle too."""
+        from shoal.models.config import (
+            SessionTemplateConfig,
+            TemplatePaneConfig,
+            TemplateWindowConfig,
+        )
+
+        mock_async_send_keys = AsyncMock()
+        with (
+            patch("shoal.core.tmux.new_session"),
+            patch("shoal.core.tmux.async_set_environment", AsyncMock()),
+            patch("shoal.core.tmux.async_new_session", AsyncMock()),
+            patch("shoal.core.tmux.async_set_pane_title", AsyncMock()),
+            patch("shoal.core.tmux.async_preferred_pane", AsyncMock(return_value="_fork:0.0")),
+            patch("shoal.core.tmux.async_pane_pid", AsyncMock(return_value=42)),
+            patch("shoal.core.tmux.async_pane_coordinates", AsyncMock(return_value=("$1", "@0"))),
+            patch("shoal.core.tmux.async_run_command", AsyncMock()),
+            patch("shoal.core.tmux.async_send_keys", mock_async_send_keys),
+        ):
+            template = SessionTemplateConfig(
+                name="fork-sc",
+                setup_commands=["cmd1", "cmd2"],
+                windows=[
+                    TemplateWindowConfig(
+                        name="main",
+                        panes=[TemplatePaneConfig(split="root", command="{tool_command}")],
+                    ),
+                ],
+            )
+            await fork_session_lifecycle(
+                session_name="fork-sc-test",
+                source_tool="claude",
+                source_path="/tmp/repo",
+                source_branch="main",
+                wt_path="/tmp/wt",
+                work_dir="/tmp/wt",
+                new_branch="feat/fork-sc",
+                tool_command="claude",
+                startup_commands=[],
+                template_cfg=template,
+            )
+
+        all_send_keys = [call.args[1] for call in mock_async_send_keys.call_args_list]
+        assert "cmd1" in all_send_keys
+        assert "cmd2" in all_send_keys
+        # setup_commands precede the tool
+        cmd1_idx = all_send_keys.index("cmd1")
+        tool_idx = next(i for i, cmd in enumerate(all_send_keys) if "claude" in cmd)
+        assert cmd1_idx < tool_idx
