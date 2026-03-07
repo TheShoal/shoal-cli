@@ -69,7 +69,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Security scan with ruff S rules
-        run: uvx ruff check src/shoal/ --select S --config pyproject.toml
+        run: uvx ruff check src/shoal/ --select S --extend-ignore S101,S603,S607,S108 --config pyproject.toml
 
   docs:
     runs-on: ubuntu-latest

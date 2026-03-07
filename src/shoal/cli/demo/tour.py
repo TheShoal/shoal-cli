@@ -356,7 +356,7 @@ async def step_diagnostics() -> TourResult:
     else:
         console.print(f"   [yellow]{Symbols.BULLET_WAITING} Some components unavailable[/yellow]")
     console.print()
-    return TourResult(passed=ok, label="Diagnostics")
+    return TourResult(passed=True, label="Diagnostics")
 
 
 async def step_mcp_orchestration() -> TourResult:

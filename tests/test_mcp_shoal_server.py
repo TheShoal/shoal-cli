@@ -1157,12 +1157,8 @@ async def test_capture_pane_single_backwards_compat() -> None:
     with (
         patch("shoal.core.state.resolve_session", new_callable=AsyncMock, return_value="abc12345"),
         patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=s),
-        patch(
-            "shoal.core.tmux.async_preferred_pane", new_callable=AsyncMock, return_value="%1"
-        ),
-        patch(
-            "shoal.core.tmux.async_capture_pane", new_callable=AsyncMock, return_value="hello"
-        ),
+        patch("shoal.core.tmux.async_preferred_pane", new_callable=AsyncMock, return_value="%1"),
+        patch("shoal.core.tmux.async_capture_pane", new_callable=AsyncMock, return_value="hello"),
     ):
         result = await capture_pane_tool(session="worker-1")
 

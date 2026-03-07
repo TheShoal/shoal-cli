@@ -127,7 +127,9 @@ def test_wt_cleanup_cwd_fallback_tracked_excluded(mock_dirs, tmp_path, monkeypat
     async def setup():
         # Session lives in a *different* repo but its worktree is in our .worktrees/
         await create_session(
-            "s-tracked", "claude", str(tmp_path / "other-repo"),
+            "s-tracked",
+            "claude",
+            str(tmp_path / "other-repo"),
             worktree=str(tracked_wt),
         )
 

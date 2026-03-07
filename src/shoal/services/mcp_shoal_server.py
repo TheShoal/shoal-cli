@@ -208,9 +208,7 @@ async def session_info_tool(session: str) -> dict[str, Any]:
 _AUTO_ENTER_TOOLS: frozenset[str] = frozenset({"claude", "codex", "gemini", "pi"})
 
 
-async def _send_keys_single(
-    session: str, keys: str, enter: bool | None
-) -> dict[str, str]:
+async def _send_keys_single(session: str, keys: str, enter: bool | None) -> dict[str, str]:
     import asyncio
 
     from shoal.core import tmux
@@ -301,9 +299,7 @@ async def _capture_pane_single(session: str, lines: int) -> dict[str, str]:
     description="Read last N lines from a session's terminal output.",
     annotations={"readOnlyHint": True},
 )
-async def capture_pane_tool(
-    session: str | list[str], lines: int = 20
-) -> dict[str, Any]:
+async def capture_pane_tool(session: str | list[str], lines: int = 20) -> dict[str, Any]:
     """Capture recent terminal output from a session's pane.
 
     Args:

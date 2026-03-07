@@ -183,6 +183,7 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
         patch("shoal.cli.mcp.data_dir", return_value=tmp_state),
         patch("shoal.cli.robo.config_dir", return_value=tmp_config),
         patch("shoal.cli.robo.data_dir", return_value=tmp_state),
+        patch("shoal.cli.robo.state_dir", return_value=tmp_runtime),
         patch("shoal.cli.watcher.state_dir", return_value=tmp_runtime),
         patch("shoal.services.mcp_pool.data_dir", return_value=tmp_state),
         patch("shoal.services.mcp_proxy.data_dir", return_value=tmp_state),
