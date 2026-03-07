@@ -215,6 +215,15 @@ async def _wt_cleanup_impl() -> None:
                 if wt_dir.is_dir() and str(wt_dir) not in tracked
             )
 
+    # Also check CWD for repos with no active sessions
+    cwd_wt_base = Path.cwd() / ".worktrees"
+    if cwd_wt_base.is_dir() and str(Path.cwd()) not in checked_repos:
+        orphans.extend(
+            str(wt_dir)
+            for wt_dir in cwd_wt_base.iterdir()
+            if wt_dir.is_dir() and str(wt_dir) not in tracked
+        )
+
     if not orphans:
         console.print("No orphaned worktrees found")
         return
