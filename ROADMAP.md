@@ -372,3 +372,25 @@ All four fixes committed atomically; CI is fully green (1040 passed, 1 skipped).
 - LLM escalation for ambiguous cases (remaining Phase 4 item)
 - Background daemon mode for `shoal robo watch`
 - Fix template env gap
+
+
+### Session: 2026-03-07 — v0.22.0: developer velocity fixes + auto-commit + dashboard actions
+
+**What we did:**
+
+- Fixed tmux pane targeting for `base-index=1` users — every session creation silently failed; `server_base_indices()` now queries the live tmux server and offsets all targets
+- Fixed `DirtyWorktreeError` blocking kill on untracked-only worktrees — kill guard now uses `worktree_has_tracked_changes()` (filters `??` lines from porcelain output)
+- Fixed `shoal ls` ID column truncated to 1 char — `no_wrap=True` + `expand=True` + bounded column widths
+- Fixed `load_tool_config` silently ignoring `send_keys_delay`, `input_mode`, `prompt_flag`, `prompt_file_prefix` from `[tool]` TOML section
+- Added `shoal init --refresh-tools` — re-downloads built-in tool profiles without touching user customizations
+- Added `auto_commit` on session kill — `general.auto_commit = true` stages and commits the worktree before teardown
+- Added dashboard fzf actions — `ctrl-y` approve, `ctrl-g` fork, `ctrl-w` filter waiting, `ctrl-r` reload
+- Added `shoal fin install` local registration and `shoal fin ls` default to installed fins
+- 1125 tests passing, CI green
+
+**What to do next:**
+
+- Publish v0.22.0 to PyPI (create GitHub Release to trigger workflow)
+- Investigate `shoal fin install` from registry/remote source (currently filesystem-local only)
+- Add optional subprocess timeout controls for fin lifecycle commands
+- Consider worktree dev-dep bootstrap (workers need `uv pip install -e ".[dev]"` manually)

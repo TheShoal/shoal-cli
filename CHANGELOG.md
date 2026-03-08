@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-03-07
+
+### Added
+- **`shoal init --refresh-tools`**: Re-downloads all built-in tool profiles to `~/.config/shoal/tools/` without touching custom profiles. Useful after upgrading to pick up revised defaults.
+- **Auto-commit on kill**: New `general.auto_commit = true` in `config.toml`. When enabled, stages all changes and creates a conventional commit in the session worktree before teardown. Runs before optional worktree removal — a combined `auto_commit + remove_worktree` commits first then removes cleanly. Failures are logged and do not block the kill.
+- **Dashboard fzf actions**: `ctrl-y` approves agent prompt, `ctrl-g` forks session into a new worktree, `ctrl-w` filters to waiting sessions, `ctrl-r` reloads the session list. Bindings avoid tmux leader (`ctrl-a`) and tmux fullscreen (`ctrl-f`) conflicts.
+- **Fin local registration**: `shoal fin install` now registers fins in `~/.config/shoal/fins/` by default. `shoal fin ls` defaults to showing installed fins. Pass `--no-register` to `install` to skip registration, or `--path` to `ls` for path-based listing.
+
+### Changed
+- **`load_tool_config` now reads all tool fields**: `send_keys_delay`, `input_mode`, `prompt_flag`, and `prompt_file_prefix` from the `[tool]` TOML section were silently ignored. All four are now correctly propagated to `ToolConfig`. Built-in tool profiles updated with `send_keys_delay = 0.05`.
+
+### Fixed
+- **tmux pane targeting with non-default `base-index`**: Sessions on tmux configs with `base-index=1` saw every startup command fail — `send-keys -t session:0.0` targeted a non-existent pane. Shoal now queries the live tmux server and offsets all window/pane targets by the actual base-index. Affected: template setup loops, initial pane in `create_session`/`fork_session`, and the MCP `wait_for_ready` probe.
+- **Kill guard blocking on untracked-only worktrees**: `DirtyWorktreeError` fired when a worktree had only untracked files (e.g. a stray `TASK.md`). The guard now checks tracked changes only (`??` lines excluded from `git status --porcelain`).
+- **`shoal ls` ID column truncated to 1 char**: Compressed inside Rich panels on standard-width terminals. Fixed with `no_wrap=True`, `expand=True` on the table, and bounded `max_width` on name/status/path columns.
+
 ## [0.21.0] - 2026-03-07
 
 ### Changed
