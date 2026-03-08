@@ -10,12 +10,13 @@ hide:
 
 <div class="shoal-hero">
   <div>
-    <p class="shoal-eyebrow">Terminal-first orchestration for parallel AI coding agents</p>
-    <h1>Design a terminal workflow where multiple agents stay legible, fast, and enjoyable to supervise.</h1>
+    <p class="shoal-eyebrow">The control plane for parallel coding agents</p>
+    <h1>Run a fleet of coding agents with visible state, recoverable handoffs, and human authority over every judgment call.</h1>
     <p class="shoal-lede">
       Shoal gives each agent its own worktree, tmux session, state tracking, and shared MCP
-      infrastructure so you can operate a fleet from one CLI without losing the human loop. The
-      point is not raw autonomy. The point is sustained developer flow.
+      infrastructure — so you can supervise a parallel agent fleet from one CLI without losing
+      visibility, authority, or flow. Parallel AI coding that feels like a controlled workflow,
+      not a pile of threads.
     </p>
     <div class="shoal-actions">
       <a class="md-button md-button--primary" href="getting-started/">Get Started</a>
@@ -35,20 +36,35 @@ hide:
 
 Shoal is built for the point where "open another terminal" stops scaling.
 
-- You want multiple AI agents working at the same time.
+- You want multiple AI agents working in parallel without stomping on each other's files.
 - You need each agent isolated from the others at the filesystem and branch level.
 - You still need one place to monitor status, approvals, errors, and MCP connectivity.
+- You want recoverable handoffs — not just raw thread history — when you step away.
 - You want automation hooks instead of copy-pasting the same setup into each session.
+
+## Shoal is not another coding agent
+
+Shoal does not compete with Claude Code, Codex, Pi, Gemini, or OpenCode. It is the layer
+above the agent interface where supervision, state, topology, handoffs, and control live.
+
+- **Not a better model.** Use whichever agent you want — Shoal runs them all.
+- **Not a better editor.** The terminal is the surface; Shoal makes it legible.
+- **Not a desktop app.** The control plane runs in your terminal and survives SSH, overnight
+  runs, and remote fleets without changing the UX.
+
+The move Shoal makes: give serious developers a way to operate multiple coding agents as a
+coherent system instead of a growing pile of chat threads.
 
 ## What Shoal is really designing
 
-Shoal is a terminal interaction system for human-AI collaboration.
+Shoal is a control plane for human-AI collaboration at the terminal.
 
 - Templates reduce setup friction before work starts.
 - Tmux topology keeps multiple sessions visible and recoverable.
 - Robo handles waiting-state pressure without hiding approvals.
 - Journals preserve narrative memory so interruptions are cheap.
 - Naming conventions turn session lists into a readable operations board.
+- Remote tunnels let you operate fleets on other machines without changing the UX.
 
 ## What you get
 

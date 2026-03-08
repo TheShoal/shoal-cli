@@ -1,5 +1,5 @@
 site_name: Shoal
-site_description: Terminal-first orchestration for parallel AI coding agents
+site_description: The control plane for parallel coding agents
 docs_dir: docs
 site_dir: site
 repo_url: https://github.com/TheShoal/shoal-cli

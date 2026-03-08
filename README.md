@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:11111b,30:1e1e2e,70:45475a,100:94e2d5&height=200&section=header&text=Shoal&fontSize=72&fontColor=cdd6f4&animation=fadeIn&fontAlignY=32&desc=Terminal-first%20orchestration%20for%20parallel%20AI%20coding%20agents&descSize=16&descColor=89b4fa&descAlignY=52" alt="Shoal banner" width="100%">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:11111b,30:1e1e2e,70:45475a,100:94e2d5&height=200&section=header&text=Shoal&fontSize=72&fontColor=cdd6f4&animation=fadeIn&fontAlignY=32&desc=The%20control%20plane%20for%20parallel%20coding%20agents&descSize=16&descColor=89b4fa&descAlignY=52" alt="Shoal banner" width="100%">
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <em>Run multiple AI agents in isolated worktrees, coordinate them through a shared control plane, and never context-switch again.</em>
+  <em>Supervise a fleet of coding agents with visible state, recoverable handoffs, and human authority over every judgment call.</em>
 </p>
 
 <p align="center">
@@ -44,9 +44,9 @@
 
 ## TL;DR
 
-You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenCode. You want them working in parallel without stomping on each other's files. You need to know when they're thinking, when they're waiting for approval, and when they've errored out.
+You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenCode. You want them working in parallel without stomping on each other's files. You need to know when they're thinking, when they're waiting for approval, and when they've errored out. And when you step away, you need state that survives the interruption.
 
-**Shoal is `docker-compose` for AI coding agents.** You declare sessions, Shoal gives each one a git worktree, a tmux session, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all.
+**Shoal is the control plane for parallel coding agents.** Not another agent. Not a better model. The layer above the agent interface where supervision, state, topology, handoffs, and control live. You declare sessions, Shoal gives each one a git worktree, a tmux session, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all.
 
 ---
 
