@@ -501,3 +501,29 @@ class TestInit:
             result = runner.invoke(app, ["init"])
         assert result.exit_code == 0
         assert "already exist" in result.output
+
+    def test_init_refresh_tools_flag(self, mock_dirs):
+        """--refresh-tools calls refresh_tools and prints refreshed files."""
+        with patch(
+            "shoal.core.config.refresh_tools",
+            return_value=["omp.toml", "pi.toml"],
+        ):
+            result = runner.invoke(app, ["init", "--refresh-tools"])
+        assert result.exit_code == 0
+        assert "Refreshed 2 tool profile(s)" in result.output
+        assert "omp.toml" in result.output
+        assert "pi.toml" in result.output
+
+    def test_init_refresh_tools_empty(self, mock_dirs):
+        """--refresh-tools prints warning when no bundled profiles found."""
+        with patch("shoal.core.config.refresh_tools", return_value=[]):
+            result = runner.invoke(app, ["init", "--refresh-tools"])
+        assert result.exit_code == 0
+        assert "No bundled tool profiles found" in result.output
+
+    def test_init_refresh_tools_not_called_without_flag(self, mock_dirs):
+        """refresh_tools is not called when --refresh-tools is absent."""
+        with patch("shoal.core.config.refresh_tools") as mock_refresh:
+            result = runner.invoke(app, ["init"])
+        assert result.exit_code == 0
+        mock_refresh.assert_not_called()

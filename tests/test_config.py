@@ -17,6 +17,7 @@ from shoal.core.config import (
     load_robo_profile,
     load_template,
     load_tool_config,
+    refresh_tools,
     scaffold_defaults,
 )
 
@@ -356,6 +357,85 @@ class TestScaffoldDefaults:
         ):
             created = scaffold_defaults()
         assert created == []
+
+
+class TestRefreshTools:
+    def test_copies_all_tool_tomls(self, tmp_path: Path) -> None:
+        """All *.toml files from source are copied to dest."""
+        src = tmp_path / "examples" / "tools"
+        src.mkdir(parents=True)
+        (src / "pi.toml").write_text("# pi\n")
+        (src / "omp.toml").write_text("# omp\n")
+        dst_config = tmp_path / "config" / "shoal"
+        dst_config.mkdir(parents=True)
+        with (
+            patch("shoal.core.config.config_dir", return_value=dst_config),
+            patch("shoal.core.config._examples_dir", return_value=tmp_path / "examples"),
+        ):
+            refreshed = refresh_tools()
+        assert refreshed == ["omp.toml", "pi.toml"]
+        assert (dst_config / "tools" / "pi.toml").read_text() == "# pi\n"
+        assert (dst_config / "tools" / "omp.toml").read_text() == "# omp\n"
+
+    def test_overwrites_existing_files(self, tmp_path: Path) -> None:
+        """Existing files are overwritten, not skipped."""
+        src = tmp_path / "examples" / "tools"
+        src.mkdir(parents=True)
+        (src / "pi.toml").write_text("# updated\n")
+        dst_config = tmp_path / "config" / "shoal"
+        dst_tools = dst_config / "tools"
+        dst_tools.mkdir(parents=True)
+        # Pre-existing file with old content
+        (dst_tools / "pi.toml").write_text("# old content\n")
+        with (
+            patch("shoal.core.config.config_dir", return_value=dst_config),
+            patch("shoal.core.config._examples_dir", return_value=tmp_path / "examples"),
+        ):
+            refreshed = refresh_tools()
+        assert refreshed == ["pi.toml"]
+        assert (dst_tools / "pi.toml").read_text() == "# updated\n"
+
+    def test_creates_dest_dir_if_missing(self, tmp_path: Path) -> None:
+        """Destination tools dir is created when it doesn't exist."""
+        src = tmp_path / "examples" / "tools"
+        src.mkdir(parents=True)
+        (src / "claude.toml").write_text("# claude\n")
+        dst_config = tmp_path / "config" / "shoal"
+        dst_config.mkdir(parents=True)
+        with (
+            patch("shoal.core.config.config_dir", return_value=dst_config),
+            patch("shoal.core.config._examples_dir", return_value=tmp_path / "examples"),
+        ):
+            refreshed = refresh_tools()
+        assert (dst_config / "tools").is_dir()
+        assert refreshed == ["claude.toml"]
+
+    def test_returns_empty_when_source_missing(self, tmp_path: Path) -> None:
+        """Returns empty list and logs warning when bundled source dir is absent."""
+        dst_config = tmp_path / "config" / "shoal"
+        dst_config.mkdir(parents=True)
+        with (
+            patch("shoal.core.config.config_dir", return_value=dst_config),
+            patch("shoal.core.config._examples_dir", return_value=tmp_path / "nonexistent"),
+        ):
+            refreshed = refresh_tools()
+        assert refreshed == []
+
+    def test_only_copies_toml_files(self, tmp_path: Path) -> None:
+        """Non-TOML files in source tools dir are not copied."""
+        src = tmp_path / "examples" / "tools"
+        src.mkdir(parents=True)
+        (src / "pi.toml").write_text("# pi\n")
+        (src / "README.md").write_text("# ignore me\n")
+        dst_config = tmp_path / "config" / "shoal"
+        dst_config.mkdir(parents=True)
+        with (
+            patch("shoal.core.config.config_dir", return_value=dst_config),
+            patch("shoal.core.config._examples_dir", return_value=tmp_path / "examples"),
+        ):
+            refreshed = refresh_tools()
+        assert refreshed == ["pi.toml"]
+        assert not (dst_config / "tools" / "README.md").exists()
 
 
 class TestLoadMcpRegistryFull:
