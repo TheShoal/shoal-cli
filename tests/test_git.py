@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from shoal.core import git
 
 
@@ -243,3 +245,57 @@ def test_branch_delete(tmp_path):
             check=False,
             timeout=30,
         )
+
+
+def test_stage_all(tmp_path):
+    """stage_all runs git add -A in the given path."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        git.stage_all(str(repo))
+
+        mock_run.assert_called_once_with(
+            ["git", "add", "-A"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+
+
+def test_commit(tmp_path):
+    """commit runs git commit -m <message> in the given path."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+
+        git.commit(str(repo), "chore: test commit")
+
+        mock_run.assert_called_once_with(
+            ["git", "commit", "-m", "chore: test commit"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+
+
+def test_commit_propagates_error(tmp_path):
+    """commit raises CalledProcessError when git exits non-zero."""
+    import subprocess
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.CalledProcessError(1, "git commit")
+
+        with pytest.raises(subprocess.CalledProcessError):
+            git.commit(str(repo), "bad commit")

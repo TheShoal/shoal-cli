@@ -14,6 +14,8 @@ class GeneralConfig(BaseModel):
     default_tool: str = "pi"
     worktree_dir: str = ".worktrees"
     use_nerd_fonts: bool = True
+    auto_commit: bool = False
+    """Automatically commit dirty worktrees when a session is killed."""
 
 
 class TmuxConfig(BaseModel):

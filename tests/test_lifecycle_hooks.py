@@ -452,3 +452,174 @@ class TestStatusTransitionHooks:
 
         mock_append.assert_not_called()
         assert mock_append.call_count == 0
+
+
+# ---------------------------------------------------------------------------
+# Auto-commit on kill
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestAutoCommitOnKill:
+    async def test_auto_commit_commits_dirty_worktree(
+        self, mock_dirs: object, tmp_path: object
+    ) -> None:
+        """Commits dirty worktree when auto_commit=True."""
+        from shoal.core.state import create_session
+
+        worktree = str(tmp_path)  # type: ignore[arg-type]
+        session = await create_session("ac-dirty", "claude", "/tmp/repo", worktree=worktree)
+
+        with (
+            patch("shoal.services.lifecycle.tmux") as mock_tmux,
+            patch("shoal.core.context.set_session_id"),
+            patch("shoal.services.lifecycle.Path") as mock_path,
+            patch("shoal.services.lifecycle.git") as mock_git,
+            patch("shoal.services.lifecycle.load_config") as mock_cfg,
+        ):
+            mock_tmux.async_has_session = AsyncMock(return_value=False)
+            # Worktree dir exists
+            mock_path.return_value.is_dir.return_value = True
+            # Worktree is dirty
+            mock_git.async_worktree_is_dirty = AsyncMock(return_value=True)
+            mock_git.async_stage_all = AsyncMock()
+            mock_git.async_commit = AsyncMock()
+            mock_git.async_worktree_remove = AsyncMock(return_value=True)
+            mock_git.async_branch_delete = AsyncMock(return_value=True)
+            # auto_commit enabled
+            mock_cfg.return_value.general.auto_commit = True
+
+            result = await kill_session_lifecycle(
+                session_id=session.id,
+                tmux_session=session.tmux_session,
+            )
+
+        mock_git.async_stage_all.assert_awaited_once_with(worktree)
+        mock_git.async_commit.assert_awaited_once()
+        commit_msg = mock_git.async_commit.call_args[0][1]
+        assert "ac-dirty" in commit_msg
+        assert result["auto_committed"] is True
+
+    async def test_auto_commit_skips_when_disabled(
+        self, mock_dirs: object, tmp_path: object
+    ) -> None:
+        """No commit when auto_commit=False."""
+        from shoal.core.state import create_session
+
+        session = await create_session("ac-off", "claude", "/tmp/repo", worktree=str(tmp_path))
+
+        with (
+            patch("shoal.services.lifecycle.tmux") as mock_tmux,
+            patch("shoal.core.context.set_session_id"),
+            patch("shoal.services.lifecycle.Path") as mock_path,
+            patch("shoal.services.lifecycle.git") as mock_git,
+            patch("shoal.services.lifecycle.load_config") as mock_cfg,
+        ):
+            mock_tmux.async_has_session = AsyncMock(return_value=False)
+            mock_path.return_value.is_dir.return_value = True
+            mock_git.async_worktree_is_dirty = AsyncMock(return_value=True)
+            mock_git.async_stage_all = AsyncMock()
+            mock_git.async_commit = AsyncMock()
+            mock_cfg.return_value.general.auto_commit = False
+
+            result = await kill_session_lifecycle(
+                session_id=session.id,
+                tmux_session=session.tmux_session,
+            )
+
+        mock_git.async_stage_all.assert_not_awaited()
+        mock_git.async_commit.assert_not_awaited()
+        assert result["auto_committed"] is False
+
+    async def test_auto_commit_skips_clean_worktree(
+        self, mock_dirs: object, tmp_path: object
+    ) -> None:
+        """No commit when worktree is already clean."""
+        from shoal.core.state import create_session
+
+        session = await create_session("ac-clean", "claude", "/tmp/repo", worktree=str(tmp_path))
+
+        with (
+            patch("shoal.services.lifecycle.tmux") as mock_tmux,
+            patch("shoal.core.context.set_session_id"),
+            patch("shoal.services.lifecycle.Path") as mock_path,
+            patch("shoal.services.lifecycle.git") as mock_git,
+            patch("shoal.services.lifecycle.load_config") as mock_cfg,
+        ):
+            mock_tmux.async_has_session = AsyncMock(return_value=False)
+            mock_path.return_value.is_dir.return_value = True
+            mock_git.async_worktree_is_dirty = AsyncMock(return_value=False)
+            mock_git.async_stage_all = AsyncMock()
+            mock_git.async_commit = AsyncMock()
+            mock_cfg.return_value.general.auto_commit = True
+
+            result = await kill_session_lifecycle(
+                session_id=session.id,
+                tmux_session=session.tmux_session,
+            )
+
+        mock_git.async_stage_all.assert_not_awaited()
+        mock_git.async_commit.assert_not_awaited()
+        assert result["auto_committed"] is False
+
+    async def test_auto_commit_skips_no_worktree(self, mock_dirs: object) -> None:
+        """No commit when the session has no worktree path."""
+        from shoal.core.state import create_session
+
+        # Session with no worktree
+        session = await create_session("ac-noworktree", "claude", "/tmp/repo")
+
+        with (
+            patch("shoal.services.lifecycle.tmux") as mock_tmux,
+            patch("shoal.core.context.set_session_id"),
+            patch("shoal.services.lifecycle.git") as mock_git,
+            patch("shoal.services.lifecycle.load_config") as mock_cfg,
+        ):
+            mock_tmux.async_has_session = AsyncMock(return_value=False)
+            mock_git.async_stage_all = AsyncMock()
+            mock_git.async_commit = AsyncMock()
+            mock_cfg.return_value.general.auto_commit = True
+
+            result = await kill_session_lifecycle(
+                session_id=session.id,
+                tmux_session=session.tmux_session,
+            )
+
+        mock_git.async_stage_all.assert_not_awaited()
+        mock_git.async_commit.assert_not_awaited()
+        assert result["auto_committed"] is False
+
+    async def test_auto_commit_failure_does_not_abort_kill(
+        self, mock_dirs: object, tmp_path: object
+    ) -> None:
+        """A failing commit is logged and swallowed; kill proceeds."""
+        import subprocess
+
+        from shoal.core.state import create_session
+
+        session = await create_session("ac-fail", "claude", "/tmp/repo", worktree=str(tmp_path))
+
+        with (
+            patch("shoal.services.lifecycle.tmux") as mock_tmux,
+            patch("shoal.core.context.set_session_id"),
+            patch("shoal.services.lifecycle.Path") as mock_path,
+            patch("shoal.services.lifecycle.git") as mock_git,
+            patch("shoal.services.lifecycle.load_config") as mock_cfg,
+        ):
+            mock_tmux.async_has_session = AsyncMock(return_value=False)
+            mock_path.return_value.is_dir.return_value = True
+            mock_git.async_worktree_is_dirty = AsyncMock(return_value=True)
+            mock_git.async_stage_all = AsyncMock(
+                side_effect=subprocess.CalledProcessError(1, "git add")
+            )
+            mock_git.async_commit = AsyncMock()
+            mock_cfg.return_value.general.auto_commit = True
+
+            # Must not raise
+            result = await kill_session_lifecycle(
+                session_id=session.id,
+                tmux_session=session.tmux_session,
+            )
+
+        assert result["db_deleted"] is True  # kill completed
+        assert result["auto_committed"] is False

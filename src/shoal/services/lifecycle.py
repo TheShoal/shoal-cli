@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from shoal.core import git, tmux
+from shoal.core.config import load_config
 from shoal.core.state import (
     build_nvim_socket_path,
     create_session,
@@ -955,6 +956,7 @@ async def kill_session_lifecycle(
         "db_deleted": False,
         "journal_archived": False,
         "mcp_stopped": False,
+        "auto_committed": False,
     }
 
     # Snapshot MCP servers before deleting the session
@@ -967,6 +969,23 @@ async def kill_session_lifecycle(
         summary["tmux_killed"] = True
         logger.info("[%s] kill: tmux session killed", session_id)
 
+    # 1.5. Auto-commit dirty worktree if configured
+    if session is not None and session.worktree:
+        _ac_wt = session.worktree
+        _wt_exists = await asyncio.to_thread(lambda: Path(_ac_wt).is_dir())
+        _ac_on = _wt_exists and load_config().general.auto_commit
+        if _ac_on and await git.async_worktree_is_dirty(_ac_wt):
+            _commit_msg = (
+                f"chore: auto-commit worktree for shoal session '{session.name}'\n\n"
+                f"Branch: {session.branch}\nTool: {session.tool}"
+            )
+            try:
+                await git.async_stage_all(_ac_wt)
+                await git.async_commit(_ac_wt, _commit_msg)
+                summary["auto_committed"] = True
+                logger.info("[%s] kill: auto-committed worktree", session_id)
+            except Exception:
+                logger.warning("[%s] kill: auto-commit failed", session_id, exc_info=True)
     # 2. Optionally remove worktree + branch
     if remove_worktree and worktree and await asyncio.to_thread(lambda: Path(worktree).is_dir()):
         # Check for dirty worktree

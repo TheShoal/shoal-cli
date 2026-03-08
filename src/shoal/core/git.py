@@ -143,6 +143,28 @@ async def async_worktree_is_dirty(path: str) -> bool:
     return await asyncio.to_thread(worktree_is_dirty, path)
 
 
+def stage_all(path: str) -> None:
+    """Stage all changes in the working tree (git add -A)."""
+    _run(["add", "-A"], cwd=path)
+
+
+async def async_stage_all(path: str) -> None:
+    await asyncio.to_thread(stage_all, path)
+
+
+def commit(path: str, message: str) -> None:
+    """Create a commit with *message* in the working tree at *path*.
+
+    Raises ``subprocess.CalledProcessError`` if git commit exits non-zero
+    (e.g. nothing to commit after staging).
+    """
+    _run(["commit", "-m", message], cwd=path)
+
+
+async def async_commit(path: str, message: str) -> None:
+    await asyncio.to_thread(commit, path, message)
+
+
 # ---------------------------------------------------------------------------
 # Branch naming utilities
 # ---------------------------------------------------------------------------

@@ -524,3 +524,17 @@ command = "opencode"
         )
         with pytest.raises(ConfigLoadError, match="invalid template"):
             load_template("bad")
+
+    def test_load_tool_config_reads_send_keys_delay(self, mock_dirs: tuple[Path, Path]) -> None:
+        """load_tool_config reads send_keys_delay and other [tool] fields from TOML."""
+        tmp_config, _ = mock_dirs
+        tools = tmp_config / "tools"
+        (tools / "mypi.toml").write_text(
+            '[tool]\nname = "mypi"\ncommand = "pi"\n'
+            'send_keys_delay = 0.05\ninput_mode = "arg"\nprompt_file_prefix = "@"\n'
+            '[detection]\nbusy_patterns = ["thinking"]\n'
+        )
+        cfg = load_tool_config("mypi")
+        assert cfg.send_keys_delay == 0.05
+        assert cfg.input_mode == "arg"
+        assert cfg.prompt_file_prefix == "@"

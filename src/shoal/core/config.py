@@ -174,6 +174,10 @@ def load_tool_config(name: str) -> ToolConfig:
             status_provider=tool_section.get(
                 "status_provider", default_status_provider_for_tool(tool_name)
             ),
+            send_keys_delay=tool_section.get("send_keys_delay", 0.0),
+            input_mode=tool_section.get("input_mode", "keys"),
+            prompt_flag=tool_section.get("prompt_flag", ""),
+            prompt_file_prefix=tool_section.get("prompt_file_prefix", ""),
             detection=DetectionPatterns.model_validate(detection_section),
             mcp=MCPToolConfig.model_validate(mcp_section),
         )
