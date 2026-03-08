@@ -240,7 +240,10 @@ async def test_send_keys_claude_auto_enter() -> None:
             return_value="%1",
         ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
-        patch("shoal.core.config.load_tool_config", return_value=ToolConfig(name="claude", command="claude", send_keys_delay=0.05)),
+        patch(
+            "shoal.core.config.load_tool_config",
+            return_value=ToolConfig(name="claude", command="claude", send_keys_delay=0.05),
+        ),
     ):
         result = await send_keys_tool(session="worker-1", keys="y")
 
@@ -265,7 +268,10 @@ async def test_send_keys_codex_auto_enter() -> None:
             return_value="%3",
         ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
-        patch("shoal.core.config.load_tool_config", return_value=ToolConfig(name="codex", command="codex", send_keys_delay=0.05)),
+        patch(
+            "shoal.core.config.load_tool_config",
+            return_value=ToolConfig(name="codex", command="codex", send_keys_delay=0.05),
+        ),
     ):
         result = await send_keys_tool(session="worker-codex", keys="continue")
 
@@ -288,7 +294,10 @@ async def test_send_keys_opencode_no_auto_enter() -> None:
             return_value="%2",
         ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
-        patch("shoal.core.config.load_tool_config", return_value=ToolConfig(name="opencode", command="opencode", send_keys_delay=0.05)),
+        patch(
+            "shoal.core.config.load_tool_config",
+            return_value=ToolConfig(name="opencode", command="opencode", send_keys_delay=0.05),
+        ),
     ):
         result = await send_keys_tool(session="worker-2", keys="y")
 
@@ -311,7 +320,10 @@ async def test_send_keys_explicit_enter_override() -> None:
             return_value="%4",
         ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
-        patch("shoal.core.config.load_tool_config", return_value=ToolConfig(name="opencode", command="opencode", send_keys_delay=0.05)),
+        patch(
+            "shoal.core.config.load_tool_config",
+            return_value=ToolConfig(name="opencode", command="opencode", send_keys_delay=0.05),
+        ),
     ):
         result = await send_keys_tool(session="worker-3", keys="y", enter=True)
 
@@ -456,7 +468,10 @@ async def test_send_keys_targets_shoal_pane() -> None:
             return_value="%3",
         ) as mock_pane,
         patch("shoal.core.tmux.async_send_keys", new_callable=AsyncMock) as mock_send,
-        patch("shoal.core.config.load_tool_config", return_value=ToolConfig(name="claude", command="claude", send_keys_delay=0.05)),
+        patch(
+            "shoal.core.config.load_tool_config",
+            return_value=ToolConfig(name="claude", command="claude", send_keys_delay=0.05),
+        ),
     ):
         result = await send_keys_tool(session="worker-2", keys="ls -la")
 
