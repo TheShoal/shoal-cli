@@ -136,8 +136,19 @@ def execute_entrypoint(
     args: list[str],
     config_path: str | None,
     output_format: str,
+    timeout: int | None = None,
 ) -> FinExecutionResult:
-    """Execute a fin lifecycle entrypoint as subprocess."""
+    """Execute a fin lifecycle entrypoint as subprocess.
+
+    Args:
+        fin_root: Absolute path to the fin root directory.
+        entrypoint: Resolved, executable entrypoint path.
+        args: Arguments forwarded verbatim to the entrypoint.
+        config_path: Optional path written to ``SHOAL_FIN_CONFIG`` env var.
+        output_format: Value written to ``SHOAL_OUTPUT_FORMAT`` env var.
+        timeout: Maximum wall-clock seconds allowed.  ``None`` means no limit.
+            On expiry the process is killed and ``FinRuntimeError`` is raised.
+    """
     cmd = [str(entrypoint), *args]
     env = _build_env(fin_root=fin_root, config_path=config_path, output_format=output_format)
     try:
@@ -148,7 +159,10 @@ def execute_entrypoint(
             text=True,
             capture_output=True,
             check=False,
+            timeout=timeout,
         )
+    except subprocess.TimeoutExpired:
+        raise FinRuntimeError(f"Fin entrypoint timed out after {timeout}s: {entrypoint}") from None
     except OSError as exc:
         raise FinRuntimeError(f"Failed to execute {entrypoint}: {exc}") from exc
 
@@ -173,10 +187,23 @@ def inspect_fin(fin_path: str | Path) -> dict[str, object]:
     }
 
 
-def validate_fin(fin_path: str | Path, *, strict: bool) -> FinExecutionResult:
-    """Execute a fin's ``validate`` entrypoint after manifest checks."""
+def validate_fin(
+    fin_path: str | Path,
+    *,
+    strict: bool,
+    timeout: int | None = None,
+) -> FinExecutionResult:
+    """Execute a fin's ``validate`` entrypoint after manifest checks.
+
+    Args:
+        fin_path: Path to fin root directory or fin.toml file.
+        strict: Forward ``--strict`` flag to the entrypoint.
+        timeout: Override seconds limit.  Falls back to
+            ``manifest.default_timeout_seconds``, then no limit.
+    """
     fin_root, manifest = load_fin_manifest(fin_path)
     entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.validate_entrypoint)
+    resolved_timeout = timeout if timeout is not None else manifest.default_timeout_seconds
     args = ["--strict"] if strict else []
     return execute_entrypoint(
         fin_root=fin_root,
@@ -184,10 +211,16 @@ def validate_fin(fin_path: str | Path, *, strict: bool) -> FinExecutionResult:
         args=args,
         config_path=None,
         output_format="text",
+        timeout=resolved_timeout,
     )
 
 
-def install_fin(fin_path: str | Path, *, register: bool = True) -> FinExecutionResult:
+def install_fin(
+    fin_path: str | Path,
+    *,
+    register: bool = True,
+    timeout: int | None = None,
+) -> FinExecutionResult:
     """Execute a fin's ``install`` entrypoint after manifest checks.
 
     Args:
@@ -195,18 +228,22 @@ def install_fin(fin_path: str | Path, *, register: bool = True) -> FinExecutionR
         register: If True (default), copy the fin into ``fins_dir()`` after
             a successful entrypoint run.  Registration failures emit a warning
             but do not affect the returned result.
+        timeout: Override seconds limit.  Falls back to
+            ``manifest.default_timeout_seconds``, then no limit.
 
     Returns:
         Result of the install entrypoint execution.
     """
     fin_root, manifest = load_fin_manifest(fin_path)
     entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.install)
+    resolved_timeout = timeout if timeout is not None else manifest.default_timeout_seconds
     result = execute_entrypoint(
         fin_root=fin_root,
         entrypoint=entrypoint,
         args=[],
         config_path=None,
         output_format="text",
+        timeout=resolved_timeout,
     )
     if register:
         try:
@@ -289,16 +326,30 @@ def list_registered_fins() -> list[FinListItem]:
     return items
 
 
-def configure_fin(fin_path: str | Path, *, config_path: str | None) -> FinExecutionResult:
-    """Execute a fin's ``configure`` entrypoint after manifest checks."""
+def configure_fin(
+    fin_path: str | Path,
+    *,
+    config_path: str | None,
+    timeout: int | None = None,
+) -> FinExecutionResult:
+    """Execute a fin's ``configure`` entrypoint after manifest checks.
+
+    Args:
+        fin_path: Path to fin root directory or fin.toml file.
+        config_path: Optional path forwarded as ``SHOAL_FIN_CONFIG``.
+        timeout: Override seconds limit.  Falls back to
+            ``manifest.default_timeout_seconds``, then no limit.
+    """
     fin_root, manifest = load_fin_manifest(fin_path)
     entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.configure)
+    resolved_timeout = timeout if timeout is not None else manifest.default_timeout_seconds
     return execute_entrypoint(
         fin_root=fin_root,
         entrypoint=entrypoint,
         args=[],
         config_path=config_path,
         output_format="text",
+        timeout=resolved_timeout,
     )
 
 
@@ -308,16 +359,28 @@ def run_fin(
     config_path: str | None,
     output_format: str,
     args: list[str],
+    timeout: int | None = None,
 ) -> FinExecutionResult:
-    """Execute a fin's ``run`` entrypoint with passthrough args."""
+    """Execute a fin's ``run`` entrypoint with passthrough args.
+
+    Args:
+        fin_path: Path to fin root directory or fin.toml file.
+        config_path: Optional path forwarded as ``SHOAL_FIN_CONFIG``.
+        output_format: ``text`` or ``json``.
+        args: Arguments forwarded verbatim after ``--``.
+        timeout: Override seconds limit.  Falls back to
+            ``manifest.default_timeout_seconds``, then no limit.
+    """
     fin_root, manifest = load_fin_manifest(fin_path)
     entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.run)
+    resolved_timeout = timeout if timeout is not None else manifest.default_timeout_seconds
     return execute_entrypoint(
         fin_root=fin_root,
         entrypoint=entrypoint,
         args=args,
         config_path=config_path,
         output_format=output_format,
+        timeout=resolved_timeout,
     )
 
 

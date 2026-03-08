@@ -41,10 +41,14 @@ def fin_inspect(
 def fin_validate(
     fin_path: Annotated[str, typer.Argument(help="Path to fin root or fin.toml")],
     strict: Annotated[bool, typer.Option("--strict", help="Enable strict validation mode")] = False,
+    timeout: Annotated[
+        int | None,
+        typer.Option("--timeout", help="Max seconds allowed; overrides manifest default"),
+    ] = None,
 ) -> None:
     """Validate fin manifest and execute fin validate lifecycle."""
     try:
-        result = validate_fin(fin_path, strict=strict)
+        result = validate_fin(fin_path, strict=strict, timeout=timeout)
     except FinRuntimeError as exc:
         typer.echo(f"Error: {exc}")
         raise typer.Exit(1) from None
@@ -65,10 +69,14 @@ def fin_install(
         bool,
         typer.Option("--no-register", help="Run install entrypoint only; do not register fin."),
     ] = False,
+    timeout: Annotated[
+        int | None,
+        typer.Option("--timeout", help="Max seconds allowed; overrides manifest default"),
+    ] = None,
 ) -> None:
     """Install a fin by executing its install entrypoint."""
     try:
-        result = install_fin(fin_path, register=not no_register)
+        result = install_fin(fin_path, register=not no_register, timeout=timeout)
     except FinRuntimeError as exc:
         typer.echo(f"Error: {exc}")
         raise typer.Exit(1) from None
@@ -97,10 +105,14 @@ def fin_configure(
         str | None,
         typer.Option("--config", help="Optional path to fin config file"),
     ] = None,
+    timeout: Annotated[
+        int | None,
+        typer.Option("--timeout", help="Max seconds allowed; overrides manifest default"),
+    ] = None,
 ) -> None:
     """Configure a fin by executing its configure entrypoint."""
     try:
-        result = configure_fin(fin_path, config_path=config)
+        result = configure_fin(fin_path, config_path=config, timeout=timeout)
     except FinRuntimeError as exc:
         typer.echo(f"Error: {exc}")
         raise typer.Exit(1) from None
@@ -170,6 +182,10 @@ def fin_run(
         str,
         typer.Option("--output", help="Output format for fin env (text|json)"),
     ] = "text",
+    timeout: Annotated[
+        int | None,
+        typer.Option("--timeout", help="Max seconds allowed; overrides manifest default"),
+    ] = None,
     args: Annotated[
         list[str] | None, typer.Argument(help="Arguments passed to fin run entrypoint")
     ] = None,

@@ -310,3 +310,120 @@ def test_install_fin_registration_failure_does_not_raise(tmp_path: Path) -> None
 
     assert result.exit_code == 0
     assert result.stdout == "install-ok\n"
+
+
+# --- timeout ---
+
+
+def test_execute_entrypoint_raises_on_timeout(tmp_path: Path) -> None:
+    """TimeoutExpired from subprocess.run converts to FinRuntimeError."""
+    fin_root = _create_fin(tmp_path)
+    # Create a slow entrypoint that sleeps longer than the timeout.
+    slow_path = fin_root / "bin" / "slow"
+    slow_path.write_text("#!/bin/sh\nsleep 10\n")
+    slow_path.chmod(0o755)
+
+    with pytest.raises(FinRuntimeError, match="timed out after 0"):
+        from shoal.services.fin_runtime import execute_entrypoint
+
+        execute_entrypoint(
+            fin_root=fin_root,
+            entrypoint=slow_path,
+            args=[],
+            config_path=None,
+            output_format="text",
+            timeout=0,  # zero seconds — expires immediately
+        )
+
+
+def test_execute_entrypoint_timeout_none_means_no_limit(tmp_path: Path) -> None:
+    """timeout=None passes None to subprocess and does not raise."""
+    fin_root = _create_fin(tmp_path)
+
+    with patch("shoal.services.fin_runtime.subprocess.run") as mock_run:
+        mock_run.return_value = type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        entrypoint = fin_root / "bin" / "run"
+        from shoal.services.fin_runtime import execute_entrypoint
+
+        execute_entrypoint(
+            fin_root=fin_root,
+            entrypoint=entrypoint,
+            args=[],
+            config_path=None,
+            output_format="text",
+            timeout=None,
+        )
+
+    _call_kwargs = mock_run.call_args.kwargs
+    assert _call_kwargs["timeout"] is None
+
+
+def test_validate_fin_explicit_timeout_overrides_manifest(tmp_path: Path) -> None:
+    """Explicit timeout= wins over manifest.default_timeout_seconds."""
+    fin_root = _create_fin(tmp_path)
+    # Patch manifest to declare a long default.
+    _, manifest = load_fin_manifest(fin_root)
+    manifest_with_default = manifest.model_copy(update={"default_timeout_seconds": 999})
+
+    with (
+        patch(
+            "shoal.services.fin_runtime.load_fin_manifest",
+            return_value=(fin_root, manifest_with_default),
+        ),
+        patch("shoal.services.fin_runtime.subprocess.run") as mock_run,
+    ):
+        mock_run.return_value = type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        validate_fin(fin_root, strict=False, timeout=42)
+
+    assert mock_run.call_args.kwargs["timeout"] == 42
+
+
+def test_run_fin_uses_manifest_default_when_no_explicit_timeout(tmp_path: Path) -> None:
+    """When timeout=None, run_fin falls back to manifest.default_timeout_seconds."""
+    fin_root = _create_fin(tmp_path)
+    _, manifest = load_fin_manifest(fin_root)
+    manifest_with_default = manifest.model_copy(update={"default_timeout_seconds": 30})
+
+    with (
+        patch(
+            "shoal.services.fin_runtime.load_fin_manifest",
+            return_value=(fin_root, manifest_with_default),
+        ),
+        patch("shoal.services.fin_runtime.subprocess.run") as mock_run,
+    ):
+        mock_run.return_value = type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        run_fin(fin_root, config_path=None, output_format="text", args=[])
+
+    assert mock_run.call_args.kwargs["timeout"] == 30
+
+
+def test_install_fin_no_timeout_when_neither_set(tmp_path: Path) -> None:
+    """When neither CLI timeout nor manifest default is set, subprocess gets None."""
+    fin_root = _create_fin(tmp_path)
+
+    with patch("shoal.services.fin_runtime.subprocess.run") as mock_run:
+        mock_run.return_value = type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        install_fin(fin_root, register=False, timeout=None)
+
+    assert mock_run.call_args.kwargs["timeout"] is None
+
+
+def test_manifest_default_timeout_seconds_field(tmp_path: Path) -> None:
+    """default_timeout_seconds round-trips through fin.toml parsing."""
+    fin_root = _create_fin(tmp_path)
+    manifest_path = fin_root / "fin.toml"
+    manifest_path.write_text(
+        manifest_path.read_text().replace(
+            "[entrypoints]",
+            "default_timeout_seconds = 120\n\n[entrypoints]",
+        )
+    )
+    _, manifest = load_fin_manifest(fin_root)
+    assert manifest.default_timeout_seconds == 120
+
+
+def test_manifest_default_timeout_seconds_absent_is_none(tmp_path: Path) -> None:
+    """A fin.toml without default_timeout_seconds parses to None."""
+    fin_root = _create_fin(tmp_path)
+    _, manifest = load_fin_manifest(fin_root)
+    assert manifest.default_timeout_seconds is None

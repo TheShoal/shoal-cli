@@ -53,6 +53,10 @@ Related review:
 - `run` pass-through behavior preserves arguments after `--` in-order.
 - Policy: `run` does not require prior `validate`; validation is recommended but not enforced.
 - Fin non-zero exits propagate back to CLI as non-zero exit codes.
+- **Timeout controls**: Every subprocess-calling command accepts `--timeout <seconds>` at the
+  CLI.  Fins may also declare `default_timeout_seconds` in `fin.toml` as a per-fin default.
+  CLI `--timeout` overrides the manifest default.  When neither is set, there is no time limit.
+  On expiry the process is killed and an error is reported.
 
 ### Developer Ergonomics
 

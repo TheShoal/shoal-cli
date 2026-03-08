@@ -25,4 +25,5 @@ class FinManifest(BaseModel):
     version: str
     fin_contract_version: int
     capability: str
+    default_timeout_seconds: int | None = None
     entrypoints: FinEntrypoints
