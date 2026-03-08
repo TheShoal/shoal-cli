@@ -182,11 +182,16 @@ def _check_environment() -> None:
 @app.command()
 def init(
     bare: bool = typer.Option(False, "--bare", help="Skip scaffolding default config files."),
+    refresh_tools_flag: bool = typer.Option(
+        False,
+        "--refresh-tools",
+        help="Re-copy bundled tool profiles, overwriting any existing ones.",
+    ),
 ) -> None:
     """Initialize Shoal configuration and directories."""
     from rich.console import Console
 
-    from shoal.core.config import ensure_dirs, scaffold_defaults
+    from shoal.core.config import ensure_dirs, refresh_tools, scaffold_defaults
     from shoal.services.lifecycle import reconcile_mcp_pool
 
     console = Console()
@@ -211,6 +216,15 @@ def init(
 
     _check_environment()
     console.print("\n[green]Shoal initialized successfully![/green]")
+
+    if refresh_tools_flag:
+        refreshed = refresh_tools()
+        if refreshed:
+            console.print(f"[green]Refreshed {len(refreshed)} tool profile(s):[/green]")
+            for name in refreshed:
+                console.print(f"  [dim]{name}[/dim]")
+        else:
+            console.print("[yellow]No bundled tool profiles found.[/yellow]")
 
     from shoal.core.theme import create_panel
 

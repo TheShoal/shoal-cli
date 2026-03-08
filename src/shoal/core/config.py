@@ -522,3 +522,33 @@ def _apply_mixin(
 def load_template(name: str) -> SessionTemplateConfig:
     """Load a session template TOML with full inheritance resolution."""
     return resolve_template(name)
+
+
+def refresh_tools() -> list[str]:
+    """Re-copy bundled tool profiles to the user's config dir, overwriting existing files.
+
+    Unlike ``scaffold_defaults()``, this always overwrites.  Use it when bundled tool
+    profiles have been updated and the user wants to pull in the latest version.
+
+    Returns:
+        Sorted list of relative filenames that were refreshed (e.g. ``["omp.toml", "pi.toml"]``).
+        Returns an empty list and logs a warning if the bundled source dir is missing.
+    """
+    import shutil
+
+    src = _examples_dir() / "tools"
+    if not src.is_dir():
+        logger.warning("Bundled tool profiles not found at %s", src)
+        return []
+
+    dst = config_dir() / "tools"
+    dst.mkdir(parents=True, exist_ok=True)
+
+    refreshed: list[str] = []
+    for src_file in sorted(src.glob("*.toml")):
+        dst_file = dst / src_file.name
+        shutil.copy2(src_file, dst_file)
+        refreshed.append(src_file.name)
+        logger.debug("Refreshed tool profile: %s", src_file.name)
+
+    return refreshed
