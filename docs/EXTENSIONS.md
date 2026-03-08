@@ -22,14 +22,17 @@ Related review:
 
 ### Discovery
 
-- Path-based discovery is available now:
-  - `shoal fin ls [--path <dir-or-fin.toml>]`
+- Path-based inspection, validation, and execution are available now:
   - `shoal fin inspect <fin-path>`
-  - `shoal fin install <fin-path>`
-  - `shoal fin configure <fin-path> [--config <path>]`
   - `shoal fin validate <fin-path> [--strict]`
   - `shoal fin run <fin-path> [--config <path>] [--output text|json] -- [args...]`
-- Registry/distribution discovery is not implemented yet (`fin install` from sources is pending).
+- Local fin lifecycle commands (install, configure) are available now:
+  - `shoal fin install <fin-path> [--no-register]` — runs the install entrypoint and registers the fin in `~/.config/shoal/fins/` by default. Pass `--no-register` to skip registration.
+  - `shoal fin configure <fin-path> [--config <path>]`
+- Local registry is available now:
+  - `shoal fin ls` — lists registered fins from `~/.config/shoal/fins/` by default.
+  - `shoal fin ls --path <dir-or-fin.toml>` — path-based discovery without registry.
+- Registry/distribution install from remote sources is not implemented yet.
 
 ### Loading and Validation
 

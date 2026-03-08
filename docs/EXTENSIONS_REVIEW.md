@@ -56,8 +56,8 @@ runtime correctness.
 | Show stdout/stderr from wrapper | PASS | CLI echoes captured stdout/stderr |
 | Include tests for arg passthrough and exit propagation | PASS | `tests/test_cli_fin.py`, `tests/test_services_fin_runtime.py` |
 | Propagate `SHOAL_LOG_LEVEL` (recommended env var) | PARTIAL | Not explicitly set in `_build_env()` |
-| Stage 1 lifecycle completeness (`install`, `configure`) | NOT IN SCOPE / OPEN | Documented gap in `docs/EXTENSIONS.md` |
-| Discovery (`fin ls`, source install) | NOT IN SCOPE / OPEN | Documented gap in `docs/EXTENSIONS.md` |
+| Stage 1 lifecycle completeness (`install`, `configure`) | SHIPPED v0.22.0 | `shoal fin install`, `shoal fin configure` |
+| Discovery (`fin ls`, local registration) | SHIPPED v0.22.0 | `fin ls` defaults to installed; `fin install --no-register` opt-out |
 
 ## What users can do today without editing Shoal
 
@@ -74,9 +74,9 @@ execution with a stable contract handshake.
 ## Gaps affecting extension UX and platform completeness
 
 1. Lifecycle surface is partial
-   - Missing first-class `shoal fin install` and `shoal fin configure`.
+   - ~~Missing first-class `shoal fin install` and `shoal fin configure`~~. — shipped in v0.22.0
 2. Discovery and distribution are absent
-   - Missing `shoal fin ls` and local/remote source installation UX.
+   - ~~Missing `shoal fin ls` and local/remote source installation UX.~~ `fin ls` and local registration shipped in v0.22.0; remote/registry sources remain open.
 3. Completion ergonomics lag behind command surface
    - Fish completions template does not yet advertise `fin` subcommands.
 4. Validation hardening can go deeper
@@ -96,7 +96,9 @@ execution with a stable contract handshake.
 
 ### P0: Close Stage 1 lifecycle parity
 
-1. Add `shoal fin install <fin-path> [--config <path>]`
+1. ~~Add `shoal fin install <fin-path> [--config <path>]`~~ — shipped in v0.22.0
+2. ~~Add `shoal fin configure <fin-path> [--config <path>]`~~ — shipped
+3. Ensure the same env/exit behavior contract as `run` and `validate`
 2. Add `shoal fin configure <fin-path> [--config <path>]`
 3. Ensure the same env/exit behavior contract as `run` and `validate`
 
@@ -108,7 +110,9 @@ Acceptance:
 
 ### P1: Discovery and local source ergonomics
 
-1. Add `shoal fin ls` (start with local install roots)
+1. ~~Add `shoal fin ls` (start with local install roots)~~ — shipped in v0.22.0; `fin ls` defaults to registered fins
+2. ~~Add local source registration/install metadata (no marketplace yet)~~ — `fin install` now registers to `~/.config/shoal/fins/`; `--no-register` opt-out available
+3. Keep explicit docs on what is and is not supported
 2. Add local source registration/install metadata (no marketplace yet)
 3. Keep explicit docs on what is and is not supported
 

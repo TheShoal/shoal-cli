@@ -13,11 +13,11 @@ subcommand groups.
 | `shoal attach` | Jump into a session |
 | `shoal logs` | Read recent terminal output |
 | `shoal status` | Show a quick fleet summary |
-| `shoal popup` | Open the tmux dashboard |
+| `shoal popup` | Open the fzf dashboard (`ctrl-y` approve, `ctrl-g` fork, `ctrl-w` filter waiting, `ctrl-r` reload) |
 | `shoal history` | Show status transition history |
 | `shoal journal` | Read or append to a session journal |
 | `shoal diag` | Check component health |
-| `shoal init` | Scaffold config and state directories |
+| `shoal init` | Scaffold config and state directories (`--refresh-tools` to re-copy bundled profiles) |
 | `shoal check` | Re-run dependency and environment checks |
 | `shoal serve` | Start the FastAPI server for HTTP access |
 
@@ -105,9 +105,9 @@ For patterns and safety rules, read [Robo Supervisor](ROBO_GUIDE.md).
 | ------- | ------- |
 | `shoal fin inspect` | Inspect a fin manifest |
 | `shoal fin validate` | Validate a fin package |
-| `shoal fin install` | Run fin install entrypoint |
+| `shoal fin install` | Install a fin and register it locally (use `--no-register` to skip registration) |
 | `shoal fin configure` | Run fin configure entrypoint |
-| `shoal fin ls` | Discover fins |
+| `shoal fin ls` | List registered fins (default) or discover from a path with `--path` |
 | `shoal fin run` | Execute a fin |
 | `shoal nvim send` | Send content to Neovim |
 | `shoal nvim diagnostics` | Inspect Neovim integration |
@@ -118,7 +118,7 @@ For patterns and safety rules, read [Robo Supervisor](ROBO_GUIDE.md).
 
 ## Recommended operator flow
 
-1. Run `shoal init` on a fresh machine.
+1. Run `shoal init` on a fresh machine. Use `shoal init --refresh-tools` after upgrading to pick up revised tool profiles.
 2. Use `shoal new` or `shoal fork` to create isolated sessions.
 3. Monitor the fleet with `shoal status` or `shoal popup`.
 4. Add `shoal mcp`, `shoal robo`, or `shoal remote` only when the base loop is stable.
