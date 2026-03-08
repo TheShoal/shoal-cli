@@ -84,7 +84,7 @@ def state_dir() -> Path:
 def ensure_dirs() -> None:
     """Create all required data and state directories."""
     cfg = config_dir()
-    for subdir in ("templates", "templates/mixins"):
+    for subdir in ("templates", "templates/mixins", "fins"):
         (cfg / subdir).mkdir(parents=True, exist_ok=True)
 
     base = data_dir()
@@ -223,6 +223,11 @@ def available_tools() -> list[str]:
 def templates_dir() -> Path:
     """Return ~/.config/shoal/templates."""
     return config_dir() / "templates"
+
+
+def fins_dir() -> Path:
+    """Return ~/.config/shoal/fins — installed fins registry."""
+    return config_dir() / "fins"
 
 
 def project_templates_dir() -> Path | None:

@@ -7,12 +7,15 @@ from typing import Annotated
 
 import typer
 
+from shoal.core.config import fins_dir
 from shoal.services.fin_runtime import (
     FinRuntimeError,
     configure_fin,
     inspect_fin,
     install_fin,
     list_fins,
+    list_registered_fins,
+    load_fin_manifest,
     run_fin,
     validate_fin,
 )
@@ -58,10 +61,14 @@ def fin_validate(
 @app.command("install")
 def fin_install(
     fin_path: Annotated[str, typer.Argument(help="Path to fin root or fin.toml")],
+    no_register: Annotated[
+        bool,
+        typer.Option("--no-register", help="Run install entrypoint only; do not register fin."),
+    ] = False,
 ) -> None:
     """Install a fin by executing its install entrypoint."""
     try:
-        result = install_fin(fin_path)
+        result = install_fin(fin_path, register=not no_register)
     except FinRuntimeError as exc:
         typer.echo(f"Error: {exc}")
         raise typer.Exit(1) from None
@@ -73,6 +80,14 @@ def fin_install(
 
     if result.exit_code != 0:
         raise typer.Exit(result.exit_code)
+
+    if not no_register:
+        try:
+            _, manifest = load_fin_manifest(fin_path)
+            dest = fins_dir() / manifest.name
+            typer.echo(f"Registered fin '{manifest.name}' at {dest}")
+        except FinRuntimeError:
+            pass  # warning already logged inside install_fin; install itself succeeded
 
 
 @app.command("configure")
@@ -102,20 +117,30 @@ def fin_configure(
 @app.command("ls")
 def fin_ls(
     path: Annotated[
-        str,
+        str | None,
         typer.Option("--path", help="Directory or fin.toml path for discovery"),
-    ] = ".",
+    ] = None,
 ) -> None:
-    """List path-based fin candidates and manifest validity."""
-    try:
-        rows = list_fins(path)
-    except FinRuntimeError as exc:
-        typer.echo(f"Error: {exc}")
-        raise typer.Exit(1) from None
+    """List fins.
 
-    if not rows:
-        typer.echo("No fin candidates found.")
-        return
+    Without ``--path``: shows fins registered via ``shoal fin install``.
+    With ``--path``: discovers fin candidates under the given directory.
+    """
+    if path is None:
+        rows = list_registered_fins()
+        if not rows:
+            typer.echo("No fins installed. Use: shoal fin install <path>")
+            return
+    else:
+        try:
+            rows = list_fins(path)
+        except FinRuntimeError as exc:
+            typer.echo(f"Error: {exc}")
+            raise typer.Exit(1) from None
+
+        if not rows:
+            typer.echo("No fin candidates found.")
+            return
 
     for row in rows:
         if row.status == "valid":
