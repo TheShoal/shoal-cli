@@ -13,6 +13,7 @@ status_provider = "regex"
 # Prompt delivery: "arg" passes the prompt as a positional argument at launch
 # time, which avoids the post-launch send_keys race on startup.
 input_mode = "arg"
+send_keys_delay = 0.05  # TUI renders characters; brief pause prevents dropped keystrokes
 
 [detection]
 # Patterns matched against tmux pane output to detect agent status.

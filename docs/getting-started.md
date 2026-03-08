@@ -18,7 +18,7 @@ documentation branch points to be obvious.
   </div>
   <div class="shoal-step" data-icon="launch">
     <strong>Install the CLI</strong>
-    <p>Use `uv tool install .` for the fast path or the development extras if you are working from source.</p>
+    <p>Run <code>pipx install shoal-cli</code> or <code>uv tool install shoal-cli</code>. With MCP support: <code>uv tool install "shoal-cli[mcp]"</code>.</p>
   </div>
   <div class="shoal-step" data-icon="map">
     <strong>Initialize the control plane</strong>
@@ -44,8 +44,7 @@ Shoal assumes a terminal-centric workflow and relies on a small set of system to
 
 Optional but useful:
 
-- `gh` for `shoal wt finish --pr`
-- `fish` if you want the intended shell ergonomics
+`gh` for `shoal wt finish --pr`
 - `nvr` for Neovim integration
 
 ## Install

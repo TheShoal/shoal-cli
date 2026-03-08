@@ -13,10 +13,10 @@ Shoal is a personal-first project. Contributions are welcome, but the default sc
 We use `uv` for dependency management.
 
 ```fish
-# Clone and install in editable mode
+# Clone and install in editable mode for development
 git clone https://github.com/TheShoal/shoal-cli.git
 cd shoal-cli
-uv pip install -e ".[dev]"
+uv sync --extra dev --extra mcp
 ```
 
 ### Quick Start

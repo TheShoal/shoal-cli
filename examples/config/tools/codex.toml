@@ -6,6 +6,7 @@ name = "codex"
 command = "codex"
 icon = "⚙️"
 status_provider = "regex"
+send_keys_delay = 0.05  # TUI renders characters; brief pause prevents dropped keystrokes
 
 [detection]
 # Codex is terminal-driven; keep patterns broad for compatibility across versions.

@@ -147,6 +147,6 @@ These flags work with any command and can be combined.
 - Neovim is not running in the session or was started without a socket.
 
 **Solutions:**
-1. Install `neovim-remote`: `pip install neovim-remote`
+1. Install `neovim-remote`: `pipx install neovim-remote`
 2. Ensure you are using a tool that launches Neovim correctly within the Shoal environment.
 3. Check `shoal info <session>` to see if an `nvim_socket` path is assigned.

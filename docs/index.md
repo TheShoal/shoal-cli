@@ -102,13 +102,19 @@ Shoal is a terminal interaction system for human-AI collaboration.
 ## Sixty-second workflow
 
 ```bash
+# Install once
+pipx install shoal-cli
+
+# Initialize and set up shell integration
 shoal init
 shoal setup fish
 
-shoal new -t claude -w auth -b
-shoal new -t codex -w api-refactor -b
-shoal new -t gemini -w docs-refresh -b
+# Spin up three parallel agents on separate worktrees
+shoal new -t omp -w auth -b
+shoal new -t omp -w api-refactor -b
+shoal new -t omp -w docs-refresh -b
 
+# Supervise
 shoal status
 shoal popup
 shoal attach auth

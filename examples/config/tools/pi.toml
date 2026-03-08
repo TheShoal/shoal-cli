@@ -15,6 +15,7 @@ status_provider = "pi"
 # Prompt delivery: "arg" passes the prompt as a positional argument.
 # (Legacy tool — prefer omp.toml for the actively maintained fork.)
 input_mode = "arg"
+send_keys_delay = 0.05  # TUI renders characters; brief pause prevents dropped keystrokes
 
 [detection]
 # Pi uses a TUI with differential rendering; detect from pane output

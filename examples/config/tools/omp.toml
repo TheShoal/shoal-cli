@@ -18,6 +18,7 @@ status_provider = "pi"
 # inline before the LLM sees it, giving clean multi-line delivery.
 input_mode = "arg"
 prompt_file_prefix = "@"
+send_keys_delay = 0.05  # TUI renders characters; brief pause prevents dropped keystrokes
 
 [detection]
 # omp uses a TUI with differential rendering; patterns matched against pane output.
