@@ -143,6 +143,18 @@ async def async_worktree_is_dirty(path: str) -> bool:
     return await asyncio.to_thread(worktree_is_dirty, path)
 
 
+def worktree_has_tracked_changes(path: str) -> bool:
+    """Return True if the worktree has changes to tracked files (ignores untracked)."""
+    result = _run(["status", "--porcelain"], cwd=path, check=False)
+    return any(
+        line and not line.startswith("??") for line in result.stdout.splitlines() if line.strip()
+    )
+
+
+async def async_worktree_has_tracked_changes(path: str) -> bool:
+    return await asyncio.to_thread(worktree_has_tracked_changes, path)
+
+
 def stage_all(path: str) -> None:
     """Stage all changes in the working tree (git add -A)."""
     _run(["add", "-A"], cwd=path)

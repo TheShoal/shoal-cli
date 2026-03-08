@@ -38,6 +38,26 @@ def _run(
         raise TimeoutError(f"tmux {cmd_name} timed out after {timeout}s") from None
 
 
+def server_base_indices() -> tuple[int, int]:
+    """Query the tmux server for (window base-index, pane base-index)."""
+    try:
+        wi_raw = _run(["show-option", "-gv", "base-index"], check=False).stdout.strip()
+        pi_raw = _run(["show-option", "-gv", "pane-base-index"], check=False).stdout.strip()
+        return (int(wi_raw) if wi_raw.isdigit() else 0), (int(pi_raw) if pi_raw.isdigit() else 0)
+    except Exception:
+        return 0, 0
+
+
+def first_pane(session: str) -> str:
+    """Return the tmux target for the first pane of a session, respecting base-index."""
+    result = _run(
+        ["list-panes", "-t", session, "-s", "-F", "#{window_index}.#{pane_index}"],
+        check=False,
+    )
+    lines = [ln.strip() for ln in result.stdout.splitlines() if ln.strip()]
+    return f"{session}:{lines[0]}" if lines else f"{session}:0.0"
+
+
 def has_session(name: str) -> bool:
     result = _run(["has-session", "-t", name], check=False)
     return result.returncode == 0
@@ -191,6 +211,14 @@ def run_command(command: str) -> None:
 
 async def async_has_session(name: str) -> bool:
     return await asyncio.to_thread(has_session, name)
+
+
+async def async_server_base_indices() -> tuple[int, int]:
+    return await asyncio.to_thread(server_base_indices)
+
+
+async def async_first_pane(session: str) -> str:
+    return await asyncio.to_thread(first_pane, session)
 
 
 async def async_new_session(name: str, *, cwd: str | None = None) -> None:

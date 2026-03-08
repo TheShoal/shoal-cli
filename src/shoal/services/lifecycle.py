@@ -255,8 +255,10 @@ async def _run_template_startup_async(
 
     focus_window_target = ""
 
+    _wi_base, _pi_base = await tmux.async_server_base_indices()
+
     for window_index, window in enumerate(template.windows):
-        window_target = f"{tmux_session}:{window_index}"
+        window_target = f"{tmux_session}:{window_index + _wi_base}"
         window_name = _format_value(window.name, context, "window name") if window.name else ""
         window_cwd = work_dir
         if window.cwd:
@@ -278,7 +280,7 @@ async def _run_template_startup_async(
             focus_window_target = window_target
 
         for pane_index, pane in enumerate(window.panes):
-            pane_target = f"{window_target}.{pane_index}"
+            pane_target = f"{window_target}.{pane_index + _pi_base}"
 
             if pane_index == 0:
                 if window_cwd and window_cwd != work_dir:
@@ -409,8 +411,10 @@ def _run_template_startup(
 
     focus_window_target = ""
 
+    _wi_base, _pi_base = tmux.server_base_indices()
+
     for window_index, window in enumerate(template.windows):
-        window_target = f"{tmux_session}:{window_index}"
+        window_target = f"{tmux_session}:{window_index + _wi_base}"
         window_name = _format_value(window.name, context, "window name") if window.name else ""
         window_cwd = work_dir
         if window.cwd:
@@ -430,7 +434,7 @@ def _run_template_startup(
             focus_window_target = window_target
 
         for pane_index, pane in enumerate(window.panes):
-            pane_target = f"{window_target}.{pane_index}"
+            pane_target = f"{window_target}.{pane_index + _pi_base}"
 
             if pane_index == 0:
                 if window_cwd and window_cwd != work_dir:
@@ -681,7 +685,7 @@ async def create_session_lifecycle(
             await tmux.async_set_environment(tmux_session, key, value)
         # Apply env to the initial pane via fish set (tmux set-environment only affects new panes)
         if template_cfg.env:
-            initial_pane = f"{tmux_session}:0.0"
+            initial_pane = await tmux.async_first_pane(tmux_session)
             for key, value in template_cfg.env.items():
                 await tmux.async_send_keys(
                     initial_pane,
@@ -691,7 +695,7 @@ async def create_session_lifecycle(
 
     # 3.5. Run template setup_commands in initial pane
     if template_cfg and template_cfg.setup_commands:
-        initial_pane = f"{tmux_session}:0.0"
+        initial_pane = await tmux.async_first_pane(tmux_session)
         for cmd in template_cfg.setup_commands:
             await tmux.async_send_keys(initial_pane, cmd, enter=True)
 
@@ -839,7 +843,7 @@ async def fork_session_lifecycle(
             await tmux.async_set_environment(tmux_session, key, value)
         # Apply env to the initial pane via fish set (tmux set-environment only affects new panes)
         if template_cfg.env:
-            initial_pane = f"{tmux_session}:0.0"
+            initial_pane = await tmux.async_first_pane(tmux_session)
             for key, value in template_cfg.env.items():
                 await tmux.async_send_keys(
                     initial_pane,
@@ -849,7 +853,7 @@ async def fork_session_lifecycle(
 
     # 3.5. Run template setup_commands in initial pane
     if template_cfg and template_cfg.setup_commands:
-        initial_pane = f"{tmux_session}:0.0"
+        initial_pane = await tmux.async_first_pane(tmux_session)
         for cmd in template_cfg.setup_commands:
             await tmux.async_send_keys(initial_pane, cmd, enter=True)
 
@@ -989,7 +993,7 @@ async def kill_session_lifecycle(
     # 2. Optionally remove worktree + branch
     if remove_worktree and worktree and await asyncio.to_thread(lambda: Path(worktree).is_dir()):
         # Check for dirty worktree
-        if await git.async_worktree_is_dirty(worktree):
+        if await git.async_worktree_has_tracked_changes(worktree):
             if not force:
                 result = await asyncio.to_thread(
                     subprocess.run,

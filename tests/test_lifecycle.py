@@ -505,6 +505,7 @@ class TestDirtyWorktreeProtection:
         with (
             patch("shoal.core.tmux.has_session", return_value=False),
             patch("shoal.core.git.worktree_is_dirty", return_value=True),
+            patch("shoal.core.git.worktree_has_tracked_changes", return_value=True),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("subprocess.run") as mock_run,
             pytest.raises(DirtyWorktreeError, match="uncommitted"),
@@ -525,6 +526,7 @@ class TestDirtyWorktreeProtection:
         with (
             patch("shoal.core.tmux.has_session", return_value=False),
             patch("shoal.core.git.worktree_is_dirty", return_value=False),
+            patch("shoal.core.git.worktree_has_tracked_changes", return_value=False),
             patch("shoal.core.git.worktree_remove", return_value=True),
             patch("pathlib.Path.is_dir", return_value=True),
         ):
@@ -544,6 +546,7 @@ class TestDirtyWorktreeProtection:
         with (
             patch("shoal.core.tmux.has_session", return_value=False),
             patch("shoal.core.git.worktree_is_dirty", return_value=True),
+            patch("shoal.core.git.worktree_has_tracked_changes", return_value=True),
             patch("shoal.core.git.worktree_remove", return_value=True),
             patch("pathlib.Path.is_dir", return_value=True),
         ):
@@ -564,6 +567,7 @@ class TestDirtyWorktreeProtection:
         with (
             patch("shoal.core.tmux.has_session", return_value=False),
             patch("shoal.core.git.worktree_is_dirty", return_value=True),
+            patch("shoal.core.git.worktree_has_tracked_changes", return_value=True),
             patch("pathlib.Path.is_dir", return_value=True),
             patch("subprocess.run") as mock_run,
         ):
@@ -750,6 +754,7 @@ class TestKillSessionLifecycleExtended:
             patch("shoal.core.tmux.has_session", return_value=True),
             patch("shoal.core.tmux.kill_session"),
             patch("shoal.core.git.worktree_is_dirty", return_value=False),
+            patch("shoal.core.git.worktree_has_tracked_changes", return_value=False),
             patch("shoal.core.git.worktree_remove", return_value=True),
             patch("shoal.core.git.branch_delete", return_value=True),
             patch("pathlib.Path.is_dir", return_value=True),
@@ -775,6 +780,7 @@ class TestKillSessionLifecycleExtended:
         with (
             patch("shoal.core.tmux.has_session", return_value=False),
             patch("shoal.core.git.worktree_is_dirty", return_value=False),
+            patch("shoal.core.git.worktree_has_tracked_changes", return_value=False),
             patch("shoal.core.git.worktree_remove", return_value=True),
             patch("shoal.core.git.branch_delete") as mock_branch_delete,
             patch("pathlib.Path.is_dir", return_value=True),

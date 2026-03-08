@@ -160,6 +160,7 @@ command = "pytest -q"
         patch("shoal.core.tmux.preferred_pane", return_value="_templ-session"),
         patch("shoal.core.tmux.pane_pid", return_value=123),
         patch("shoal.core.tmux.pane_coordinates", return_value=None),
+        patch("shoal.core.tmux.server_base_indices", return_value=(0, 0)),
     ):
         result = runner.invoke(
             app,

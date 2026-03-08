@@ -94,13 +94,12 @@ async def _ls_impl(format: str | None, *, tag: str | None = None, tree: bool = F
         group_sessions = groups[path]
         display_project = path.replace(str(Path.home()), "~")
 
-        table = create_table(padding=(0, 1), collapse_padding=True)
-        table.add_column("ID", style="dim", width=8)
-        table.add_column("NAME", width=25)
-        table.add_column("TOOL", width=12)
-        table.add_column("STATUS", width=20)
-        table.add_column("BRANCH", width=30)
-        table.add_column("WORKTREE")
+        table = create_table(padding=(0, 1), collapse_padding=True, expand=True)
+        table.add_column("ID", style="dim", no_wrap=True)
+        table.add_column("NAME", min_width=16, max_width=24)
+        table.add_column("TOOL", max_width=10)
+        table.add_column("STATUS", max_width=18)
+        table.add_column("BRANCH", max_width=28)
         if show_tags:
             table.add_column("TAGS", width=20)
 
