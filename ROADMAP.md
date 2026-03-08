@@ -156,7 +156,7 @@ Released 2026-03-07
 ### Other
 
 - **Linux notifications**: Solved by fish event hooks — users wire `notify-send` or ntfy in their fish config
-- **Dashboard actions**: Add fork, approve, send-keys, filter-by-status as fzf popup actions
+- ~~**Dashboard actions**: Add fork, approve, send-keys, filter-by-status as fzf popup actions~~ ✓ done (feat/dashboard-actions)
 - **Agent readiness signals**: Poll-until-pattern readiness check replacing `asyncio.sleep(1)` hack after session creation
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when robo supervisor needs unified cross-session MCP or FastMCP adds UDS transport
 - **Oh-My-Pi (omp) Integration**: `omp.toml` tool definition and `omp-dev` session template; native MCP via `omp plugin`; detection pattern tuning for omp's extended TUI
@@ -172,6 +172,30 @@ Released 2026-03-07
 ## Handoff
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
+
+### Session: 2026-03-07 — Dashboard fzf actions
+
+**What we did:**
+
+- Extracted `_build_fzf_args() -> list[str]` from `run_popup()` for testability
+- Added `ctrl-y`: `shoal send {1} ""` — sends Enter to approve agent prompts
+- Added `ctrl-g`: `shoal fork {1}` — forks session into a new worktree
+- Added `ctrl-r`: reload session list
+- Added `ctrl-w`: filter to waiting sessions via awk
+- Updated dashboard header to document all keybindings
+- Added hidden top-level `shoal send <session> <keys>` command in `src/shoal/cli/session.py`
+- Created `tests/test_dashboard.py` with 12 unit tests for `_build_fzf_args()`
+- Key choices: `ctrl-y`/`ctrl-g` to avoid conflicts with tmux leader (`ctrl-a`) and tmux fullscreen (`ctrl-f`)
+
+**Current state:**
+
+- Branch: `feat/dashboard-actions`, 2 commits ahead of `main`, CI green
+- Backlog item for dashboard actions is complete
+
+**What to do next:**
+
+- Merge `feat/dashboard-actions` → `main` and cut a release
+
 
 ### Session: 2026-03-07 — Onboarding docs refresh + send_keys_delay defaults
 

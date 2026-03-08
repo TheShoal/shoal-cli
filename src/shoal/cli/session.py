@@ -151,6 +151,28 @@ async def _prune_impl(force: bool) -> None:
         console.print(f"Removed session '{s.name}' ({s.id})")
 
 
+def send(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    keys: Annotated[str, typer.Argument(help="Keys to send (empty string sends Enter)")],
+) -> None:
+    """Send keys to a session's tmux pane."""
+    asyncio.run(with_db(_send_impl(session, keys)))
+
+
+async def _send_impl(session_name_or_id: str, keys: str) -> None:
+    ensure_dirs()
+    from shoal.core.state import resolve_session
+
+    sid = await resolve_session(session_name_or_id)
+    if not sid:
+        console.print(f"[red]Session not found: {session_name_or_id}[/red]")
+        raise typer.Exit(1)
+    s = await get_session(sid)
+    if not s:
+        raise typer.Exit(1)
+    tmux.send_keys(s.tmux_session, keys)
+
+
 def popup() -> None:
     """Open tmux popup dashboard."""
     ensure_dirs()
