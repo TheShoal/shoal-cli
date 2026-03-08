@@ -30,7 +30,7 @@ security:
     uv run --with bandit bandit -r src/shoal/ -c pyproject.toml -ll
 
 # Run all CI checks sequentially
-ci: lint typecheck test fish-check security
+ci: fmt-check lint typecheck test fish-check security
 
 # Validate fish template syntax
 fish-check:

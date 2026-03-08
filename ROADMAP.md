@@ -173,6 +173,31 @@ Released 2026-03-07
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-03-07 — Onboarding docs refresh + send_keys_delay defaults
+
+**What we did:**
+
+- `docs/index.md`: added `pipx install shoal-cli` as the first step in the sixty-second workflow; switched example agents to `omp`
+- `docs/getting-started.md`: fixed step-grid install hint (was `uv tool install .` local path); removed duplicate `fish` entry from optional prereqs
+- `CONTRIBUTING.md`: replaced stale `uv pip install -e ".[dev]"` with `uv sync --extra dev --extra mcp`
+- `docs/TROUBLESHOOTING.md`: `pip install neovim-remote` → `pipx install neovim-remote`
+- `examples/config/tools/*.toml`: added `send_keys_delay = 0.05` to all six bundled tool profiles (omp, pi, claude, opencode, gemini, codex)
+- `justfile`: added `fmt-check` to the `ci` recipe — local `just ci` now has full parity with GitHub Actions CI
+- Confirmed `shoal-cli 0.21.0` live on PyPI; `pipx install shoal-cli` works end-to-end
+
+**Current state:**
+
+- Branch: `main` at `188c6cc`
+- CI: 1082 passed / 1 skipped, `just ci` fully green (includes `fmt-check` parity)
+- v0.21.0 tag at `c96a0d9`; no new version bump needed for this batch of changes
+
+**What to do next:**
+
+- Decide fin contract version support window policy (v1-only vs N/N-1 overlap) — blocks `shoal fin install` registry semantics
+- Scope v0.22.0 milestone: top candidates are auto-commit lifecycle hook, `shoal fin install` registry/local-source, dashboard fzf actions
+- Existing users who ran `shoal init` before this commit won't pick up `send_keys_delay = 0.05` automatically; a `shoal init --refresh-tools` flag or a note in the v0.22.0 release notes would address this
+
+
 ### Session: 2026-03-07 — v0.21.0 public beta ship
 
 **What we did:**
