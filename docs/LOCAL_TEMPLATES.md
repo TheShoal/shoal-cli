@@ -137,6 +137,51 @@ Commit `.shoal/templates/` to version control so collaborators inherit the same 
 
 ---
 
+## Bundled Mixins
+
+These mixins are installed globally by `shoal init` into `~/.config/shoal/templates/mixins/`:
+
+| Mixin | Effect |
+|-------|--------|
+| `uv-dev` | Runs `uv sync --extra dev` in the initial pane before agent launch |
+| `with-tests` | Appends a test-runner window to the session layout |
+| `shoal-orchestrator` | Attaches the Shoal orchestrator MCP server to the session |
+| `mcp-memory` | Attaches the memory MCP server to the session |
+
+### `uv-dev` — dev-dependency bootstrap
+
+Use this mixin in any worktree-based template to ensure dev tools (ruff, mypy, pytest)
+are installed before the agent starts:
+
+```toml
+# ~/.config/shoal/templates/my-project.toml
+[template]
+name = "my-project"
+tool = "pi"
+mixins = ["uv-dev"]
+
+[[windows]]
+name = "editor"
+[[windows.panes]]
+split = "root"
+command = "{tool_command}"
+```
+
+To install additional extras (e.g. `mcp`), copy `uv-dev.toml` to your project's
+`.shoal/templates/mixins/` and adjust the command:
+
+```toml
+# .shoal/templates/mixins/uv-dev.toml
+[mixin]
+name = "uv-dev"
+description = "Bootstrap dev + mcp extras"
+setup_commands = ["uv sync --extra dev --extra mcp"]
+```
+
+The local version shadows the global one — no other files need changing.
+
+---
+
 ## When to Use Local vs Global
 
 | Use case | Location |

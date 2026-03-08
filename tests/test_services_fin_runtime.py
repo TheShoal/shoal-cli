@@ -427,3 +427,74 @@ def test_manifest_default_timeout_seconds_absent_is_none(tmp_path: Path) -> None
     fin_root = _create_fin(tmp_path)
     _, manifest = load_fin_manifest(fin_root)
     assert manifest.default_timeout_seconds is None
+
+
+# --- _build_env SHOAL_LOG_LEVEL propagation ---
+
+
+def test_build_env_uses_root_logger_level_when_shoal_is_notset(tmp_path: Path) -> None:
+    """When shoal logger has NOTSET, getEffectiveLevel() walks up to root; env var is set.
+
+    SHOAL_LOG_LEVEL is removed from the environment so the parent-override guard
+    doesn't mask the root-logger path being tested.
+    """
+    from shoal.services.fin_runtime import _build_env
+
+    shoal_logger = logging.getLogger("shoal")
+    root_logger = logging.getLogger()
+    original_shoal = shoal_logger.level
+    original_root = root_logger.level
+    try:
+        shoal_logger.setLevel(logging.NOTSET)  # shoal has no level — inherits root
+        root_logger.setLevel(logging.DEBUG)
+        with patch.dict("os.environ", {}, clear=False) as env_patch:
+            env_patch.pop("SHOAL_LOG_LEVEL", None)  # ensure no parent override
+            env = _build_env(fin_root=tmp_path, config_path=None, output_format="text")
+    finally:
+        shoal_logger.setLevel(original_shoal)
+        root_logger.setLevel(original_root)
+
+    assert env["SHOAL_LOG_LEVEL"] == "DEBUG"
+
+
+def test_build_env_parent_env_overrides_log_level(tmp_path: Path) -> None:
+    """Pre-existing SHOAL_LOG_LEVEL in environment is not overwritten."""
+    from unittest.mock import patch
+
+    from shoal.services.fin_runtime import _build_env
+
+    shoal_logger = logging.getLogger("shoal")
+    original_level = shoal_logger.level
+    try:
+        shoal_logger.setLevel(logging.WARNING)
+        with patch.dict("os.environ", {"SHOAL_LOG_LEVEL": "ERROR"}):
+            env = _build_env(fin_root=tmp_path, config_path=None, output_format="text")
+    finally:
+        shoal_logger.setLevel(original_level)
+
+    # Parent env wins; shoal logger's WARNING is ignored
+    assert env["SHOAL_LOG_LEVEL"] == "ERROR"
+
+
+def test_build_env_omits_log_level_when_fully_notset(tmp_path: Path) -> None:
+    """When both shoal and root loggers are NOTSET, env var is omitted."""
+    import os
+
+    from shoal.services.fin_runtime import _build_env
+
+    shoal_logger = logging.getLogger("shoal")
+    root_logger = logging.getLogger()
+    original_shoal = shoal_logger.level
+    original_root = root_logger.level
+    try:
+        shoal_logger.setLevel(logging.NOTSET)
+        root_logger.setLevel(logging.NOTSET)
+        # Ensure SHOAL_LOG_LEVEL is not in the environment for this call.
+        env_without = {k: v for k, v in os.environ.items() if k != "SHOAL_LOG_LEVEL"}
+        with patch.dict("os.environ", env_without, clear=True):
+            env = _build_env(fin_root=tmp_path, config_path=None, output_format="text")
+    finally:
+        shoal_logger.setLevel(original_shoal)
+        root_logger.setLevel(original_root)
+
+    assert "SHOAL_LOG_LEVEL" not in env

@@ -71,7 +71,10 @@ just test
 
 ## Workflow
 
-1.  **Branch**: Create a feature branch (or use `shoal add -w my-feature -b`!).
+1.  **Branch**: Create a feature branch (or use `shoal new -w my-feature -b`).
+    - New worktrees do **not** inherit the parent venv.  Run `uv sync --extra dev --extra mcp`
+      in the worktree before starting work, or apply the `uv-dev` session mixin which
+      runs this automatically before the agent launches.
 2.  **Commit**: Follow the [Conventional Commits](COMMIT_GUIDELINES.md) format:
     - `feat:` for new features
     - `fix:` for bug fixes

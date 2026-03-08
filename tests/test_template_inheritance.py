@@ -952,3 +952,26 @@ mcp = ["memory"]
         assert result.exit_code == 0
         assert "mcp-mem" in result.output
         assert "memory" in result.output
+
+
+# --- bundled mixin smoke tests ---
+
+
+def test_bundled_uv_dev_mixin_parses_correctly() -> None:
+    """The bundled uv-dev mixin TOML must parse to a valid TemplateMixinConfig."""
+    import tomllib
+
+    from shoal.core.config import _examples_dir
+
+    mixin_path = _examples_dir() / "templates" / "mixins" / "uv-dev.toml"
+    assert mixin_path.exists(), f"Bundled uv-dev mixin not found at {mixin_path}"
+
+    with open(mixin_path, "rb") as f:
+        raw = tomllib.load(f)
+
+    mixin = TemplateMixinConfig.model_validate(raw["mixin"])
+    assert mixin.name == "uv-dev"
+    assert mixin.setup_commands == ["uv sync --extra dev"]
+    assert mixin.env == {}
+    assert mixin.mcp == []
+    assert mixin.windows == []

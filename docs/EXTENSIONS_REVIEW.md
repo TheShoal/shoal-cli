@@ -55,7 +55,7 @@ runtime correctness.
 | Preserve wrapper non-zero exit code at CLI boundary | PASS | `typer.Exit(result.exit_code)` in validate/run |
 | Show stdout/stderr from wrapper | PASS | CLI echoes captured stdout/stderr |
 | Include tests for arg passthrough and exit propagation | PASS | `tests/test_cli_fin.py`, `tests/test_services_fin_runtime.py` |
-| Propagate `SHOAL_LOG_LEVEL` (recommended env var) | PARTIAL | Not explicitly set in `_build_env()` |
+| Propagate `SHOAL_LOG_LEVEL` (recommended env var) | PASS | `_build_env()` derives level via `getEffectiveLevel()` (numeric), parent env override preserved |
 | Stage 1 lifecycle completeness (`install`, `configure`) | SHIPPED v0.22.0 | `shoal fin install`, `shoal fin configure` |
 | Discovery (`fin ls`, local registration) | SHIPPED v0.22.0 | `fin ls` defaults to installed; `fin install --no-register` opt-out |
 

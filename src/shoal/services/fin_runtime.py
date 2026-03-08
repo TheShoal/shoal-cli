@@ -123,9 +123,11 @@ def _build_env(
         env.pop("SHOAL_FIN_CONFIG", None)
     env["SHOAL_OUTPUT_FORMAT"] = output_format
     if not env.get("SHOAL_LOG_LEVEL"):
-        level_name = logging.getLevelName(logging.getLogger("shoal").getEffectiveLevel())
-        if isinstance(level_name, str) and level_name and level_name != "NOTSET":
-            env["SHOAL_LOG_LEVEL"] = level_name
+        # Use getEffectiveLevel() — walks the logger hierarchy so root-inherited
+        # levels (e.g. WARNING from the default root logger) are captured correctly.
+        level_num = logging.getLogger("shoal").getEffectiveLevel()
+        if level_num != logging.NOTSET:
+            env["SHOAL_LOG_LEVEL"] = logging.getLevelName(level_num)
     return env
 
 

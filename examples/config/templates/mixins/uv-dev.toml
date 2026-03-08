@@ -1,0 +1,19 @@
+# Shoal — uv dev-dependency bootstrap mixin
+# Runs `uv sync --extra dev` in the initial pane before agent launch.
+# Use this in worktree-based sessions to ensure test tools (ruff, mypy,
+# pytest) are installed before the agent starts working.
+#
+# Usage in a template:
+#   mixins = ["uv-dev"]
+#
+# Adjust --extra flags to match your project's pyproject.toml groups:
+#   uv sync --extra dev                  # test/lint tools only
+#   uv sync --extra dev --extra mcp      # + MCP server dependencies
+#
+# Place in ~/.config/shoal/templates/mixins/uv-dev.toml
+# (installed automatically by: shoal init)
+
+[mixin]
+name = "uv-dev"
+description = "Bootstrap dev dependencies via uv before agent launch"
+setup_commands = ["uv sync --extra dev"]
