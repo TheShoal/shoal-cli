@@ -25,14 +25,14 @@ def test_build_fzf_args_starts_with_fzf(fzf_args: list[str]) -> None:
     assert fzf_args[0] == "fzf"
 
 
-def test_build_fzf_args_contains_ctrl_a(fzf_args: list[str]) -> None:
-    """ctrl-a (approve) binding is present."""
-    assert any("ctrl-a" in a for a in fzf_args)
+def test_build_fzf_args_contains_ctrl_y(fzf_args: list[str]) -> None:
+    """ctrl-y (approve) binding is present."""
+    assert any("ctrl-y" in a for a in fzf_args)
 
 
-def test_build_fzf_args_contains_ctrl_f(fzf_args: list[str]) -> None:
-    """ctrl-f (fork) binding is present."""
-    assert any("ctrl-f" in a for a in fzf_args)
+def test_build_fzf_args_contains_ctrl_g(fzf_args: list[str]) -> None:
+    """ctrl-g (fork) binding is present."""
+    assert any("ctrl-g" in a for a in fzf_args)
 
 
 def test_build_fzf_args_contains_ctrl_r(fzf_args: list[str]) -> None:
@@ -45,30 +45,30 @@ def test_build_fzf_args_contains_ctrl_w(fzf_args: list[str]) -> None:
     assert any("ctrl-w" in a for a in fzf_args)
 
 
-def test_build_fzf_args_header_mentions_ctrl_a(fzf_args: list[str]) -> None:
-    """Header mentions ctrl-a."""
+def test_build_fzf_args_header_mentions_ctrl_y(fzf_args: list[str]) -> None:
+    """Header mentions ctrl-y."""
     header = next(a for a in fzf_args if a.startswith("--header="))
-    assert "ctrl-a" in header
+    assert "ctrl-y" in header
 
 
-def test_build_fzf_args_header_mentions_ctrl_f(fzf_args: list[str]) -> None:
-    """Header mentions ctrl-f."""
+def test_build_fzf_args_header_mentions_ctrl_g(fzf_args: list[str]) -> None:
+    """Header mentions ctrl-g."""
     header = next(a for a in fzf_args if a.startswith("--header="))
-    assert "ctrl-f" in header
+    assert "ctrl-g" in header
 
 
-def test_build_fzf_args_ctrl_a_uses_shoal_send(fzf_args: list[str]) -> None:
-    """ctrl-a binding invokes shoal send with session ID placeholder."""
-    ctrl_a = next(a for a in fzf_args if a.startswith("--bind=") and "ctrl-a" in a)
-    assert "shoal send" in ctrl_a
-    assert "{1}" in ctrl_a
+def test_build_fzf_args_ctrl_y_uses_shoal_send(fzf_args: list[str]) -> None:
+    """ctrl-y binding invokes shoal send with session ID placeholder."""
+    ctrl_y = next(a for a in fzf_args if a.startswith("--bind=") and "ctrl-y" in a)
+    assert "shoal send" in ctrl_y
+    assert "{1}" in ctrl_y
 
 
-def test_build_fzf_args_ctrl_f_calls_fork_with_id(fzf_args: list[str]) -> None:
-    """ctrl-f binding calls shoal fork with the session ID placeholder."""
-    ctrl_f = next(a for a in fzf_args if a.startswith("--bind=") and "ctrl-f" in a)
-    assert "shoal fork" in ctrl_f
-    assert "{1}" in ctrl_f
+def test_build_fzf_args_ctrl_g_calls_fork_with_id(fzf_args: list[str]) -> None:
+    """ctrl-g binding calls shoal fork with the session ID placeholder."""
+    ctrl_g = next(a for a in fzf_args if a.startswith("--bind=") and "ctrl-g" in a)
+    assert "shoal fork" in ctrl_g
+    assert "{1}" in ctrl_g
 
 
 def test_build_fzf_args_ctrl_w_filters_waiting(fzf_args: list[str]) -> None:

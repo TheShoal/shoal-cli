@@ -31,8 +31,8 @@ async def _build_entries() -> tuple[list[str], dict[str, str]]:
 def _build_fzf_args() -> list[str]:
     """Build the fzf argument list for the dashboard popup."""
     header = (
-        "SHOAL DASHBOARD \u2014 Enter:attach ctrl-x:kill ctrl-a:approve"
-        " ctrl-f:fork ctrl-w:waiting ctrl-r:reload esc:close"
+        "SHOAL DASHBOARD \u2014 Enter:attach ctrl-x:kill ctrl-y:approve"
+        " ctrl-g:fork ctrl-w:waiting ctrl-r:reload esc:close"
     )
     return [
         "fzf",
@@ -42,8 +42,8 @@ def _build_fzf_args() -> list[str]:
         "--preview=shoal session-json {1}",
         "--preview-window=right:50%:wrap",
         "--bind=ctrl-x:execute-silent(shoal kill {1})+reload(shoal _popup-list)",
-        '--bind=ctrl-a:execute-silent(shoal send {1} "")+reload(shoal _popup-list)',
-        "--bind=ctrl-f:execute-silent(shoal fork {1})+reload(shoal _popup-list)",
+        '--bind=ctrl-y:execute-silent(shoal send {1} "")+reload(shoal _popup-list)',
+        "--bind=ctrl-g:execute-silent(shoal fork {1})+reload(shoal _popup-list)",
         "--bind=ctrl-r:reload(shoal _popup-list)",
         "--bind=ctrl-w:reload(shoal _popup-list | awk -F'\\t' '$4==\"waiting\"')",
         "--ansi",
