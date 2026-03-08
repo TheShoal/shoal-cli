@@ -110,9 +110,9 @@ shoal init
 shoal setup fish
 
 # Spin up three parallel agents on separate worktrees
-shoal new -t omp -w auth -b
-shoal new -t omp -w api-refactor -b
-shoal new -t omp -w docs-refresh -b
+shoal new -t claude -w auth -b
+shoal new -t claude -w api-refactor -b
+shoal new -t claude -w docs-refresh -b
 
 # Supervise
 shoal status
