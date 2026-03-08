@@ -28,6 +28,34 @@ async def _build_entries() -> tuple[list[str], dict[str, str]]:
     return entries, lookup
 
 
+def _build_fzf_args() -> list[str]:
+    """Build the fzf argument list for the dashboard popup."""
+    header = (
+        "SHOAL DASHBOARD \u2014 Enter:attach ctrl-x:kill ctrl-a:approve"
+        " ctrl-f:fork ctrl-w:waiting ctrl-r:reload esc:close"
+    )
+    return [
+        "fzf",
+        "--delimiter=\t",
+        "--with-nth=2,3,4,5,6",
+        f"--header={header}",
+        "--preview=shoal session-json {1}",
+        "--preview-window=right:50%:wrap",
+        "--bind=ctrl-x:execute-silent(shoal kill {1})+reload(shoal _popup-list)",
+        '--bind=ctrl-a:execute-silent(shoal send {1} "")+reload(shoal _popup-list)',
+        "--bind=ctrl-f:execute-silent(shoal fork {1})+reload(shoal _popup-list)",
+        "--bind=ctrl-r:reload(shoal _popup-list)",
+        "--bind=ctrl-w:reload(shoal _popup-list | awk -F'\\t' '$4==\"waiting\"')",
+        "--ansi",
+        "--no-sort",
+        "--layout=reverse",
+        "--border=rounded",
+        "--prompt=shoal> ",
+        f"--pointer={Symbols.POINTER}",
+        f"--marker={Symbols.MARKER}",
+    ]
+
+
 def run_popup() -> None:
     """Run the interactive fzf dashboard."""
     from shoal.core.db import with_db
@@ -39,25 +67,7 @@ def run_popup() -> None:
         input("Press Enter to close...")
         return
 
-    header = "SHOAL DASHBOARD — Enter: attach | ctrl-x: kill | esc: close"
-
-    # We use 'shoal session-json' as a helper for previewing since we don't have .json files anymore
-    fzf_args = [
-        "fzf",
-        "--delimiter=\t",
-        "--with-nth=2,3,4,5,6",
-        f"--header={header}",
-        "--preview=shoal session-json {1}",
-        "--preview-window=right:50%:wrap",
-        "--bind=ctrl-x:execute-silent(shoal kill {1})+reload(shoal _popup-list)",
-        "--ansi",
-        "--no-sort",
-        "--layout=reverse",
-        "--border=rounded",
-        "--prompt=shoal> ",
-        f"--pointer={Symbols.POINTER}",
-        f"--marker={Symbols.MARKER}",
-    ]
+    fzf_args = _build_fzf_args()
 
     result = subprocess.run(
         fzf_args,
