@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import tomllib
 from dataclasses import dataclass
@@ -11,7 +12,10 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from shoal.core.config import fins_dir
 from shoal.models.fin import FinManifest
+
+logger = logging.getLogger(__name__)
 
 
 class FinRuntimeError(Exception):
@@ -183,17 +187,106 @@ def validate_fin(fin_path: str | Path, *, strict: bool) -> FinExecutionResult:
     )
 
 
-def install_fin(fin_path: str | Path) -> FinExecutionResult:
-    """Execute a fin's ``install`` entrypoint after manifest checks."""
+def install_fin(fin_path: str | Path, *, register: bool = True) -> FinExecutionResult:
+    """Execute a fin's ``install`` entrypoint after manifest checks.
+
+    Args:
+        fin_path: Path to fin root directory or fin.toml file.
+        register: If True (default), copy the fin into ``fins_dir()`` after
+            a successful entrypoint run.  Registration failures emit a warning
+            but do not affect the returned result.
+
+    Returns:
+        Result of the install entrypoint execution.
+    """
     fin_root, manifest = load_fin_manifest(fin_path)
     entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.install)
-    return execute_entrypoint(
+    result = execute_entrypoint(
         fin_root=fin_root,
         entrypoint=entrypoint,
         args=[],
         config_path=None,
         output_format="text",
     )
+    if register:
+        try:
+            register_fin(fin_path)
+        except FinRuntimeError as exc:
+            logger.warning("Failed to register fin '%s': %s", manifest.name, exc)
+    return result
+
+
+def register_fin(fin_path: str | Path, *, force: bool = True) -> Path:
+    """Copy a fin into the local registry (``fins_dir()``).
+
+    Args:
+        fin_path: Path to fin root directory or fin.toml file.
+        force: If True (default), overwrite any existing registration.
+
+    Returns:
+        The destination path under ``fins_dir()``.
+
+    Raises:
+        FinRuntimeError: If the source path does not exist.
+    """
+    fin_root, manifest = load_fin_manifest(fin_path)
+    dest = fins_dir() / manifest.name
+
+    src = Path(fin_path).expanduser().resolve()
+    if src.is_file():
+        # fin_path points to fin.toml; register the parent directory
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(fin_root / "fin.toml", dest / "fin.toml")
+    elif src.is_dir():
+        shutil.copytree(fin_root, dest, dirs_exist_ok=force)
+    else:
+        raise FinRuntimeError(f"Fin path does not exist: {src}")
+
+    return dest
+
+
+def list_registered_fins() -> list[FinListItem]:
+    """List fins registered in ``fins_dir()``.
+
+    Walks immediate subdirectories of ``fins_dir()`` for valid fin.toml files.
+    Returns an empty list if the registry directory does not exist.
+
+    Returns:
+        List of fin discovery records, one per registered fin.
+    """
+    registry = fins_dir()
+    if not registry.exists():
+        return []
+
+    items: list[FinListItem] = []
+    for child in sorted(registry.iterdir()):
+        if not child.is_dir():
+            continue
+        manifest_path = child / "fin.toml"
+        if not manifest_path.exists():
+            continue
+        try:
+            _, manifest = load_fin_manifest(manifest_path)
+            items.append(
+                FinListItem(
+                    root=str(child),
+                    status="valid",
+                    name=manifest.name,
+                    version=manifest.version,
+                    capability=manifest.capability,
+                    fin_contract_version=manifest.fin_contract_version,
+                )
+            )
+        except FinRuntimeError as exc:
+            items.append(
+                FinListItem(
+                    root=str(child),
+                    status="invalid",
+                    error=str(exc),
+                )
+            )
+
+    return items
 
 
 def configure_fin(fin_path: str | Path, *, config_path: str | None) -> FinExecutionResult:

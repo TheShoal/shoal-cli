@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
 from shoal.cli import app
+from shoal.services.fin_runtime import FinListItem
 
 runner = CliRunner()
 
@@ -102,7 +104,11 @@ def test_fin_run_preserves_exit_code(tmp_path: Path) -> None:
 
 def test_fin_install_executes_install_entrypoint(tmp_path: Path) -> None:
     fin_root = _create_fin(tmp_path)
-    result = runner.invoke(app, ["fin", "install", str(fin_root)])
+    registry = tmp_path / "registry"
+
+    with patch("shoal.cli.fin.fins_dir", return_value=registry):
+        result = runner.invoke(app, ["fin", "install", str(fin_root)])
+
     assert result.exit_code == 0
 
 
@@ -133,3 +139,60 @@ def test_fin_run_includes_shoal_log_level(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert payload["log_level"]
+
+
+# --- --no-register flag ---
+
+
+def test_fin_install_no_register_skips_registration(tmp_path: Path) -> None:
+    fin_root = _create_fin(tmp_path)
+    registry = tmp_path / "registry"
+
+    with patch("shoal.services.fin_runtime.fins_dir", return_value=registry):
+        result = runner.invoke(app, ["fin", "install", str(fin_root), "--no-register"])
+
+    assert result.exit_code == 0
+    assert not registry.exists()
+    assert "Registered" not in result.stdout
+
+
+def test_fin_install_registers_and_prints_message(tmp_path: Path) -> None:
+    fin_root = _create_fin(tmp_path)
+    registry = tmp_path / "registry"
+
+    with (
+        patch("shoal.services.fin_runtime.fins_dir", return_value=registry),
+        patch("shoal.cli.fin.fins_dir", return_value=registry),
+    ):
+        result = runner.invoke(app, ["fin", "install", str(fin_root)])
+
+    assert result.exit_code == 0
+    assert "Registered fin 'cli-fin'" in result.stdout
+
+
+# --- fin ls without --path ---
+
+
+def test_fin_ls_no_path_shows_empty_message_when_no_fins_installed() -> None:
+    with patch("shoal.cli.fin.list_registered_fins", return_value=[]):
+        result = runner.invoke(app, ["fin", "ls"])
+
+    assert result.exit_code == 0
+    assert "No fins installed" in result.stdout
+
+
+def test_fin_ls_no_path_calls_list_registered_fins(tmp_path: Path) -> None:
+    row = FinListItem(
+        root="/some/path",
+        status="valid",
+        name="my-fin",
+        version="1.0.0",
+        capability="test.cap",
+        fin_contract_version=1,
+    )
+
+    with patch("shoal.cli.fin.list_registered_fins", return_value=[row]):
+        result = runner.invoke(app, ["fin", "ls"])
+
+    assert result.exit_code == 0
+    assert "valid\t/some/path\tmy-fin\t1.0.0\ttest.cap" in result.stdout
