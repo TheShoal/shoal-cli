@@ -65,6 +65,17 @@ class RemoteHostConfig(BaseModel):
     api_port: int = 8080
 
 
+
+class OperatorConfig(BaseModel):
+    """Operator-board display thresholds — maps to [operator] in config.toml."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # A waiting session is promoted to 'blocked' after this many minutes.
+    blocked_after_minutes: int = 5
+    # An idle session is flagged as 'stale' after this many minutes.
+    stale_after_minutes: int = 30
+
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
 
@@ -76,7 +87,7 @@ class ShoalConfig(BaseModel):
     notifications: NotificationsConfig = Field(default_factory=NotificationsConfig)
     robo: RoboGlobalConfig = Field(default_factory=RoboGlobalConfig)
     remote: dict[str, RemoteHostConfig] = Field(default_factory=dict)
-
+    operator: OperatorConfig = Field(default_factory=OperatorConfig)
 
 # --- Tool config models (tools/<name>.toml) ---
 
@@ -151,13 +162,6 @@ class MonitoringConfig(BaseModel):
 
     poll_interval: int = 10
     waiting_timeout: int = 300
-    # Thresholds for operator-board urgency derivation.
-    # blocked_after_minutes: how long a session must be waiting before it
-    # is considered blocked (needs human intervention).
-    # stale_after_minutes: how long an idle session must be inactive before
-    # it is flagged as stale (may have been forgotten).
-    blocked_after_minutes: int = 5
-    stale_after_minutes: int = 30
 
 
 class EscalationConfig(BaseModel):

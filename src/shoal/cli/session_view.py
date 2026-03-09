@@ -220,6 +220,10 @@ def status(
 
 
 async def _status_impl(format: str | None) -> None:
+    from datetime import UTC, datetime
+
+    from shoal.core.urgency import UrgencyTier, derive_urgency
+
     ensure_dirs()
     sessions = await list_sessions()
     if not sessions:
@@ -229,94 +233,86 @@ async def _status_impl(format: str | None) -> None:
         console.print("Create one with: [bold]shoal new[/bold]")
         return
 
-    counts: dict[str, int] = {
-        "running": 0,
-        "waiting": 0,
-        "error": 0,
-        "idle": 0,
-        "stopped": 0,
-        "unknown": 0,
-    }
-    for s in sessions:
-        key = s.status.value if s.status.value in counts else "unknown"
-        counts[key] += 1
+    cfg = load_config()
+    blocked_after = cfg.operator.blocked_after_minutes
+    stale_after = cfg.operator.stale_after_minutes
+    now = datetime.now(UTC)
 
-    # Plain format for shell completions
+    # Annotate every session with its urgency tier and label.
+    annotated = [
+        (s, *derive_urgency(s, now=now, blocked_after_minutes=blocked_after, stale_after_minutes=stale_after))
+        for s in sessions
+    ]
+    annotated.sort(key=lambda x: (int(x[1]), x[0].name))
+
+    # Plain format for shell completions / scripting — keep it terse.
     if format == "plain":
-        total = len(sessions)
-        status_parts = []
-        if counts["running"]:
-            status_parts.append(f"{counts['running']} running")
-        if counts["waiting"]:
-            status_parts.append(f"{counts['waiting']} waiting")
-        if counts["error"]:
-            status_parts.append(f"{counts['error']} error")
-        if counts["idle"]:
-            status_parts.append(f"{counts['idle']} idle")
-        if counts["stopped"]:
-            status_parts.append(f"{counts['stopped']} stopped")
-        if counts["unknown"]:
-            status_parts.append(f"{counts['unknown']} unknown")
-        console.print(f"Total: {total} | {', '.join(status_parts)}")
+        from collections import Counter
+        tier_counts: Counter[str] = Counter(label for _, _, label in annotated)
+        parts = [f"{n} {lbl}" for lbl, n in tier_counts.most_common()]
+        console.print(f"Total: {len(sessions)} | {', '.join(parts)}")
         return
 
-    use_nerd = load_config().general.use_nerd_fonts
+    use_nerd = cfg.general.use_nerd_fonts
+
+    # Group into attention / active / ready / background.
+    attention = [(s, lbl) for s, tier, lbl in annotated
+                 if tier in (UrgencyTier.error, UrgencyTier.blocked, UrgencyTier.waiting)]
+    review    = [(s, lbl) for s, tier, lbl in annotated if tier == UrgencyTier.review]
+    active    = [(s, lbl) for s, tier, lbl in annotated if tier == UrgencyTier.running]
+    background = [(s, lbl) for s, tier, lbl in annotated
+                  if tier in (UrgencyTier.stale, UrgencyTier.idle,
+                              UrgencyTier.stopped, UrgencyTier.unknown)]
+
+    arrow = Symbols.ARROW
+    console.print()
+
+    if attention:
+        console.print(f"[bold red]Needs attention ({len(attention)})[/bold red]")
+        for s, lbl in attention:
+            icon = _get_tool_icon(s.tool)
+            tier_style = "red" if s.status.value == "error" else "yellow"
+            console.print(
+                f"  {icon} [bold]{s.name}[/bold]  "
+                f"[{tier_style}]{lbl}[/{tier_style}]  "
+                f"[dim]{arrow} shoal attach {s.name}[/dim]"
+            )
+        console.print()
+
+    if review:
+        console.print(f"[bold cyan]Ready for review ({len(review)})[/bold cyan]")
+        for s, lbl in review:
+            icon = _get_tool_icon(s.tool)
+            console.print(
+                f"  {icon} [bold]{s.name}[/bold]  [cyan]{lbl}[/cyan]  "
+                f"[dim]{arrow} shoal attach {s.name}[/dim]"
+            )
+        console.print()
+
+    if active:
+        console.print(f"[bold green]Active ({len(active)})[/bold green]")
+        for s, lbl in active:
+            icon = _get_tool_icon(s.tool)
+            console.print(f"  {icon} [bold]{s.name}[/bold]  [green]{lbl}[/green]")
+        console.print()
+
+    if background:
+        console.print(f"[dim]Background ({len(background)})[/dim]")
+        for s, lbl in background:
+            icon = _get_tool_icon(s.tool)
+            tier_style = "yellow" if "stale" in lbl else "dim"
+            console.print(f"  {icon} [bold]{s.name}[/bold]  [{tier_style}]{lbl}[/{tier_style}]")
+        console.print()
 
     total = len(sessions)
-    from rich.text import Text
-
-    status_line = Text()
-    status_line.append(f"Total Sessions: {total}", style="bold")
-
-    parts = []
-    if counts["running"]:
-        ri = get_status_icon("running", use_nerd=use_nerd)
-        parts.append(f"[green]{ri} {counts['running']} running[/green]")
-    if counts["waiting"]:
-        wi = get_status_icon("waiting", use_nerd=use_nerd)
-        parts.append(f"[yellow]{wi} {counts['waiting']} waiting[/yellow]")
-    if counts["error"]:
-        ei = get_status_icon("error", use_nerd=use_nerd)
-        parts.append(f"[red]{ei} {counts['error']} error[/red]")
-    if counts["idle"]:
-        ii = get_status_icon("idle", use_nerd=use_nerd)
-        parts.append(f"{ii} {counts['idle']} idle")
-    if counts["stopped"]:
-        si = get_status_icon("stopped", use_nerd=use_nerd)
-        parts.append(f"[dim]{si} {counts['stopped']} stopped[/dim]")
-    if counts["unknown"]:
-        parts.append(f"[dim]? {counts['unknown']} unknown[/dim]")
-
-    console.print()
-    console.print(
-        create_panel(Text.from_markup("  |  ".join(parts)), title="Shoal Status", expand=False)
-    )
-
-    # Sessions needing attention
-    if counts["waiting"]:
-        status_icon = Icons.STATUS if use_nerd else Symbols.INFO
-        console.print(f"\n[bold yellow]{status_icon} Waiting for input:[/bold yellow]")
-        for s in sessions:
-            if s.status.value == "waiting":
-                icon = _get_tool_icon(s.tool)
-                arrow = Symbols.ARROW
-                console.print(
-                    f"  {icon} [bold]{s.name}[/bold] [dim]{arrow} shoal attach {s.name}[/dim]"
-                )
-
-    if counts["error"]:
-        error_icon = Icons.ERROR_ICON if use_nerd else Symbols.CROSS
-        console.print(f"\n[bold red]{error_icon} Errors detected:[/bold red]")
-        for s in sessions:
-            if s.status.value == "error":
-                icon = _get_tool_icon(s.tool)
-                arrow = Symbols.ARROW
-                console.print(
-                    f"  {icon} [bold]{s.name}[/bold] [dim]{arrow} shoal attach {s.name}[/dim]"
-                )
-
-    console.print("\n[dim]Use 'shoal ls' for a full list or 'shoal info <name>' for details.[/dim]")
-
+    n_attention = len(attention)
+    summary_parts = [f"[bold]{total} sessions[/bold]"]
+    if n_attention:
+        summary_parts.append(f"[red]{n_attention} need attention[/red]")
+    if review:
+        summary_parts.append(f"[cyan]{len(review)} review-ready[/cyan]")
+    console.print("[dim]" + "  ·  ".join(summary_parts) + "[/dim]")
+    console.print("[dim]shoal ls for full list  ·  shoal popup for dashboard[/dim]")
 
 def info(
     session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,
