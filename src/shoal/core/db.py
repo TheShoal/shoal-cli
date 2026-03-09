@@ -6,7 +6,7 @@ import time
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import aiosqlite
 
@@ -111,7 +111,50 @@ class ShoalDB:
             CREATE INDEX IF NOT EXISTS idx_st_timestamp
             ON status_transitions(timestamp)
         """)
+        # Backfill status_since for existing sessions that predate the field.
+        # For each session whose serialised JSON lacks status_since, set it to
+        # the timestamp of the most recent status_transitions row, or to
+        # last_activity if no transition history exists.
+        await self._backfill_status_since()
         await self._conn.commit()
+
+    async def _backfill_status_since(self) -> None:
+        """Backfill status_since for sessions created before the field existed."""
+        import json
+        from datetime import UTC, datetime
+
+        if self._conn is None:
+            return
+
+        async with self._conn.execute("SELECT id, data FROM sessions") as cursor:
+            rows = cast(list[tuple[str, str]], list(await cursor.fetchall()))
+
+        for session_id, data_json in rows:
+            data = json.loads(data_json)
+            if "status_since" in data:
+                continue  # already has the field
+
+            # Best estimate: most recent transition into current status.
+            async with self._conn.execute(
+                "SELECT timestamp FROM status_transitions"
+                " WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1",
+                (session_id,),
+            ) as cur:
+                row = await cur.fetchone()
+
+            if row:
+                data["status_since"] = row[0]
+            else:
+                # No transition history — use last_activity as a safe fallback.
+                data["status_since"] = data.get(
+                    "last_activity", datetime.now(UTC).isoformat()
+                )
+
+            await self._conn.execute(
+                "UPDATE sessions SET data = ? WHERE id = ?",
+                (json.dumps(data), session_id),
+            )
+        logger.debug("_backfill_status_since: processed %d sessions", len(rows))
 
     async def close(self) -> None:
         """Close database connection."""
@@ -185,12 +228,21 @@ class ShoalDB:
 
         Uses a lock to prevent concurrent read-modify-write races
         (e.g. watcher vs API on the same event loop).
+
+        Automatically sets ``status_since`` to the current UTC time whenever
+        ``status`` is included in the update fields and has actually changed.
         """
+        from datetime import UTC, datetime
+
         t0 = time.monotonic()
         async with self._update_lock:
             session = await self.get_session(session_id)
             if not session:
                 return None
+
+            # Auto-advance status_since when status transitions.
+            if "status" in fields and fields["status"] != session.status:
+                fields.setdefault("status_since", datetime.now(UTC))
 
             updated = session.model_copy(update=fields)
             await self.save_session(updated)

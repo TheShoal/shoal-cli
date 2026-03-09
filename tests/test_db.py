@@ -75,6 +75,7 @@ async def test_list_sessions(db):
 @pytest.mark.asyncio
 async def test_update_session(db):
     s1 = SessionState(id="id1", name="n1", tool="t", path="p", tmux_session="ts1")
+    original_status_since = s1.status_since
     await db.save_session(s1)
 
     await db.update_session("id1", status=SessionStatus.running, pid=1234)
@@ -82,6 +83,25 @@ async def test_update_session(db):
     updated = await db.get_session("id1")
     assert updated.status == SessionStatus.running
     assert updated.pid == 1234
+    # status changed idle → running, so status_since must be advanced
+    assert updated.status_since > original_status_since
+
+
+@pytest.mark.asyncio
+async def test_update_session_same_status_does_not_advance_status_since(db):
+    s1 = SessionState(id="id1", name="n1", tool="t", path="p", tmux_session="ts1")
+    await db.save_session(s1)
+    original = await db.get_session("id1")
+
+    # Update a non-status field — status_since must not change.
+    await db.update_session("id1", pid=999)
+    unchanged = await db.get_session("id1")
+    assert unchanged.status_since == original.status_since
+
+    # Update status to the same value — status_since must not change.
+    await db.update_session("id1", status=SessionStatus.idle)  # idle is the default
+    still_unchanged = await db.get_session("id1")
+    assert still_unchanged.status_since == original.status_since
 
 
 @pytest.mark.asyncio

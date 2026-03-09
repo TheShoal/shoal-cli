@@ -195,6 +195,7 @@ async def session_info_tool(session: str) -> dict[str, Any]:
         "mcp_servers": s.mcp_servers,
         "created_at": s.created_at.isoformat(),
         "last_activity": s.last_activity.isoformat(),
+        "status_since": s.status_since.isoformat(),
     }
 
 

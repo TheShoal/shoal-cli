@@ -82,6 +82,7 @@ class TestSessionState:
             status=SessionStatus.running,
             created_at=now,
             last_activity=now,
+            status_since=now,
         )
         assert state.id == "abc12345"
         assert state.status == SessionStatus.running

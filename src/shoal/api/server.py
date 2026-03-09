@@ -80,6 +80,7 @@ class SessionResponse(BaseModel):
     mcp_servers: list[str]
     created_at: datetime
     last_activity: datetime
+    status_since: datetime
 
 
 class StatusResponse(BaseModel):
@@ -254,6 +255,7 @@ def _session_to_response(s: SessionState) -> SessionResponse:
         mcp_servers=s.mcp_servers,
         created_at=s.created_at,
         last_activity=s.last_activity,
+        status_since=s.status_since,
     )
 
 
