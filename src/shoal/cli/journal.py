@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -14,6 +14,7 @@ from shoal.core.journal import (
     append_entry,
     archived_journal_path,
     find_archived_session_id,
+    generate_handoff,
     journal_exists,
     read_archived_journal,
     read_journal,
@@ -35,6 +36,13 @@ def journal_view(
     search: Annotated[
         str | None, typer.Option("--search", help="Search across all journals")
     ] = None,
+    handoff: Annotated[
+        bool,
+        typer.Option(
+            "--handoff",
+            help="Generate a structured handoff summary for the session",
+        ),
+    ] = False,
 ) -> None:
     """View or append to a session journal."""
     import asyncio
@@ -84,8 +92,30 @@ def journal_view(
         console.print("[yellow]Journal is empty[/yellow]")
         return
 
+    if handoff:
+        _render_handoff(session_id, session_state)
+        return
+
     _render_entries(entries)
 
+
+
+def _render_handoff(session_id: str, session_state: object) -> None:
+    """Generate and display a structured handoff summary."""
+    import asyncio
+
+    from shoal.core.db import get_db, with_db
+
+    entries = read_journal(session_id)
+
+    async def _get_transitions() -> list[dict[str, Any]]:
+        db = await get_db()
+        return await db.get_status_transitions(session_id, limit=5)
+
+    transitions = asyncio.run(with_db(_get_transitions()))
+
+    artifact = generate_handoff(session_state or {}, entries, transitions)
+    console.print(Markdown(artifact.to_markdown()))
 
 def _view_archived(session: str, *, limit: int | None = None) -> None:
     """Display an archived journal by session name or ID."""

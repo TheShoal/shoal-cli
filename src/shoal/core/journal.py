@@ -23,6 +23,7 @@ import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import shoal
 from shoal.core.config import data_dir
@@ -362,3 +363,174 @@ def archive_journal(session_id: str) -> bool:
     dest = archive_dir / f"{session_id}.md"
     shutil.move(str(path), str(dest))
     return True
+
+
+
+@dataclass(frozen=True)
+class HandoffArtifact:
+    """Structured handoff summary for a session."""
+
+    session_name: str
+    tool: str
+    branch: str
+    status: str
+    urgency_label: str
+    time_in_status: str
+    last_active: str
+    recent_entries: list[JournalEntry]
+    transition_summary: list[str]
+    suggested_next: str
+
+    def to_markdown(self) -> str:
+        """Render as a markdown handoff document."""
+        lines: list[str] = []
+        lines.append(f"# Handoff: {self.session_name}")
+        lines.append("")
+        lines.append("## Status")
+        lines.append("")
+        lines.append(f"- **Session**: `{self.session_name}`")
+        lines.append(f"- **Tool**: {self.tool}")
+        lines.append(f"- **Branch**: `{self.branch or '-'}`")
+        lines.append(f"- **Status**: {self.urgency_label}")
+        lines.append(f"- **Time in status**: {self.time_in_status}")
+        lines.append(f"- **Last active**: {self.last_active}")
+        lines.append("")
+        if self.transition_summary:
+            lines.append("## Recent transitions")
+            lines.append("")
+            for t in self.transition_summary:
+                lines.append(f"- {t}")
+            lines.append("")
+        if self.recent_entries:
+            lines.append("## Recent journal")
+            lines.append("")
+            for entry in self.recent_entries:
+                ts = entry.timestamp.strftime("%Y-%m-%d %H:%M")
+                src = f" [{entry.source}]" if entry.source else ""
+                lines.append(f"### {ts}{src}")
+                lines.append("")
+                lines.append(entry.content.strip())
+                lines.append("")
+        lines.append("## Suggested next action")
+        lines.append("")
+        lines.append(self.suggested_next)
+        lines.append("")
+        return "\n".join(lines)
+
+
+def generate_handoff(
+    session: object,
+    entries: list[JournalEntry],
+    transitions: list[dict[str, Any]],
+    *,
+    recent_entry_count: int = 5,
+    now: datetime | None = None,
+    blocked_after_minutes: int = 5,
+    stale_after_minutes: int = 30,
+) -> HandoffArtifact:
+    """Build a HandoffArtifact from a session and its journal data.
+
+    Pure function — no I/O.  All data is passed in by the caller.
+
+    Args:
+        session: A SessionState (or any object with matching attributes).
+        entries: Journal entries for the session (newest-last).
+        transitions: Status transition dicts from db.get_status_transitions().
+        recent_entry_count: How many recent journal entries to include.
+        now: Current UTC time; defaults to datetime.now(UTC).
+    """
+    from shoal.core.urgency import UrgencyTier, derive_urgency
+    from shoal.models.state import SessionState
+
+    if now is None:
+        now = datetime.now(UTC)
+
+    # Urgency label.
+    urgency_label = getattr(session, "status", "unknown")
+    time_in_status = "-"
+    suggested_next = "Resume work or check session state."
+
+    if isinstance(session, SessionState):
+        tier, urgency_label = derive_urgency(
+            session,
+            now=now,
+            blocked_after_minutes=blocked_after_minutes,
+            stale_after_minutes=stale_after_minutes,
+        )
+        since = session.status_since
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=UTC)
+        age_minutes = (now - since).total_seconds() / 60
+        if age_minutes < 60:
+            time_in_status = f"{int(age_minutes)}m"
+        elif age_minutes < 1440:
+            time_in_status = f"{age_minutes / 60:.0f}h"
+        else:
+            time_in_status = f"{age_minutes / 1440:.0f}d"
+
+        match tier:
+            case UrgencyTier.error:
+                suggested_next = (
+                    f"Session is in error state.  Run `shoal attach {session.name}` "
+                    "to inspect the terminal and resolve the issue."
+                )
+            case UrgencyTier.blocked:
+                suggested_next = (
+                    f"Session has been waiting {time_in_status} and needs input.  "
+                    f"Run `shoal attach {session.name}` or approve via `shoal send {session.name}`."
+                )
+            case UrgencyTier.waiting:
+                suggested_next = (
+                    f"Session is waiting for approval.  "
+                    f"Run `shoal attach {session.name}` or `shoal send {session.name}`."
+                )
+            case UrgencyTier.review:
+                suggested_next = (
+                    f"Session is marked review-ready.  "
+                    f"Inspect changes with `shoal attach {session.name}` then merge or request changes."
+                )
+            case UrgencyTier.running:
+                suggested_next = "Session is actively running.  No immediate action needed."
+            case UrgencyTier.stale:
+                suggested_next = (
+                    f"Session has been idle for {time_in_status}.  "
+                    "Verify it is still needed or kill it with `shoal kill`."
+                )
+            case UrgencyTier.idle:
+                suggested_next = "Session is idle.  Resume work when ready."
+            case UrgencyTier.stopped:
+                suggested_next = "Session is stopped.  Review the journal and decide whether to archive or restart."
+            case _:
+                suggested_next = "Status unknown.  Check session state with `shoal info`."
+
+    # Last active timestamp.
+    last_activity = getattr(session, "last_activity", None)
+    last_active = last_activity.strftime("%Y-%m-%d %H:%M UTC") if last_activity else "-"
+
+    # Transition summary — newest-first, last 5.
+    transition_summary: list[str] = []
+    for t in transitions[:5]:
+        ts_raw = t.get("timestamp", "")
+        try:
+            ts = datetime.fromisoformat(ts_raw).strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            ts = ts_raw
+        from_s = t.get("from_status", "?")
+        to_s = t.get("to_status", "?")
+        transition_summary.append(f"{ts}  {from_s} \u2192 {to_s}")
+
+    # Recent journal entries.
+    recent = entries[-recent_entry_count:] if entries else []
+
+    return HandoffArtifact(
+        session_name=getattr(session, "name", ""),
+        tool=getattr(session, "tool", ""),
+        branch=getattr(session, "branch", ""),
+        status=str(urgency_label),
+        urgency_label=str(urgency_label),
+        time_in_status=time_in_status,
+        last_active=last_active,
+        recent_entries=recent,
+        transition_summary=transition_summary,
+        suggested_next=suggested_next,
+    )
