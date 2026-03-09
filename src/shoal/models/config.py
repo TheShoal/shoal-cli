@@ -151,6 +151,13 @@ class MonitoringConfig(BaseModel):
 
     poll_interval: int = 10
     waiting_timeout: int = 300
+    # Thresholds for operator-board urgency derivation.
+    # blocked_after_minutes: how long a session must be waiting before it
+    # is considered blocked (needs human intervention).
+    # stale_after_minutes: how long an idle session must be inactive before
+    # it is flagged as stale (may have been forgotten).
+    blocked_after_minutes: int = 5
+    stale_after_minutes: int = 30
 
 
 class EscalationConfig(BaseModel):
