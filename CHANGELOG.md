@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-03-09
+
+### Added
+- **Urgency-based operator board**: Sessions now carry a `status_since: datetime` field tracking when they entered their current status. A new `core/urgency.py` module derives `UrgencyTier` (error → blocked → waiting → review → running → stale → idle → stopped) and a human-readable label from `status + status_since`. Thresholds are configurable via `[operator] blocked_after_minutes` and `stale_after_minutes` in `config.toml` (defaults: 5m / 30m). Existing sessions are backfilled from `status_transitions` history on first startup.
+- **`shoal status` attention-first layout**: Output is now grouped into four tiers — **Needs attention** (error/blocked/waiting), **Ready for review**, **Active** (running), and **Background** (idle/stale/stopped). Each session shows an urgency label with age (`blocked 8m`, `stale 2h`). Sessions that need you appear first; stopped sessions are last.
+- **`shoal popup` urgency sort**: Popup entries are pre-sorted by urgency tier before being piped to fzf, so the most urgent sessions appear at the top regardless of `--no-sort` being set. The status column shows the urgency label instead of the raw status value. `ctrl-w` attention filter now matches `error`, `blocked`, and `waiting` labels.
+- **`shoal journal <session> --handoff`**: Generates a structured markdown handoff summary — session metadata, time in current status, last 5 status transitions with timestamps, up to 5 recent journal entries, and a suggested next action keyed to the urgency tier (attach, send keys, review diff, etc.). Pure function `generate_handoff()` in `core/journal.py` with full test coverage.
+
+### Changed
+- **`SessionResponse` and MCP `session_info`**: Both now include `status_since` in their output.
+
 ## [0.22.0] - 2026-03-07
 
 ### Added

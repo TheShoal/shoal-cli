@@ -65,7 +65,6 @@ class RemoteHostConfig(BaseModel):
     api_port: int = 8080
 
 
-
 class OperatorConfig(BaseModel):
     """Operator-board display thresholds — maps to [operator] in config.toml."""
 
@@ -75,6 +74,7 @@ class OperatorConfig(BaseModel):
     blocked_after_minutes: int = 5
     # An idle session is flagged as 'stale' after this many minutes.
     stale_after_minutes: int = 30
+
 
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
@@ -88,6 +88,7 @@ class ShoalConfig(BaseModel):
     robo: RoboGlobalConfig = Field(default_factory=RoboGlobalConfig)
     remote: dict[str, RemoteHostConfig] = Field(default_factory=dict)
     operator: OperatorConfig = Field(default_factory=OperatorConfig)
+
 
 # --- Tool config models (tools/<name>.toml) ---
 

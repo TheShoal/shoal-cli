@@ -365,7 +365,6 @@ def archive_journal(session_id: str) -> bool:
     return True
 
 
-
 @dataclass(frozen=True)
 class HandoffArtifact:
     """Structured handoff summary for a session."""
@@ -398,8 +397,7 @@ class HandoffArtifact:
         if self.transition_summary:
             lines.append("## Recent transitions")
             lines.append("")
-            for t in self.transition_summary:
-                lines.append(f"- {t}")
+            lines.extend(f"- {t}" for t in self.transition_summary)
             lines.append("")
         if self.recent_entries:
             lines.append("## Recent journal")
@@ -486,8 +484,8 @@ def generate_handoff(
                 )
             case UrgencyTier.review:
                 suggested_next = (
-                    f"Session is marked review-ready.  "
-                    f"Inspect changes with `shoal attach {session.name}` then merge or request changes."
+                    f"Session is marked review-ready.  Inspect changes with"
+                    f" `shoal attach {session.name}` then merge or request changes."
                 )
             case UrgencyTier.running:
                 suggested_next = "Session is actively running.  No immediate action needed."
@@ -499,7 +497,10 @@ def generate_handoff(
             case UrgencyTier.idle:
                 suggested_next = "Session is idle.  Resume work when ready."
             case UrgencyTier.stopped:
-                suggested_next = "Session is stopped.  Review the journal and decide whether to archive or restart."
+                suggested_next = (
+                    "Session is stopped.  Review the journal and decide"
+                    " whether to archive or restart."
+                )
             case _:
                 suggested_next = "Status unknown.  Check session state with `shoal info`."
 

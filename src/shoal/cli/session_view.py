@@ -240,7 +240,12 @@ async def _status_impl(format: str | None) -> None:
 
     # Annotate every session with its urgency tier and label.
     annotated = [
-        (s, *derive_urgency(s, now=now, blocked_after_minutes=blocked_after, stale_after_minutes=stale_after))
+        (
+            s,
+            *derive_urgency(
+                s, now=now, blocked_after_minutes=blocked_after, stale_after_minutes=stale_after
+            ),
+        )
         for s in sessions
     ]
     annotated.sort(key=lambda x: (int(x[1]), x[0].name))
@@ -248,21 +253,25 @@ async def _status_impl(format: str | None) -> None:
     # Plain format for shell completions / scripting — keep it terse.
     if format == "plain":
         from collections import Counter
+
         tier_counts: Counter[str] = Counter(label for _, _, label in annotated)
         parts = [f"{n} {lbl}" for lbl, n in tier_counts.most_common()]
         console.print(f"Total: {len(sessions)} | {', '.join(parts)}")
         return
 
-    use_nerd = cfg.general.use_nerd_fonts
-
     # Group into attention / active / ready / background.
-    attention = [(s, lbl) for s, tier, lbl in annotated
-                 if tier in (UrgencyTier.error, UrgencyTier.blocked, UrgencyTier.waiting)]
-    review    = [(s, lbl) for s, tier, lbl in annotated if tier == UrgencyTier.review]
-    active    = [(s, lbl) for s, tier, lbl in annotated if tier == UrgencyTier.running]
-    background = [(s, lbl) for s, tier, lbl in annotated
-                  if tier in (UrgencyTier.stale, UrgencyTier.idle,
-                              UrgencyTier.stopped, UrgencyTier.unknown)]
+    attention = [
+        (s, lbl)
+        for s, tier, lbl in annotated
+        if tier in (UrgencyTier.error, UrgencyTier.blocked, UrgencyTier.waiting)
+    ]
+    review = [(s, lbl) for s, tier, lbl in annotated if tier == UrgencyTier.review]
+    active = [(s, lbl) for s, tier, lbl in annotated if tier == UrgencyTier.running]
+    background = [
+        (s, lbl)
+        for s, tier, lbl in annotated
+        if tier in (UrgencyTier.stale, UrgencyTier.idle, UrgencyTier.stopped, UrgencyTier.unknown)
+    ]
 
     arrow = Symbols.ARROW
     console.print()
@@ -313,6 +322,7 @@ async def _status_impl(format: str | None) -> None:
         summary_parts.append(f"[cyan]{len(review)} review-ready[/cyan]")
     console.print("[dim]" + "  ·  ".join(summary_parts) + "[/dim]")
     console.print("[dim]shoal ls for full list  ·  shoal popup for dashboard[/dim]")
+
 
 def info(
     session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,

@@ -167,9 +167,7 @@ class TestSortKey:
         sessions = [stopped, idle, stale, running, review, waiting, blocked, error]
         sorted_sessions = sorted(
             sessions,
-            key=lambda s: sort_key(
-                s, now=NOW, blocked_after_minutes=5, stale_after_minutes=30
-            ),
+            key=lambda s: sort_key(s, now=NOW, blocked_after_minutes=5, stale_after_minutes=30),
         )
         names = [s.name for s in sorted_sessions]
         assert names == ["e", "b", "w", "r", "n", "s", "i", "x"]
@@ -177,7 +175,5 @@ class TestSortKey:
     def test_same_tier_sorted_by_name(self):
         s1 = _session(status=SessionStatus.running, name="zebra")
         s2 = _session(status=SessionStatus.running, name="alpha")
-        sorted_sessions = sorted(
-            [s1, s2], key=lambda s: sort_key(s, now=NOW)
-        )
+        sorted_sessions = sorted([s1, s2], key=lambda s: sort_key(s, now=NOW))
         assert sorted_sessions[0].name == "alpha"

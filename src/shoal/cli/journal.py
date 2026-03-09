@@ -99,7 +99,6 @@ def journal_view(
     _render_entries(entries)
 
 
-
 def _render_handoff(session_id: str, session_state: object) -> None:
     """Generate and display a structured handoff summary."""
     import asyncio
@@ -116,6 +115,7 @@ def _render_handoff(session_id: str, session_state: object) -> None:
 
     artifact = generate_handoff(session_state or {}, entries, transitions)
     console.print(Markdown(artifact.to_markdown()))
+
 
 def _view_archived(session: str, *, limit: int | None = None) -> None:
     """Display an archived journal by session name or ID."""

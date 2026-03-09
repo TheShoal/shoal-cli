@@ -146,9 +146,7 @@ class ShoalDB:
                 data["status_since"] = row[0]
             else:
                 # No transition history — use last_activity as a safe fallback.
-                data["status_since"] = data.get(
-                    "last_activity", datetime.now(UTC).isoformat()
-                )
+                data["status_since"] = data.get("last_activity", datetime.now(UTC).isoformat())
 
             await self._conn.execute(
                 "UPDATE sessions SET data = ? WHERE id = ?",

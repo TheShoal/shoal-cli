@@ -51,7 +51,8 @@ async def _build_entries() -> tuple[list[str], dict[str, str]]:
             stale_after_minutes=stale_after,
         )
         entries.append(
-            f"{session.id}\t{icon} {session.name}\t{session.tool}\t{urgency_label}\t{branch}\t{last}"
+            f"{session.id}\t{icon} {session.name}\t{session.tool}\t"
+            f"{urgency_label}\t{branch}\t{last}"
         )
     return entries, lookup
 
