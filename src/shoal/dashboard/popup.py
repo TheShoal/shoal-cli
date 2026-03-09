@@ -11,19 +11,47 @@ from shoal.core.theme import Symbols
 
 
 async def _build_entries() -> tuple[list[str], dict[str, str]]:
-    """Build session list entries for fzf and a lookup for tmux session names."""
+    """Build session list entries for fzf, sorted by urgency priority.
+
+    Entries are pre-sorted so fzf's --no-sort preserves urgency order.
+    The status column contains the urgency label (e.g. 'blocked 8m') rather
+    than the raw SessionStatus value.
+    """
+    from datetime import UTC, datetime
+
+    from shoal.core.config import load_config
+    from shoal.core.urgency import derive_urgency, sort_key
+
+    cfg = load_config()
+    blocked_after = cfg.operator.blocked_after_minutes
+    stale_after = cfg.operator.stale_after_minutes
+    now = datetime.now(UTC)
+
     entries: list[str] = []
     lookup: dict[str, str] = {}
     sessions = await list_sessions()
+
+    sessions = sorted(
+        sessions,
+        key=lambda s: sort_key(
+            s, now=now, blocked_after_minutes=blocked_after, stale_after_minutes=stale_after
+        ),
+    )
+
     for session in sessions:
         icon = _get_tool_icon(session.tool)
         lookup[session.id] = session.tmux_session
 
         branch = session.branch or "-"
         last = session.last_activity.strftime("%H:%M") if session.last_activity else "-"
-        status = session.status.value
+        _, urgency_label = derive_urgency(
+            session,
+            now=now,
+            blocked_after_minutes=blocked_after,
+            stale_after_minutes=stale_after,
+        )
         entries.append(
-            f"{session.id}\t{icon} {session.name}\t{session.tool}\t{status}\t{branch}\t{last}"
+            f"{session.id}\t{icon} {session.name}\t{session.tool}\t{urgency_label}\t{branch}\t{last}"
         )
     return entries, lookup
 
@@ -32,7 +60,7 @@ def _build_fzf_args() -> list[str]:
     """Build the fzf argument list for the dashboard popup."""
     header = (
         "SHOAL DASHBOARD \u2014 Enter:attach ctrl-x:kill ctrl-y:approve"
-        " ctrl-g:fork ctrl-w:waiting ctrl-r:reload esc:close"
+        " ctrl-g:fork ctrl-w:attention ctrl-r:reload esc:close"
     )
     return [
         "fzf",
@@ -45,7 +73,8 @@ def _build_fzf_args() -> list[str]:
         '--bind=ctrl-y:execute-silent(shoal send {1} "")+reload(shoal _popup-list)',
         "--bind=ctrl-g:execute-silent(shoal fork {1})+reload(shoal _popup-list)",
         "--bind=ctrl-r:reload(shoal _popup-list)",
-        "--bind=ctrl-w:reload(shoal _popup-list | awk -F'\\t' '$4==\"waiting\"')",
+        # ctrl-w: filter to attention-required sessions (error, blocked N, waiting N)
+        "--bind=ctrl-w:reload(shoal _popup-list | awk -F'\\t' '$4~/error|blocked|waiting/')",
         "--ansi",
         "--no-sort",
         "--layout=reverse",
