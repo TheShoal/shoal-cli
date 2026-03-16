@@ -14,3 +14,15 @@ and automation work. This page renders the current docstrings directly from the 
 ## MCP orchestration server
 
 ::: shoal.services.mcp_shoal_server
+
+## Batch models
+
+::: shoal.models.batch
+
+## Batch execution service
+
+::: shoal.services.batch
+
+## HTTP server
+
+::: shoal.api.server

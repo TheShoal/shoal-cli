@@ -29,8 +29,15 @@ status like `thinking`, `waiting`, `error`, or `idle`.
 
 ### HTTP and MCP surfaces
 
-FastAPI exposes state over HTTP. The Shoal MCP server exposes orchestration tools over FastMCP so
-other agents can manage sessions directly.
+FastAPI exposes both singleton control-plane operations and aggregate batching surfaces over HTTP. The Shoal MCP server exposes the same orchestration model over FastMCP so other agents can manage sessions directly.
+
+Current aggregate surfaces:
+
+- `POST /batch` and MCP `batch_execute` for ordered mixed-operation batches with per-item results
+- `POST /sessions/snapshot` and MCP `session_snapshot` for read-optimized multi-session inspection
+- legacy single-operation endpoints and tools for direct one-shot control
+
+Shoal treats batching as an application concern rather than a transport concern: one HTTP request or one MCP tool call can carry multiple operations, while the service layer decides which work can run in parallel and which must stay serial for correctness.
 
 ## Request flow
 

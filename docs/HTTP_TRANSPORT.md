@@ -26,7 +26,7 @@ The doctor probes HTTP servers using FastMCP's `StreamableHttpTransport` and rep
 ┌────────────────────┬──────────┬──────┬─────────┬─────────┐
 │ NAME               │ PROTOCOL │ TOOLS│ VERSION │ LATENCY │
 ├────────────────────┼──────────┼──────┼─────────┼─────────┤
-│ shoal-orchestrator │ http     │ 8    │ 0.17.0  │ 12ms    │
+│ shoal-orchestrator │ http     │ 12   │ 0.17.0  │ 12ms    │
 └────────────────────┴──────────┴──────┴─────────┴─────────┘
 ```
 
@@ -121,7 +121,23 @@ shoal-mcp-proxy shoal-orchestrator
 
 The proxy detects the server's transport mode and connects via HTTP or socket accordingly.
 
+## Application-level batching
+
+The orchestrator now exposes two high-leverage surfaces for reducing round trips and token overhead:
+
+- `batch_execute` — one MCP call that executes mixed Shoal operations and returns ordered per-item results
+- `session_snapshot` — one MCP call that gathers selected fields across many sessions for supervisor-style inspection
+- `POST /batch` — HTTP equivalent of `batch_execute`
+- `POST /sessions/snapshot` — HTTP equivalent of `session_snapshot`
+
+These are **application-level** batching surfaces. Shoal does not rely on protocol-level JSON-RPC batch arrays. Instead, one MCP tool call or one HTTP request carries multiple operations and returns structured per-item success or error envelopes.
+
+`session_snapshot` is the read-optimized path when you need a fleet view. Callers can request only the fields they need — for example `status`, `pane_tail`, `mcp_servers`, or `last_activity` — instead of making separate `session_info`, `capture_pane`, and status calls for each session.
+
+`batch_execute` supports mixed operations such as `session_info`, `session_status`, `capture_pane`, `send_keys`, `kill_session`, `read_history`, `append_journal`, and `read_journal`. Read-heavy batches can run with bounded parallelism; batches containing `kill_session` or aggregate `session_status` execute serially so later reads observe earlier writes safely.
+
 ---
+
 
 ## Diagnostics
 
