@@ -7,11 +7,15 @@ from shoal.core.state import (
     create_session,
     delete_session,
     find_by_name,
+    find_sessions_by_names,
     generate_id,
     get_session,
+    get_sessions,
     list_sessions,
+    load_sessions,
     remove_mcp_from_session,
     resolve_session,
+    resolve_sessions,
     touch_session,
     update_session,
     validate_session_name,
@@ -208,3 +212,71 @@ class TestResolveSession:
 
     async def test_resolve_missing(self, mock_dirs):
         assert await resolve_session("nonexistent") is None
+
+    async def test_bulk_lookup_helpers_chunk_queries(self, mock_dirs, monkeypatch):
+        from shoal.core import db as db_module
+        from shoal.core.db import get_db
+
+        monkeypatch.setattr(db_module, "SQLITE_MAX_VARIABLES", 2)
+
+        sessions = [
+            await create_session("alpha", "claude", "/tmp"),
+            await create_session("beta", "claude", "/tmp"),
+            await create_session("gamma", "claude", "/tmp"),
+            await create_session("delta", "claude", "/tmp"),
+            await create_session("epsilon", "claude", "/tmp"),
+        ]
+
+        db = await get_db()
+        await db.connect()
+        assert db._conn is not None
+        original_execute = db._conn.execute
+        calls: list[tuple[str, tuple[object, ...]]] = []
+
+        def spy_execute(sql: str, parameters: object | None = None):
+            params = tuple(parameters) if parameters is not None else ()
+            if "SELECT data FROM sessions WHERE" in sql and " IN (" in sql:
+                calls.append((sql, params))
+            return original_execute(sql, parameters)
+
+        monkeypatch.setattr(db._conn, "execute", spy_execute)
+
+        by_id = await get_sessions([session.id for session in sessions])
+        assert set(by_id) == {session.id for session in sessions}
+
+        by_name = await find_sessions_by_names([session.name for session in sessions])
+        assert set(by_name) == {session.name for session in sessions}
+
+        resolved = await resolve_sessions(
+            [
+                sessions[0].id,
+                sessions[1].name,
+                sessions[2].name,
+                sessions[3].id,
+                sessions[4].name,
+                "missing",
+            ]
+        )
+        assert resolved[sessions[0].id] == sessions[0].id
+        assert resolved[sessions[1].name] == sessions[1].id
+        assert resolved[sessions[4].name] == sessions[4].id
+        assert resolved["missing"] is None
+
+        loaded = await load_sessions(
+            [
+                sessions[0].name,
+                sessions[1].id,
+                sessions[2].name,
+                sessions[3].id,
+                sessions[4].name,
+                "missing",
+            ]
+        )
+        assert loaded[sessions[0].name] is not None
+        assert loaded[sessions[1].id] is not None
+        assert loaded["missing"] is None
+
+        assert len(calls) > 4
+        for sql, params in calls:
+            assert sql.count("?") == len(params)
+            assert len(params) <= 2

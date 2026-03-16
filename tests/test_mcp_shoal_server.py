@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -1142,14 +1143,14 @@ async def test_capture_pane_batch_returns_results_dict() -> None:
     s2 = _make_session(name="beta", session_id="id2")
     with (
         patch(
-            "shoal.core.state.resolve_session",
+            "shoal.core.state.resolve_sessions",
             new_callable=AsyncMock,
-            side_effect=["id1", "id2"],
+            return_value={"alpha": "id1", "beta": "id2"},
         ),
         patch(
-            "shoal.core.state.get_session",
+            "shoal.core.state.get_sessions",
             new_callable=AsyncMock,
-            side_effect=[s1, s2],
+            return_value={"id1": s1, "id2": s2},
         ),
         patch(
             "shoal.core.tmux.async_preferred_pane",
@@ -1201,14 +1202,14 @@ async def test_kill_session_batch_kills_all() -> None:
     }
     with (
         patch(
-            "shoal.core.state.resolve_session",
+            "shoal.core.state.resolve_sessions",
             new_callable=AsyncMock,
-            side_effect=["id1", "id2"],
+            return_value={"alpha": "id1", "beta": "id2"},
         ),
         patch(
-            "shoal.core.state.get_session",
+            "shoal.core.state.get_sessions",
             new_callable=AsyncMock,
-            side_effect=[s1, s2],
+            return_value={"id1": s1, "id2": s2},
         ),
         patch(
             "shoal.services.lifecycle.kill_session_lifecycle",
@@ -1222,3 +1223,210 @@ async def test_kill_session_batch_kills_all() -> None:
     assert result["results"]["alpha"]["session"] == "alpha"
     assert result["results"]["beta"]["session"] == "beta"
     assert mock_kill.call_count == 2
+
+
+async def test_kill_session_batch_serializes_shared_git_root() -> None:
+    """Multi-session kills do not overlap when sessions share the same repo root."""
+    from shoal.services.mcp_shoal_server import kill_session_tool
+
+    s1 = _make_session(name="alpha", session_id="id1")
+    s2 = _make_session(name="beta", session_id="id2")
+    active_calls = 0
+    max_active_calls = 0
+    summary = {
+        "tmux_killed": True,
+        "worktree_removed": False,
+        "branch_deleted": False,
+        "db_deleted": True,
+        "journal_archived": False,
+    }
+
+    async def fake_kill_session_lifecycle(**kwargs: object) -> dict[str, bool]:
+        nonlocal active_calls, max_active_calls
+        active_calls += 1
+        max_active_calls = max(max_active_calls, active_calls)
+        await asyncio.sleep(0)
+        active_calls -= 1
+        return summary
+
+    with (
+        patch(
+            "shoal.core.state.resolve_sessions",
+            new_callable=AsyncMock,
+            return_value={"alpha": "id1", "beta": "id2"},
+        ),
+        patch(
+            "shoal.core.state.get_sessions",
+            new_callable=AsyncMock,
+            return_value={"id1": s1, "id2": s2},
+        ),
+        patch(
+            "shoal.services.lifecycle.kill_session_lifecycle",
+            new_callable=AsyncMock,
+            side_effect=fake_kill_session_lifecycle,
+        ),
+    ):
+        result = await kill_session_tool(session=["alpha", "beta"])
+
+    assert result["results"]["alpha"]["session"] == "alpha"
+    assert result["results"]["beta"]["session"] == "beta"
+    assert max_active_calls == 1
+
+
+async def test_kill_session_batch_preserves_partial_success() -> None:
+    """Serial kill batches still attempt later sessions when continue_on_error stays enabled."""
+    from shoal.services.mcp_shoal_server import kill_session_tool
+
+    s1 = _make_session(name="alpha", session_id="id1")
+    summary = {
+        "tmux_killed": True,
+        "worktree_removed": False,
+        "branch_deleted": False,
+        "db_deleted": True,
+        "journal_archived": False,
+    }
+
+    with (
+        patch(
+            "shoal.core.state.resolve_sessions",
+            new_callable=AsyncMock,
+            return_value={"ghost": None, "alpha": "id1"},
+        ),
+        patch(
+            "shoal.core.state.get_sessions",
+            new_callable=AsyncMock,
+            return_value={"id1": s1},
+        ),
+        patch(
+            "shoal.services.lifecycle.kill_session_lifecycle",
+            new_callable=AsyncMock,
+            return_value=summary,
+        ) as mock_kill,
+    ):
+        result = await kill_session_tool(session=["ghost", "alpha"])
+
+    assert result["results"]["ghost"]["error"] == "Session not found: ghost"
+    assert result["results"]["alpha"]["session"] == "alpha"
+    mock_kill.assert_called_once()
+
+
+async def test_batch_execute_kill_then_aggregate_status_observes_write(mock_dirs) -> None:
+    """Aggregate session_status waits for earlier kill_session results in the same batch."""
+    from shoal.core.state import create_session, delete_session
+    from shoal.services.mcp_shoal_server import batch_execute_tool
+
+    alpha = await create_session("alpha", "claude", "/tmp/test")
+    await create_session("beta", "claude", "/tmp/test")
+
+    async def fake_kill_session_lifecycle(**kwargs: object) -> dict[str, object]:
+        await asyncio.sleep(0.01)
+        await delete_session(alpha.id)
+        return {
+            "tmux_killed": True,
+            "worktree_removed": False,
+            "branch_deleted": False,
+            "db_deleted": True,
+            "journal_archived": False,
+        }
+
+    with patch(
+        "shoal.services.lifecycle.kill_session_lifecycle",
+        new_callable=AsyncMock,
+        side_effect=fake_kill_session_lifecycle,
+    ):
+        result = await batch_execute_tool(
+            ops=[
+                {"op": "kill_session", "session": "alpha"},
+                {"op": "session_status"},
+            ]
+        )
+
+    assert result["results"][0]["success"] is True
+    assert result["results"][1]["success"] is True
+    assert result["results"][1]["result"]["total"] == 1
+    assert result["results"][1]["result"]["idle"] == 1
+
+
+async def test_batch_execute_mixed_ops_preserves_order_and_partial_success(mock_dirs) -> None:
+    """batch_execute preserves order and allows partial success across mixed ops."""
+    from shoal.core.state import create_session
+    from shoal.services.mcp_shoal_server import batch_execute_tool
+
+    await create_session("alpha", "claude", "/tmp/test")
+
+    result = await batch_execute_tool(
+        ops=[
+            {"op": "append_journal", "session": "alpha", "entry": "hello", "source": "mcp"},
+            {"op": "read_journal", "session": "alpha", "limit": 1},
+            {"op": "session_info", "session": "ghost"},
+        ]
+    )
+
+    assert [item["op"] for item in result["results"]] == [
+        "append_journal",
+        "read_journal",
+        "session_info",
+    ]
+    assert result["results"][0]["success"] is True
+    assert result["results"][1]["success"] is True
+    assert result["results"][1]["result"][0]["content"] == "hello"
+    assert result["results"][2]["success"] is False
+    assert result["results"][2]["error"]["code"] == "session_not_found"
+
+
+async def test_batch_execute_fail_fast_skips_remaining(mock_dirs) -> None:
+    """continue_on_error=False skips later ops without pretending they ran."""
+    from shoal.core.state import create_session
+    from shoal.services.mcp_shoal_server import batch_execute_tool, read_journal_tool
+
+    await create_session("alpha", "claude", "/tmp/test")
+
+    result = await batch_execute_tool(
+        ops=[
+            {"op": "session_info", "session": "ghost"},
+            {"op": "append_journal", "session": "alpha", "entry": "should not write"},
+        ],
+        continue_on_error=False,
+    )
+
+    assert result["results"][0]["success"] is False
+    assert result["results"][0]["error"]["code"] == "session_not_found"
+    assert result["results"][1]["success"] is False
+    assert result["results"][1]["error"]["code"] == "skipped"
+    assert await read_journal_tool("alpha") == []
+
+
+async def test_session_snapshot_selected_fields_preserves_order(mock_dirs) -> None:
+    """session_snapshot returns ordered per-session results with partial failures."""
+    from shoal.core.state import create_session
+    from shoal.services.mcp_shoal_server import session_snapshot_tool
+
+    await create_session("alpha", "claude", "/tmp/test")
+    await create_session("beta", "claude", "/tmp/test")
+
+    with (
+        patch(
+            "shoal.core.tmux.async_preferred_pane", new_callable=AsyncMock, side_effect=["%1", "%2"]
+        ),
+        patch(
+            "shoal.core.tmux.async_capture_pane",
+            new_callable=AsyncMock,
+            side_effect=["alpha tail", "beta tail"],
+        ) as mock_capture,
+    ):
+        result = await session_snapshot_tool(
+            sessions=["alpha", "ghost", "beta"],
+            fields=["status", "pane_tail", "last_activity"],
+            pane_lines=5,
+            max_parallelism=2,
+        )
+
+    assert [item["session"] for item in result["results"]] == ["alpha", "ghost", "beta"]
+    assert result["results"][0]["success"] is True
+    assert result["results"][0]["result"]["pane_tail"] == "alpha tail"
+    assert result["results"][1]["success"] is False
+    assert result["results"][1]["error"]["code"] == "session_not_found"
+    assert result["results"][2]["success"] is True
+    assert result["results"][2]["result"]["pane_tail"] == "beta tail"
+    mock_capture.assert_any_call("%1", 5)
+    mock_capture.assert_any_call("%2", 5)

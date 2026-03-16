@@ -13,12 +13,31 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from pydantic import ValidationError
 
 import shoal
+from shoal.models.batch import (
+    AppendJournalBatchOp,
+    BatchExecutionRequest,
+    BatchExecutionResponse,
+    BatchItemResult,
+    BatchOperation,
+    CapturePaneBatchOp,
+    KillSessionBatchOp,
+    ReadHistoryBatchOp,
+    ReadJournalBatchOp,
+    SendKeysBatchOp,
+    SessionInfoBatchOp,
+    SessionSnapshotRequest,
+    SessionStatusBatchOp,
+    SnapshotField,
+)
+from shoal.services.batch import AUTO_ENTER_TOOLS, execute_batch
+from shoal.services.batch import session_snapshot as build_session_snapshot
 
 if TYPE_CHECKING:
     from shoal.models.config import ToolConfig
@@ -90,22 +109,41 @@ async def list_sessions_tool() -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Tool: session_status
+# Helper utilities for batch-backed tools
 # ---------------------------------------------------------------------------
 
 
-async def _session_status_single(session: str) -> dict[str, Any]:
-    from shoal.core.state import get_session, resolve_session
+def _result_error_message(item: BatchItemResult) -> str:
+    if item.error is not None:
+        return item.error.message
+    return "Batch operation failed"
 
-    session_id = await resolve_session(session)
-    if not session_id:
-        raise ToolError(f"Session not found: {session}")
 
-    s = await get_session(session_id)
-    if not s:
-        raise ToolError(f"Session not found: {session}")
+async def _run_single_op(op: BatchOperation) -> object:
+    response = await execute_batch(
+        BatchExecutionRequest(ops=[op], continue_on_error=False, max_parallelism=1)
+    )
+    item = response.results[0]
+    if not item.success:
+        raise ToolError(_result_error_message(item))
+    return item.result
 
-    return {"name": s.name, "status": s.status.value}
+
+def _legacy_multi_result(
+    session_refs: list[str], response: BatchExecutionResponse
+) -> dict[str, object]:
+    results: dict[str, object] = {}
+    for requested, item in zip(session_refs, response.results, strict=True):
+        if item.success:
+            results[requested] = item.result if item.result is not None else {}
+            continue
+        results[requested] = {"error": _result_error_message(item)}
+    return {"results": results}
+
+
+# ---------------------------------------------------------------------------
+# Tool: session_status
+# ---------------------------------------------------------------------------
 
 
 @mcp.tool(
@@ -118,42 +156,25 @@ async def _session_status_single(session: str) -> dict[str, Any]:
 )
 async def session_status_tool(
     session: str | list[str] | None = None,
-) -> dict[str, Any]:
-    """Get session status counts or per-session status.
-
-    Args:
-        session: Optional session name, ID, or list thereof. When omitted,
-                 returns aggregate counts across all sessions. When provided,
-                 returns status for the specified session(s).
-    """
-    from shoal.core.state import list_sessions
-
+) -> dict[str, object]:
+    """Get session status counts or per-session status."""
     if session is None:
-        sessions = await list_sessions()
-        counts: dict[str, Any] = {
-            "total": len(sessions),
-            "running": 0,
-            "waiting": 0,
-            "error": 0,
-            "idle": 0,
-            "stopped": 0,
-            "unknown": 0,
-        }
-        for s in sessions:
-            key = s.status.value
-            counts[key] = counts.get(key, 0) + 1
-        return counts
+        return cast(
+            dict[str, object], await _run_single_op(SessionStatusBatchOp(op="session_status"))
+        )
 
     if isinstance(session, list):
-        results: dict[str, Any] = {}
-        for name in session:
-            try:
-                results[name] = await _session_status_single(name)
-            except ToolError as e:
-                results[name] = {"error": str(e)}
-        return {"results": results}
+        response = await execute_batch(
+            BatchExecutionRequest(
+                ops=[SessionStatusBatchOp(op="session_status", session=name) for name in session]
+            )
+        )
+        return _legacy_multi_result(session, response)
 
-    return await _session_status_single(session)
+    return cast(
+        dict[str, object],
+        await _run_single_op(SessionStatusBatchOp(op="session_status", session=session)),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -166,79 +187,23 @@ async def session_status_tool(
     description="Get detailed information about a specific session by name or ID.",
     annotations={"readOnlyHint": True},
 )
-async def session_info_tool(session: str) -> dict[str, Any]:
-    """Get full details for a session.
-
-    Args:
-        session: Session name or ID to look up.
-    """
-    from shoal.core.state import get_session, resolve_session
-
-    session_id = await resolve_session(session)
-    if not session_id:
-        raise ToolError(f"Session not found: {session}")
-
-    s = await get_session(session_id)
-    if not s:
-        raise ToolError(f"Session not found: {session}")
-
-    return {
-        "id": s.id,
-        "name": s.name,
-        "tool": s.tool,
-        "status": s.status.value,
-        "path": s.path,
-        "branch": s.branch,
-        "worktree": s.worktree,
-        "tmux_session": s.tmux_session,
-        "pid": s.pid,
-        "mcp_servers": s.mcp_servers,
-        "created_at": s.created_at.isoformat(),
-        "last_activity": s.last_activity.isoformat(),
-        "status_since": s.status_since.isoformat(),
-    }
+async def session_info_tool(session: str) -> dict[str, object]:
+    """Get full details for a session."""
+    return cast(
+        dict[str, object],
+        await _run_single_op(SessionInfoBatchOp(op="session_info", session=session)),
+    )
 
 
 # ---------------------------------------------------------------------------
 # Tool: send_keys
 # ---------------------------------------------------------------------------
 
+
 # CLI-based tools where Enter is auto-appended after send_keys by default.
 # TUI-based tools (e.g. opencode) handle input natively and may not need
 # auto-Enter — callers can override with the explicit enter parameter.
-_AUTO_ENTER_TOOLS: frozenset[str] = frozenset({"claude", "codex", "gemini", "pi"})
-
-
-async def _send_keys_single(session: str, keys: str, enter: bool | None) -> dict[str, str]:
-    import asyncio
-
-    from shoal.core import tmux
-    from shoal.core.config import load_tool_config
-    from shoal.core.state import get_session, resolve_session
-
-    session_id = await resolve_session(session)
-    if not session_id:
-        raise ToolError(f"Session not found: {session}")
-
-    s = await get_session(session_id)
-    if not s:
-        raise ToolError(f"Session not found: {session}")
-
-    auto_enter = enter if enter is not None else s.tool in _AUTO_ENTER_TOOLS
-
-    # Load send_keys_delay from the tool's config profile (default 0.0)
-    try:
-        tool_cfg = await asyncio.to_thread(load_tool_config, s.tool)
-        delay = tool_cfg.send_keys_delay
-    except FileNotFoundError:
-        delay = 0.0
-
-    # Use preferred_pane to target the titled pane (shoal:<id>), not just the
-    # active pane in the session.  Without this, keys land in whatever pane
-    # happens to be active, which may not be the tool pane.
-    pane_target = await tmux.async_preferred_pane(s.tmux_session, f"shoal:{s.id}")
-    await tmux.async_send_keys(pane_target, keys, enter=auto_enter, delay=delay)
-    return {"message": f"Keys sent to session '{s.name}'"}
+_AUTO_ENTER_TOOLS: frozenset[str] = AUTO_ENTER_TOOLS
 
 
 @mcp.tool(
@@ -252,25 +217,25 @@ async def _send_keys_single(session: str, keys: str, enter: bool | None) -> dict
 )
 async def send_keys_tool(
     session: str | list[str], keys: str, enter: bool | None = None
-) -> dict[str, Any]:
-    """Send keys to a session.
-
-    Args:
-        session: Session name, ID, or list thereof.
-        keys: The keystrokes to send (e.g., 'y' or 'ls -la').
-        enter: Whether to press Enter after keys. Auto-detected from tool
-               profile if not specified (True for claude/codex/gemini/pi).
-    """
+) -> dict[str, object]:
+    """Send keys to a session."""
     if isinstance(session, list):
-        results: dict[str, Any] = {}
-        for name in session:
-            try:
-                results[name] = await _send_keys_single(name, keys, enter)
-            except ToolError as e:
-                results[name] = {"error": str(e)}
-        return {"results": results}
+        response = await execute_batch(
+            BatchExecutionRequest(
+                ops=[
+                    SendKeysBatchOp(op="send_keys", session=name, keys=keys, enter=enter)
+                    for name in session
+                ]
+            )
+        )
+        return _legacy_multi_result(session, response)
 
-    return await _send_keys_single(session, keys, enter)
+    return cast(
+        dict[str, object],
+        await _run_single_op(
+            SendKeysBatchOp(op="send_keys", session=session, keys=keys, enter=enter)
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -278,45 +243,28 @@ async def send_keys_tool(
 # ---------------------------------------------------------------------------
 
 
-async def _capture_pane_single(session: str, lines: int) -> dict[str, str]:
-    from shoal.core import tmux
-    from shoal.core.state import get_session, resolve_session
-
-    session_id = await resolve_session(session)
-    if not session_id:
-        raise ToolError(f"Session not found: {session}")
-
-    s = await get_session(session_id)
-    if not s:
-        raise ToolError(f"Session not found: {session}")
-
-    pane_target = await tmux.async_preferred_pane(s.tmux_session, f"shoal:{s.id}")
-    content = await tmux.async_capture_pane(pane_target, lines)
-    return {"content": content}
-
-
 @mcp.tool(
     name="capture_pane",
     description="Read last N lines from a session's terminal output.",
     annotations={"readOnlyHint": True},
 )
-async def capture_pane_tool(session: str | list[str], lines: int = 20) -> dict[str, Any]:
-    """Capture recent terminal output from a session's pane.
-
-    Args:
-        session: Session name, ID, or list thereof.
-        lines: Number of lines to capture (default: 20).
-    """
+async def capture_pane_tool(session: str | list[str], lines: int = 20) -> dict[str, object]:
+    """Capture recent terminal output from a session's pane."""
     if isinstance(session, list):
-        results: dict[str, Any] = {}
-        for name in session:
-            try:
-                results[name] = await _capture_pane_single(name, lines)
-            except ToolError as e:
-                results[name] = {"error": str(e)}
-        return {"results": results}
+        response = await execute_batch(
+            BatchExecutionRequest(
+                ops=[
+                    CapturePaneBatchOp(op="capture_pane", session=name, lines=lines)
+                    for name in session
+                ]
+            )
+        )
+        return _legacy_multi_result(session, response)
 
-    return await _capture_pane_single(session, lines)
+    return cast(
+        dict[str, object],
+        await _run_single_op(CapturePaneBatchOp(op="capture_pane", session=session, lines=lines)),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -329,23 +277,85 @@ async def capture_pane_tool(session: str | list[str], lines: int = 20) -> dict[s
     description="Get status transition history for a session.",
     annotations={"readOnlyHint": True},
 )
-async def read_history_tool(session: str, limit: int = 50) -> list[dict[str, Any]]:
-    """Read status transition history for a session.
+async def read_history_tool(session: str, limit: int = 50) -> list[dict[str, object]]:
+    """Read status transition history for a session."""
+    return cast(
+        list[dict[str, object]],
+        await _run_single_op(ReadHistoryBatchOp(op="read_history", session=session, limit=limit)),
+    )
 
-    Args:
-        session: Session name or ID.
-        limit: Maximum number of transitions to return (default: 50).
-    """
-    from shoal.core.db import get_db
-    from shoal.core.state import resolve_session
 
-    session_id = await resolve_session(session)
-    if not session_id:
-        raise ToolError(f"Session not found: {session}")
+# ---------------------------------------------------------------------------
+# Tool: session_snapshot
+# ---------------------------------------------------------------------------
 
-    db = await get_db()
-    return await db.get_status_transitions(session_id, limit=limit)
 
+@mcp.tool(
+    name="session_snapshot",
+    description=(
+        "Capture selected fields across multiple sessions in one read-optimized call. "
+        "Use this for supervisor-style inspection."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def session_snapshot_tool(
+    sessions: list[str],
+    fields: list[SnapshotField] | None = None,
+    pane_lines: int = 20,
+    max_parallelism: int = 8,
+) -> dict[str, object]:
+    """Capture a read-optimized snapshot for multiple sessions."""
+    request_data: dict[str, object] = {
+        "sessions": sessions,
+        "pane_lines": pane_lines,
+        "max_parallelism": max_parallelism,
+    }
+    if fields is not None:
+        request_data["fields"] = fields
+
+    try:
+        request = SessionSnapshotRequest.model_validate(request_data)
+    except ValidationError as exc:
+        raise ToolError(str(exc)) from exc
+
+    response = await build_session_snapshot(request)
+    return cast(dict[str, object], response.model_dump(mode="json"))
+
+
+# ---------------------------------------------------------------------------
+# Tool: batch_execute
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="batch_execute",
+    description="Execute mixed Shoal session operations in one application-level batch.",
+    annotations={"destructiveHint": True},
+)
+async def batch_execute_tool(
+    ops: list[dict[str, object]],
+    continue_on_error: bool = True,
+    max_parallelism: int = 8,
+) -> dict[str, object]:
+    """Execute a heterogeneous batch of Shoal session operations."""
+    try:
+        request = BatchExecutionRequest.model_validate(
+            {
+                "ops": ops,
+                "continue_on_error": continue_on_error,
+                "max_parallelism": max_parallelism,
+            }
+        )
+    except ValidationError as exc:
+        raise ToolError(str(exc)) from exc
+
+    response = await execute_batch(request)
+    return cast(dict[str, object], response.model_dump(mode="json"))
+
+
+# ---------------------------------------------------------------------------
+# Prompt delivery helper
+# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Prompt delivery helper
@@ -521,49 +531,6 @@ async def create_session_tool(
 # ---------------------------------------------------------------------------
 
 
-async def _kill_session_single(
-    session: str,
-    remove_worktree: bool = False,
-    force: bool = False,
-) -> dict[str, Any]:
-    from shoal.core.state import get_session, resolve_session
-    from shoal.services.lifecycle import DirtyWorktreeError, kill_session_lifecycle
-
-    session_id = await resolve_session(session)
-    if not session_id:
-        raise ToolError(f"Session not found: {session}")
-
-    s = await get_session(session_id)
-    if not s:
-        raise ToolError(f"Session not found: {session}")
-
-    try:
-        summary = await kill_session_lifecycle(
-            session_id=s.id,
-            tmux_session=s.tmux_session,
-            worktree=s.worktree,
-            git_root=s.path,
-            branch=s.branch,
-            remove_worktree=remove_worktree,
-            force=force,
-        )
-    except DirtyWorktreeError as e:
-        raise ToolError(
-            f"Worktree has uncommitted changes: {s.worktree}. "
-            f"Dirty files: {e.dirty_files}. "
-            "Use force=True to remove anyway."
-        ) from e
-
-    return {
-        "session": s.name,
-        "tmux_killed": summary["tmux_killed"],
-        "worktree_removed": summary["worktree_removed"],
-        "branch_deleted": summary["branch_deleted"],
-        "db_deleted": summary["db_deleted"],
-        "journal_archived": summary["journal_archived"],
-    }
-
-
 @mcp.tool(
     name="kill_session",
     description="Kill a session and optionally remove its git worktree.",
@@ -573,24 +540,35 @@ async def kill_session_tool(
     session: str | list[str],
     remove_worktree: bool = False,
     force: bool = False,
-) -> dict[str, Any]:
-    """Kill a session.
-
-    Args:
-        session: Session name, ID, or list thereof.
-        remove_worktree: Also remove the git worktree and branch.
-        force: Force removal even if worktree has uncommitted changes.
-    """
+) -> dict[str, object]:
+    """Kill a session."""
     if isinstance(session, list):
-        results: dict[str, Any] = {}
-        for name in session:
-            try:
-                results[name] = await _kill_session_single(name, remove_worktree, force)
-            except ToolError as e:
-                results[name] = {"error": str(e)}
-        return {"results": results}
+        response = await execute_batch(
+            BatchExecutionRequest(
+                ops=[
+                    KillSessionBatchOp(
+                        op="kill_session",
+                        session=name,
+                        remove_worktree=remove_worktree,
+                        force=force,
+                    )
+                    for name in session
+                ]
+            )
+        )
+        return _legacy_multi_result(session, response)
 
-    return await _kill_session_single(session, remove_worktree, force)
+    return cast(
+        dict[str, object],
+        await _run_single_op(
+            KillSessionBatchOp(
+                op="kill_session",
+                session=session,
+                remove_worktree=remove_worktree,
+                force=force,
+            )
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -603,35 +581,19 @@ async def kill_session_tool(
     description="Append an entry to a session's journal.",
     annotations={"destructiveHint": True},
 )
-async def append_journal_tool(session: str, entry: str, source: str = "mcp") -> dict[str, str]:
-    """Append a journal entry for a session.
-
-    Args:
-        session: Session name or ID.
-        entry: The markdown content to append.
-        source: Tag identifying the source (default: "mcp").
-    """
-    import asyncio
-
-    from shoal.core.journal import (
-        append_entry,
-        build_journal_metadata,
-        journal_exists,
+async def append_journal_tool(session: str, entry: str, source: str = "mcp") -> dict[str, object]:
+    """Append a journal entry for a session."""
+    return cast(
+        dict[str, object],
+        await _run_single_op(
+            AppendJournalBatchOp(
+                op="append_journal",
+                session=session,
+                entry=entry,
+                source=source,
+            )
+        ),
     )
-    from shoal.core.state import get_session, resolve_session
-
-    session_id = await resolve_session(session)
-    if not session_id:
-        raise ToolError(f"Session not found: {session}")
-
-    metadata = None
-    if not await asyncio.to_thread(journal_exists, session_id):
-        session_state = await get_session(session_id)
-        if session_state:
-            metadata = build_journal_metadata(session_state)
-
-    path = await asyncio.to_thread(append_entry, session_id, entry, source, metadata=metadata)
-    return {"message": f"Journal entry appended to {path.name}"}
 
 
 # ---------------------------------------------------------------------------
@@ -644,31 +606,12 @@ async def append_journal_tool(session: str, entry: str, source: str = "mcp") -> 
     description="Read journal entries for a session.",
     annotations={"readOnlyHint": True},
 )
-async def read_journal_tool(session: str, limit: int = 10) -> list[dict[str, str]]:
-    """Read recent journal entries for a session.
-
-    Args:
-        session: Session name or ID.
-        limit: Maximum number of entries to return (default: 10).
-    """
-    import asyncio
-
-    from shoal.core.journal import read_journal
-    from shoal.core.state import resolve_session
-
-    session_id = await resolve_session(session)
-    if not session_id:
-        raise ToolError(f"Session not found: {session}")
-
-    entries = await asyncio.to_thread(read_journal, session_id, limit)
-    return [
-        {
-            "timestamp": e.timestamp.isoformat(),
-            "source": e.source,
-            "content": e.content,
-        }
-        for e in entries
-    ]
+async def read_journal_tool(session: str, limit: int = 10) -> list[dict[str, object]]:
+    """Read recent journal entries for a session."""
+    return cast(
+        list[dict[str, object]],
+        await _run_single_op(ReadJournalBatchOp(op="read_journal", session=session, limit=limit)),
+    )
 
 
 # ---------------------------------------------------------------------------

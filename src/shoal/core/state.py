@@ -9,6 +9,7 @@ import re
 import secrets
 import subprocess
 import sys
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -191,6 +192,16 @@ async def get_session(session_id: str) -> SessionState | None:
     return await db.get_session(session_id)
 
 
+async def get_sessions(session_ids: Iterable[str]) -> dict[str, SessionState]:
+    """Read multiple sessions keyed by session ID."""
+    ids = list(dict.fromkeys(session_ids))
+    if not ids:
+        return {}
+
+    db = await get_db()
+    return await db.get_sessions(ids)
+
+
 async def update_session(session_id: str, **fields: Any) -> SessionState | None:
     """Update specific fields on a session in DB.
 
@@ -226,6 +237,16 @@ async def find_by_name(name: str) -> str | None:
     db = await get_db()
     session = await db.find_session_by_name(name)
     return session.id if session else None
+
+
+async def find_sessions_by_names(names: Iterable[str]) -> dict[str, SessionState]:
+    """Find multiple sessions keyed by session name."""
+    unique_names = list(dict.fromkeys(names))
+    if not unique_names:
+        return {}
+
+    db = await get_db()
+    return await db.find_sessions_by_names(unique_names)
 
 
 async def touch_session(session_id: str) -> None:
@@ -277,6 +298,41 @@ async def resolve_session(name_or_id: str) -> str | None:
         return name_or_id
     # Try by name
     return await find_by_name(name_or_id)
+
+
+async def resolve_sessions(names_or_ids: Iterable[str]) -> dict[str, str | None]:
+    """Resolve many session names or IDs while preserving single-item semantics."""
+    refs = list(dict.fromkeys(names_or_ids))
+    if not refs:
+        return {}
+
+    direct_matches = await get_sessions(refs)
+    resolved: dict[str, str | None] = {ref: ref for ref in refs if ref in direct_matches}
+    unresolved = [ref for ref in refs if ref not in resolved]
+    if not unresolved:
+        return resolved
+
+    name_matches = await find_sessions_by_names(unresolved)
+    for ref in unresolved:
+        session = name_matches.get(ref)
+        resolved[ref] = session.id if session else None
+    return resolved
+
+
+async def load_sessions(names_or_ids: Iterable[str]) -> dict[str, SessionState | None]:
+    """Load many sessions keyed by the original reference string."""
+    refs = list(dict.fromkeys(names_or_ids))
+    if not refs:
+        return {}
+
+    resolved = await resolve_sessions(refs)
+    sessions_by_id = await get_sessions(
+        session_id for session_id in resolved.values() if session_id
+    )
+    return {
+        ref: sessions_by_id.get(session_id) if session_id else None
+        for ref, session_id in resolved.items()
+    }
 
 
 def resolve_session_interactive(name_or_id: str | None = None) -> str:

@@ -28,7 +28,15 @@ from shoal.core.state import (
     remove_mcp_from_session,
     update_session,
 )
+from shoal.models.batch import (
+    BatchExecutionRequest,
+    BatchExecutionResponse,
+    SessionSnapshotRequest,
+    SessionSnapshotResponse,
+)
 from shoal.models.state import SessionState, SessionStatus
+from shoal.services.batch import execute_batch
+from shoal.services.batch import session_snapshot as build_session_snapshot
 from shoal.services.lifecycle import (
     DirtyWorktreeError,
     SessionExistsError,
@@ -327,6 +335,18 @@ async def get_status() -> StatusResponse:
         unknown=counts["unknown"],
         version=shoal.__version__,
     )
+
+
+@app.post("/batch", response_model=BatchExecutionResponse)
+async def batch_execute_api(data: BatchExecutionRequest) -> BatchExecutionResponse:
+    """Execute a heterogeneous application-level batch."""
+    return await execute_batch(data)
+
+
+@app.post("/sessions/snapshot", response_model=SessionSnapshotResponse)
+async def session_snapshot_api(data: SessionSnapshotRequest) -> SessionSnapshotResponse:
+    """Capture selected fields across multiple sessions in one read-optimized call."""
+    return await build_session_snapshot(data)
 
 
 @app.get("/sessions", response_model=list[SessionResponse])

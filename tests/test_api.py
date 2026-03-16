@@ -1007,3 +1007,99 @@ class TestListMcpSocketDirMissing:
             response = await async_client.get("/mcp")
             assert response.status_code == 200
             assert response.json() == []
+
+
+@pytest.mark.asyncio
+class TestBatchEndpoints:
+    """Tests for application-level batch and snapshot endpoints."""
+
+    async def test_session_snapshot_returns_ordered_partial_results(self, async_client):
+        alpha = await create_session("alpha", "claude", "/tmp/test")
+        beta = await create_session("beta", "claude", "/tmp/test")
+
+        with (
+            patch(
+                "shoal.core.tmux.async_preferred_pane",
+                new_callable=AsyncMock,
+                side_effect=["%1", "%2"],
+            ),
+            patch(
+                "shoal.core.tmux.async_capture_pane",
+                new_callable=AsyncMock,
+                side_effect=["alpha tail", "beta tail"],
+            ) as mock_capture,
+        ):
+            response = await async_client.post(
+                "/sessions/snapshot",
+                json={
+                    "sessions": ["alpha", "ghost", "beta"],
+                    "fields": ["status", "pane_tail"],
+                    "pane_lines": 5,
+                    "max_parallelism": 2,
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert [item["session"] for item in data["results"]] == ["alpha", "ghost", "beta"]
+        assert data["results"][0]["success"] is True
+        assert data["results"][0]["result"]["id"] == alpha.id
+        assert data["results"][0]["result"]["pane_tail"] == "alpha tail"
+        assert data["results"][1]["success"] is False
+        assert data["results"][1]["error"]["code"] == "session_not_found"
+        assert data["results"][2]["success"] is True
+        assert data["results"][2]["result"]["id"] == beta.id
+        assert data["results"][2]["result"]["pane_tail"] == "beta tail"
+        mock_capture.assert_any_call("%1", 5)
+        mock_capture.assert_any_call("%2", 5)
+
+    async def test_batch_execute_mixed_read_write_and_partial_failure(self, async_client):
+        await create_session("alpha", "claude", "/tmp/test")
+
+        response = await async_client.post(
+            "/batch",
+            json={
+                "ops": [
+                    {"op": "append_journal", "session": "alpha", "entry": "hello", "source": "api"},
+                    {"op": "read_journal", "session": "alpha", "limit": 1},
+                    {"op": "session_info", "session": "ghost"},
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert [item["op"] for item in data["results"]] == [
+            "append_journal",
+            "read_journal",
+            "session_info",
+        ]
+        assert data["results"][0]["success"] is True
+        assert data["results"][1]["success"] is True
+        assert data["results"][1]["result"][0]["content"] == "hello"
+        assert data["results"][2]["success"] is False
+        assert data["results"][2]["error"]["code"] == "session_not_found"
+
+    async def test_batch_execute_fail_fast_skips_remaining(self, async_client):
+        from shoal.core.journal import read_journal
+
+        alpha = await create_session("alpha", "claude", "/tmp/test")
+
+        response = await async_client.post(
+            "/batch",
+            json={
+                "ops": [
+                    {"op": "session_info", "session": "ghost"},
+                    {"op": "append_journal", "session": "alpha", "entry": "should not write"},
+                ],
+                "continue_on_error": False,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["results"][0]["success"] is False
+        assert data["results"][0]["error"]["code"] == "session_not_found"
+        assert data["results"][1]["success"] is False
+        assert data["results"][1]["error"]["code"] == "skipped"
+        assert read_journal(alpha.id) == []

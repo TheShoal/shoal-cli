@@ -14,6 +14,13 @@ from shoal.models.state import RoboState, SessionState
 
 logger = logging.getLogger("shoal.db")
 
+SQLITE_MAX_VARIABLES = 900
+
+
+def _chunked(items: list[str], chunk_size: int | None = None) -> list[list[str]]:
+    size = chunk_size or SQLITE_MAX_VARIABLES
+    return [items[index : index + size] for index in range(0, len(items), size)]
+
 
 class ShoalDB:
     """Database manager with persistent singleton connection.
@@ -199,6 +206,31 @@ class ShoalDB:
                 return SessionState.model_validate_json(row[0])
         return None
 
+    async def get_sessions(self, session_ids: list[str]) -> dict[str, SessionState]:
+        """Get multiple sessions by ID."""
+        ids = list(dict.fromkeys(session_ids))
+        if not ids:
+            return {}
+
+        t0 = time.monotonic()
+        result: dict[str, SessionState] = {}
+        async with self._connection() as conn:
+            for chunk in _chunked(ids):
+                placeholders = ", ".join("?" for _ in chunk)
+                query = f"SELECT data FROM sessions WHERE id IN ({placeholders})"  # noqa: S608
+                async with conn.execute(query, chunk) as cursor:
+                    rows = await cursor.fetchall()
+                sessions = [SessionState.model_validate_json(row[0]) for row in rows]
+                result.update({session.id: session for session in sessions})
+
+        logger.debug(
+            "get_sessions: %d requested, %d found (%.1fms)",
+            len(ids),
+            len(result),
+            (time.monotonic() - t0) * 1000,
+        )
+        return result
+
     async def list_sessions(self) -> list[SessionState]:
         """List all sessions."""
         t0 = time.monotonic()
@@ -220,6 +252,23 @@ class ShoalDB:
             if row:
                 return SessionState.model_validate_json(row[0])
         return None
+
+    async def find_sessions_by_names(self, names: list[str]) -> dict[str, SessionState]:
+        """Find multiple sessions by name."""
+        unique_names = list(dict.fromkeys(names))
+        if not unique_names:
+            return {}
+
+        result: dict[str, SessionState] = {}
+        async with self._connection() as conn:
+            for chunk in _chunked(unique_names):
+                placeholders = ", ".join("?" for _ in chunk)
+                query = f"SELECT data FROM sessions WHERE name IN ({placeholders})"  # noqa: S608
+                async with conn.execute(query, chunk) as cursor:
+                    rows = await cursor.fetchall()
+                sessions = [SessionState.model_validate_json(row[0]) for row in rows]
+                result.update({session.name: session for session in sessions})
+        return result
 
     async def update_session(self, session_id: str, **fields: Any) -> SessionState | None:
         """Update specific fields of a session.
