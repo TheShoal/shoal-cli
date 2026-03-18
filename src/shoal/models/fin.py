@@ -101,7 +101,9 @@ def _download_fin(url: str) -> Path:
         response = httpx.get(url, follow_redirects=True, timeout=30)
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        raise ValueError(f"Failed to download fin: HTTP {exc.response.status_code} from {url}") from exc
+        raise ValueError(
+            f"Failed to download fin: HTTP {exc.response.status_code} from {url}"
+        ) from exc
     except httpx.HTTPError as exc:
         raise ValueError(f"Failed to download fin: {exc}") from exc
 
