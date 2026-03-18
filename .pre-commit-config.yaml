@@ -45,3 +45,9 @@ repos:
         language: system
         files: \.md$
         types: [markdown]
+      - id: justfile-syntax
+        name: justfile syntax check
+        entry: just --list
+        language: system
+        files: ^justfile$
+        pass_filenames: false
