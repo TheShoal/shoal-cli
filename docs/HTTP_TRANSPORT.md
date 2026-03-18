@@ -1,6 +1,20 @@
 # HTTP Transport for MCP Servers
 
-Shoal's MCP server (`shoal-orchestrator`) supports **HTTP transport** via FastMCP's streamable-http mode. This is the default transport for the orchestrator, replacing the Unix socket byte bridge with a standard HTTP endpoint.
+Shoal's MCP server (`shoal-orchestrator`) supports **HTTP transport** via FastMCP's streamable-http mode. The key mental model is simple: this is one orchestrator server with multiple client paths, not two different Shoal MCP servers.
+
+Use this page to answer two questions:
+- **How does a client connect?** Either directly over HTTP or indirectly through `shoal-mcp-proxy` if the tool only speaks stdio MCP.
+- **Which servers use HTTP?** Only `shoal-orchestrator` defaults to HTTP; third-party MCP servers still use Shoal's socket pool.
+
+```mermaid
+flowchart LR
+    CLI["shoal mcp start shoal-orchestrator"] --> Server["shoal-mcp-server<br/>name: shoal-orchestrator"]
+    HttpClient["HTTP-capable MCP client"] --> Endpoint["http://localhost:8390/mcp/"]
+    StdioClient["stdio-only MCP client"] --> Proxy["shoal-mcp-proxy shoal-orchestrator"]
+    Proxy --> Endpoint
+    Endpoint --> Server
+    Other["memory / filesystem / github / fetch"] --> Pool["socket pool + per-connection spawn"]
+```
 
 ---
 
@@ -119,7 +133,7 @@ For tools that only support stdio MCP, use `shoal-mcp-proxy` to bridge:
 shoal-mcp-proxy shoal-orchestrator
 ```
 
-The proxy detects the server's transport mode and connects via HTTP or socket accordingly.
+The proxy detects the server's transport mode and connects via HTTP or socket accordingly. It is a bridge, not a second Shoal MCP server.
 
 ## Application-level batching
 

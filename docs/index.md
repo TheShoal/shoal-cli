@@ -28,9 +28,19 @@ hide:
   </div>
 </div>
 
-<div class="shoal-demo-frame">
-  <img src="assets/terminal-demo.svg" alt="Shoal terminal workflow demo">
-</div>
+## The control loop in one glance
+
+Read it left to right: you declare work once, Shoal turns it into isolated sessions, and the resulting state flows back to one operator surface instead of scattering across tabs and terminals.
+
+```mermaid
+flowchart LR
+    Intent["Operator intent<br/>tasks, approvals, priorities"] --> Shoal["Shoal control plane"]
+    Shoal --> Templates["templates + tool profiles"]
+    Shoal --> Sessions["isolated sessions<br/>tmux + worktrees + MCP"]
+    Sessions --> State["status, journals, waiting prompts, errors"]
+    State --> Shoal
+    Shoal --> Surface["shoal status / popup / attach"]
+```
 
 ## Why Shoal exists
 

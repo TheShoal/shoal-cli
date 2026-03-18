@@ -12,6 +12,19 @@ Similarly, Shoal's **Robo** acts as a robot fish that:
 - Routes tasks and escalates issues
 - Maintains cohesion across parallel workflows
 
+## How Robo fits the loop
+
+Read it top to bottom: worker sessions do the domain work, Robo watches for coordination events, and only the decisions that need judgment come back to the human.
+
+```mermaid
+flowchart TD
+    Workers["Worker sessions"] -->|status / waiting / idle / error| Robo["Robo supervisor"]
+    Robo -->|approve safe steps| Workers
+    Robo -->|route next task| Workers
+    Robo -->|escalate risky or ambiguous cases| Human["Human operator"]
+    Human -->|decision / new priority| Robo
+```
+
 ---
 
 ## Quick Start
@@ -136,6 +149,19 @@ Monitor all sessions. When a session enters "waiting" state:
 3. If it's risky (force push, delete production), escalate to user
 4. Log every approval in task-log.md
 ```
+
+Read it top to bottom: waiting does not automatically mean approve. Robo is supposed to filter routine prompts from decisions that still belong to a human.
+
+```mermaid
+flowchart TD
+    Waiting["Session enters waiting state"] --> Inspect["Inspect logs / pane output"]
+    Inspect --> Decision{"Safe to approve?"}
+    Decision -->|Yes| Approve["shoal robo approve <session>"]
+    Decision -->|No| Escalate["notify user / request review"]
+    Approve --> Log["append task-log entry"]
+    Escalate --> Log
+```
+
 
 **Manual override**:
 ```bash

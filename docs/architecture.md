@@ -3,8 +3,32 @@
 Shoal is a local control plane for AI coding agents. It combines tmux for process isolation,
 SQLite for durable state, FastAPI for local HTTP access, and an MCP pool for tool sharing.
 
-![Shoal architecture flow](assets/architecture-flow.svg)
+Read the system in two passes:
+- **Write path**: operator commands flow into the lifecycle layer, which creates worktrees, tmux sessions, and MCP attachments.
+- **Read path**: the watcher records runtime state in SQLite, and every surface reads from that shared truth instead of scraping tmux independently.
 
+```mermaid
+flowchart LR
+    CLI["shoal CLI"] --> Lifecycle["Lifecycle service"]
+    Templates["Templates + tool profiles"] --> Lifecycle
+    API["FastAPI"] --> Lifecycle
+    MCP["MCP: shoal-orchestrator"] --> Lifecycle
+
+    Lifecycle --> Worktrees["git worktrees"]
+    Lifecycle --> Tmux["tmux sessions"]
+    Lifecycle --> Pool["MCP pool / proxy"]
+    Lifecycle --> DB["SQLite state"]
+
+    Tmux --> Watcher["status watcher"]
+    Watcher --> DB
+
+    DB --> Status["shoal status / popup / info"]
+    DB --> API
+    DB --> MCP
+
+    Pool --> AgentTools["agent MCP clients"]
+    Tmux --> AgentTools["Claude / Pi / Codex / OpenCode"]
+```
 ## Core components
 
 ### Session manager

@@ -147,8 +147,19 @@ shoal robo watch default --daemon
 
 Use this when you want one agent writing, one critiquing, and one reducing approval latency.
 
-![Author, reviewer, supervisor topology](assets/operator-topology.svg)
+Read it left to right: the human keeps intent, the author pushes code forward, the reviewer applies pressure, and robo keeps approval delays from stalling the lane.
 
+```mermaid
+flowchart LR
+    Operator["Operator"] --> Author["Author session<br/>feat/auth-api"]
+    Operator --> Reviewer["Reviewer session<br/>review/auth-api"]
+    Operator --> Robo["Robo supervisor"]
+
+    Author -->|code + journal updates| Reviewer
+    Reviewer -->|findings + risk notes| Author
+    Robo -->|approvals / escalation| Author
+    Robo -->|approvals / escalation| Reviewer
+```
 ### Planner, implementer, closer
 
 ```bash
@@ -293,8 +304,18 @@ shoal remote send devbox feat/auth-api "run the focused test subset"
 
 Consistency matters more than novelty when you are operating across machines.
 
-![Remote fleet operating topology](assets/remote-fleet-topology.svg)
+Read it left to right: keep one operator surface locally, tunnel control to the remote host, and let the remote Shoal instance manage the actual session runtime.
 
+```mermaid
+flowchart LR
+    Operator["Operator laptop"] --> Local["Local Shoal CLI / popup"]
+    Local --> Tunnel["SSH tunnel"]
+    Local --> Orch["shoal-orchestrator tools"]
+    Tunnel --> RemoteShoal["Remote Shoal control plane"]
+    RemoteShoal --> Sessions["Remote tmux sessions + worktrees"]
+    Orch --> RemoteShoal
+    Sessions -->|status / journals / output| RemoteShoal
+```
 ## Advanced configurations that actually help
 
 These are worth adopting once the basics are stable.
