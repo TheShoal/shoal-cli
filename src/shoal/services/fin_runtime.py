@@ -243,7 +243,10 @@ def install_fin(
 
     source = FinSource.parse(str(fin_path))
     if source.kind != "local":
-        fin_path = source.resolve(registry_url)
+        try:
+            fin_path = source.resolve(registry_url)
+        except ValueError as exc:
+            raise FinRuntimeError(str(exc)) from exc
     fin_root, manifest = load_fin_manifest(fin_path)
     entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.install)
     resolved_timeout = timeout if timeout is not None else manifest.default_timeout_seconds
