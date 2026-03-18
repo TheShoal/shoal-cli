@@ -217,13 +217,15 @@ class TestRobo:
 
         with (
             patch("shoal.core.tmux.has_session", return_value=True),
+            patch("shoal.core.tmux.preferred_pane", return_value="%0") as mock_pane,
             patch("shoal.core.tmux.send_keys") as mock_send,
         ):
             result = runner.invoke(app, ["robo", "send", "test-session", "ls -la"])
 
             assert result.exit_code == 0
             assert "Sent keys to 'test-session'" in result.output
-            mock_send.assert_called_once_with(s.tmux_session, "ls -la")
+            mock_pane.assert_called_once_with(s.tmux_session, title=f"shoal:{s.id}")
+            mock_send.assert_called_once_with("%0", "ls -la")
 
     def test_approve(self, mock_dirs):
         from shoal.core.state import create_session
@@ -232,13 +234,15 @@ class TestRobo:
 
         with (
             patch("shoal.core.tmux.has_session", return_value=True),
+            patch("shoal.core.tmux.preferred_pane", return_value="%0") as mock_pane,
             patch("shoal.core.tmux.send_keys") as mock_send,
         ):
             result = runner.invoke(app, ["robo", "approve", "test-session"])
 
             assert result.exit_code == 0
             assert "Sent keys to 'test-session'" in result.output
-            mock_send.assert_called_once_with(s.tmux_session, "")
+            mock_pane.assert_called_once_with(s.tmux_session, title=f"shoal:{s.id}")
+            mock_send.assert_called_once_with("%0", "")
 
 
 class TestWorktree:

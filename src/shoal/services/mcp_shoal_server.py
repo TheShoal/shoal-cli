@@ -515,10 +515,11 @@ async def create_session_tool(
     if prompt and tool_cfg.input_mode == "keys":
         from shoal.core import tmux
 
-        await tmux.async_wait_for_ready(
-            await tmux.async_first_pane(session.tmux_session), tool_cfg, timeout=5.0
+        pane_target = await tmux.async_preferred_pane(
+            session.tmux_session, title=f"shoal:{session.id}"
         )
-        await tmux.async_send_keys(session.tmux_session, prompt, delay=tool_cfg.send_keys_delay)
+        await tmux.async_wait_for_ready(pane_target, tool_cfg, timeout=5.0)
+        await tmux.async_send_keys(pane_target, prompt, delay=tool_cfg.send_keys_delay)
 
     return {
         "id": session.id,

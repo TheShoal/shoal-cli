@@ -170,7 +170,8 @@ async def _send_impl(session_name_or_id: str, keys: str) -> None:
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
-    tmux.send_keys(s.tmux_session, keys)
+    pane_target = tmux.preferred_pane(s.tmux_session, title=f"shoal:{s.id}")
+    tmux.send_keys(pane_target, keys)
 
 
 def popup() -> None:
