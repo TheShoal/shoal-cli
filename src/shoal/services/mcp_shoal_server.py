@@ -36,6 +36,7 @@ from shoal.models.batch import (
     SessionStatusBatchOp,
     SnapshotField,
 )
+from shoal.services import git_tools
 from shoal.services.batch import AUTO_ENTER_TOOLS, execute_batch
 from shoal.services.batch import session_snapshot as build_session_snapshot
 
@@ -301,7 +302,7 @@ async def read_history_tool(session: str, limit: int = 50) -> list[dict[str, obj
 async def session_snapshot_tool(
     sessions: list[str],
     fields: list[SnapshotField] | None = None,
-    pane_lines: int = 20,
+    pane_lines: int = 50,
     max_parallelism: int = 8,
 ) -> dict[str, object]:
     """Capture a read-optimized snapshot for multiple sessions."""
@@ -431,6 +432,11 @@ async def create_session_tool(
     # Resolve path
     if not git.is_git_repo(path):
         raise ToolError(f"Not a git repository: {path}")
+
+    # Validate worktree/branch co-dependency
+    if branch and not worktree:
+        raise ToolError("branch=True requires a worktree name. Pass worktree=<name> to create one.")
+
 
     # Resolve tool
     resolved_tool = tool or cfg.general.default_tool
@@ -667,6 +673,79 @@ async def wait_for_completion_tool(
             }
 
     return {"completed": False, "waited_seconds": timeout_seconds}
+
+
+# ---------------------------------------------------------------------------
+# Tool: branch_status
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="branch_status",
+    description=(
+        "Get git branch info for a session's worktree: branch name, ahead/behind, "
+        "dirty, last commit."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def branch_status_tool(session: str) -> dict[str, object]:
+    """Return git branch status for the session's worktree."""
+    from shoal.core.state import find_by_name, get_session
+
+    session_id = await find_by_name(session)
+    if session_id is None:
+        raise ToolError(f"Session not found: {session}")
+
+    state = await get_session(session_id)
+    if state is None:
+        raise ToolError(f"Session not found: {session}")
+
+    if not state.worktree:
+        raise ToolError("Session has no worktree")
+
+    return await git_tools.branch_status(state.worktree)
+
+
+# ---------------------------------------------------------------------------
+# Tool: merge_branch
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="merge_branch",
+    description=(
+        "Merge a session's branch into a target branch in its worktree. "
+        "Refuses if worktree is dirty."
+    ),
+    annotations={"destructiveHint": True},
+)
+async def merge_branch_tool(
+    session: str,
+    target: str,
+    strategy: str = "merge",
+) -> dict[str, object]:
+    """Merge the session's current branch into target."""
+    from shoal.core.state import find_by_name, get_session
+
+    session_id = await find_by_name(session)
+    if session_id is None:
+        raise ToolError(f"Session not found: {session}")
+
+    state = await get_session(session_id)
+    if state is None:
+        raise ToolError(f"Session not found: {session}")
+
+    if not state.worktree:
+        raise ToolError("Session has no worktree")
+
+    if strategy not in {"merge", "squash"}:
+        raise ToolError(f"Invalid strategy: {strategy!r}. Must be 'merge' or 'squash'.")
+
+
+    return await git_tools.merge_branch(
+        state.worktree, target, strategy=strategy  # type: ignore[arg-type]
+    )
+
 
 
 # ---------------------------------------------------------------------------

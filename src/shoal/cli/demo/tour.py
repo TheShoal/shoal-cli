@@ -373,10 +373,12 @@ async def step_mcp_orchestration() -> TourResult:
         expected_tools = [
             "append_journal",
             "batch_execute",
+            "branch_status",
             "capture_pane",
             "create_session",
             "kill_session",
             "list_sessions",
+            "merge_branch",
             "read_history",
             "read_journal",
             "send_keys",
