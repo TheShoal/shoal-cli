@@ -222,20 +222,28 @@ def install_fin(
     *,
     register: bool = True,
     timeout: int | None = None,
+    registry_url: str = "https://fins.shoal.dev",
 ) -> FinExecutionResult:
     """Execute a fin's ``install`` entrypoint after manifest checks.
 
     Args:
-        fin_path: Path to fin root directory or fin.toml file.
+        fin_path: Path to fin root directory or fin.toml file.  Also accepts
+            ``http(s)://`` URLs and ``fin:<name>[@<version>]`` shorthands.
         register: If True (default), copy the fin into ``fins_dir()`` after
             a successful entrypoint run.  Registration failures emit a warning
             but do not affect the returned result.
         timeout: Override seconds limit.  Falls back to
             ``manifest.default_timeout_seconds``, then no limit.
+        registry_url: Base URL used to resolve ``fin:`` shorthand sources.
 
     Returns:
         Result of the install entrypoint execution.
     """
+    from shoal.models.fin import FinSource
+
+    source = FinSource.parse(str(fin_path))
+    if source.kind != "local":
+        fin_path = source.resolve(registry_url)
     fin_root, manifest = load_fin_manifest(fin_path)
     entrypoint = resolve_entrypoint(fin_root, manifest.entrypoints.install)
     resolved_timeout = timeout if timeout is not None else manifest.default_timeout_seconds

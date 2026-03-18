@@ -64,7 +64,7 @@ def fin_validate(
 
 @app.command("install")
 def fin_install(
-    fin_path: Annotated[str, typer.Argument(help="Path to fin root or fin.toml")],
+    fin_path: Annotated[str, typer.Argument(help="Path to fin root, HTTPS URL, or fin:<name>[@<version>] shorthand")],
     no_register: Annotated[
         bool,
         typer.Option("--no-register", help="Run install entrypoint only; do not register fin."),
@@ -73,10 +73,18 @@ def fin_install(
         int | None,
         typer.Option("--timeout", help="Max seconds allowed; overrides manifest default"),
     ] = None,
+    registry_url: Annotated[
+        str,
+        typer.Option("--registry-url", help="Registry base URL for fin: shorthand."),
+    ] = "https://fins.shoal.dev",
 ) -> None:
-    """Install a fin by executing its install entrypoint."""
+    """Install a fin by executing its install entrypoint.
+
+    Accepts a local path, an HTTPS URL to a .tar.gz/.zip archive, or a
+    ``fin:<name>[@<version>]`` registry shorthand.
+    """
     try:
-        result = install_fin(fin_path, register=not no_register, timeout=timeout)
+        result = install_fin(fin_path, register=not no_register, timeout=timeout, registry_url=registry_url)
     except FinRuntimeError as exc:
         typer.echo(f"Error: {exc}")
         raise typer.Exit(1) from None
