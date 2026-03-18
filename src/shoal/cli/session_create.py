@@ -9,6 +9,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
+from shoal.cli.mode_presets import resolve_mode_defaults
 from shoal.core import git
 from shoal.core.config import (
     ConfigLoadError,
@@ -17,6 +18,8 @@ from shoal.core.config import (
     load_config,
     load_template,
     load_tool_config,
+    template_source,
+    templates_dir,
 )
 from shoal.core.db import with_db
 from shoal.core.git import infer_branch_name, validate_branch_name
@@ -60,6 +63,13 @@ def add(
     template: Annotated[
         str | None, typer.Option("--template", help="Session template name")
     ] = None,
+    mode: Annotated[
+        str | None,
+        typer.Option(
+            "--mode",
+            help="Single-session mode defaults: feature-lane, author-review, remote-batch",
+        ),
+    ] = None,
     worktree: Annotated[
         str | None, typer.Option("-w", "--worktree", help="Create a git worktree")
     ] = None,
@@ -72,33 +82,73 @@ def add(
         str | None,
         typer.Option("--mcp", help="MCP servers to provision (comma-separated)"),
     ] = None,
-) -> None:
+ ) -> None:
     """Create a new session."""
     mcp_list = [s.strip() for s in mcp.split(",") if s.strip()] if mcp else []
-    asyncio.run(with_db(_add_impl(path, tool, template, worktree, branch, dry_run, name, mcp_list)))
+    asyncio.run(
+        with_db(_add_impl(path, tool, template, mode, worktree, branch, dry_run, name, mcp_list))
+    )
 
 
 async def _add_impl(
     path: str | None,
     tool: str | None,
     template: str | None,
+    mode: str | None,
     worktree: str | None,
     branch: bool,
     dry_run: bool,
     name: str | None,
     mcp_servers: list[str] | None = None,
-) -> None:
+ ) -> None:
     ensure_dirs()
     cfg = load_config()
     template_cfg = None
+    resolved_mode: str | None = None
+    resolved_path = Path(path).resolve() if path else Path.cwd().resolve()
+
+    # Validate git repo before applying mode defaults that may synthesize worktrees.
+    if not git.is_git_repo(str(resolved_path)):
+        console.print("[red]Error: Not a git repository[/red]")
+        console.print(f"[dim]Path: {resolved_path}[/dim]")
+        console.print()
+        console.print("[yellow]Shoal requires a git repository to track sessions.[/yellow]")
+        console.print("Run one of the following:")
+        console.print(f"  cd {resolved_path} && git init")
+        console.print("  shoal new <path-to-git-repo>")
+        raise typer.Exit(1)
+
+    root = git.git_root(str(resolved_path))
+
+    if mode:
+        try:
+            mode_defaults = resolve_mode_defaults(
+                mode,
+                name=name,
+                template=template,
+                tool=tool,
+                worktree=worktree,
+                branch=branch,
+                project_name=Path(root).name,
+            )
+        except ValueError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            raise typer.Exit(1) from None
+
+        resolved_mode = mode_defaults.mode
+        template = mode_defaults.template
+        tool = mode_defaults.tool
+        worktree = mode_defaults.worktree
+        branch = mode_defaults.branch
 
     if template:
         try:
             template_cfg = load_template(template)
         except FileNotFoundError:
+            template_path = templates_dir() / f"{template}.toml"
+            source = template_source(template)
             console.print(f"[red]Error: Template '{template}' not found[/red]")
-            templates_dir = config_dir() / "templates"
-            console.print(f"[dim]Expected config at: {templates_dir / f'{template}.toml'}[/dim]")
+            console.print(f"[dim]Expected config at: {template_path} ({source})[/dim]")
             raise typer.Exit(1) from None
         except ConfigLoadError as e:
             console.print(f"[red]{e}[/red]")
@@ -130,12 +180,8 @@ async def _add_impl(
             merged = set(mcp_servers or []) | set(template_cfg.mcp)
             mcp_servers = sorted(merged)
 
-    resolved_path = Path(path).resolve() if path else Path.cwd().resolve()
-
     if not tool:
         tool = cfg.general.default_tool
-
-    # Validate tool config
     tool_config_path = config_dir() / "tools" / f"{tool}.toml"
     if not tool_config_path.exists():
         console.print(f"[red]Error: Unknown tool '{tool}'[/red]")
@@ -158,18 +204,7 @@ async def _add_impl(
         console.print("  EOF")
         raise typer.Exit(1)
 
-    # Validate git repo
-    if not git.is_git_repo(str(resolved_path)):
-        console.print("[red]Error: Not a git repository[/red]")
-        console.print(f"[dim]Path: {resolved_path}[/dim]")
-        console.print()
-        console.print("[yellow]Shoal requires a git repository to track sessions.[/yellow]")
-        console.print("Run one of the following:")
-        console.print(f"  cd {resolved_path} && git init")
-        console.print("  shoal new <path-to-git-repo>")
-        raise typer.Exit(1)
 
-    root = git.git_root(str(resolved_path))
     work_dir = str(resolved_path)
     branch_name = ""
 
@@ -235,9 +270,10 @@ async def _add_impl(
         else:
             console.print(f"  Directory: {work_dir}")
         console.print(f"  Tmux: {tmux_session}")
+        if resolved_mode:
+            console.print(f"  Mode: {resolved_mode}")
         if template_cfg:
             console.print(f"  Template: {template_cfg.name}")
-
         try:
             if template_cfg and template_cfg.windows:
                 startup_preview = _preview_template_startup(
@@ -319,6 +355,8 @@ async def _add_impl(
     if worktree:
         console.print(f"  Worktree: {work_dir}")
         console.print(f"  Branch: {branch_name}")
+    if resolved_mode:
+        console.print(f"  Mode: {resolved_mode}")
     if template_cfg:
         console.print(f"  Template: {template_cfg.name}")
     if session.mcp_servers:

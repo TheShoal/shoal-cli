@@ -45,7 +45,8 @@ The `[source]` tag identifies where the entry came from: `cli`, `mcp`, `robo`, o
 | Path | Purpose |
 |------|---------|
 | `~/.local/share/shoal/journals/<session_id>.md` | Active journal |
-| `~/.local/share/shoal/journals/archive/<session_id>.md` | Archived (after `shoal kill`) |
+| `~/.local/share/shoal/journals/handoffs/<session_id>.md` | Saved handoff artifact from `shoal journal <session> --handoff` |
+| `~/.local/share/shoal/journals/archive/<session_id>.md` | Archived journal (after `shoal kill`) |
 
 ### YAML Frontmatter
 
@@ -86,6 +87,9 @@ shoal journal <session> -n 5
 # Append an entry
 shoal journal <session> --append "your note here"
 shoal journal <session> -a "your note here"
+
+# Generate and save a structured handoff artifact
+shoal journal <session> --handoff
 
 # Append with custom source tag
 shoal journal <session> -a "note" --source robo

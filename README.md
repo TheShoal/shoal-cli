@@ -46,7 +46,7 @@
 
 You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenCode. You want them working in parallel without stomping on each other's files. You need to know when they're thinking, when they're waiting for approval, and when they've errored out. And when you step away, you need state that survives the interruption.
 
-**Shoal is the control plane for parallel coding agents.** Not another agent. Not a better model. The layer above the agent interface where supervision, state, topology, handoffs, and control live. You declare sessions, Shoal gives each one a git worktree, a tmux session, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all.
+**Shoal is the control plane for parallel coding agents.** Not another agent. Not a better model. The layer above the agent interface and runtime where supervision, state, topology, handoffs, and control live. You declare sessions, Shoal gives each one a git worktree, a tmux session, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all. Secure worker runtimes can sit underneath that layer; Shoal orchestrates them, but sandboxing and runtime security stay with the runtime.
 
 ---
 

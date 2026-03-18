@@ -145,9 +145,17 @@ Released 2026-03-07
 
 ## Backlog
 
+ > Near-term product differentiation is operator experience: structured handoff packets, role/mode templates, and a flagship secure-fleet demo that shows Shoal's control-plane layer above secure agent runtimes instead of pretending to be the runtime itself.
+
+### Operator Experience
+
+- **Structured handoff packets** (B2): Turn journals into first-class handoff artifacts instead of leaving recovery to raw thread history. When a session ends or hits a milestone, emit a structured packet: resume brief, reviewer brief, assumptions made, unresolved blockers, risky changes, and suggested next action. Formats: markdown summary + optional JSON. Design: new `shoal journal handoff <session>` command; structured fields as YAML front-matter extension or a separate `handoff.md` artifact written to the session journal dir on kill.
+- **Role/mode templates** (B3): Make the documented operating modes (author/reviewer/supervisor, planner/implementer/closer, local/remote) concrete product flows, not just concepts. Implement as named template presets: `shoal new --mode author-review`, `shoal new --mode remote-batch`, `shoal new --mode feature-lane`. Each mode wires up naming conventions, role tags, review contracts, and escalation defaults. Design: `mode` field on template config that expands to a canonical set of tags, naming patterns, and robo config. Documented in operator playbooks.
+- **Flagship secure-fleet demo** (B6): Build and script a single end-to-end demo that tells the full control-plane story: (1) planner scopes work, (2) implementer works in an isolated worktree, (3) reviewer critiques changes, (4) supervisor escalates a blocker, (5) one task runs remotely overnight, (6) next morning Shoal surfaces what changed, what is blocked, what needs approval, and what is ready to merge. The point is to show Shoal coordinating lanes, handoffs, and approvals even when the underlying agent runtime is security-focused (for example OpenShell), not to turn Shoal into the sandbox/privacy/policy runtime. Implement via `shoal demo fleet` scenario in the demo CLI package; requires B2 handoff packets and at least partial B1 operator board improvements to be credible.
+
 ### Worktree & Environment Initialization
 
-> Full design: [docs/WORKTREE_ENV_INIT.md](docs/WORKTREE_ENV_INIT.md)
+ > Full design: [docs/WORKTREE_ENV_INIT.md](docs/WORKTREE_ENV_INIT.md)
 
 - **Template `setup_commands`** (feature): New `setup_commands: list[str]` field on `SessionTemplateConfig` and `TemplateMixinConfig`. Commands run via `send-keys` in the initial pane before the agent launches. Canonical answer for venv activation (`uv sync`, `source .venv/bin/activate.fish`). Inheritance: extends=replace, mixins=append. Files: `models/config.py`, `services/lifecycle.py`, `docs/LOCAL_TEMPLATES.md`
 - **Project-level `.shoal.toml`** (feature, lower priority): Committed config at project root with `[env]` and `[setup]` sections. Precedence: `.shoal.toml` < `template.env` < CLI flags. Discovered via `git_root`. Files: `core/config.py`, `services/lifecycle.py`
@@ -163,33 +171,11 @@ Released 2026-03-07
 - Remote status bar: Fish status bar polls remote WebSocket for session status
 - **Auto-commit on session idle/kill**: Workers should automatically commit their changes when they finish working. Implement as a lifecycle hook (`session_killed`, `status_changed → idle`) that runs `git add -A && git commit` in the session's worktree. Should be user-configurable — `auto_commit` bool in `[template.git]` or `GeneralConfig` (default on in templates, off globally). Consider: commit message generation (conventional commit from diff summary vs. agent-provided), dirty worktree guard on kill already exists (`DirtyWorktreeError`), opt-out for sessions where manual review is preferred. Related to robo merge workflow and per-session git practices below.
 - **Robo merge/worktree workflow**: Document merge-back-to-main lifecycle for robo supervisor — concrete instructions in default `AGENTS.md` template and ROBO_GUIDE section covering: branch readiness checks, test verification before merge, safe auto-merge patterns vs. human review, worktree cleanup after merge, and post-session branch deletion. Consider dedicated MCP tools (`merge_branch`, `branch_status`) so robo doesn't need raw `send_keys` for git operations.
+- **Robofish dogfooding rough edges**: Smooth out the friction we hit while using Shoal to run Shoal: clearer `create_session` semantics/examples for `worktree` + `branch`, stronger worker-complete signals than pane polling alone, structured worker summaries written somewhere supervisors can read reliably, and a first-class collect/review flow for merging worker results back together.
 - **Batch MCP commands**: Adapt existing MCP tools (`send_keys`, `session_status`, `kill_session`, `capture_pane`, etc.) to accept lists of sessions for batch operations. Add batch variants or overload existing tools to handle `session: str | list[str]` — enables robo supervisors and orchestrators to approve/kill/query multiple sessions in a single MCP call instead of N sequential calls. Consider a `batch_execute` meta-tool that takes `[(tool, params), ...]` for arbitrary batching.
 - **Per-session git practices**: Unblocked once template env gap is fixed — support git identity and conventions per session via `[template.env]` (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Longer-term: dedicated `[template.git]` section for commit conventions, hook profiles, and branch naming rules — enabling different practices for admin agents, robo supervisors, and task workers.
 - **Fins (extension system)**: Plugin/extension architecture for Shoal — let users and third parties extend functionality without modifying core. Consider: custom tool profiles, lifecycle hook packages, MCP server bundles, CLI subcommand plugins, and template libraries as installable Fins. Design decisions: discovery mechanism (entry points vs config registry), sandboxing, API surface contract, naming (`shoal fin install`, `shoal fin ls`). Look at FastMCP's plugin patterns and Click's plugin system for inspiration.
 
-
-### Operator Experience
-
-- **Structured journal handoff packets** (B2): Make journals produce actionable output beyond
-  append-only markdown. When a session ends or hits a milestone, emit a structured handoff
-  artifact: resume brief, reviewer brief, assumptions made, unresolved blockers, risky changes,
-  suggested next action. Formats: markdown summary + optional JSON. This is a strong wedge
-  because most tools still rely on raw thread history for context recovery. Design: new
-  `shoal journal handoff <session>` command; structured fields as YAML front-matter extension
-  or a separate `handoff.md` artifact written to the session journal dir on kill.
-- **Role/mode templates** (B3): Make the documented operating modes (author/reviewer/supervisor,
-  planner/implementer/closer, local/remote) concrete product flows, not just concepts. Implement
-  as named template presets: `shoal new --mode author-review`, `shoal new --mode remote-batch`,
-  `shoal new --mode feature-lane`. Each mode wires up naming conventions, role tags, review
-  contracts, and escalation defaults. Design: `mode` field on template config that expands to
-  a canonical set of tags, naming patterns, and robo config. Documented in operator playbooks.
-- **Flagship demo workflow** (B6): Build and script a single end-to-end demo that tells the
-  full control-plane story: (1) planner scopes work, (2) implementer works in isolated worktree,
-  (3) reviewer critiques changes, (4) supervisor escalates a blocker, (5) one task runs remotely
-  overnight, (6) next morning Shoal surfaces what changed, what is blocked, what needs approval,
-  and what is ready to merge. This demo explains Shoal better than documentation can. Implement
-  via `shoal demo fleet` scenario in the demo CLI package; requires B2 handoff packets and at
-  least partial B1 operator board improvements to be credible.
 ---
 
 ## Handoff

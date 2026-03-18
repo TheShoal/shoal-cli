@@ -91,6 +91,8 @@ Shoal keeps two transport layers separate:
 
 That separation keeps orchestration concerns independent from tool-runtime concerns.
 
+If a team runs agents inside a security-focused runtime such as OpenShell or NemoClaw, that lower layer should own sandboxing, permission policy, privacy boundaries, and execution isolation. Shoal's layer stays the same: worktree orchestration, session topology, state tracking, handoff artifacts, review lanes, and fleet supervision. This is a layering principle, not a claim that Shoal already ships a first-class integration with those runtimes.
+
 ## Template inheritance and composition
 
 Templates are the main abstraction for repeatable session setup.

@@ -19,6 +19,7 @@ from shoal.core.journal import (
     read_archived_journal,
     read_journal,
     search_journals,
+    write_handoff_artifact,
 )
 from shoal.core.state import resolve_session
 
@@ -114,6 +115,8 @@ def _render_handoff(session_id: str, session_state: object) -> None:
     transitions = asyncio.run(with_db(_get_transitions()))
 
     artifact = generate_handoff(session_state or {}, entries, transitions)
+    artifact_path = write_handoff_artifact(session_id, artifact)
+    console.print(f"[green]Saved handoff artifact:[/green] {artifact_path}")
     console.print(Markdown(artifact.to_markdown()))
 
 

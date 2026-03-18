@@ -1,10 +1,19 @@
-"""Tests for generate_handoff in core/journal.py."""
+"""Tests for generate_handoff and persisted handoff artifacts."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
-from shoal.core.journal import HandoffArtifact, JournalEntry, generate_handoff
+from rich.markdown import Markdown
+
+from shoal.cli.journal import _render_handoff
+from shoal.core.journal import (
+    HandoffArtifact,
+    JournalEntry,
+    generate_handoff,
+    write_handoff_artifact,
+)
 from shoal.models.state import SessionState, SessionStatus
 
 
@@ -94,7 +103,6 @@ class TestGenerateHandoff:
         s = _session()
         result = generate_handoff(s, entries, [], now=NOW, recent_entry_count=3)
         assert len(result.recent_entries) == 3
-        # Should be the last 3 entries (newest)
         assert result.recent_entries == entries[-3:]
 
     def test_transitions_summarised(self):
@@ -136,4 +144,38 @@ class TestGenerateHandoff:
         """generate_handoff tolerates arbitrary objects gracefully."""
         result = generate_handoff({}, [], [], now=NOW)
         assert isinstance(result, HandoffArtifact)
-        assert result.suggested_next  # should still produce something
+        assert result.suggested_next
+
+
+class TestHandoffArtifacts:
+    def test_write_handoff_artifact_persists_markdown(self, tmp_path):
+        artifact = generate_handoff(_session(), [_entry("Fixed auth")], [], now=NOW)
+
+        with patch("shoal.core.journal.data_dir", return_value=tmp_path):
+            path = write_handoff_artifact("abc", artifact)
+
+        assert path == tmp_path / "journals" / "handoffs" / "abc.md"
+        assert path.read_text() == artifact.to_markdown()
+
+    def test_render_handoff_writes_artifact_and_prints_saved_path(self, tmp_path):
+        session = _session()
+        mock_db = AsyncMock()
+        mock_db.get_status_transitions = AsyncMock(return_value=[_transition("idle", "running")])
+
+        with (
+            patch("shoal.core.journal.data_dir", return_value=tmp_path),
+            patch("shoal.cli.journal.read_journal", return_value=[_entry("Fixed auth")]),
+            patch("shoal.core.db.get_db", new=AsyncMock(return_value=mock_db)),
+            patch("shoal.cli.journal.console.print") as mock_print,
+        ):
+            _render_handoff("abc", session)
+
+        artifact_path = tmp_path / "journals" / "handoffs" / "abc.md"
+        assert artifact_path.exists()
+        assert "Fixed auth" in artifact_path.read_text()
+        assert any(
+            "Saved handoff artifact:" in str(call.args[0])
+            and str(artifact_path) in str(call.args[0])
+            for call in mock_print.call_args_list
+        )
+        assert any(isinstance(call.args[0], Markdown) for call in mock_print.call_args_list)

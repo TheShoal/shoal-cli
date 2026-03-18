@@ -2,7 +2,7 @@
 
 ## Purpose in the ecosystem
 
-Shoal is the orchestration core. It coordinates parallel coding-agent sessions, worktrees, tool routing, and shared control-plane behaviors.
+Shoal is the operator control plane above agent runtimes. It coordinates parallel coding-agent sessions, worktrees, tool routing, and shared control-plane behaviors; execution isolation, sandboxing, and permission policy belong to the runtime beneath it.
 
 ## Current state (medium-term snapshot)
 
@@ -14,6 +14,7 @@ Shoal is the orchestration core. It coordinates parallel coding-agent sessions, 
 
 - Pi is the primary first-class agent backend for Shoal sessions.
 - OpenCode remains supported for compatibility and migration, but status detection is best-effort.
+- OpenShell-class runtimes fit under Shoal as optional secure worker substrates; they own sandboxing and execution policy while Shoal owns session topology, lifecycle, and observability.
 - Fins/plugins are the preferred path for exposing additional agent runtimes and custom orchestration behavior.
 - Goal: move status/lifecycle toward explicit tool event contracts (when available) and minimize regex-only scraping.
 
@@ -28,7 +29,7 @@ Shoal is the orchestration core. It coordinates parallel coding-agent sessions, 
 ## Integration points
 
 - Consumes: local tool binaries and MCP servers
-- Integrates with: Pisces (agent runtime), Tidepool/Periwinkle (knowledge and context tooling), Dotfiles (local defaults)
+- Integrates with: Pi/Pisces and other agent runtimes (including secure substrates such as OpenShell), Tidepool/Periwinkle (knowledge and context tooling), Dotfiles (local defaults)
 - Produces: session state, status, lifecycle events, and orchestration APIs for ecosystem tooling
 
 ## Public-readiness focus

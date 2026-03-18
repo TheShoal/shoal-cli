@@ -173,6 +173,11 @@ def journal_path(session_id: str) -> Path:
     return _journals_dir() / f"{session_id}.md"
 
 
+def handoff_artifact_path(session_id: str) -> Path:
+    """Return the persisted handoff artifact path for a session."""
+    return _journals_dir() / "handoffs" / f"{session_id}.md"
+
+
 def journal_exists(session_id: str) -> bool:
     """Check if a journal exists for the given session."""
     return journal_path(session_id).exists()
@@ -351,6 +356,14 @@ def search_journals(query: str, limit: int = 10) -> list[JournalSearchResult]:
     # Sort newest first
     results.sort(key=lambda r: r.entry.timestamp, reverse=True)
     return results[:limit]
+
+
+def write_handoff_artifact(session_id: str, artifact: HandoffArtifact) -> Path:
+    """Write a generated handoff artifact under the journals tree and return its path."""
+    path = handoff_artifact_path(session_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(artifact.to_markdown())
+    return path
 
 
 def archive_journal(session_id: str) -> bool:

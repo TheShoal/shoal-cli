@@ -11,6 +11,18 @@
 Shoal is easiest to adopt when you stop thinking in commands and start thinking in operating
 patterns. These playbooks are opinionated defaults for common high-leverage modes.
 
+## Quick mode shortcuts
+
+For the first session in a lane, `shoal new --mode ...` can prefill one-session defaults:
+
+```bash
+shoal new --mode feature-lane
+shoal new --mode author-review --name auth-review
+shoal new --mode remote-batch --name cache-pass
+```
+
+These are single-session defaults only. They do not create the whole multi-session topology for you.
+
 <div class="shoal-step-grid shoal-step-grid--plain">
   <div class="shoal-step">
     <strong>Fast triage burst</strong>
@@ -131,6 +143,30 @@ shoal popup
 ```
 
 This is where Shoal stops being a launcher and becomes a control room.
+
+## 7. Secure fleet with sandboxed runtimes
+
+When running agents against sensitive codebases or infrastructure, combine Shoal's
+fleet control with a sandboxed runtime (OpenShell-class environments, Docker, or similar).
+Shoal manages the fleet. The runtime constrains each worker.
+
+```bash
+# Launch workers with a tool profile that wraps your sandboxed runtime
+shoal new --mode feature-lane --tool opencode --name payments-impl
+shoal new --mode author-review --tool opencode --name payments-review
+
+# Supervisor watches both, escalates on block
+shoal new --template robo-orchestrator --tool pi --name payments-robo
+```
+
+The tool config (`~/.config/shoal/tools/opencode.toml`) points to whatever
+sandboxed runner your security posture requires — Shoal doesn't care what
+executes inside the tool, only that it responds on the expected pane.
+
+**Layering principle**: Shoal enforces session lifecycle, journal continuity,
+and operator visibility. The runtime enforces file system scope, network policy,
+and process isolation. Neither substitutes for the other.
+
 
 ## Configure for these playbooks
 

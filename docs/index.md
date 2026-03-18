@@ -55,8 +55,11 @@ Shoal is built for the point where "open another terminal" stops scaling.
 ## Shoal is not another coding agent
 
 Shoal does not compete with Claude Code, Codex, Pi, Gemini, or OpenCode. It is the layer
-above the agent interface where supervision, state, topology, handoffs, and control live.
+above the agent interface and runtime where supervision, state, topology, handoffs, and
+control live.
 
+Think of the stack in layers: the runtime executes and enforces its own sandbox or
+permission model; Shoal operates above it as the operator surface.
 - **Not a better model.** Use whichever agent you want — Shoal runs them all.
 - **Not a better editor.** The terminal is the surface; Shoal makes it legible.
 - **Not a desktop app.** The control plane runs in your terminal and survives SSH, overnight
@@ -68,6 +71,9 @@ coherent system instead of a growing pile of chat threads.
 ## What Shoal is really designing
 
 Shoal is a control plane for human-AI collaboration at the terminal.
+
+That means secure runtimes such as OpenShell can fit cleanly underneath Shoal: Shoal can
+coordinate them, but runtime security stays with the runtime.
 
 - Templates reduce setup friction before work starts.
 - Tmux topology keeps multiple sessions visible and recoverable.

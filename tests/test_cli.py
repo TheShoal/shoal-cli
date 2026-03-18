@@ -150,12 +150,20 @@ class TestNew:
         assert "Not a git repository" in result.output
 
     def test_unknown_tool(self, mock_dirs, tmp_path):
-        result = runner.invoke(app, ["new", str(tmp_path), "-t", "nonexistent"])
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(tmp_path)),
+        ):
+            result = runner.invoke(app, ["new", str(tmp_path), "-t", "nonexistent"])
         assert result.exit_code == 1
         assert "Unknown tool" in result.output
 
     def test_unknown_template(self, mock_dirs, tmp_path):
-        result = runner.invoke(app, ["new", str(tmp_path), "--template", "nonexistent"])
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(tmp_path)),
+        ):
+            result = runner.invoke(app, ["new", str(tmp_path), "--template", "nonexistent"])
         assert result.exit_code == 1
         assert "Template 'nonexistent' not found" in result.output
 
