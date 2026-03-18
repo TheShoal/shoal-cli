@@ -24,6 +24,7 @@ class LifecycleEvent(StrEnum):
     session_killed = "session_killed"
     session_forked = "session_forked"
     status_changed = "status_changed"
+    session_completed = "session_completed"
 
 
 def _utcnow() -> datetime:
@@ -52,6 +53,7 @@ class SessionState(BaseModel):
     created_at: datetime = Field(default_factory=_utcnow)
     last_activity: datetime = Field(default_factory=_utcnow)
     status_since: datetime = Field(default_factory=_utcnow)
+    completed_at: datetime | None = None
 
     @field_validator("name")
     @classmethod

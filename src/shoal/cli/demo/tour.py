@@ -383,6 +383,7 @@ async def step_mcp_orchestration() -> TourResult:
             "session_info",
             "session_snapshot",
             "session_status",
+            "wait_for_completion",
         ]
         ok = tool_names == expected_tools
         if ok:

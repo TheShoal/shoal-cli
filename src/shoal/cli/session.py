@@ -188,3 +188,19 @@ def _popup_inner_impl() -> None:
     from shoal.dashboard.popup import run_popup
 
     run_popup()
+
+
+
+def session_done(
+    name: str = typer.Argument(..., help="Session name."),
+    summary: str = typer.Option("", "--summary", "-s", help="Completion summary written to journal."),
+) -> None:
+    """Mark a session as complete."""
+    from shoal.services.lifecycle import SessionNotFoundError, complete_session
+
+    try:
+        asyncio.run(complete_session(name, summary))
+    except SessionNotFoundError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from e
+    typer.echo(f"Session '{name}' marked complete.")

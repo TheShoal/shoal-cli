@@ -614,6 +614,61 @@ async def read_journal_tool(session: str, limit: int = 10) -> list[dict[str, obj
     )
 
 
+
+# ---------------------------------------------------------------------------
+# Tool: wait_for_completion
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="wait_for_completion",
+    description="Poll until a session emits session_completed or timeout elapses.",
+)
+async def wait_for_completion_tool(
+    session: str,
+    timeout_seconds: int = 300,
+) -> dict[str, object]:
+    """Poll until session is marked complete or timeout elapses."""
+    import asyncio
+    import time
+
+    from shoal.core.state import find_by_name, get_session
+
+    session_id = await find_by_name(session)
+    if session_id is None:
+        raise ToolError(f"Session not found: {session}")
+
+    state = await get_session(session_id)
+    if state is None:
+        raise ToolError(f"Session not found: {session}")
+
+    if state.completed_at is not None:
+        return {
+            "completed": True,
+            "completed_at": state.completed_at.isoformat(),
+            "waited_seconds": 0,
+        }
+
+    if timeout_seconds <= 0:
+        return {"completed": False, "waited_seconds": 0}
+
+    start = time.monotonic()
+    elapsed = 0
+    while elapsed < timeout_seconds:
+        await asyncio.sleep(5)
+        elapsed = int(time.monotonic() - start)
+
+        state = await get_session(session_id)
+        if state is not None and state.completed_at is not None:
+            return {
+                "completed": True,
+                "completed_at": state.completed_at.isoformat(),
+                "waited_seconds": elapsed,
+            }
+
+    return {"completed": False, "waited_seconds": timeout_seconds}
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

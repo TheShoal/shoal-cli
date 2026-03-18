@@ -18,7 +18,7 @@ from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
 from shoal.cli.remote import app as remote_app
 from shoal.cli.robo import app as robo_app
-from shoal.cli.session import attach, detach, popup, prune, rename, send
+from shoal.cli.session import attach, detach, popup, prune, rename, send, session_done
 from shoal.cli.session_create import add, fork, kill
 from shoal.cli.session_view import info, logs, ls, status
 from shoal.cli.setup import app as setup_app
@@ -85,6 +85,7 @@ app.command("popup")(popup)
 app.command("diag")(diag)
 app.command("history")(history)
 app.command("journal")(journal_view)
+app.command("done")(session_done)
 
 # Aliases (hidden)
 app.command("i", hidden=True)(info)

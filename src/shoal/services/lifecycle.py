@@ -98,6 +98,9 @@ class DirtyWorktreeError(LifecycleError):
         super().__init__(message, session_id=session_id, operation="kill")
 
 
+
+class SessionNotFoundError(LifecycleError):
+    """Session not found."""
 # ---------------------------------------------------------------------------
 # Rollback helper
 # ---------------------------------------------------------------------------
@@ -1144,6 +1147,58 @@ def reconcile_mcp_pool() -> list[str]:
             logger.info("reconcile: cleaned orphaned MCP socket '%s'", name)
 
     return cleaned
+
+
+async def complete_session(name: str, summary: str = "") -> SessionState:
+    """Mark a session as complete.
+
+    Sets completed_at, appends a journal entry, optionally auto-commits the
+    worktree, emits the session_completed event, and returns the updated state.
+
+    Raises:
+        SessionNotFoundError: Session not found.
+    """
+    from datetime import UTC, datetime
+
+    from shoal.core.db import get_db
+    from shoal.core.journal import append_entry
+
+    session_id = await find_by_name(name)
+    if session_id is None:
+        raise SessionNotFoundError(f"Session not found: {name}", session_id="", operation="complete")
+
+    state = await get_session(session_id)
+    if state is None:
+        raise SessionNotFoundError(f"Session not found: {name}", session_id=session_id, operation="complete")
+
+    state.completed_at = datetime.now(UTC)
+
+    db = await get_db()
+    await db.save_session(state)
+
+    journal_body = f"## Completion\n{summary}" if summary else "## Completion\nSession marked complete."
+    await asyncio.to_thread(append_entry, state.id, journal_body, source="lifecycle")
+
+    # Auto-commit dirty worktree if configured (same pattern as kill_session_lifecycle)
+    if state.worktree:
+        _ac_wt = state.worktree
+        _wt_exists = await asyncio.to_thread(lambda: Path(_ac_wt).is_dir())
+        _ac_on = _wt_exists and load_config().general.auto_commit
+        if _ac_on and await git.async_worktree_is_dirty(_ac_wt):
+            _commit_msg = (
+                f"chore: auto-commit worktree for shoal session '{state.name}'\n\n"
+                f"Branch: {state.branch}\nTool: {state.tool}"
+            )
+            try:
+                await git.async_stage_all(_ac_wt)
+                await git.async_commit(_ac_wt, _commit_msg)
+                logger.info("[%s] complete: auto-committed worktree", state.id)
+            except Exception:
+                logger.warning("[%s] complete: auto-commit failed", state.id, exc_info=True)
+
+    await emit(LifecycleEvent.session_completed, session=state)
+    return state
+
 
 
 # ---------------------------------------------------------------------------
