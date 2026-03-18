@@ -14,7 +14,7 @@ Similarly, Shoal's **Robo** acts as a robot fish that:
 
 ## How Robo fits the loop
 
-Read it top to bottom: worker sessions do the domain work, Robo watches for coordination events, and only the decisions that need judgment come back to the human.
+Read it top to bottom: worker sessions surface events, Robo filters them, and only judgment calls reach the human.
 
 ```mermaid
 flowchart TD
@@ -115,6 +115,9 @@ poll_interval = 10  # Check every 10 seconds
 waiting_timeout = 300  # Escalate after 5 minutes
 ```
 
+!!! tip
+    `poll_interval = 10` is aggressive for a busy fleet. If you have 6+ sessions, raise it to 30–60 to avoid the robo spending most of its attention on status reads.
+
 **Robo instructions** (in the session):
 ```
 Check status every minute with `shoal status`.
@@ -149,6 +152,9 @@ Monitor all sessions. When a session enters "waiting" state:
 3. If it's risky (force push, delete production), escalate to user
 4. Log every approval in task-log.md
 ```
+
+!!! warning "Approval is not automatic"
+    Waiting state does not mean "safe to approve". The robo must read the pane output before approving. Auto-approving based on status alone is how destructive operations get rubber-stamped.
 
 Read it top to bottom: waiting does not automatically mean approve. Robo is supposed to filter routine prompts from decisions that still belong to a human.
 
@@ -213,6 +219,9 @@ notify = true  # macOS notification
 auto_respond = false
 ```
 
+!!! danger "Do not auto-retry"
+    The default instruction is correct: do NOT auto-retry without user confirmation. An agent in error state may have partially executed a destructive step. Retrying blindly can compound the damage.
+
 **Robo instructions**:
 ```
 Check `shoal status` every minute.
@@ -237,6 +246,14 @@ If any session is "error" or "crashed":
 | `shoal robo ls` | List all robo sessions |
 | `shoal robo approve <session>` | Send "Enter" to approve a waiting agent |
 | `shoal robo send <session> <keys>` | Send arbitrary keys to a session |
+
+
+
+!!! info
+
+    `shoal robo approve` sends Enter to the waiting pane. It does not parse the prompt — the robo (or you) must have already judged the operation safe.
+
+
 
 ---
 
@@ -325,13 +342,20 @@ You are the meta-robo. Monitor all robo sessions:
 
 ## Safety Rules
 
-The default `AGENTS.md` includes these safety rules:
 
-1. **Never auto-approve destructive operations** (force push, delete production, etc.)
-2. **Log every action** in task-log.md
-3. **Prefer asking the user** over making assumptions
 
-You can customize these rules by editing `~/.local/share/shoal/robo/<name>/AGENTS.md`.
+!!! danger "Non-negotiable safety rules"
+
+    1. **Never auto-approve destructive operations** — force push, delete production, or anything irreversible.
+
+    2. **Log every action** in `task-log.md`.
+
+    3. **Prefer asking the user** over making assumptions.
+
+
+
+    You can customize these rules by editing `~/.local/share/shoal/robo/<name>/AGENTS.md`.
+
 
 ---
 
@@ -347,19 +371,24 @@ tmux ls | grep robo
 tmux attach -t __default
 ```
 
-### Robo approved something risky
+!!! warning "Robo approved something risky"
 
-Review the task log:
+    **First**: stop the robo immediately.
 
-```bash
-cat ~/.local/share/shoal/robo/default/task-log.md
-```
+    ```bash
 
-If needed, stop the robo and manually intervene:
+    shoal robo stop default
 
-```bash
-shoal robo stop default
-```
+    ```
+
+    Then review `task-log.md` to understand what was approved before deciding whether the agent can continue:
+
+    ```bash
+
+    cat ~/.local/share/shoal/robo/default/task-log.md
+
+    ```
+
 
 ### Can't find robo profile
 

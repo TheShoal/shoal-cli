@@ -30,7 +30,7 @@ security:
     uv run --with bandit bandit -r src/shoal/ -c pyproject.toml -ll
 
 # Run all CI checks sequentially
-ci: fmt-check lint typecheck test fish-check security
+ci: fmt-check lint typecheck test fish-check security docs-lint
 
 # Validate fish template syntax
 fish-check:
@@ -39,6 +39,10 @@ fish-check:
 # Check formatting without modifying (for CI)
 fmt-check:
     uv run ruff format --check .
+
+# Check docs for raw backticks inside HTML elements
+docs-lint:
+    python3 docs/_scripts/check_html_backticks.py
 
 # Run tests with coverage report
 cov:

@@ -30,6 +30,13 @@ documentation branch points to be obvious.
   </div>
 </div>
 
+!!! tip "MCP support"
+    The `[mcp]` extra activates the `shoal-orchestrator` MCP server, which lets other AI agents create, inspect, and kill sessions directly — no shell access required.
+
+    ```bash
+    uv tool install "shoal-cli[mcp]"
+    ```
+
 ## Prerequisites
 
 Shoal assumes a terminal-centric workflow and relies on a small set of system tools.
@@ -42,10 +49,9 @@ Shoal assumes a terminal-centric workflow and relies on a small set of system to
 | `fish` | Recommended reference shell for completions, key bindings, and helper functions |
 | `fzf` | Enables interactive selection in commands like `shoal attach` |
 
-Optional but useful:
-
-- `gh` for `shoal wt finish --pr`
-- `nvr` for Neovim integration
+??? note "Optional tools"
+    - `gh` for `shoal wt finish --pr`
+    - `nvr` for Neovim integration
 
 ## Install
 
@@ -78,6 +84,9 @@ shoal init
 shoal setup fish
 ```
 
+
+!!! warning "First run"
+    If `shoal init` reports missing tools, fix them before running `shoal setup fish`. The fish integration assumes the state directories exist.
 `shoal init` creates the XDG config, state, and runtime directories, scaffolds bundled
 tool and template files, and checks the local environment. `shoal setup fish` installs the
 interactive shell integration on top of that baseline.
@@ -107,6 +116,19 @@ shoal ls --tree
 
 Use `shoal status` for a fast summary, `shoal popup` for the interactive dashboard, and
 `shoal attach` when you need to drop into a specific session directly.
+
+## The supervision loop
+
+Read it left to right: sessions run in the background, and you stay in flow through status and popup instead of manually watching each pane.
+
+```mermaid
+flowchart LR
+    Create["shoal new"] --> Sessions["tmux sessions\nworktrees + state"]
+    Sessions --> Status["shoal status"]
+    Status --> Popup["shoal popup"]
+    Popup -->|"approve / redirect"| Sessions
+    Popup -->|"attach"| Sessions
+```
 
 ## Common next steps
 

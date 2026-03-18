@@ -50,6 +50,20 @@ These are single-session defaults only. They do not create the whole multi-sessi
   </div>
 </div>
 
+Use this to pick the right operating mode before you start.
+
+```mermaid
+flowchart TD
+    Start["New work arrives"] --> Q1{"Bug or\nincident?"}
+    Q1 -->|Yes| Triage["1. Fast triage burst"]
+    Q1 -->|No| Q2{"Meaningful\nchange?"}
+    Q2 -->|Yes| Q3{"Overnight\nor async?"}
+    Q2 -->|No| Single["shoal new (no playbook)"]
+    Q3 -->|No| Feature["2. Feature lane with review"]
+    Q3 -->|Yes| Overnight["5. Overnight batch"]
+    Q2 -->|Release| Release["6. Release control room"]
+```
+
 ## 1. Fast triage burst
 
 Use this when a bug report lands and you need answers before architecture.
@@ -130,6 +144,12 @@ Before you step away:
 - make sure the reviewer lane is explicit,
 - avoid open-ended tasks with no human checkpoint.
 
+!!! danger "Before you walk away"
+    - Leave a journal entry with explicit success conditions.
+    - Set an escalation timeout on the robo profile.
+    - Ensure a reviewer lane exists — do not run overnight with no critique path.
+    - Avoid open-ended tasks with no human checkpoint.
+
 ## 6. Release cut control room
 
 Use this when several moving pieces need a human-owned merge and release decision.
@@ -163,9 +183,10 @@ The tool config (`~/.config/shoal/tools/opencode.toml`) points to whatever
 sandboxed runner your security posture requires — Shoal doesn't care what
 executes inside the tool, only that it responds on the expected pane.
 
-**Layering principle**: Shoal enforces session lifecycle, journal continuity,
-and operator visibility. The runtime enforces file system scope, network policy,
-and process isolation. Neither substitutes for the other.
+!!! note "Layering principle"
+    Shoal enforces session lifecycle, journal continuity, and operator visibility.
+    The runtime enforces filesystem scope, network policy, and process isolation.
+    Neither substitutes for the other.
 
 
 ## Configure for these playbooks
@@ -204,11 +225,10 @@ The gain is not consistency for its own sake. The gain is faster comprehension u
 
 ## A simple doctrine
 
-If you only keep three rules, keep these:
-
-1. Every meaningful session should have a readable name.
-2. Every risky change should have a reviewer lane or explicit human checkpoint.
-3. Every workflow should be easier to resume tomorrow than to explain from memory.
+!!! success "Three rules to keep"
+    1. Every meaningful session should have a readable name.
+    2. Every risky change should have a reviewer lane or explicit human checkpoint.
+    3. Every workflow should be easier to resume tomorrow than to explain from memory.
 
 For team-wide naming, review, and escalation conventions, see [Team Doctrine](team-doctrine.md).
 For review-specific triage and escalation order, see [Review Checklist](review-checklist.md).

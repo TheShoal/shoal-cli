@@ -14,7 +14,7 @@ every task. This page is the minimal doctrine that keeps multi-agent work legibl
 <div class="shoal-step-grid shoal-step-grid--plain">
   <div class="shoal-step">
     <strong>Readable names</strong>
-    <p>Session names should reveal role and scope fast enough that `shoal ls` reads like an operations board.</p>
+    <p>Session names should reveal role and scope fast enough that <code>shoal ls</code> reads like an operations board.</p>
   </div>
   <div class="shoal-step">
     <strong>Review symmetry</strong>
@@ -62,9 +62,16 @@ If a task is risky enough to matter, it is risky enough to deserve an explicit r
 
 Recommended pairings:
 
-- `feat/<scope>` with `review/<scope>`
-- `ops/<scope>` with `review/<scope>`
-- `release/<scope>` with `review/<scope>`
+- `feat/scope` paired with `review/scope`
+- `ops/scope` paired with `review/scope`
+- `release/scope` paired with `review/scope`
+
+```mermaid
+flowchart LR
+    Feature["feat/scope"] <-->|handoff| Review["review/scope"]
+    Ops["ops/scope"] <-->|handoff| ReviewOps["review/scope"]
+    Release["release/scope"] <-->|sign-off| Human["Human checkpoint"]
+```
 
 If there is no reviewer session, there should be a clearly named human checkpoint in the journal.
 
@@ -92,24 +99,17 @@ Free-form notes are fine. Opaque notes are not.
 
 Agents should accelerate throughput. They should not absorb responsibility for ambiguous judgment.
 
-Human-owned decisions:
 
-- destructive operations,
-- merge approval,
-- release approval,
-- policy changes,
-- escalation resolution.
+| Human owns | Agent owns |
+| --- | --- |
+| Destructive operations | Repo search and summarization |
+| Merge approval | Draft implementation |
+| Release approval | Repetitive edits |
+| Policy changes | Diagnostics |
+| Escalation resolution | First-pass review |
 
-Agent-owned work:
-
-- repo search,
-- repetitive edits,
-- draft implementation,
-- diagnostics,
-- first-pass review,
-- summarization.
-
-If a team blurs this line, the workflow will feel fast until it fails.
+!!! warning "Blurring this line"
+    The workflow will feel fast until it fails — usually at the worst possible moment. Keep the boundary explicit in your robo config and journal entries.
 
 ## Use templates as contracts
 
@@ -117,10 +117,10 @@ Templates should express stable work modes, not every local preference.
 
 Good shared templates:
 
-- `codex-dev`
-- `claude-review`
-- `plan-release`
-- `overnight-batch`
+- <code>codex-dev</code>
+- <code>claude-review</code>
+- <code>plan-release</code>
+- <code>overnight-batch</code>
 
 Bad shared templates:
 
@@ -136,13 +136,14 @@ The reviewer lane should not be decorative. It should have a job.
 
 Default review priorities:
 
-1. Behavioral regressions.
-2. Configuration and deployment risk.
-3. Test coverage gaps.
-4. Contract drift against docs.
-5. Hidden coupling and rollback difficulty.
+!!! info "Review priority order"
+    1. Behavioral regressions.
+    2. Configuration and deployment risk.
+    3. Test coverage gaps.
+    4. Contract drift against docs.
+    5. Hidden coupling and rollback difficulty.
 
-That ordering matters. Style cleanup should not outrank correctness risk.
+    That ordering matters. Style cleanup should not outrank correctness risk.
 
 ## Escalation doctrine
 
@@ -156,7 +157,9 @@ Team defaults should define:
 - how decisions are logged,
 - which classes of work must page a human quickly.
 
-If those rules are unclear, the automation layer will feel arbitrary.
+
+!!! warning
+    If escalation rules are unclear, the automation layer will feel arbitrary. Document them in <code>~/.config/shoal/robo/NAME.toml</code> and in the shared template AGENTS.md.
 
 ## Remote doctrine
 
@@ -186,12 +189,12 @@ This is operational hygiene, not process theater.
 
 ## The short version
 
-If the team remembers only five rules, use these:
 
-1. Name sessions so the fleet is readable.
-2. Pair meaningful work with a reviewer lane.
-3. Write journals for interruption recovery, not memoir.
-4. Keep authority human and throughput agent-driven.
-5. Standardize a few stable workflows and reuse them aggressively.
+!!! success "The five rules"
+    1. Name sessions so the fleet is readable.
+    2. Pair meaningful work with a reviewer lane.
+    3. Write journals for interruption recovery, not memoir.
+    4. Keep authority human and throughput agent-driven.
+    5. Standardize a few stable workflows and reuse them aggressively.
 
 Use [Review Checklist](review-checklist.md) as the default contract for reviewer sessions.

@@ -34,17 +34,20 @@ The highest-leverage Shoal setup optimizes for four things:
   </div>
 </div>
 
+!!! warning "The mistake to avoid"
+    Optimizing each tool in isolation. The unit of measure is the end-to-end loop from "work appears" to "work is reviewed or escalated" — not how fast a single session starts.
+
 ## Build the reference environment
 
 The intended daily-driver stack is:
 
 <div class="shoal-step-grid">
   <div class="shoal-step" data-icon="bolt">
-    <strong>`fish`</strong>
+    <strong><code>fish</code></strong>
     <p>Use shell ergonomics that keep navigation, completions, and helper functions fast enough to disappear.</p>
   </div>
   <div class="shoal-step" data-icon="system">
-    <strong>`tmux`</strong>
+    <strong><code>tmux</code></strong>
     <p>Anchor the fleet in a durable topology instead of reopening fragile terminal layouts all day.</p>
   </div>
   <div class="shoal-step" data-icon="stack">
@@ -91,6 +94,9 @@ user = "rr"
 api_port = 8080
 ```
 
+!!! tip
+    Use defaults aggressively. Every choice you defer to session-creation time is a micro-interruption that compounds across the day.
+
 The goal is to remove choice at the point where work should begin. Use defaults aggressively.
 
 Also decide where your active attention will live:
@@ -135,6 +141,11 @@ Guidelines:
 ## Use session topology, not session sprawl
 
 Three patterns work especially well.
+
+!!! info "Pattern summary"
+    - **Author + reviewer + supervisor** — one writes, one critiques, robo keeps approvals short.
+    - **Planner + implementer + closer** — use when sequencing is the bottleneck, not raw throughput.
+    - **Overnight batch** — throughput while away, but with explicit escalation and a reviewer lane.
 
 ### Author, reviewer, supervisor
 
@@ -197,6 +208,16 @@ shoal journal feat/auth-api --append "Goal: split auth service and keep endpoint
 shoal journal review/auth-api --append "Review focus: regressions in error handling and config loading."
 ```
 
+!!! tip "Journal structure that works"
+    Four lines cover most cases:
+    ```
+    Goal:
+    Constraints:
+    Current blocker:
+    Next human decision:
+    ```
+    Free-form notes below that are fine. Opaque notes are not.
+
 ## Configure robo as a pressure valve
 
 Robo is most effective when it is narrowing the gap between waiting state and forward motion.
@@ -235,7 +256,7 @@ Use this loop:
 
 1. Keep `shoal popup` nearby.
 2. Treat `waiting` as a first-class queue, not an annoyance.
-3. Use `shoal logs <name>` or `capture_pane` immediately.
+3. Use `shoal logs &lt;name&gt;` or `capture_pane` immediately.
 4. Approve or redirect fast.
 
 The point is not endless autonomy. The point is low-latency intervention.
@@ -263,20 +284,13 @@ This creates:
 
 ## Separate human intent from agent throughput
 
-Human operators should keep ownership of:
-
-- task selection,
-- merge decisions,
-- destructive operations,
-- branch closure.
-
-Agents should own:
-
-- draft generation,
-- repetitive edits,
-- tests and diagnostics,
-- first-pass reviews,
-- search and summarization across the repo.
+| Human owns | Agent owns |
+| --- | --- |
+| Task selection | Draft implementation |
+| Merge decisions | Repetitive edits |
+| Destructive operations | Tests and diagnostics |
+| Branch closure | First-pass reviews |
+| Escalation resolution | Search and summarization |
 
 Shoal works best when those boundaries are explicit.
 
@@ -363,6 +377,10 @@ Shoal should feel like:
 - fewer terminals to babysit,
 - faster recovery when an agent blocks,
 - better continuity when you return to work later.
+
+!!! success "The feeling to aim for"
+    Fewer tiny decisions. Fewer invisible states. Fewer terminals to babysit. Faster recovery when an agent blocks. Better continuity when you return.
+    If a workflow makes the tool feel heavier or more ceremonial, simplify it.
 
 If a workflow makes the tool feel heavier, slower, or more ceremonial, simplify it. Shoal is at
 its best when it disappears into the terminal and leaves only clear intent, quick feedback, and a

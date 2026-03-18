@@ -39,3 +39,9 @@ repos:
         language: system
         files: \.fish$
         types: [file]
+      - id: html-backticks
+        name: no raw backticks in HTML blocks
+        entry: python3 docs/_scripts/check_html_backticks.py
+        language: system
+        files: \.md$
+        types: [markdown]
