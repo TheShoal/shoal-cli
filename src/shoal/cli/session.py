@@ -200,7 +200,7 @@ def session_done(
     from shoal.services.lifecycle import SessionNotFoundError, complete_session
 
     try:
-        asyncio.run(complete_session(name, summary))
+        asyncio.run(with_db(complete_session(name, summary)))
     except SessionNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from e
