@@ -67,8 +67,8 @@ def test_same_session_different_window_routing(mock_dirs):
         assert latest is not None
         assert sock_a == f"{runtime_base}/nvim-$1-@1.sock"
         assert sock_b == f"{runtime_base}/nvim-$1-@2.sock"
-        assert latest.tmux_session_id == "$1"
-        assert latest.tmux_window == "@2"
+        assert latest.runtime.session_id == "$1"
+        assert latest.runtime.window_id == "@2"
 
     asyncio.run(with_db(scenario()))
 

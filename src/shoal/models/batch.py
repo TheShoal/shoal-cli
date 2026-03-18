@@ -139,7 +139,7 @@ type SnapshotField = Literal[
     "worktree",
     "pid",
     "created_at",
-    "tmux_session",
+    "runtime",
 ]
 
 

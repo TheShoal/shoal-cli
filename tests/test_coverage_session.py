@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from io import StringIO
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from rich.console import Console
 from typer.testing import CliRunner
@@ -124,10 +124,12 @@ class TestLsFormatting:
         output = StringIO()
         test_console = Console(file=output, width=90, force_terminal=False)
 
+        mock_provider = MagicMock()
+        mock_provider.exists.return_value = True
         with (
             patch("shoal.cli.session_view.console", test_console),
             patch("shoal.cli.session_view.list_sessions", return_value=sessions),
-            patch("shoal.cli.session_view.tmux.has_session", return_value=True),
+            patch("shoal.cli.session_view.provider_for_session", return_value=mock_provider),
             patch(
                 "shoal.cli.session_view.load_config",
                 return_value=ShoalConfig(general=GeneralConfig(use_nerd_fonts=False)),
@@ -153,10 +155,12 @@ class TestInfoCommand:
         async def mock_resolve(name_or_id):
             return s.id
 
+        mock_provider = MagicMock()
+        mock_provider.exists.return_value = False
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session_view.tmux.has_session", return_value=False),
+            patch("shoal.cli.session_view.provider_for_session", return_value=mock_provider),
             patch(
                 "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
@@ -172,15 +176,13 @@ class TestInfoCommand:
         async def mock_resolve(name_or_id):
             return s.id
 
+        mock_provider = MagicMock()
+        mock_provider.exists.return_value = True
+        mock_provider.capture_output.return_value = "hello output\nline 2\n"
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session_view.tmux.has_session", return_value=True),
-            patch("shoal.cli.session_view.tmux.preferred_pane", return_value="_live-session:0.0"),
-            patch(
-                "shoal.cli.session_view.tmux.capture_pane",
-                return_value="hello output\nline 2\n",
-            ),
+            patch("shoal.cli.session_view.provider_for_session", return_value=mock_provider),
             patch(
                 "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
@@ -196,10 +198,12 @@ class TestInfoCommand:
         async def mock_resolve(name_or_id):
             return s.id
 
+        mock_provider = MagicMock()
+        mock_provider.exists.return_value = False
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session_view.tmux.has_session", return_value=False),
+            patch("shoal.cli.session_view.provider_for_session", return_value=mock_provider),
             patch(
                 "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
@@ -214,10 +218,12 @@ class TestInfoCommand:
         async def mock_resolve(name_or_id):
             return s.id
 
+        mock_provider = MagicMock()
+        mock_provider.exists.return_value = False
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session_view.tmux.has_session", return_value=False),
+            patch("shoal.cli.session_view.provider_for_session", return_value=mock_provider),
             patch(
                 "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),
@@ -232,12 +238,13 @@ class TestInfoCommand:
         async def mock_resolve(name_or_id):
             return s.id
 
+        mock_provider = MagicMock()
+        mock_provider.exists.return_value = True
+        mock_provider.capture_output.return_value = ""
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
-            patch("shoal.cli.session_view.tmux.has_session", return_value=True),
-            patch("shoal.cli.session_view.tmux.preferred_pane", return_value="_empty-pane:0.0"),
-            patch("shoal.cli.session_view.tmux.capture_pane", return_value=""),
+            patch("shoal.cli.session_view.provider_for_session", return_value=mock_provider),
             patch(
                 "shoal.cli.session_view.load_tool_config",
                 side_effect=FileNotFoundError("no config"),

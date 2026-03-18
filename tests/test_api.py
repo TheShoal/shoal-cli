@@ -130,7 +130,7 @@ class TestSessions:
             assert response.json()["message"] == "Keys sent"
 
             # Verify send_keys was called
-            mock_send_keys.assert_called_once_with(s.tmux_session, "echo hello")
+            mock_send_keys.assert_called_once_with(s.runtime.session_name, "echo hello", enter=True)
 
     async def test_send_keys_session_not_found(self, async_client):
         """Test POST /sessions/{id}/send with non-existent session."""
@@ -351,7 +351,7 @@ class TestGetSessionFound:
         assert data["status"] == "idle"
         assert "created_at" in data
         assert "last_activity" in data
-        assert "tmux_session" in data
+        assert "runtime" in data
 
 
 @pytest.mark.asyncio
@@ -377,7 +377,7 @@ class TestDeleteSession:
             assert response.status_code == 204
             mock_kill.assert_called_once_with(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree=s.worktree,
                 git_root=s.path,
                 branch=s.branch,
@@ -406,7 +406,7 @@ class TestDeleteSession:
             assert response.status_code == 204
             mock_kill.assert_called_once_with(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree=s.worktree,
                 git_root=s.path,
                 branch=s.branch,
@@ -445,8 +445,8 @@ class TestRenameSessionTmux:
         s = await create_session("tmux-rename", "claude", "/tmp/test")
 
         with (
-            patch("shoal.api.server.tmux.has_session", return_value=True),
-            patch("shoal.api.server.tmux.rename_session") as mock_rename,
+            patch("shoal.services.runtime_providers.tmux.tmux.has_session", return_value=True),
+            patch("shoal.services.runtime_providers.tmux.tmux.rename_session") as mock_rename,
         ):
             response = await async_client.put(
                 f"/sessions/{s.id}/rename",
@@ -462,9 +462,9 @@ class TestRenameSessionTmux:
         s = await create_session("tmux-fail", "claude", "/tmp/test")
 
         with (
-            patch("shoal.api.server.tmux.has_session", return_value=True),
+            patch("shoal.services.runtime_providers.tmux.tmux.has_session", return_value=True),
             patch(
-                "shoal.api.server.tmux.rename_session",
+                "shoal.services.runtime_providers.tmux.tmux.rename_session",
                 side_effect=subprocess.CalledProcessError(1, "tmux"),
             ),
         ):
@@ -474,7 +474,7 @@ class TestRenameSessionTmux:
             )
 
         assert response.status_code == 500
-        assert "Failed to rename tmux session" in response.json()["detail"]
+        assert "Failed to rename runtime session" in response.json()["detail"]
 
     async def test_rename_self_name_allowed(self, async_client):
         """Test renaming session to its own name succeeds (no conflict)."""
@@ -678,23 +678,23 @@ class TestAttachSession:
         """Test POST /sessions/{id}/attach returns 400 when tmux session missing."""
         s = await create_session("attach-no-tmux", "claude", "/tmp/test")
 
-        with patch("shoal.api.server.tmux.has_session", return_value=False):
+        with patch("shoal.services.runtime_providers.tmux.tmux.has_session", return_value=False):
             response = await async_client.post(f"/sessions/{s.id}/attach")
         assert response.status_code == 400
-        assert "Tmux session not found" in response.json()["detail"]
+        assert "Runtime session not found" in response.json()["detail"]
 
     async def test_attach_success(self, async_client):
         """Test POST /sessions/{id}/attach succeeds and calls switch_client."""
         s = await create_session("attach-ok", "claude", "/tmp/test")
 
         with (
-            patch("shoal.api.server.tmux.has_session", return_value=True),
-            patch("shoal.api.server.tmux.switch_client") as mock_switch,
+            patch("shoal.services.runtime_providers.tmux.tmux.has_session", return_value=True),
+            patch("shoal.services.runtime_providers.tmux.tmux.switch_client") as mock_switch,
         ):
             response = await async_client.post(f"/sessions/{s.id}/attach")
         assert response.status_code == 200
         assert "Attached" in response.json()["message"]
-        mock_switch.assert_called_once_with(s.tmux_session)
+        mock_switch.assert_called_once_with(s.runtime.session_name)
 
 
 @pytest.mark.asyncio
@@ -1050,8 +1050,8 @@ class TestBatchEndpoints:
         assert data["results"][2]["success"] is True
         assert data["results"][2]["result"]["id"] == beta.id
         assert data["results"][2]["result"]["pane_tail"] == "beta tail"
-        mock_capture.assert_any_call("%1", 5)
-        mock_capture.assert_any_call("%2", 5)
+        mock_capture.assert_any_call("%1", lines=5, include_ansi=False)
+        mock_capture.assert_any_call("%2", lines=5, include_ansi=False)
 
     async def test_batch_execute_mixed_read_write_and_partial_failure(self, async_client):
         await create_session("alpha", "claude", "/tmp/test")

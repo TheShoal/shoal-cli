@@ -13,7 +13,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -39,6 +39,7 @@ from shoal.models.batch import (
 from shoal.services import git_tools
 from shoal.services.batch import AUTO_ENTER_TOOLS, execute_batch
 from shoal.services.batch import session_snapshot as build_session_snapshot
+from shoal.services.runtime_provider import provider_for_session, runtime_payload
 
 if TYPE_CHECKING:
     from shoal.models.config import ToolConfig
@@ -513,20 +514,20 @@ async def create_session_tool(
         raise ToolError(f"Invalid session configuration: {e}") from e
 
     if prompt and tool_cfg.input_mode == "keys":
-        from shoal.core import tmux
-
-        pane_target = await tmux.async_preferred_pane(
-            session.tmux_session, title=f"shoal:{session.id}"
+        provider = provider_for_session(session)
+        await provider.async_wait_for_ready(session, tool_cfg, ready_timeout=5.0)
+        await provider.async_send_input(
+            session,
+            prompt,
+            delay=tool_cfg.send_keys_delay,
         )
-        await tmux.async_wait_for_ready(pane_target, tool_cfg, timeout=5.0)
-        await tmux.async_send_keys(pane_target, prompt, delay=tool_cfg.send_keys_delay)
 
     return {
         "id": session.id,
         "name": session.name,
         "tool": session.tool,
         "status": session.status.value,
-        "tmux_session": session.tmux_session,
+        "runtime": runtime_payload(session.runtime),
         "branch": session.branch,
         "worktree": session.worktree,
     }
@@ -740,10 +741,11 @@ async def merge_branch_tool(
     if strategy not in {"merge", "squash"}:
         raise ToolError(f"Invalid strategy: {strategy!r}. Must be 'merge' or 'squash'.")
 
+    resolved_strategy = cast(Literal["merge", "squash"], strategy)
     return await git_tools.merge_branch(
         state.worktree,
         target,
-        strategy=strategy,  # type: ignore[arg-type]
+        strategy=resolved_strategy,
     )
 
 
@@ -759,7 +761,6 @@ def main() -> None:
     HTTP mode is used for benchmarking and remote session support.
     """
     import sys
-    from typing import Literal
 
     mode: Literal["stdio", "streamable-http"] = "stdio"
     port = 8390

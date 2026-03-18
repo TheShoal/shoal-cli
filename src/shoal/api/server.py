@@ -19,9 +19,9 @@ import shoal
 from shoal.core import git, tmux
 from shoal.core.config import ensure_dirs, load_config, load_tool_config
 from shoal.core.db import ShoalDB, get_db
+from shoal.core.session_names import validate_session_name
 from shoal.core.state import (
     add_mcp_to_session,
-    build_tmux_session_name,
     find_by_name,
     get_session,
     list_sessions,
@@ -52,6 +52,7 @@ from shoal.services.mcp_pool import (
     start_mcp_server,
     stop_mcp_server,
 )
+from shoal.services.runtime_provider import provider_for_session, runtime_payload
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +70,6 @@ class SessionCreate(BaseModel):
     def validate_name(cls, v: str | None) -> str | None:
         """Validate session name if provided."""
         if v is not None:
-            from shoal.core.state import validate_session_name
-
             validate_session_name(v)
         return v
 
@@ -82,7 +81,7 @@ class SessionResponse(BaseModel):
     path: str
     worktree: str | None
     branch: str | None
-    tmux_session: str
+    runtime: dict[str, object]
     status: SessionStatus
     pid: int | None
     mcp_servers: list[str]
@@ -143,8 +142,6 @@ class RenameRequest(BaseModel):
     @classmethod
     def validate_name(cls, v: str) -> str:
         """Validate new session name."""
-        from shoal.core.state import validate_session_name
-
         validate_session_name(v)
         return v
 
@@ -257,7 +254,7 @@ def _session_to_response(s: SessionState) -> SessionResponse:
         path=s.path,
         worktree=s.worktree or None,
         branch=s.branch or None,
-        tmux_session=s.tmux_session,
+        runtime=runtime_payload(s.runtime),
         status=s.status,
         pid=s.pid,
         mcp_servers=s.mcp_servers,
@@ -448,7 +445,7 @@ async def delete_session_api(
     try:
         await kill_session_lifecycle(
             session_id=s.id,
-            tmux_session=s.tmux_session,
+            tmux_session=s.runtime.session_name,
             worktree=s.worktree,
             git_root=s.path,
             branch=s.branch,
@@ -476,24 +473,13 @@ async def rename_session_api(session_id: str, body: RenameRequest) -> SessionRes
     if existing and existing != session_id:
         raise HTTPException(status_code=409, detail=f"Session name '{body.name}' already exists")
 
-    # Rename the tmux session
-    old_tmux_name = s.tmux_session
-    new_tmux_name = build_tmux_session_name(body.name)
-
-    if tmux.has_session(old_tmux_name):
-        try:
-            tmux.rename_session(old_tmux_name, new_tmux_name)
-        except subprocess.CalledProcessError as e:
-            raise HTTPException(
-                status_code=500, detail=f"Failed to rename tmux session: {e}"
-            ) from e
-
-    # Update the session in the database
+    # Rename the runtime backing the session
     try:
+        updated_runtime = await provider_for_session(s).async_rename(s, body.name)
         updated = await update_session(
             session_id,
             name=body.name,
-            tmux_session=new_tmux_name,
+            runtime=updated_runtime,
         )
         if not updated:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -503,8 +489,9 @@ async def rename_session_api(session_id: str, body: RenameRequest) -> SessionRes
         )
         return _session_to_response(updated)
     except ValueError as e:
-        # Validation error from update_session
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to rename runtime session: {e}") from e
 
 
 @app.post("/sessions/{session_id}/attach")
@@ -512,10 +499,11 @@ async def attach_session_api(session_id: str) -> dict[str, str]:
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
-    if not tmux.has_session(s.tmux_session):
-        raise HTTPException(status_code=400, detail="Tmux session not found")
-    tmux.switch_client(s.tmux_session)
-    return {"message": f"Attached to {s.tmux_session}"}
+    provider = provider_for_session(s)
+    if not provider.exists(s):
+        raise HTTPException(status_code=400, detail="Runtime session not found")
+    provider.attach(s)
+    return {"message": f"Attached to {s.runtime.session_name}"}
 
 
 @app.post("/sessions/{session_id}/send")
@@ -523,7 +511,7 @@ async def send_keys_api(session_id: str, body: SendKeysRequest) -> dict[str, str
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
-    tmux.send_keys(s.tmux_session, body.keys)
+    await provider_for_session(s).async_send_input(s, body.keys)
     return {"message": "Keys sent"}
 
 

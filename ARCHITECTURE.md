@@ -73,13 +73,15 @@ Shoal is a **control plane** for AI agents that:
 │            │         │              │
 │ - Lifecycle│         │ - Shared     │
 │ - Worktrees│         │   servers    │
-│ - Status   │         │ - Socket     │
-│   detection│         │   pooling    │
+│ - Runtime  │         │ - Socket     │
+│   routing  │         │   pooling    │
+│ - Status   │         │              │
+│   parsing  │         │              │
 └─────┬──────┘         └──────────────┘
       │
 ┌─────▼──────────────────────────────┐
-│  Tmux Session Layer                │
-│  (tmux 3.3+ with status detection) │
+│  Runtime Provider Layer            │
+│  (tmux today; provider seam ready) │
 └────────────────────────────────────┘
 ```
 
@@ -89,9 +91,9 @@ Shoal is a **control plane** for AI agents that:
 2. **Lifecycle Orchestration** → `services/lifecycle.py` (create/fork/kill/reconcile with rollback)
 3. **Business Logic** → Async core (`src/shoal/core/`)
 4. **State Persistence** → SQLite (WAL mode, async via `aiosqlite`, update lock)
-5. **Subprocess Ops** → Tmux/Git wrappers (sync for CLI, `async_*` for API/watcher)
-6. **Monitoring** → Status detection via tmux pane capture + regex patterns
-
+5. **Runtime Operations** → runtime-provider dispatch (`services/runtime_provider.py`)
+6. **Status Parsing** → `core/status_provider.py` classifies provider-captured output
+7. **Observation** → tmux provider currently supplies liveness, pane capture, and attach/send semantics
 ---
 
 ## Design Principles
@@ -179,34 +181,32 @@ async with get_db() as db:
 
 ---
 
-### 5. **Status Detection via Tmux Pane Scraping**
+### 5. **Status Detection via Runtime Observation + Status Providers**
 
-**Decision**: Detect agent status (Thinking, Waiting, Error, Idle) by parsing tmux pane output from the session-tagged tool pane.
+**Decision**: Separate *runtime transport* from *status parsing*.
+
+- The **runtime provider** owns how Shoal reaches a session: liveness checks, output capture, attach/send, rename, and runtime metadata.
+- The **status provider** owns how Shoal interprets captured output into `running / waiting / error / idle`.
 
 **Why**:
-- **No Agent Modifications**: Works with any agent (Claude, OpenCode, Gemini)
-- **Stable Targeting**: Watcher follows pane title `shoal:<session_id>` so split panes and active-pane changes do not cause false routing
-- **Real-Time**: Polls every 5 seconds via background watcher
-- **Tool-Specific Patterns**: Configurable regex patterns per tool
+- **Truthful session model**: `SessionState` stores one canonical `runtime` object instead of leaking tmux fields at the top level.
+- **Backend growth path**: additional runtimes can plug in without changing every CLI/API surface again.
+- **Stable targeting**: the tmux runtime provider still follows pane title `shoal:<session_id>` so split panes and active-pane changes do not cause false routing.
+- **Tool-specific parsing**: regex/pi/opencode compatibility remains a separate concern from transport.
 
 **Implementation**:
-```toml
-# ~/.config/shoal/tools/claude.toml
-[detection]
-busy_patterns = ["⠋", "thinking"]
-waiting_patterns = ["❯", "Yes/No", "Allow"]
-error_patterns = ["Error:", "ERROR"]
-idle_patterns = ["$"]
-```
+- `services/runtime_provider.py` resolves the provider from `session.runtime.kind`.
+- `services/runtime_providers/tmux.py` implements the tmux backend.
+- `core/status_provider.py` still selects `pi`, `opencode_compat`, or `regex` based on tool config.
+- `SessionState.runtime` is currently `TmuxRuntimeState(kind="tmux", session_name=..., session_id=..., window_id=..., nvim_socket=...)`.
 
-**Trade-off**: Requires tmux, limited to pattern matching, but universally compatible.
+**Current trade-off**: tmux is still the only runtime provider shipped today, so the provider seam improves architecture first and backend diversity second.
 
 **Runtime Contract**:
 - Session pane identity: `shoal:<session_id>` (tmux pane title)
 - Neovim socket identity: `/tmp/nvim-<session_id>-<window_id>.sock`
 - Socket ownership: interactive `nvim --listen` in the active tool pane
 - Tmux cleanup role: stale socket cleanup only (no headless Neovim ownership)
-
 ---
 
 ### 6. **Robo Supervisor as Code**

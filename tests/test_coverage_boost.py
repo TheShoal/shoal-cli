@@ -13,7 +13,8 @@ from shoal.cli.worktree import app as worktree_app
 from shoal.core.db import with_db
 from shoal.core.state import create_session, update_session
 from shoal.models.state import SessionStatus
-from shoal.services.watcher import Watcher, _find_session_tool_pane
+from shoal.services.runtime_providers.tmux import _find_session_tool_pane
+from shoal.services.watcher import Watcher
 
 runner = CliRunner()
 
@@ -720,7 +721,7 @@ class TestWtFinish:
             assert result.exit_code == 0
             assert "Merged successfully" in result.output
             assert "Removed worktree" in result.output
-            assert "Killed tmux session" in result.output
+            assert "Killed runtime session" in result.output
             mock_kill.assert_called_once()
 
     def test_finish_merge_failure(self, mock_dirs: tuple[Path, Path]) -> None:
@@ -825,7 +826,7 @@ class TestWtFinish:
         ):
             result = runner.invoke(worktree_app, ["finish", "alive-tmux", "--no-merge"])
             assert result.exit_code == 0
-            assert "Killed tmux session" in result.output
+            assert "Killed runtime session" in result.output
             mock_kill.assert_called_once()
 
     def test_finish_does_not_delete_main_branch(self, mock_dirs: tuple[Path, Path]) -> None:

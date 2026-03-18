@@ -356,8 +356,8 @@ async def _cleanup(tut_dir: Path) -> None:
     sessions = await list_sessions()
     for s in sessions:
         if s.name.startswith("tutorial-"):
-            if tmux.has_session(s.tmux_session):
-                tmux.kill_session(s.tmux_session)
+            if tmux.has_session(s.runtime.session_name):
+                tmux.kill_session(s.runtime.session_name)
             await delete_session(s.id)
             console.print(f"  [green]{Symbols.CHECK}[/green] Removed session: {s.name}")
             cleaned += 1
@@ -371,8 +371,8 @@ async def _cleanup(tut_dir: Path) -> None:
                 continue
             stale = await get_session(sid)
             if stale:
-                if tmux.has_session(stale.tmux_session):
-                    tmux.kill_session(stale.tmux_session)
+                if tmux.has_session(stale.runtime.session_name):
+                    tmux.kill_session(stale.runtime.session_name)
                 await delete_session(stale.id)
                 console.print(f"  [green]{Symbols.CHECK}[/green] Removed session: {stale.name}")
                 cleaned += 1

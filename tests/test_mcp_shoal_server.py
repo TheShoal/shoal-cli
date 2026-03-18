@@ -197,7 +197,7 @@ async def test_session_info_found() -> None:
     assert result["mcp_servers"] == ["memory"]
     assert "created_at" in result
     assert "last_activity" in result
-    assert "tmux_session" in result
+    assert "runtime" in result
 
 
 async def test_session_info_not_found() -> None:
@@ -371,7 +371,7 @@ async def test_capture_pane_success() -> None:
 
     assert result["content"] == "$ echo hello\nhello\n$"
     mock_pane.assert_called_once_with("_worker-1", "shoal:abc12345")
-    mock_capture.assert_called_once_with("%1", 20)
+    mock_capture.assert_called_once_with("%1", lines=20, include_ansi=False)
 
 
 async def test_capture_pane_custom_lines() -> None:
@@ -396,7 +396,7 @@ async def test_capture_pane_custom_lines() -> None:
         result = await capture_pane_tool(session="worker-1", lines=50)
 
     assert result["content"] == "output"
-    mock_capture.assert_called_once_with("%1", 50)
+    mock_capture.assert_called_once_with("%1", lines=50, include_ansi=False)
 
 
 async def test_capture_pane_not_found() -> None:
@@ -1428,5 +1428,5 @@ async def test_session_snapshot_selected_fields_preserves_order(mock_dirs) -> No
     assert result["results"][1]["error"]["code"] == "session_not_found"
     assert result["results"][2]["success"] is True
     assert result["results"][2]["result"]["pane_tail"] == "beta tail"
-    mock_capture.assert_any_call("%1", 5)
-    mock_capture.assert_any_call("%2", 5)
+    mock_capture.assert_any_call("%1", lines=5, include_ansi=False)
+    mock_capture.assert_any_call("%2", lines=5, include_ansi=False)

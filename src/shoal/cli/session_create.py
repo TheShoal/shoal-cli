@@ -23,10 +23,10 @@ from shoal.core.config import (
 )
 from shoal.core.db import with_db
 from shoal.core.git import infer_branch_name, validate_branch_name
+from shoal.core.session_names import build_tmux_session_name
 from shoal.core.state import (
     _get_tool_icon,
     _resolve_session_interactive_impl,
-    build_tmux_session_name,
     find_by_name,
     get_session,
 )
@@ -360,7 +360,7 @@ async def _add_impl(
         console.print(f"  Template: {template_cfg.name}")
     if session.mcp_servers:
         console.print(f"  MCP: {', '.join(session.mcp_servers)}")
-    console.print(f"  Tmux: {session.tmux_session}")
+    console.print(f"  Runtime: {session.runtime.kind.value} ({session.runtime.session_name})")
     console.print()
     console.print(f"Attach with: shoal attach {session_name}")
 
@@ -489,7 +489,7 @@ async def _kill_impl(session: str | None, worktree: bool, force: bool) -> None:
     try:
         summary = await kill_session_lifecycle(
             session_id=s.id,
-            tmux_session=s.tmux_session,
+            tmux_session=s.runtime.session_name,
             worktree=s.worktree,
             git_root=s.path,
             branch=s.branch,
@@ -505,7 +505,7 @@ async def _kill_impl(session: str | None, worktree: bool, force: bool) -> None:
         raise typer.Exit(1) from None
 
     if summary["tmux_killed"]:
-        console.print(f"{icon} Killed tmux session: {s.tmux_session}")
+        console.print(f"{icon} Killed runtime session: {s.runtime.session_name}")
     if summary["worktree_removed"]:
         console.print(f"  Removed worktree: {s.worktree}")
     if summary["branch_deleted"]:

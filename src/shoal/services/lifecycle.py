@@ -27,7 +27,8 @@ from shoal.core.state import (
     update_session,
 )
 from shoal.models.config import SessionTemplateConfig
-from shoal.models.state import LifecycleEvent, SessionState, SessionStatus
+from shoal.models.state import LifecycleEvent, SessionState, SessionStatus, TmuxRuntimeState
+from shoal.services.runtime_provider import provider_for_session
 
 logger = logging.getLogger("shoal.lifecycle")
 
@@ -662,7 +663,7 @@ async def create_session_lifecycle(
 
     set_session_id(session.id)
 
-    tmux_session = session.tmux_session
+    tmux_session = session.runtime.session_name
     logger.info("[%s] create: DB row created (id=%s)", session_name, session.id)
 
     # 2. Create tmux session
@@ -755,12 +756,18 @@ async def create_session_lifecycle(
     if pid:
         updates["pid"] = pid
 
+    updated_runtime = session.runtime
     coordinates = await tmux.async_pane_coordinates(pane_target)
     if coordinates:
         tmux_session_id, tmux_window_id = coordinates
-        updates["tmux_session_id"] = tmux_session_id
-        updates["tmux_window"] = tmux_window_id
-        updates["nvim_socket"] = build_nvim_socket_path(tmux_session_id, tmux_window_id)
+        updated_runtime = TmuxRuntimeState(
+            session_name=tmux_session,
+            session_id=tmux_session_id,
+            window_id=tmux_window_id,
+            nvim_socket=build_nvim_socket_path(tmux_session_id, tmux_window_id),
+        )
+    if updated_runtime != session.runtime:
+        updates["runtime"] = updated_runtime
 
     await update_session(session.id, **updates)
 
@@ -820,7 +827,7 @@ async def fork_session_lifecycle(
 
     set_session_id(session.id)
 
-    tmux_session = session.tmux_session
+    tmux_session = session.runtime.session_name
     logger.info("[%s] fork: DB row created (id=%s)", session_name, session.id)
 
     # 2. Create tmux session
@@ -913,12 +920,18 @@ async def fork_session_lifecycle(
     if pid:
         updates["pid"] = pid
 
+    updated_runtime = session.runtime
     coordinates = await tmux.async_pane_coordinates(pane_target)
     if coordinates:
         tmux_session_id, tmux_window_id = coordinates
-        updates["tmux_session_id"] = tmux_session_id
-        updates["tmux_window"] = tmux_window_id
-        updates["nvim_socket"] = build_nvim_socket_path(tmux_session_id, tmux_window_id)
+        updated_runtime = TmuxRuntimeState(
+            session_name=tmux_session,
+            session_id=tmux_session_id,
+            window_id=tmux_window_id,
+            nvim_socket=build_nvim_socket_path(tmux_session_id, tmux_window_id),
+        )
+    if updated_runtime != session.runtime:
+        updates["runtime"] = updated_runtime
 
     await update_session(session.id, **updates)
 
@@ -971,8 +984,12 @@ async def kill_session_lifecycle(
     session = await get_session(session_id)
     mcp_names = list(session.mcp_servers) if session else []
 
-    # 1. Kill tmux
-    if await tmux.async_has_session(tmux_session):
+    # 1. Kill runtime
+    if session is not None:
+        if await provider_for_session(session).async_kill(session):
+            summary["tmux_killed"] = True
+            logger.info("[%s] kill: runtime session killed", session_id)
+    elif await tmux.async_has_session(tmux_session):
         await tmux.async_kill_session(tmux_session)
         summary["tmux_killed"] = True
         logger.info("[%s] kill: tmux session killed", session_id)
@@ -1098,7 +1115,7 @@ async def reconcile_sessions() -> list[tuple[str, str, str]]:
         if session.status.value == "stopped":
             continue
 
-        if not await tmux.async_has_session(session.tmux_session):
+        if not await provider_for_session(session).async_exists(session):
             from datetime import UTC, datetime
 
             await update_session(
@@ -1108,7 +1125,7 @@ async def reconcile_sessions() -> list[tuple[str, str, str]]:
             )
             action = f"marked stopped (was {session.status.value})"
             logger.info(
-                "[%s] reconcile: %s — tmux session gone",
+                "[%s] reconcile: %s — runtime gone",
                 session.id,
                 action,
             )

@@ -106,8 +106,8 @@ class TestCreateSessionLifecycle:
             assert session.name == "test"
             assert session.status == SessionStatus.running
             assert session.pid == 42
-            assert session.tmux_session_id == "$1"
-            assert session.tmux_window == "@0"
+            assert session.runtime.session_id == "$1"
+            assert session.runtime.window_id == "@0"
 
 
 @pytest.mark.asyncio
@@ -178,7 +178,7 @@ class TestKillSessionLifecycle:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
             )
 
         assert summary["tmux_killed"] is True
@@ -191,7 +191,7 @@ class TestKillSessionLifecycle:
         with patch("shoal.core.tmux.has_session", return_value=False):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
             )
 
         assert summary["tmux_killed"] is False
@@ -379,7 +379,7 @@ class TestMcpCleanup:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
             )
 
         assert summary["mcp_stopped"] is True
@@ -400,7 +400,7 @@ class TestMcpCleanup:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s1.id,
-                tmux_session=s1.tmux_session,
+                tmux_session=s1.runtime.session_name,
             )
 
         # Should NOT stop since s2 still uses memory
@@ -513,7 +513,7 @@ class TestDirtyWorktreeProtection:
             mock_run.return_value.stdout = " M file.txt"
             await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree=s.worktree,
                 git_root=s.path,
                 remove_worktree=True,
@@ -532,7 +532,7 @@ class TestDirtyWorktreeProtection:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree=s.worktree,
                 git_root=s.path,
                 remove_worktree=True,
@@ -552,7 +552,7 @@ class TestDirtyWorktreeProtection:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree=s.worktree,
                 git_root=s.path,
                 remove_worktree=True,
@@ -575,7 +575,7 @@ class TestDirtyWorktreeProtection:
             try:
                 await kill_session_lifecycle(
                     session_id=s.id,
-                    tmux_session=s.tmux_session,
+                    tmux_session=s.runtime.session_name,
                     worktree=s.worktree,
                     git_root=s.path,
                     remove_worktree=True,
@@ -669,8 +669,8 @@ class TestForkSessionLifecycle:
         assert session.name == "fork-test"
         assert session.status == SessionStatus.running
         assert session.pid == 99
-        assert session.tmux_session_id == "$2"
-        assert session.tmux_window == "@1"
+        assert session.runtime.session_id == "$2"
+        assert session.runtime.window_id == "@1"
 
     async def test_fork_with_mcp(self, mock_dirs):
         """Fork with MCP provisioning."""
@@ -761,7 +761,7 @@ class TestKillSessionLifecycleExtended:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree="/tmp/wt",
                 git_root="/tmp/repo",
                 branch="feat/my-feature",
@@ -787,7 +787,7 @@ class TestKillSessionLifecycleExtended:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree="/tmp/wt",
                 git_root="/tmp/repo",
                 branch="main",
@@ -808,7 +808,7 @@ class TestKillSessionLifecycleExtended:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree="/tmp/wt",
                 git_root="/tmp/repo",
                 remove_worktree=True,
@@ -827,7 +827,7 @@ class TestKillSessionLifecycleExtended:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
                 worktree="/tmp/wt",
                 git_root="/tmp/repo",
                 remove_worktree=False,
@@ -847,7 +847,7 @@ class TestKillSessionLifecycleExtended:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
             )
 
         assert summary["journal_archived"] is True
@@ -863,7 +863,7 @@ class TestKillSessionLifecycleExtended:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
             )
 
         assert summary["journal_archived"] is False
@@ -881,7 +881,7 @@ class TestKillSessionLifecycleExtended:
         ):
             summary = await kill_session_lifecycle(
                 session_id=s.id,
-                tmux_session=s.tmux_session,
+                tmux_session=s.runtime.session_name,
             )
 
         assert summary["journal_archived"] is False
@@ -916,8 +916,8 @@ class TestCreateSessionLifecycleExtended:
             )
 
         assert session.pid is None
-        assert session.tmux_session_id == ""
-        assert session.tmux_window == ""
+        assert session.runtime.session_id == ""
+        assert session.runtime.window_id == ""
 
     async def test_create_with_startup_commands(self, mock_dirs):
         """Create runs startup commands with interpolation."""

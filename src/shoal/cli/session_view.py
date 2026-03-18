@@ -10,14 +10,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from shoal.core import tmux
 from shoal.core.config import ensure_dirs, load_config, load_tool_config
 from shoal.core.db import with_db
-from shoal.core.state import (
-    _get_tool_icon,
-    get_session,
-    list_sessions,
-)
+from shoal.core.state import _get_tool_icon, get_session, list_sessions
 from shoal.core.status_provider import describe_status_provider
 from shoal.core.theme import (
     Colors,
@@ -29,6 +24,7 @@ from shoal.core.theme import (
     get_status_style,
 )
 from shoal.models.state import SessionState
+from shoal.services.runtime_provider import provider_for_session, runtime_summary
 
 console = Console()
 
@@ -110,7 +106,7 @@ async def _ls_impl(format: str | None, *, tag: str | None = None, tree: bool = F
             icon = _get_tool_icon(s.tool)
 
             is_ghost = False
-            if s.status.value != "stopped" and not tmux.has_session(s.tmux_session):
+            if s.status.value != "stopped" and not provider_for_session(s).exists(s):
                 is_ghost = True
 
             status_icon = get_status_icon(s.status.value, use_nerd=use_nerd)
@@ -398,8 +394,10 @@ async def _info_impl(session_name_or_id: str | None, color_setting: str) -> None
     runtime = Table.grid(padding=(0, 2))
     runtime.add_column(style=Colors.HEADER_WARNING)
     runtime.add_column()
-    runtime.add_row(f"{Icons.TMUX} Tmux", f"[dim]session:[/dim] {s.tmux_session}")
-    runtime.add_row(" ", f"[dim]window:[/dim] {s.tmux_window}")
+    runtime.add_row(f"{Icons.STATUS} Runtime", s.runtime.kind.value)
+    for label, value in runtime_summary(s.runtime).items():
+        display_value = value or "[dim](none)[/dim]"
+        runtime.add_row(" ", f"[dim]{label}:[/dim] {display_value}")
     runtime.add_row(f"{Icons.PID} PID", str(s.pid) if s.pid else "[dim]N/A[/dim]")
     runtime.add_row(
         f"{Icons.MCP} MCP", ", ".join(s.mcp_servers) if s.mcp_servers else "[dim](none)[/dim]"
@@ -422,18 +420,14 @@ async def _info_impl(session_name_or_id: str | None, color_setting: str) -> None
         )
     )
 
-    if tmux.has_session(s.tmux_session):
+    provider = provider_for_session(s)
+    if provider.exists(s):
         info_console.print(f"\n[bold]{Icons.OUTPUT} Recent Output:[/bold]")
         include_ansi = color_setting == "always"
         preview_lines = 15
         skip_lines = 10
         capture_lines = preview_lines * 6 if include_ansi else 20
-        pane_target = tmux.preferred_pane(s.tmux_session, f"shoal:{s.id}")
-        content = tmux.capture_pane(
-            pane_target,
-            lines=capture_lines,
-            include_ansi=include_ansi,
-        )
+        content = provider.capture_output(s, lines=capture_lines, include_ansi=include_ansi)
         if content:
             lines = content.splitlines()
             while lines and not lines[-1].strip():
@@ -489,8 +483,9 @@ async def _logs_impl(
     if not s:
         raise typer.Exit(1)
 
-    if not tmux.has_session(s.tmux_session):
-        console.print(f"[red]Tmux session '{s.tmux_session}' not found[/red]")
+    provider = provider_for_session(s)
+    if not provider.exists(s):
+        console.print(f"[red]Runtime session not found: {s.runtime.session_name}[/red]")
         raise typer.Exit(1)
 
     if color_setting == "always":
@@ -501,10 +496,9 @@ async def _logs_impl(
         logs_console = console
 
     include_ansi = color_setting == "always"
-    pane_target = tmux.preferred_pane(s.tmux_session, f"shoal:{s.id}")
 
     if not tail:
-        content = tmux.capture_pane(pane_target, lines=lines, include_ansi=include_ansi)
+        content = provider.capture_output(s, lines=lines, include_ansi=include_ansi)
         if include_ansi:
             from rich.text import Text
 
@@ -512,25 +506,14 @@ async def _logs_impl(
         else:
             logs_console.print(content)
     else:
-        # Tailing tmux pane output is tricky without a dedicated tool,
-        # but we can do a simple loop or use 'tmux pipe-pane'.
-        # For simplicity, let's just use a loop for now.
-
         last_content = ""
         try:
             while True:
-                content = tmux.capture_pane(
-                    pane_target,
-                    lines=lines,
-                    include_ansi=include_ansi,
-                )
+                content = provider.capture_output(s, lines=lines, include_ansi=include_ansi)
                 if content != last_content:
-                    # Clear screen and show new content, or just show diff
-                    # Simplest: just print it if it changed
                     if last_content:
                         new_lines = content.splitlines()
                         old_lines = last_content.splitlines()
-                        # This is a very naive tail
                         for line in new_lines[len(old_lines) - 1 :]:
                             if line not in old_lines:
                                 if include_ansi:

@@ -5,73 +5,20 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import shlex
 import signal
 import subprocess
 from datetime import UTC, datetime
 
-from shoal.core import tmux
 from shoal.core.config import ensure_dirs, load_tool_config, state_dir
 from shoal.core.detection import detect_status
 from shoal.core.notify import notify
 from shoal.core.state import list_sessions, update_session
 from shoal.models.state import SessionStatus
+from shoal.services.runtime_provider import provider_for_session
 
 logger = logging.getLogger("shoal.watcher")
 
 _MAX_BACKOFF = 300.0  # seconds — cap for exponential backoff on consecutive errors
-
-
-def _find_session_tool_pane(
-    panes: list[dict[str, str]],
-    pane_title: str,
-    tool_command: str,
-) -> str | None:
-    """Pick the pane tagged for this session.
-
-    We intentionally key on pane title (shoal:<session_id>) because
-    pane_current_command is not stable when users split panes, switch focus,
-    or when tools spawn subprocesses.
-
-    Fallback when title is missing (tool rewrote it):
-    1. pane whose current command matches the tool executable
-    2. active pane among those command matches
-    3. single-pane tmux session
-    """
-    tool_exe = _tool_executable(tool_command)
-
-    for pane in panes:
-        if pane.get("title") == pane_title:
-            return pane.get("id")
-
-    if tool_exe:
-        command_matches = [p for p in panes if p.get("command") == tool_exe]
-        if len(command_matches) == 1:
-            return command_matches[0].get("id")
-        for pane in command_matches:
-            if pane.get("active") == "1":
-                return pane.get("id")
-
-    if len(panes) == 1:
-        return panes[0].get("id")
-
-    return None
-
-
-def _tool_executable(tool_command: str) -> str:
-    """Return the executable portion of a tool command string."""
-    if not isinstance(tool_command, str):
-        return ""
-
-    if not tool_command.strip():
-        return ""
-
-    try:
-        parts = shlex.split(tool_command)
-    except ValueError:
-        parts = tool_command.strip().split()
-
-    return os.path.basename(parts[0]) if parts else ""
 
 
 class Watcher:
@@ -160,16 +107,9 @@ class Watcher:
             if session.status.value == "stopped":
                 continue
 
-            # 1. Check if tmux session still exists
-            if not await tmux.async_has_session(session.tmux_session):
-                if session.status.value != "stopped":
-                    await update_session(
-                        session.id, status=SessionStatus.stopped, last_activity=datetime.now(UTC)
-                    )
-                    logger.info("Session %s: marked stopped (tmux gone)", session.id)
-                continue
+            provider = provider_for_session(session)
 
-            # 2. Resolve the pane to track by session tool command
+            # 1. Check runtime liveness + capture provider-owned observation
             try:
                 tool_config = load_tool_config(session.tool)
             except FileNotFoundError:
@@ -180,43 +120,49 @@ class Watcher:
                 )
                 continue
 
-            pane_title = f"shoal:{session.id}"
-            panes = await tmux.async_list_panes(session.tmux_session)
-            pane_target = _find_session_tool_pane(panes, pane_title, tool_config.command)
-            if not pane_target:
-                logger.debug(
-                    "Session %s: no trackable pane found (title=%s)", session.id, pane_title
-                )
+            observation = await provider.async_observe(session, tool_config, lines=20)
+            if not observation.alive:
+                if session.status.value != "stopped":
+                    await update_session(
+                        session.id, status=SessionStatus.stopped, last_activity=datetime.now(UTC)
+                    )
+                    logger.info("Session %s: marked stopped (runtime gone)", session.id)
                 continue
 
-            # 3. Verify PID if we have one
-            current_pane_pid = await tmux.async_pane_pid(pane_target)
-            if session.pid and session.pid != current_pane_pid:
-                # PID changed (e.g. process restarted in same pane)
+            runtime_updates: dict[str, object] = {}
+            if observation.runtime != session.runtime:
+                runtime_updates["runtime"] = observation.runtime
+
+            if session.pid and observation.pid and session.pid != observation.pid:
                 logger.info(
-                    "Session %s: PID changed %s → %s", session.id, session.pid, current_pane_pid
+                    "Session %s: PID changed %s → %s", session.id, session.pid, observation.pid
                 )
-                await update_session(session.id, pid=current_pane_pid)
-            elif not session.pid and current_pane_pid:
-                # PID found for first time
-                await update_session(session.id, pid=current_pane_pid)
+                runtime_updates["pid"] = observation.pid
+            elif not session.pid and observation.pid:
+                runtime_updates["pid"] = observation.pid
 
-            # 4. Capture pane content
-            pane_content = await tmux.async_capture_pane(pane_target, lines=20)
-            if not pane_content:
+            if runtime_updates:
+                await update_session(session.id, **runtime_updates)
+
+            if not observation.output:
                 continue
 
-            # Detect status
-            new_status = detect_status(pane_content, tool_config)
+            # 2. Detect status from runtime output
+            new_status = detect_status(observation.output, tool_config)
 
-            # Update if changed
+            # 3. Update if changed
             if new_status.value != session.status.value:
                 old_status = session.status
-                await update_session(
-                    session.id,
-                    status=new_status,
-                    last_activity=datetime.now(UTC),
-                )
+                update_fields: dict[str, object] = {
+                    "status": new_status,
+                    "last_activity": datetime.now(UTC),
+                }
+                if "runtime" in runtime_updates:
+                    update_fields["runtime"] = runtime_updates["runtime"]
+                if "pid" in runtime_updates:
+                    update_fields["pid"] = runtime_updates["pid"]
+
+                await update_session(session.id, **update_fields)
                 logger.info("Session %s: %s → %s", session.id, old_status.value, new_status.value)
 
                 from shoal.models.state import LifecycleEvent

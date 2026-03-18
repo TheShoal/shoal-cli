@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SessionStatus(StrEnum):
@@ -27,8 +28,31 @@ class LifecycleEvent(StrEnum):
     session_completed = "session_completed"
 
 
+class RuntimeKind(StrEnum):
+    tmux = "tmux"
+
+
+class RuntimeCapability(StrEnum):
+    attach = "attach"
+    send_input = "send_input"
+    capture_output = "capture_output"
+    rename = "rename"
+    editor_socket = "editor_socket"
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+class TmuxRuntimeState(BaseModel):
+    kind: Literal[RuntimeKind.tmux] = RuntimeKind.tmux
+    session_name: str
+    session_id: str = ""
+    window_id: str = ""
+    nvim_socket: str = ""
+
+
+RuntimeState = TmuxRuntimeState
 
 
 class SessionState(BaseModel):
@@ -40,10 +64,7 @@ class SessionState(BaseModel):
     path: str  # git root
     worktree: str = ""
     branch: str = ""
-    tmux_session: str
-    tmux_session_id: str = ""
-    tmux_window: str = ""
-    nvim_socket: str = ""
+    runtime: RuntimeState
     status: SessionStatus = SessionStatus.idle
     pid: int | None = None
     mcp_servers: list[str] = Field(default_factory=list)
@@ -55,11 +76,32 @@ class SessionState(BaseModel):
     status_since: datetime = Field(default_factory=_utcnow)
     completed_at: datetime | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_tmux_runtime(cls, data: object) -> object:
+        """Translate pre-v0.25.0 tmux fields into the nested runtime shape."""
+        if not isinstance(data, dict) or "runtime" in data:
+            return data
+
+        tmux_session = data.get("tmux_session")
+        if not isinstance(tmux_session, str) or not tmux_session:
+            return data
+
+        migrated: dict[str, object] = dict(data)
+        migrated["runtime"] = TmuxRuntimeState(
+            session_name=tmux_session,
+            session_id=str(migrated.pop("tmux_session_id", "")),
+            window_id=str(migrated.pop("tmux_window", "")),
+            nvim_socket=str(migrated.pop("nvim_socket", "")),
+        ).model_dump()
+        migrated.pop("tmux_session", None)
+        return migrated
+
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
         """Validate session name for security and compatibility."""
-        from shoal.core.state import validate_session_name
+        from shoal.core.session_names import validate_session_name
 
         validate_session_name(v)
         return v

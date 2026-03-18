@@ -101,7 +101,7 @@ class TestAttachFlow:
         ):
             result = runner.invoke(app, ["attach", "my-sess"])
         assert result.exit_code == 0
-        mock_switch.assert_called_once_with(s.tmux_session)
+        mock_switch.assert_called_once_with(s.runtime.session_name)
 
     def test_attach_outside_tmux_attaches(self, mock_dirs, runner):
         """Lines 55-56: attach_session."""
@@ -123,7 +123,7 @@ class TestAttachFlow:
         ):
             result = runner.invoke(app, ["attach", "my-sess"])
         assert result.exit_code == 0
-        mock_attach.assert_called_once_with(s.tmux_session)
+        mock_attach.assert_called_once_with(s.runtime.session_name)
 
 
 class TestDetachFlow:

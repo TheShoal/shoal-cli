@@ -13,13 +13,13 @@ import os
 import signal
 from datetime import UTC, datetime
 
-from shoal.core import tmux
 from shoal.core.config import ensure_dirs, load_tool_config, state_dir
 from shoal.core.db import get_db
 from shoal.core.journal import append_entry, read_journal
 from shoal.core.state import find_by_name, get_session, list_sessions
 from shoal.models.config import RoboProfileConfig, ToolConfig
 from shoal.models.state import SessionState, SessionStatus
+from shoal.services.runtime_provider import provider_for_session
 
 logger = logging.getLogger("shoal.robo_supervisor")
 
@@ -123,12 +123,8 @@ class RoboSupervisor:
 
     async def _handle_waiting(self, session: SessionState) -> None:
         """Decide what to do with a waiting session: approve, escalate, or wait."""
-        # Resolve pane target
-        pane_title = f"shoal:{session.id}"
-        pane_target = await tmux.async_preferred_pane(session.tmux_session, title=pane_title)
-
-        # Capture current pane content
-        pane_content = await tmux.async_capture_pane(pane_target, lines=20)
+        provider = provider_for_session(session)
+        pane_content = await provider.async_capture_output(session, lines=20)
         if not pane_content:
             return
 
@@ -145,7 +141,7 @@ class RoboSupervisor:
 
         # Check for auto-approve
         if self._safe_to_approve(pane_content, tool_config):
-            await self._auto_approve(session, pane_target)
+            await self._auto_approve(session)
             return
 
         # Check for timeout escalation
@@ -194,10 +190,10 @@ class RoboSupervisor:
     # Actions
     # ------------------------------------------------------------------
 
-    async def _auto_approve(self, session: SessionState, pane_target: str) -> None:
+    async def _auto_approve(self, session: SessionState) -> None:
         """Send Enter to approve a waiting session and journal the decision."""
         logger.info("[%s] Auto-approving session '%s'", session.id, session.name)
-        await tmux.async_send_keys(pane_target, "", enter=True)
+        await provider_for_session(session).async_send_input(session, "", enter=True)
         await self._journal_decision(
             session, "approved", "Auto-approved: safe waiting pattern detected"
         )
@@ -244,22 +240,16 @@ class RoboSupervisor:
             await self._journal_decision(session, "escalated", reason)
             return
 
-        # Capture pane content of waiting session for context
-        pane_title = f"shoal:{session.id}"
-        pane_target = await tmux.async_preferred_pane(session.tmux_session, title=pane_title)
-        pane_content = await tmux.async_capture_pane(pane_target, lines=30)
+        # Capture runtime output of waiting session for context
+        pane_content = await provider_for_session(session).async_capture_output(session, lines=30)
 
-        # Build prompt and find escalation session pane target
+        # Build prompt and send it to the escalation session
         prompt = self._build_escalation_prompt(session, reason, pane_content, esc_name)
-        esc_pane_title = f"shoal:{esc_session.id}"
-        esc_pane_target = await tmux.async_preferred_pane(
-            esc_session.tmux_session, title=esc_pane_title
-        )
-
-        # Send prompt to escalation agent
         logger.info("[%s] Sending escalation prompt to session '%s'", session.id, esc_name)
         keys_payload = self._escalation_keys_payload(prompt, esc_session.id, esc_session.tool)
-        await tmux.async_send_keys(esc_pane_target, keys_payload, enter=True)
+        await provider_for_session(esc_session).async_send_input(
+            esc_session, keys_payload, enter=True
+        )
         await self._journal_decision(
             session,
             "escalated-to-llm",
@@ -286,8 +276,7 @@ class RoboSupervisor:
 
         # Parse response: "approve" → auto-approve, anything else → log and move on
         if "approve" in response.lower():
-            waiting_pane = await tmux.async_preferred_pane(session.tmux_session, title=pane_title)
-            await tmux.async_send_keys(waiting_pane, "", enter=True)
+            await provider_for_session(session).async_send_input(session, "", enter=True)
             await self._journal_decision(
                 session,
                 "approved-by-llm",

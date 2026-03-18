@@ -13,18 +13,21 @@ from shoal.core import tmux
 from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
 from shoal.core.journal import archive_journal
+from shoal.core.session_names import (
+    is_shoal_tmux_session_name,
+    validate_session_name,
+)
 from shoal.core.state import (
     _resolve_session_interactive_impl,
-    build_tmux_session_name,
     delete_session,
     find_by_name,
     get_session,
-    is_shoal_tmux_session_name,
     list_sessions,
     touch_session,
     update_session,
 )
 from shoal.models.state import SessionStatus
+from shoal.services.runtime_provider import provider_for_session
 
 console = Console()
 
@@ -42,20 +45,17 @@ async def _attach_impl(session_name_or_id: str | None) -> None:
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
-
-    if not tmux.has_session(s.tmux_session):
+    provider = provider_for_session(s)
+    if not provider.exists(s):
         console.print(
-            f"[red]Tmux session '{s.tmux_session}' not found (session may have died)[/red]"
+            "[red]Runtime session "
+            f"'{s.runtime.session_name}' not found (session may have died)[/red]"
         )
         await update_session(sid, status=SessionStatus.stopped)
         raise typer.Exit(1)
 
     await touch_session(sid)
-
-    if tmux.is_inside_tmux():
-        tmux.switch_client(s.tmux_session)
-    else:
-        tmux.attach_session(s.tmux_session)
+    provider.attach(s)
 
 
 def detach() -> None:
@@ -82,7 +82,7 @@ def rename(
 
 async def _rename_impl(old_name: str, new_name: str) -> None:
     ensure_dirs()
-    from shoal.core.state import resolve_session, validate_session_name
+    from shoal.core.state import resolve_session
 
     # Validate new name
     try:
@@ -100,21 +100,12 @@ async def _rename_impl(old_name: str, new_name: str) -> None:
     if not s:
         raise typer.Exit(1)
 
-    # Check if new name already exists
     if await find_by_name(new_name):
         console.print(f"[red]Session with name '{new_name}' already exists[/red]")
         raise typer.Exit(1)
 
-    old_tmux = s.tmux_session
-    new_tmux = build_tmux_session_name(new_name)
-
-    # Rename tmux session if it exists
-    if tmux.has_session(old_tmux):
-        tmux.rename_session(old_tmux, new_tmux)
-        console.print(f"Renamed tmux session: {old_tmux} → {new_tmux}")
-
-    # Update DB
-    await update_session(sid, name=new_name, tmux_session=new_tmux)
+    updated_runtime = await provider_for_session(s).async_rename(s, new_name)
+    await update_session(sid, name=new_name, runtime=updated_runtime)
     console.print(f"Renamed session: {s.name} → {new_name}")
 
 
@@ -170,7 +161,7 @@ async def _send_impl(session_name_or_id: str, keys: str) -> None:
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
-    pane_target = tmux.preferred_pane(s.tmux_session, title=f"shoal:{s.id}")
+    pane_target = tmux.preferred_pane(s.runtime.session_name, title=f"shoal:{s.id}")
     tmux.send_keys(pane_target, keys)
 
 

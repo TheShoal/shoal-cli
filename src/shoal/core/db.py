@@ -1,6 +1,7 @@
 """Async SQLite database for Shoal session and robo state."""
 
 import asyncio
+import json
 import logging
 import time
 from collections.abc import AsyncIterator, Coroutine
@@ -123,11 +124,11 @@ class ShoalDB:
         # the timestamp of the most recent status_transitions row, or to
         # last_activity if no transition history exists.
         await self._backfill_status_since()
+        await self._backfill_runtime_state()
         await self._conn.commit()
 
     async def _backfill_status_since(self) -> None:
         """Backfill status_since for sessions created before the field existed."""
-        import json
         from datetime import UTC, datetime
 
         if self._conn is None:
@@ -136,6 +137,7 @@ class ShoalDB:
         async with self._conn.execute("SELECT id, data FROM sessions") as cursor:
             rows = cast(list[tuple[str, str]], list(await cursor.fetchall()))
 
+        migrated = 0
         for session_id, data_json in rows:
             data = json.loads(data_json)
             if "status_since" in data:
@@ -159,7 +161,30 @@ class ShoalDB:
                 "UPDATE sessions SET data = ? WHERE id = ?",
                 (json.dumps(data), session_id),
             )
-        logger.debug("_backfill_status_since: processed %d sessions", len(rows))
+            migrated += 1
+        logger.debug("_backfill_status_since: migrated %d session(s)", migrated)
+
+    async def _backfill_runtime_state(self) -> None:
+        """Rewrite legacy tmux fields into the nested runtime payload."""
+        if self._conn is None:
+            return
+
+        async with self._conn.execute("SELECT id, data FROM sessions") as cursor:
+            rows = cast(list[tuple[str, str]], list(await cursor.fetchall()))
+
+        migrated = 0
+        for session_id, data_json in rows:
+            data = json.loads(data_json)
+            if "runtime" in data or "tmux_session" not in data:
+                continue
+
+            session = SessionState.model_validate(data)
+            await self._conn.execute(
+                "UPDATE sessions SET data = ? WHERE id = ?",
+                (session.model_dump_json(), session_id),
+            )
+            migrated += 1
+        logger.debug("_backfill_runtime_state: migrated %d session(s)", migrated)
 
     async def close(self) -> None:
         """Close database connection."""

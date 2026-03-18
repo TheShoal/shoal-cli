@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -204,7 +204,7 @@ class TestLifecycleEmitsEvents:
 
             await kill_session_lifecycle(
                 session_id=session.id,
-                tmux_session=session.tmux_session,
+                tmux_session=session.runtime.session_name,
             )
 
         cb.assert_awaited_once()
@@ -331,25 +331,29 @@ class TestBuiltinHooks:
 class TestWatcherEmitsStatusChanged:
     async def test_status_change_emits_event(self, mock_dirs: object) -> None:
         from shoal.core.state import create_session
+        from shoal.services.runtime_models import RuntimeObservation
 
         session = await create_session("watcher-test", "claude", "/tmp/repo")
 
         cb = AsyncMock()
         on(LifecycleEvent.status_changed, cb)
 
+        mock_provider = MagicMock()
+        mock_provider.async_observe = AsyncMock(
+            return_value=RuntimeObservation(
+                alive=True,
+                output="some output",
+                pid=123,
+                runtime=session.runtime,
+            )
+        )
+
         with (
-            patch("shoal.services.watcher.tmux") as mock_tmux,
+            patch("shoal.services.watcher.provider_for_session", return_value=mock_provider),
             patch("shoal.services.watcher.load_tool_config"),
             patch("shoal.services.watcher.detect_status", return_value=SessionStatus.waiting),
             patch("shoal.services.watcher.notify"),
         ):
-            mock_tmux.async_has_session = AsyncMock(return_value=True)
-            mock_tmux.async_list_panes = AsyncMock(
-                return_value=[{"title": f"shoal:{session.id}", "id": "%1"}]
-            )
-            mock_tmux.async_pane_pid = AsyncMock(return_value=123)
-            mock_tmux.async_capture_pane = AsyncMock(return_value="some output")
-
             from shoal.services.watcher import Watcher
 
             watcher = Watcher()
@@ -491,7 +495,7 @@ class TestAutoCommitOnKill:
 
             result = await kill_session_lifecycle(
                 session_id=session.id,
-                tmux_session=session.tmux_session,
+                tmux_session=session.runtime.session_name,
             )
 
         mock_git.async_stage_all.assert_awaited_once_with(worktree)
@@ -524,7 +528,7 @@ class TestAutoCommitOnKill:
 
             result = await kill_session_lifecycle(
                 session_id=session.id,
-                tmux_session=session.tmux_session,
+                tmux_session=session.runtime.session_name,
             )
 
         mock_git.async_stage_all.assert_not_awaited()
@@ -555,7 +559,7 @@ class TestAutoCommitOnKill:
 
             result = await kill_session_lifecycle(
                 session_id=session.id,
-                tmux_session=session.tmux_session,
+                tmux_session=session.runtime.session_name,
             )
 
         mock_git.async_stage_all.assert_not_awaited()
@@ -582,7 +586,7 @@ class TestAutoCommitOnKill:
 
             result = await kill_session_lifecycle(
                 session_id=session.id,
-                tmux_session=session.tmux_session,
+                tmux_session=session.runtime.session_name,
             )
 
         mock_git.async_stage_all.assert_not_awaited()
@@ -618,7 +622,7 @@ class TestAutoCommitOnKill:
             # Must not raise
             result = await kill_session_lifecycle(
                 session_id=session.id,
-                tmux_session=session.tmux_session,
+                tmux_session=session.runtime.session_name,
             )
 
         assert result["db_deleted"] is True  # kill completed

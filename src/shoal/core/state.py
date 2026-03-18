@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import re
 import secrets
 import subprocess
 import sys
@@ -13,83 +12,20 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
-from shoal.core.config import load_config, load_tool_config
+from shoal.core.config import load_tool_config
 from shoal.core.db import get_db
+from shoal.core.session_names import (
+    build_tmux_session_name,
+    validate_session_name,
+)
 from shoal.core.theme import Symbols
-from shoal.models.state import SessionState, SessionStatus
+from shoal.models.state import SessionState, SessionStatus, TmuxRuntimeState
 
 
 def generate_id(length: int = 8) -> str:
     """Generate a short unique session ID from [a-z0-9]."""
     alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
     return "".join(secrets.choice(alphabet) for _ in range(length))
-
-
-def validate_session_name(name: str) -> None:
-    """Validate session name for security and compatibility.
-
-    Session names are used in:
-    - Tmux session names (via _sanitize_tmux_name)
-    - File paths (tmux sockets, nvim sockets)
-    - String interpolation for startup commands
-    - Database queries (safe via parameterization)
-
-    Raises:
-        ValueError: If validation fails with descriptive message.
-    """
-    if not name:
-        raise ValueError("Session name cannot be empty")
-
-    if len(name) > 100:
-        raise ValueError("Session name too long (max 100 characters)")
-
-    # Allow: alphanumeric, dash, underscore, slash, dot
-    # Block: shell metacharacters, control chars, null bytes
-    if not re.match(r"^[a-zA-Z0-9_/.-]+$", name):
-        raise ValueError(
-            "Session name must contain only: letters, numbers, dash, underscore, slash, dot"
-        )
-
-    # Block reserved names
-    if name in (".", ".."):
-        raise ValueError(f"Reserved name: {name}")
-
-
-def _sanitize_tmux_name(name: str) -> str:
-    """Sanitize a name for use in a tmux session name.
-
-    Tmux does not allow '.' or ':' in session names.
-    """
-    return name.replace(".", "-").replace(":", "-").replace("/", "-")
-
-
-def tmux_session_prefix() -> str:
-    """Return configured tmux session prefix string."""
-    cfg = load_config()
-    return (cfg.tmux.session_prefix or "").strip()
-
-
-def build_tmux_session_name(name: str) -> str:
-    """Build a tmux session name from configured prefix + sanitized name."""
-    sanitized_name = _sanitize_tmux_name(name)
-    prefix = tmux_session_prefix()
-    if not prefix:
-        return sanitized_name
-    if prefix.endswith("_"):
-        return f"{prefix}{sanitized_name}"
-    return f"{prefix}_{sanitized_name}"
-
-
-def is_shoal_tmux_session_name(name: str | None) -> bool:
-    """Check whether a tmux session name matches the configured Shoal prefix."""
-    if not name:
-        return False
-    prefix = tmux_session_prefix()
-    if not prefix:
-        return True
-    if prefix.endswith("_"):
-        return name.startswith(prefix)
-    return name.startswith(f"{prefix}_")
 
 
 def build_nvim_socket_path(tmux_session_id: str, tmux_window_id: str) -> str:
@@ -105,10 +41,11 @@ async def resolve_nvim_socket(session: SessionState) -> str | None:
     """Resolve and persist a session's Neovim socket from current tmux IDs."""
     from shoal.core import tmux
 
-    if not tmux.has_session(session.tmux_session):
+    runtime = session.runtime
+    if not tmux.has_session(runtime.session_name):
         return None
 
-    pane_target = tmux.preferred_pane(session.tmux_session, f"shoal:{session.id}")
+    pane_target = tmux.preferred_pane(runtime.session_name, f"shoal:{session.id}")
     coordinates = tmux.pane_coordinates(pane_target)
     if not coordinates:
         return None
@@ -116,16 +53,16 @@ async def resolve_nvim_socket(session: SessionState) -> str | None:
     tmux_session_id, tmux_window_id = coordinates
     socket = build_nvim_socket_path(tmux_session_id, tmux_window_id)
 
-    updates: dict[str, str] = {}
-    if session.tmux_session_id != tmux_session_id:
-        updates["tmux_session_id"] = tmux_session_id
-    if session.tmux_window != tmux_window_id:
-        updates["tmux_window"] = tmux_window_id
-    if session.nvim_socket != socket:
-        updates["nvim_socket"] = socket
+    updated_runtime = runtime
+    if runtime.session_id != tmux_session_id:
+        updated_runtime = updated_runtime.model_copy(update={"session_id": tmux_session_id})
+    if updated_runtime.window_id != tmux_window_id:
+        updated_runtime = updated_runtime.model_copy(update={"window_id": tmux_window_id})
+    if updated_runtime.nvim_socket != socket:
+        updated_runtime = updated_runtime.model_copy(update={"nvim_socket": socket})
 
-    if updates:
-        await update_session(session.id, **updates)
+    if updated_runtime != runtime:
+        await update_session(session.id, runtime=updated_runtime)
 
     return socket
 
@@ -167,10 +104,7 @@ async def create_session(
         path=git_root,
         worktree=worktree,
         branch=branch,
-        tmux_session=tmux_session,
-        tmux_session_id="",
-        tmux_window="",
-        nvim_socket="",
+        runtime=TmuxRuntimeState(session_name=tmux_session),
         status=SessionStatus.idle,
         pid=None,
         mcp_servers=[],

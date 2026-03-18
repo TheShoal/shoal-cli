@@ -28,6 +28,7 @@ from shoal.models.batch import (
     SessionStatusBatchOp,
 )
 from shoal.models.state import SessionState
+from shoal.services.runtime_provider import provider_for_session, runtime_payload
 
 logger = logging.getLogger(__name__)
 
@@ -170,8 +171,6 @@ def _requires_global_ordering(op: BatchOperation) -> bool:
 async def session_snapshot(request: SessionSnapshotRequest) -> SessionSnapshotResponse:
     """Capture a supervisor-friendly read snapshot across many sessions."""
 
-    from shoal.core import tmux
-
     cache = SessionCache()
     await cache.prime(request.sessions)
 
@@ -182,17 +181,15 @@ async def session_snapshot(request: SessionSnapshotRequest) -> SessionSnapshotRe
         async with semaphore:
             try:
                 _session_id, session_state = await cache.require(ref)
+                provider = provider_for_session(session_state)
                 payload: dict[str, object] = {"id": session_state.id, "name": session_state.name}
                 for field in request.fields:
                     match field:
                         case "status":
                             payload["status"] = session_state.status.value
                         case "pane_tail":
-                            pane_target = await tmux.async_preferred_pane(
-                                session_state.tmux_session, f"shoal:{session_state.id}"
-                            )
-                            payload["pane_tail"] = await tmux.async_capture_pane(
-                                pane_target, request.pane_lines
+                            payload["pane_tail"] = await provider.async_capture_output(
+                                session_state, lines=request.pane_lines
                             )
                         case "mcp_servers":
                             payload["mcp_servers"] = session_state.mcp_servers
@@ -212,8 +209,8 @@ async def session_snapshot(request: SessionSnapshotRequest) -> SessionSnapshotRe
                             payload["pid"] = session_state.pid
                         case "created_at":
                             payload["created_at"] = session_state.created_at.isoformat()
-                        case "tmux_session":
-                            payload["tmux_session"] = session_state.tmux_session
+                        case "runtime":
+                            payload["runtime"] = runtime_payload(session_state.runtime)
                 results[index] = SessionSnapshotItem(session=ref, success=True, result=payload)
             except BatchOperationFailure as exc:
                 results[index] = SessionSnapshotItem(
@@ -334,18 +331,14 @@ async def _dispatch(op: BatchOperation, cache: SessionCache) -> BatchPayload:
             _session_id, session_state = await cache.require(session_ref)
             return {"name": session_state.name, "status": session_state.status.value}
         case CapturePaneBatchOp():
-            from shoal.core import tmux
-
             _session_id, session_state = await cache.require(op.session)
-            pane_target = await tmux.async_preferred_pane(
-                session_state.tmux_session, f"shoal:{session_state.id}"
+            content = await provider_for_session(session_state).async_capture_output(
+                session_state, lines=op.lines
             )
-            content = await tmux.async_capture_pane(pane_target, op.lines)
             return {"content": content}
         case SendKeysBatchOp():
             import asyncio as async_tools
 
-            from shoal.core import tmux
             from shoal.core.config import load_tool_config
 
             _session_id, session_state = await cache.require(op.session)
@@ -358,10 +351,12 @@ async def _dispatch(op: BatchOperation, cache: SessionCache) -> BatchPayload:
             except FileNotFoundError:
                 delay = 0.0
 
-            pane_target = await tmux.async_preferred_pane(
-                session_state.tmux_session, f"shoal:{session_state.id}"
+            await provider_for_session(session_state).async_send_input(
+                session_state,
+                op.keys,
+                enter=auto_enter,
+                delay=delay,
             )
-            await tmux.async_send_keys(pane_target, op.keys, enter=auto_enter, delay=delay)
             return {"message": f"Keys sent to session '{session_state.name}'"}
         case KillSessionBatchOp():
             from shoal.services.lifecycle import DirtyWorktreeError, kill_session_lifecycle
@@ -370,7 +365,7 @@ async def _dispatch(op: BatchOperation, cache: SessionCache) -> BatchPayload:
             try:
                 summary = await kill_session_lifecycle(
                     session_id=session_state.id,
-                    tmux_session=session_state.tmux_session,
+                    tmux_session=session_state.runtime.session_name,
                     worktree=session_state.worktree,
                     git_root=session_state.path,
                     branch=session_state.branch,
@@ -445,7 +440,7 @@ def _session_info_payload(session_state: SessionState) -> dict[str, object]:
         "path": session_state.path,
         "branch": session_state.branch,
         "worktree": session_state.worktree,
-        "tmux_session": session_state.tmux_session,
+        "runtime": runtime_payload(session_state.runtime),
         "pid": session_state.pid,
         "mcp_servers": session_state.mcp_servers,
         "created_at": session_state.created_at.isoformat(),

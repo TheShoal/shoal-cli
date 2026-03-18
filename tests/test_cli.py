@@ -224,7 +224,7 @@ class TestRobo:
 
             assert result.exit_code == 0
             assert "Sent keys to 'test-session'" in result.output
-            mock_pane.assert_called_once_with(s.tmux_session, title=f"shoal:{s.id}")
+            mock_pane.assert_called_once_with(s.runtime.session_name, title=f"shoal:{s.id}")
             mock_send.assert_called_once_with("%0", "ls -la")
 
     def test_approve(self, mock_dirs):
@@ -241,7 +241,7 @@ class TestRobo:
 
             assert result.exit_code == 0
             assert "Sent keys to 'test-session'" in result.output
-            mock_pane.assert_called_once_with(s.tmux_session, title=f"shoal:{s.id}")
+            mock_pane.assert_called_once_with(s.runtime.session_name, title=f"shoal:{s.id}")
             mock_send.assert_called_once_with("%0", "")
 
 
@@ -393,7 +393,7 @@ class TestKill:
             assert result.exit_code == 0
             assert "Session 'to-kill' (" in result.output
             assert "removed" in result.output
-            mock_tmux_kill.assert_called_once_with(s.tmux_session)
+            mock_tmux_kill.assert_called_once_with(s.runtime.session_name)
 
         assert asyncio.run(get_session(s.id)) is None
 
@@ -452,7 +452,7 @@ class TestAttach:
         with patch("shoal.core.tmux.has_session", return_value=False):
             result = runner.invoke(app, ["attach", "missing-tmux"])
             assert result.exit_code == 1
-            assert "Tmux session" in result.output
+            assert "Runtime session" in result.output
             assert "not found" in result.output
 
 
