@@ -78,36 +78,37 @@ async def _ls_impl(format: str | None, *, tag: str | None = None, tree: bool = F
 
     use_nerd = load_config().general.use_nerd_fonts
     show_tags = any(s.tags for s in sessions)
+    session_icon = Icons.SESSION if use_nerd else Symbols.BULLET_FILLED
+    home = str(Path.home())
 
-    # Group sessions by path
-
+    # Group sessions by project root, then render each group as a compact table.
     from collections import defaultdict
 
     groups = defaultdict(list)
     for s in sessions:
         groups[s.path].append(s)
 
-    # Sort paths alphabetically
     sorted_paths = sorted(groups.keys())
 
-    for path in sorted_paths:
-        group_sessions = groups[path]
-        display_project = path.replace(str(Path.home()), "~")
+    for index, path in enumerate(sorted_paths):
+        group_sessions = sorted(groups[path], key=lambda x: x.name)
+        display_project = path.replace(home, "~")
 
-        table = create_table(padding=(0, 1), collapse_padding=True, expand=True)
-        table.add_column("ID", style="dim", no_wrap=True)
-        table.add_column("NAME", min_width=16, max_width=24)
-        table.add_column("TOOL", max_width=10)
-        table.add_column("STATUS", max_width=18)
-        table.add_column("BRANCH", max_width=28)
+        table = create_table(
+            padding=(0, 1),
+            collapse_padding=True,
+            expand=True,
+            pad_edge=False,
+        )
+        table.add_column("SESSION", min_width=24, ratio=3, overflow="fold")
+        table.add_column("STATE", min_width=16, ratio=2, overflow="fold")
+        table.add_column("LOCATION", min_width=28, ratio=4, overflow="fold")
         if show_tags:
-            table.add_column("TAGS", width=20)
+            table.add_column("TAGS", min_width=14, ratio=2, overflow="fold")
 
-        # Sort sessions within group by name
-        for s in sorted(group_sessions, key=lambda x: x.name):
+        for s in group_sessions:
             icon = _get_tool_icon(s.tool)
 
-            # Check if it's a ghost session
             is_ghost = False
             if s.status.value != "stopped" and not tmux.has_session(s.tmux_session):
                 is_ghost = True
@@ -127,36 +128,30 @@ async def _ls_impl(format: str | None, *, tag: str | None = None, tree: bool = F
                     f"[bold red]{ghost_icon} ghost[/bold red] [dim](was {s.status.value})[/dim]"
                 )
 
-            wt_display = ""
-            if s.worktree:
-                wt_display = s.worktree.replace(path, ".").replace(str(Path.home()), "~")
-            else:
-                wt_display = "[dim](root)[/dim]"
+            location_path = (
+                s.worktree.replace(path, ".").replace(home, "~")
+                if s.worktree
+                else "[dim](root)[/dim]"
+            )
 
             row: list[str] = [
-                s.id,
-                f"{icon} [bold]{s.name}[/bold]",
-                s.tool,
-                status_text,
-                f"[cyan]{s.branch or '-'}[/cyan]",
-                wt_display,
+                f"{icon} [bold]{s.name}[/bold]\n[dim]{s.id}[/dim]",
+                f"{status_text}\n[dim]{s.tool}[/dim]",
+                f"[cyan]{s.branch or '-'}[/cyan]\n{location_path}",
             ]
             if show_tags:
                 row.append(", ".join(s.tags) if s.tags else "[dim]-[/dim]")
 
             table.add_row(*row)
 
-        session_icon = Icons.SESSION if use_nerd else Symbols.BULLET_FILLED
-        console.print()
-        console.print(
-            create_panel(
-                table,
-                title=f"[bold blue]{session_icon} {display_project}[/bold blue]",
-                primary=True,
-                title_align="left",
-                padding=(0, 1),
-            )
+        if index:
+            console.print()
+        console.rule(
+            f"[bold blue]{session_icon} {display_project}[/bold blue]",
+            style=Colors.PANEL_BORDER_PRIMARY,
+            align="left",
         )
+        console.print(table)
 
 
 def _render_fork_tree(sessions: list[SessionState]) -> None:

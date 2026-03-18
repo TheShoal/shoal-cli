@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from io import StringIO
 from unittest.mock import patch
 
+from rich.console import Console
 from typer.testing import CliRunner
 
 from shoal.cli import app
+from shoal.models.config import GeneralConfig, ShoalConfig
 from shoal.models.state import SessionState, SessionStatus
 
 runner = CliRunner()
@@ -19,17 +22,22 @@ def _make_session(
     tool: str = "claude",
     worktree: str = "",
     mcp_servers: list[str] | None = None,
+    path: str = "/tmp/repo",
+    branch: str = "main",
+    tags: list[str] | None = None,
+    session_id: str | None = None,
 ) -> SessionState:
     return SessionState(
-        id=f"id-{name}",
+        id=session_id or f"id-{name}",
         name=name,
         tool=tool,
-        path="/tmp/repo",
+        path=path,
         tmux_session=f"_{name}",
         tmux_window=f"_{name}:0",
         worktree=worktree or "",
-        branch="main",
+        branch=branch,
         status=SessionStatus(status),
+        tags=tags or [],
         mcp_servers=mcp_servers or [],
         pid=12345,
         pane_coordinates="_{name}:0.0",
@@ -87,6 +95,53 @@ class TestStatusWithSessions:
             result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
         assert "broken" in result.output
+
+
+class TestLsFormatting:
+    def test_ls_wraps_long_fields_without_panel_boxes(self, mock_dirs):
+        sessions = [
+            _make_session(
+                name="very-long-session-name-for-feature-refactor",
+                status="waiting",
+                tool="claude",
+                path="/Users/test/src/some-very-long-project-name",
+                worktree=(
+                    "/Users/test/src/some-very-long-project-name/"
+                    ".worktrees/feature/some-really-long-branch-name"
+                ),
+                branch="feature/some-really-long-branch-name-that-keeps-going",
+                tags=["backend", "urgent", "review"],
+                session_id="abc12345",
+            ),
+            _make_session(
+                name="another-session-with-a-verbose-name",
+                status="running",
+                tool="pi",
+                path="/Users/test/src/some-very-long-project-name",
+                session_id="def67890",
+            ),
+        ]
+        output = StringIO()
+        test_console = Console(file=output, width=90, force_terminal=False)
+
+        with (
+            patch("shoal.cli.session_view.console", test_console),
+            patch("shoal.cli.session_view.list_sessions", return_value=sessions),
+            patch("shoal.cli.session_view.tmux.has_session", return_value=True),
+            patch(
+                "shoal.cli.session_view.load_config",
+                return_value=ShoalConfig(general=GeneralConfig(use_nerd_fonts=False)),
+            ),
+        ):
+            result = runner.invoke(app, ["ls"])
+
+        assert result.exit_code == 0
+        rendered = output.getvalue()
+        assert "LOCATION" in rendered
+        assert "that-keeps-going" in rendered
+        assert "y-long-branch-name" in rendered
+        assert "╭" not in rendered
+        assert "…" not in rendered
 
 
 class TestInfoCommand:

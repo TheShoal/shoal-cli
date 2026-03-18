@@ -14,7 +14,7 @@ documentation branch points to be obvious.
 <div class="shoal-step-grid">
   <div class="shoal-step" data-icon="stack">
     <strong>Check the toolchain</strong>
-    <p>Confirm `uv`, `tmux`, and `git` are available before you start layering templates and shells.</p>
+    <p>Confirm <code>uv</code>, <code>tmux</code>, and <code>git</code> are available before you start layering templates and shells.</p>
   </div>
   <div class="shoal-step" data-icon="launch">
     <strong>Install the CLI</strong>
@@ -22,11 +22,11 @@ documentation branch points to be obvious.
   </div>
   <div class="shoal-step" data-icon="map">
     <strong>Initialize the control plane</strong>
-    <p>Run `shoal init` and `shoal setup fish` to scaffold state, config, and the intended shell ergonomics.</p>
+    <p>Run <code>shoal init</code> and <code>shoal setup fish</code> to scaffold state, config, and the intended shell ergonomics.</p>
   </div>
   <div class="shoal-step" data-icon="control">
     <strong>Launch and supervise</strong>
-    <p>Create the first worktrees, then use `shoal status`, `shoal popup`, and `shoal attach` to operate them.</p>
+    <p>Create the first worktrees, then use <code>shoal status</code>, <code>shoal popup</code>, and <code>shoal attach</code> to operate them.</p>
   </div>
 </div>
 
@@ -44,7 +44,7 @@ Shoal assumes a terminal-centric workflow and relies on a small set of system to
 
 Optional but useful:
 
-`gh` for `shoal wt finish --pr`
+- `gh` for `shoal wt finish --pr`
 - `nvr` for Neovim integration
 
 ## Install

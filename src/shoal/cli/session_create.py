@@ -82,7 +82,7 @@ def add(
         str | None,
         typer.Option("--mcp", help="MCP servers to provision (comma-separated)"),
     ] = None,
- ) -> None:
+) -> None:
     """Create a new session."""
     mcp_list = [s.strip() for s in mcp.split(",") if s.strip()] if mcp else []
     asyncio.run(
@@ -100,7 +100,7 @@ async def _add_impl(
     dry_run: bool,
     name: str | None,
     mcp_servers: list[str] | None = None,
- ) -> None:
+) -> None:
     ensure_dirs()
     cfg = load_config()
     template_cfg = None
@@ -203,7 +203,6 @@ async def _add_impl(
         console.print(f'  command = "{tool}"  # or full path')
         console.print("  EOF")
         raise typer.Exit(1)
-
 
     work_dir = str(resolved_path)
     branch_name = ""
