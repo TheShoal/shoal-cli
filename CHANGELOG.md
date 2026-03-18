@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-03-18
+
+### Added
+- **Worker completion signals**: `session_completed` lifecycle event, `shoal done [--summary]` CLI command, `completed_at` on `SessionState`, `wait_for_completion` MCP tool
+- **Git MCP tools**: `branch_status` and `merge_branch` backed by `services/git_tools.py` — robo supervisors no longer need raw `send_keys` for git ops
+- **`fin install` remote source**: accepts HTTPS URLs and `fin:<name>[@<version>]` registry shorthand; `--registry-url` flag added
+
+### Changed
+- **`session_snapshot` default `pane_lines`**: 20 → 50
+- **`create_session` validation**: `branch=True` without `worktree` now raises a clear error
 ## [0.23.0] - 2026-03-09
 
 ### Added
