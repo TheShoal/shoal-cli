@@ -29,21 +29,19 @@ async def branch_status(worktree: str) -> dict[str, object]:
         A dict with keys: branch, ahead, behind, dirty, last_commit_sha,
         last_commit_msg.
     """
-    branch_proc, ahead_proc, behind_proc, porcelain_proc, sha_proc, msg_proc = (
-        await asyncio.gather(
-            _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], worktree),
-            _run(
-                ["git", "rev-list", "--count", "@{u}..HEAD"],
-                worktree,
-            ),
-            _run(
-                ["git", "rev-list", "--count", "HEAD..@{u}"],
-                worktree,
-            ),
-            _run(["git", "status", "--porcelain"], worktree),
-            _run(["git", "log", "-1", "--format=%H"], worktree),
-            _run(["git", "log", "-1", "--format=%s"], worktree),
-        )
+    branch_proc, ahead_proc, behind_proc, porcelain_proc, sha_proc, msg_proc = await asyncio.gather(
+        _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], worktree),
+        _run(
+            ["git", "rev-list", "--count", "@{u}..HEAD"],
+            worktree,
+        ),
+        _run(
+            ["git", "rev-list", "--count", "HEAD..@{u}"],
+            worktree,
+        ),
+        _run(["git", "status", "--porcelain"], worktree),
+        _run(["git", "log", "-1", "--format=%H"], worktree),
+        _run(["git", "log", "-1", "--format=%s"], worktree),
     )
 
     branch = branch_proc.stdout.strip() if branch_proc.returncode == 0 else ""
@@ -92,7 +90,8 @@ async def merge_branch(
 
     Returns:
         On success: ``{"success": True, "conflicts": False, "merge_commit_sha": str}``
-        On failure: ``{"success": False, "error": str, "conflicts": bool, "merge_commit_sha": None}``
+        On failure: ``{"success": False, "error": str, "conflicts": bool,
+        "merge_commit_sha": None}``
     """
     # Refuse dirty worktree upfront.
     porcelain = await _run(["git", "status", "--porcelain"], worktree)

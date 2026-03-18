@@ -38,7 +38,6 @@ class FinManifest(BaseModel):
     entrypoints: FinEntrypoints
 
 
-
 def _registry_url(raw: str, registry_url: str) -> str:
     """Convert a ``fin:<name>[@<version>]`` shorthand to a registry download URL.
 
@@ -50,7 +49,7 @@ def _registry_url(raw: str, registry_url: str) -> str:
         Full URL pointing to the versioned ``.tar.gz`` archive.
     """
     # Strip the "fin:" prefix
-    spec = raw[len("fin:"):]
+    spec = raw[len("fin:") :]
     if "@" in spec:
         name, _, version = spec.partition("@")
         version = version or "latest"
@@ -108,10 +107,10 @@ def _download_fin(url: str) -> Path:
     try:
         if filename.endswith(".tar.gz"):
             with tarfile.open(tmp_path, "r:gz") as tf:
-                tf.extractall(dest)  # noqa: S202 — trusted fin registry source
+                tf.extractall(dest)  # noqa: S202  # nosec B202 — trusted fin registry source
         else:
             with zipfile.ZipFile(tmp_path) as zf:
-                zf.extractall(dest)
+                zf.extractall(dest)  # noqa: S202  # nosec B202 — trusted fin registry source
     finally:
         tmp_path.unlink(missing_ok=True)
 

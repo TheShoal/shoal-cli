@@ -98,9 +98,10 @@ class DirtyWorktreeError(LifecycleError):
         super().__init__(message, session_id=session_id, operation="kill")
 
 
-
 class SessionNotFoundError(LifecycleError):
     """Session not found."""
+
+
 # ---------------------------------------------------------------------------
 # Rollback helper
 # ---------------------------------------------------------------------------
@@ -1162,21 +1163,28 @@ async def complete_session(name: str, summary: str = "") -> SessionState:
 
     from shoal.core.db import get_db
     from shoal.core.journal import append_entry
+    from shoal.core.state import find_by_name, get_session
 
     session_id = await find_by_name(name)
     if session_id is None:
-        raise SessionNotFoundError(f"Session not found: {name}", session_id="", operation="complete")
+        raise SessionNotFoundError(
+            f"Session not found: {name}", session_id="", operation="complete"
+        )
 
     state = await get_session(session_id)
     if state is None:
-        raise SessionNotFoundError(f"Session not found: {name}", session_id=session_id, operation="complete")
+        raise SessionNotFoundError(
+            f"Session not found: {name}", session_id=session_id, operation="complete"
+        )
 
     state.completed_at = datetime.now(UTC)
 
     db = await get_db()
     await db.save_session(state)
 
-    journal_body = f"## Completion\n{summary}" if summary else "## Completion\nSession marked complete."
+    journal_body = (
+        f"## Completion\n{summary}" if summary else "## Completion\nSession marked complete."
+    )
     await asyncio.to_thread(append_entry, state.id, journal_body, source="lifecycle")
 
     # Auto-commit dirty worktree if configured (same pattern as kill_session_lifecycle)
@@ -1198,7 +1206,6 @@ async def complete_session(name: str, summary: str = "") -> SessionState:
 
     await emit(LifecycleEvent.session_completed, session=state)
     return state
-
 
 
 # ---------------------------------------------------------------------------

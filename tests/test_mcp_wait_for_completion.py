@@ -1,4 +1,5 @@
 """Tests for wait_for_completion MCP tool."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

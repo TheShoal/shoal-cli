@@ -65,7 +65,11 @@ async def test_branch_status_tool_returns_git_info() -> None:
     with (
         patch("shoal.core.state.find_by_name", new_callable=AsyncMock, return_value="abc123"),
         patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=session),
-        patch("shoal.services.mcp_shoal_server.git_tools.branch_status", new_callable=AsyncMock, return_value=expected),
+        patch(
+            "shoal.services.mcp_shoal_server.git_tools.branch_status",
+            new_callable=AsyncMock,
+            return_value=expected,
+        ),
     ):
         result = await branch_status_tool("worker")
 
@@ -121,7 +125,11 @@ async def test_merge_branch_tool_success() -> None:
     with (
         patch("shoal.core.state.find_by_name", new_callable=AsyncMock, return_value="abc123"),
         patch("shoal.core.state.get_session", new_callable=AsyncMock, return_value=session),
-        patch("shoal.services.mcp_shoal_server.git_tools.merge_branch", new_callable=AsyncMock, return_value=merge_result),
+        patch(
+            "shoal.services.mcp_shoal_server.git_tools.merge_branch",
+            new_callable=AsyncMock,
+            return_value=merge_result,
+        ),
     ):
         result = await merge_branch_tool("worker", "main")
 

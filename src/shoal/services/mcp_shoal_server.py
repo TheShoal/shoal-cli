@@ -437,7 +437,6 @@ async def create_session_tool(
     if branch and not worktree:
         raise ToolError("branch=True requires a worktree name. Pass worktree=<name> to create one.")
 
-
     # Resolve tool
     resolved_tool = tool or cfg.general.default_tool
     try:
@@ -620,7 +619,6 @@ async def read_journal_tool(session: str, limit: int = 10) -> list[dict[str, obj
     )
 
 
-
 # ---------------------------------------------------------------------------
 # Tool: wait_for_completion
 # ---------------------------------------------------------------------------
@@ -741,11 +739,11 @@ async def merge_branch_tool(
     if strategy not in {"merge", "squash"}:
         raise ToolError(f"Invalid strategy: {strategy!r}. Must be 'merge' or 'squash'.")
 
-
     return await git_tools.merge_branch(
-        state.worktree, target, strategy=strategy  # type: ignore[arg-type]
+        state.worktree,
+        target,
+        strategy=strategy,  # type: ignore[arg-type]
     )
-
 
 
 # ---------------------------------------------------------------------------

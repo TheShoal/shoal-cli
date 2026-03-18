@@ -10,7 +10,9 @@ import pytest
 from shoal.services.git_tools import branch_status, merge_branch
 
 
-def _proc(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
+def _proc(
+    stdout: str = "", stderr: str = "", returncode: int = 0
+) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
 
@@ -22,14 +24,16 @@ def _proc(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess
 @pytest.mark.asyncio
 async def test_branch_status_happy_path() -> None:
     procs = [
-        _proc("main\n"),          # branch
-        _proc("2\n"),             # ahead
-        _proc("1\n"),             # behind
-        _proc(""),                # porcelain (clean)
-        _proc("abc123\n"),        # sha
-        _proc("fix: something\n"),# msg
+        _proc("main\n"),  # branch
+        _proc("2\n"),  # ahead
+        _proc("1\n"),  # behind
+        _proc(""),  # porcelain (clean)
+        _proc("abc123\n"),  # sha
+        _proc("fix: something\n"),  # msg
     ]
-    with patch("shoal.services.git_tools.asyncio.gather", new_callable=AsyncMock, return_value=procs):
+    with patch(
+        "shoal.services.git_tools.asyncio.gather", new_callable=AsyncMock, return_value=procs
+    ):
         result = await branch_status("/repo")
 
     assert result == {
@@ -52,7 +56,9 @@ async def test_branch_status_dirty_worktree() -> None:
         _proc("abc\n"),
         _proc("msg\n"),
     ]
-    with patch("shoal.services.git_tools.asyncio.gather", new_callable=AsyncMock, return_value=procs):
+    with patch(
+        "shoal.services.git_tools.asyncio.gather", new_callable=AsyncMock, return_value=procs
+    ):
         result = await branch_status("/repo")
 
     assert result["dirty"] is True
@@ -61,14 +67,16 @@ async def test_branch_status_dirty_worktree() -> None:
 @pytest.mark.asyncio
 async def test_branch_status_subprocess_failure_returns_defaults() -> None:
     procs = [
-        _proc("", returncode=128),   # branch fails
-        _proc("", returncode=128),   # ahead fails (no upstream)
-        _proc("", returncode=128),   # behind fails
-        _proc(""),                   # porcelain clean
-        _proc("", returncode=128),   # sha fails
-        _proc("", returncode=128),   # msg fails
+        _proc("", returncode=128),  # branch fails
+        _proc("", returncode=128),  # ahead fails (no upstream)
+        _proc("", returncode=128),  # behind fails
+        _proc(""),  # porcelain clean
+        _proc("", returncode=128),  # sha fails
+        _proc("", returncode=128),  # msg fails
     ]
-    with patch("shoal.services.git_tools.asyncio.gather", new_callable=AsyncMock, return_value=procs):
+    with patch(
+        "shoal.services.git_tools.asyncio.gather", new_callable=AsyncMock, return_value=procs
+    ):
         result = await branch_status("/repo")
 
     assert result["branch"] == ""
@@ -87,7 +95,9 @@ async def test_branch_status_non_integer_ahead_defaults_to_zero() -> None:
         _proc("abc\n"),
         _proc("msg\n"),
     ]
-    with patch("shoal.services.git_tools.asyncio.gather", new_callable=AsyncMock, return_value=procs):
+    with patch(
+        "shoal.services.git_tools.asyncio.gather", new_callable=AsyncMock, return_value=procs
+    ):
         result = await branch_status("/repo")
 
     assert result["ahead"] == 0
@@ -112,11 +122,11 @@ async def test_merge_branch_dirty_worktree_refuses() -> None:
 @pytest.mark.asyncio
 async def test_merge_branch_success() -> None:
     responses = [
-        _proc(""),          # porcelain clean
+        _proc(""),  # porcelain clean
         _proc("feat/x\n"),  # current branch
-        _proc(""),          # checkout target OK
-        _proc(""),          # merge OK
-        _proc("deadbeef\n"),# sha
+        _proc(""),  # checkout target OK
+        _proc(""),  # merge OK
+        _proc("deadbeef\n"),  # sha
     ]
     with patch("shoal.services.git_tools._run", new_callable=AsyncMock, side_effect=responses):
         result = await merge_branch("/repo", "main", strategy="merge")
@@ -129,11 +139,11 @@ async def test_merge_branch_success() -> None:
 @pytest.mark.asyncio
 async def test_merge_branch_conflict() -> None:
     responses = [
-        _proc(""),                                # clean
-        _proc("feat/x\n"),                        # branch
-        _proc(""),                                # checkout OK
-        _proc("CONFLICT", returncode=1),          # merge fails
-        _proc(""),                                # abort (best effort)
+        _proc(""),  # clean
+        _proc("feat/x\n"),  # branch
+        _proc(""),  # checkout OK
+        _proc("CONFLICT", returncode=1),  # merge fails
+        _proc(""),  # abort (best effort)
     ]
     with patch("shoal.services.git_tools._run", new_callable=AsyncMock, side_effect=responses):
         result = await merge_branch("/repo", "main")
@@ -145,9 +155,9 @@ async def test_merge_branch_conflict() -> None:
 @pytest.mark.asyncio
 async def test_merge_branch_checkout_failure() -> None:
     responses = [
-        _proc(""),                                          # clean
-        _proc("feat/x\n"),                                 # branch
-        _proc("error: branch not found", returncode=1),    # checkout fails
+        _proc(""),  # clean
+        _proc("feat/x\n"),  # branch
+        _proc("error: branch not found", returncode=1),  # checkout fails
     ]
     with patch("shoal.services.git_tools._run", new_callable=AsyncMock, side_effect=responses):
         result = await merge_branch("/repo", "nonexistent")

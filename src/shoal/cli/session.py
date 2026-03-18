@@ -190,10 +190,11 @@ def _popup_inner_impl() -> None:
     run_popup()
 
 
-
 def session_done(
     name: str = typer.Argument(..., help="Session name."),
-    summary: str = typer.Option("", "--summary", "-s", help="Completion summary written to journal."),
+    summary: str = typer.Option(
+        "", "--summary", "-s", help="Completion summary written to journal."
+    ),
 ) -> None:
     """Mark a session as complete."""
     from shoal.services.lifecycle import SessionNotFoundError, complete_session

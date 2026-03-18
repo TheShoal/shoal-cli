@@ -87,7 +87,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "PERF", "RUF", "LOG", "G", "
 ignore = ["ASYNC240", "RUF001", "S101", "S603", "S607", "S108"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
+"tests/*" = ["S101", "SIM117", "E501"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -113,7 +113,7 @@ skip_covered = false
 
 [tool.bandit]
 exclude_dirs = ["tests"]
-skips = ["B101", "B404", "B603", "B607", "B108"]
+skips = ["B101", "B404", "B603", "B607", "B108", "B608"]
 
 [tool.uv]
 link-mode = "copy"

@@ -111,6 +111,7 @@ def _make_tar_gz(dest: Path, inner_name: str = "fin.toml") -> Path:
         info = tarfile.TarInfo(name=inner_name)
         info.size = 0
         import io
+
         tf.addfile(info, io.BytesIO(b""))
     return archive
 
@@ -197,11 +198,15 @@ def test_install_fin_with_http_source(tmp_path: Path) -> None:
     with (
         patch("shoal.models.fin.FinSource.resolve", return_value=local_fin),
         patch("shoal.services.fin_runtime.load_fin_manifest") as mock_manifest,
-        patch("shoal.services.fin_runtime.resolve_entrypoint", return_value=local_fin / "bin" / "install"),
+        patch(
+            "shoal.services.fin_runtime.resolve_entrypoint",
+            return_value=local_fin / "bin" / "install",
+        ),
         patch("shoal.services.fin_runtime.execute_entrypoint") as mock_exec,
         patch("shoal.services.fin_runtime.register_fin"),
     ):
         from shoal.models.fin import FinEntrypoints, FinManifest
+
         manifest = FinManifest(
             name="test-fin",
             version="1.0.0",
@@ -216,6 +221,7 @@ def test_install_fin_with_http_source(tmp_path: Path) -> None:
         )
         mock_manifest.return_value = (local_fin, manifest)
         from shoal.services.fin_runtime import FinExecutionResult
+
         mock_exec.return_value = FinExecutionResult(exit_code=0, stdout="", stderr="")
 
         result = install_fin("https://example.com/test-fin.tar.gz")
