@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-03-18
+
+### Fixed
+- **`shoal done` hangs on exit**: missing `with_db()` wrapper in CLI; aiosqlite background thread was never released, leaving the process hanging indefinitely after marking a session complete
+- **`fin install <url>` raw traceback**: `httpx.ConnectError`, `HTTPStatusError`, and other network errors escaped uncaught from `_download_fin()`; now wrapped as `FinRuntimeError` with a clean one-line error message
+- **`httpx` missing from core dependencies**: `models/fin.py` imports `httpx` unconditionally but it was only available via the `[mcp]` extra; added to `dependencies` so bare installs work
+- **`__version__` stale at `0.22.0`**: hardcoded value not updated during v0.24.0 release; now correctly reports `0.24.1`
+
 ## [0.24.0] - 2026-03-18
 
 ### Added
