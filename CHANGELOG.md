@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-03-18
+
+### Changed
+- **Session runtime model**: `SessionState` now stores a canonical nested `runtime` object instead of leaking tmux-specific fields (`tmux_session`, `tmux_session_id`, `tmux_window`, `nvim_socket`) at the top level
+- **Runtime provider architecture**: added `services/runtime_provider.py` and `services/runtime_providers/tmux.py`; lifecycle, watcher, CLI, API, MCP, and robo flows now dispatch through the runtime provider seam instead of hard-coding tmux operations across the codebase
+- **Batch/API/MCP runtime payloads**: session info and snapshot surfaces now return `runtime` metadata as a provider-tagged object rather than a flat `tmux_session` string
+
+### Fixed
+- **Legacy session migration**: SQLite-backed session blobs created before the refactor are eagerly migrated into the nested runtime shape on load/startup, so existing sessions survive the v0.25.0 cutover without manual cleanup
+- **Robo and operator flows after abstraction**: `shoal info`, `shoal send`, `shoal robo send`, `shoal robo approve`, and related capture/attach flows now continue to work against live tmux-backed sessions through the provider boundary
+
 ## [0.24.1] - 2026-03-18
 
 ### Fixed
