@@ -1432,7 +1432,7 @@ def _register_one_project_hook(entry: ProjectHookEntry) -> None:
             await asyncio.to_thread(  # noqa: S604 — shell=True is intentional; command is user-authored
                 _sp.run,
                 command,
-                shell=True,
+                shell=True,  # nosec B604 — user-authored hook command; intentional
                 env=env,
                 timeout=30,
             )
