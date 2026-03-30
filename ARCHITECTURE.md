@@ -50,6 +50,8 @@ Shoal is a **control plane** for AI agents that:
 - Shares infrastructure (MCP servers, git state) to **minimize resource overhead**
 - Provides **programmatic supervision** via the "robo" supervisor pattern
 - Maintains **persistent state** in SQLite with real-time status detection
+- Adds **alert-driven incident supervision** as an operator workflow: structured alert ingestion, incident records in SQLite, supervisor/worker lanes, and optional Claude hook signals mapped into the same timeline
+
 
 **Unlike simple shell scripts or tmux configs**, Shoal is a stateful orchestration system with lifecycle management, health monitoring, and inter-agent communication.
 
@@ -89,8 +91,8 @@ Shoal is a **control plane** for AI agents that:
 
 1. **User Command** → CLI layer (Typer) or API layer (FastAPI)
 2. **Lifecycle Orchestration** → `services/lifecycle.py` (create/fork/kill/reconcile with rollback)
-3. **Business Logic** → Async core (`src/shoal/core/`)
-4. **State Persistence** → SQLite (WAL mode, async via `aiosqlite`, update lock)
+3. **Business Logic** → Async core (`src/shoal/core/`) plus workflow services such as incident ingestion, lane spawning, and Claude hook event mapping
+4. **State Persistence** → SQLite (WAL mode, async via `aiosqlite`, update lock) stores sessions, incidents, and status transitions
 5. **Runtime Operations** → runtime-provider dispatch (`services/runtime_provider.py`)
 6. **Status Parsing** → `core/status_provider.py` classifies provider-captured output
 7. **Observation** → tmux provider currently supplies liveness, pane capture, and attach/send semantics

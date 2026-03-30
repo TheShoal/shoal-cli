@@ -13,9 +13,10 @@ hide:
     <p class="shoal-eyebrow">The control plane for parallel coding agents</p>
     <h1>Run a fleet of coding agents with visible state, recoverable handoffs, and human authority over every judgment call.</h1>
     <p class="shoal-lede">
-      Shoal gives each agent its own worktree, tmux session, state tracking, and shared MCP
-      infrastructure — so you can supervise a parallel agent fleet from one CLI without losing
-      visibility, authority, or flow. Parallel AI coding that feels like a controlled workflow,
+      Shoal gives each agent its own worktree, provider-backed session runtime, state tracking,
+      and shared MCP infrastructure — so you can supervise a parallel agent fleet from one CLI
+      without losing visibility, authority, or flow. Parallel AI coding that feels like a
+      controlled workflow, not a pile of threads.
       not a pile of threads.
     </p>
     <div class="shoal-actions">
@@ -36,7 +37,7 @@ Read it left to right: you declare work once, Shoal turns it into isolated sessi
 flowchart LR
     Intent["Operator intent<br/>tasks, approvals, priorities"] --> Shoal["Shoal control plane"]
     Shoal --> Templates["templates + tool profiles"]
-    Shoal --> Sessions["isolated sessions<br/>tmux + worktrees + MCP"]
+    Shoal --> Sessions["isolated sessions<br/>runtime + worktrees + MCP"]
     Sessions --> State["status, journals, waiting prompts, errors"]
     State --> Shoal
     Shoal --> Surface["shoal status / popup / attach"]
@@ -95,7 +96,7 @@ coordinate them, but runtime security stays with the runtime.
   </a>
   <a class="shoal-card shoal-icon-card" href="architecture/" data-icon="system">
     <strong>System model</strong>
-    <span>Understand how tmux, SQLite, FastAPI, and the MCP pool fit together.</span>
+    <span>Understand how runtime providers, SQLite, FastAPI, and the MCP pool fit together.</span>
   </a>
   <a class="shoal-card shoal-icon-card" href="terminal-interaction-design/" data-icon="compass">
     <strong>Interaction design</strong>

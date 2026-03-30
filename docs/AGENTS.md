@@ -21,6 +21,13 @@ Implementation: `src/shoal/core/prompt_delivery.py` — `build_tool_command_with
 
 Prompt files written to disk are **never deleted** — they serve as an audit trail.
 
+
+## Incident supervision notes
+
+- `shoal incident ingest` can auto-spawn a supervisor lane when the incident has a repo path.
+- Claude sessions get an optional higher-fidelity path via `shoal incident hook-scaffold`, which generates example `TaskCreated`, `TaskCompleted`, and `StopFailure` hook files. Hook setup is manual opt-in; Shoal does not mutate `.claude/settings.json` for you.
+- `omp` and `opencode` remain first-class incident workers through the same `shoal incident spawn --role ... --tool ...` workflow. Use the bundled `omp-dev` and `opencode-dev` templates when you want explicit tool-specific defaults.
+
 ---
 
 ## claude (Claude Code)

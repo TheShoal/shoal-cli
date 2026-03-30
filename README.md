@@ -8,7 +8,7 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.21.0-beta-EED49F?style=flat-square" alt="v0.21.0 beta">
+  <img src="https://img.shields.io/badge/v0.25.0-8BD5CA?style=flat-square" alt="v0.25.0">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-MIT-A6DA95?style=flat-square" alt="License: MIT">
 </p>
@@ -26,7 +26,7 @@
 
 <!-- Row 3 — Quality -->
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-1082_passing-A6DA95?style=flat-square" alt="Tests: 1082 passing">
+  <img src="https://img.shields.io/badge/tests-1227_passing-A6DA95?style=flat-square" alt="Tests: 1227 passing">
   <img src="https://img.shields.io/badge/coverage-82%25-8BD5CA?style=flat-square" alt="Coverage: 82%">
   <img src="https://img.shields.io/badge/mypy-strict-CBA6F7?style=flat-square" alt="mypy strict">
   <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
@@ -46,7 +46,7 @@
 
 You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenCode. You want them working in parallel without stomping on each other's files. You need to know when they're thinking, when they're waiting for approval, and when they've errored out. And when you step away, you need state that survives the interruption.
 
-**Shoal is the control plane for parallel coding agents.** Not another agent. Not a better model. The layer above the agent interface and runtime where supervision, state, topology, handoffs, and control live. You declare sessions, Shoal gives each one a git worktree, a tmux session, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all. Secure worker runtimes can sit underneath that layer; Shoal orchestrates them, but sandboxing and runtime security stay with the runtime.
+**Shoal is the control plane for parallel coding agents.** Not another agent. Not a better model. The layer above the agent interface and runtime where supervision, state, topology, handoffs, and control live. You declare sessions, Shoal gives each one a git worktree, runtime-backed session state, and a shared pool of MCP servers. One command to start. One dashboard to monitor. One CLI to control them all. Secure worker runtimes can sit underneath that layer; Shoal orchestrates them, but sandboxing and runtime security stay with the runtime.
 
 ---
 
@@ -60,13 +60,13 @@ You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenC
 
 ## What You Get
 
-**Parallel agent loops** let you run multiple coding agents simultaneously. Each agent works in its own tmux session with its own context — no shared terminal, no conflicts.
+**Parallel agent loops** let you run multiple coding agents simultaneously. Each agent gets its own isolated session runtime and context — no shared terminal state, no file conflicts.
 
 **Worktree isolation** gives every session a dedicated git worktree. Agents work on separate branches in separate directories. Your main branch stays clean.
 
 **MCP server pool** provides shared infrastructure for MCP servers via Unix socket proxying. Each agent connection spawns a fresh MCP process — no duplicate listener overhead.
 
-**Real-time status detection** watches tmux pane output and reports each agent's state: Thinking, Waiting, Error, or Idle. You always know who needs attention.
+**Real-time status detection** watches runtime output and reports each agent's state: Thinking, Waiting, Error, or Idle. Shoal now separates runtime transport from status parsing, so provider-backed session metadata and tool-specific detection rules can evolve independently.
 
 **Lifecycle hooks** emit events (`session_created`, `session_killed`, `status_changed`) to async Python callbacks and fish shell events. Wire up notifications, logging, or custom automation without touching core code.
 
@@ -77,6 +77,8 @@ You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenC
 **Session templates** define window layouts, pane splits, and tool configs in TOML. Templates support inheritance (`extends`) and composition (`mixins`) to eliminate duplication across workflows. Project-local templates in `.shoal/templates/` shadow global ones.
 
 **Session journals** provide append-only markdown logs per session with Obsidian-compatible YAML frontmatter. Search across all journals with `shoal journal --search`. Journals are archived automatically when sessions are killed.
+
+**Incident supervision** turns a structured alert into a first-class operator workflow. `shoal incident ingest` records the alert, can auto-spawn a supervisor lane, and tracks worker lanes plus Claude hook events in the same incident timeline. `claude`, `omp`, and `opencode` all participate through the same incident surface.
 
 **Remote sessions** let you monitor and control agents on remote machines via SSH tunnel. `shoal remote connect` opens a tunnel; `shoal remote ls` and `shoal remote send` work through it.
 
@@ -94,13 +96,13 @@ You're an engineer running AI coding agents — Claude, Codex, Pi, Gemini, OpenC
   <img src="assets/architecture-flow.svg" width="700" alt="Shoal architecture diagram">
 </p>
 
-1. **You run `shoal new`** — Shoal creates a tmux session, optionally provisions a git worktree and branch, and launches your chosen AI tool inside it.
+1. **You run `shoal new`** — Shoal creates a provider-backed session runtime, optionally provisions a git worktree and branch, and launches your chosen AI tool inside it.
 
-2. **Each agent gets isolation** — Separate worktree, separate branch, separate tmux session. Agents cannot interfere with each other's files.
+2. **Each agent gets isolation** — Separate worktree, separate branch, separate runtime context. Agents cannot interfere with each other's files.
 
 3. **MCP servers are pooled** — Instead of each agent spawning its own MCP servers, Shoal runs a shared pool. Agents connect through `shoal-mcp-proxy` for shared infrastructure (each connection spawns a fresh MCP process).
 
-4. **Status is tracked continuously** — A background monitor reads tmux pane output, matches patterns against tool-specific configs, and writes state to a SQLite WAL database. Every transition is recorded with timestamps. The FastAPI server exposes this via a local API.
+4. **Status is tracked continuously** — A background monitor asks the active runtime provider for liveness and output, then applies the configured status provider rules and writes state to a SQLite WAL database. Every transition is recorded with timestamps. The FastAPI server exposes this via a local API.
 
 5. **You control everything from one CLI** — `shoal status` shows all agents. `shoal popup` opens a TUI dashboard. `shoal attach` jumps into any session. `shoal robo watch` launches a supervisor to automate the whole fleet.
 
@@ -194,6 +196,26 @@ shoal wt finish auth --pr
 ```
 
 `shoal new` defaults to your configured `default_tool`. Pass `-t/--tool` to override.
+
+### Incident Workflow
+
+> Turn a P1-style alert into a supervisor lane plus focused worker lanes.
+
+```bash
+# Ingest a structured alert and auto-spawn a supervisor lane
+shoal incident ingest alert.json --path . --tool claude
+
+# Add a focused investigator lane using omp or opencode
+shoal incident spawn incident-abcd1234 --role incident-investigator --tool omp
+shoal incident spawn incident-abcd1234 --role incident-comms --tool opencode
+
+# Review the incident timeline, lanes, and hook-driven updates
+shoal incident show incident-abcd1234
+
+# Generate optional Claude hook files (manual opt-in)
+shoal incident hook-scaffold
+```
+
 
 ---
 
@@ -384,8 +406,7 @@ shoal --install-completion fish
 Tool configs live in `~/.config/shoal/tools/<name>.toml` with per-tool detection patterns and
 `status_provider` adapters.
 
-OpenCode runs in compatibility mode for status detection (best effort). Pi is the reference
-backend for status transitions.
+Shoal currently ships one runtime provider (`tmux`) and multiple status providers (`regex`, `pi`, `opencode_compat`). OpenCode runs in compatibility mode for status detection; Pi remains the reference backend for status fidelity.
 
 ---
 
@@ -393,11 +414,11 @@ backend for status transitions.
 
 | Milestone   | Focus                                                   | Status   |
 | ----------- | ------------------------------------------------------- | -------- |
-| **v0.21.0** | Public beta: PyPI publish, docs polish, core loop verification | Current  |
-| **v0.20.0** | Template setup_commands, batch MCP ops, agent readiness signals | Complete |
-| **v0.19.0** | Prompt delivery, status providers, fin adapter, XDG fixes | Complete |
-| **v0.18.0** | Lifecycle hooks, observability, session graph, robo supervisor | Complete |
-| **v0.17.0** | Demo overhaul, diagnostics, journals, remote sessions   | Complete |
+| **v0.25.0** | Runtime-provider architecture, nested session runtime model, provider-backed CLI/API/MCP flows | Current  |
+| **v0.24.0** | Worker completion signals, git MCP tools, remote fin install, dogfood friction fixes | Complete |
+| **v0.23.0** | Urgency-based operator board, popup triage, handoff packets | Complete |
+| **v0.22.0** | Fin runtime foundation, prompt delivery, XDG fixes | Complete |
+| **v0.21.0** | Public beta: PyPI publish, docs polish, core loop verification | Complete |
 
 See [ROADMAP.md](ROADMAP.md) for the full plan.
 
@@ -415,7 +436,7 @@ just cov         # tests with coverage report
 just setup       # install pre-commit hooks
 ```
 
-**1082 tests** | **82% coverage** | **mypy --strict** | **pre-commit enforced** | **conventional commits**
+**1227 tests** | **82% coverage** | **mypy --strict** | **pre-commit enforced** | **conventional commits**
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup instructions.
 
