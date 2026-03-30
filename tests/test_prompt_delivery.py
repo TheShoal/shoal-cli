@@ -64,6 +64,15 @@ def test_write_prompt_file_overwrites(tmp_path: Path) -> None:
     assert (tmp_path / "sess-1.md").read_text(encoding="utf-8") == "second"
 
 
+def test_write_prompt_file_sanitizes_path_separators(tmp_path: Path) -> None:
+    """Session names containing slashes are flattened into a single prompt file name."""
+    with patch("shoal.core.prompt_delivery._prompts_dir", return_value=tmp_path):
+        path = write_prompt_file("repo/incident-worker", "triage prompt")
+
+    assert path == tmp_path / "repo-incident-worker.md"
+    assert path.read_text(encoding="utf-8") == "triage prompt"
+
+
 # ---------------------------------------------------------------------------
 # build_tool_command_with_prompt — "keys" mode
 # ---------------------------------------------------------------------------

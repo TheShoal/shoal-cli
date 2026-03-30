@@ -48,7 +48,8 @@ def write_prompt_file(session_id: str, prompt: str) -> Path:
     Returns:
         Absolute path to the written prompt file.
     """
-    path = _prompts_dir() / f"{session_id}.md"
+    safe_session_id = session_id.replace("/", "-").replace("\\", "-")
+    path = _prompts_dir() / f"{safe_session_id}.md"
     path.write_text(prompt, encoding="utf-8")
     path.chmod(0o600)
     return path
