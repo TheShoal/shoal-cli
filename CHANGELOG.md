@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-03-30
+
+### Added
+- **Incident supervision workflow**: `shoal incident ingest/ls/show/spawn/resolve` commands
+  for alert-driven multi-agent coordination. `ingest` accepts a JSON alert payload (file,
+  string, or stdin), persists an `IncidentRecord` to SQLite, and auto-spawns a supervisor
+  lane unless `--no-supervisor` is passed.
+- **Incident roles**: five first-class roles (`incident-supervisor`, `incident-investigator`,
+  `incident-repro`, `incident-comms`, `incident-reviewer`) with role-specific prompts and
+  lifecycle env injection (`SHOAL_INCIDENT_ID`, `SHOAL_INCIDENT_ROLE`, `SHOAL_SESSION_ID`).
+- **Incident REST API**: `GET /incidents`, `GET /incidents/{id}`, `POST /incidents`,
+  `POST /incidents/{id}/lanes`, `POST /incidents/hooks/claude` — full programmatic access
+  to incident state and lane spawning.
+- **Claude hook integration**: `shoal incident hook-scaffold` writes example
+  `TaskCreated`/`TaskCompleted`/`StopFailure` hook files; `shoal incident hook-report`
+  (hidden) ingests hook events via `/incidents/hooks/claude`.
+- **Remote incident commands**: `shoal remote incident ls/show/ingest/spawn` proxy to
+  incident endpoints on remote hosts via existing SSH tunnel forwarding.
+- **`post_worktree_create` template field**: `[template.worktree] post_worktree_create`
+  executes a script after git worktree provisioning, before agent startup. Script receives
+  the worktree absolute path as `$1`. Relative paths resolve against the git root.
+- **Project-local lifecycle hooks** (`.shoal/hooks.toml`): `[[hooks]]` entries bind shell
+  commands to lifecycle events with optional `when_status` filter. Executed via `asyncio.to_thread`
+  with 30s timeout; injects `SHOAL_EVENT`, `SHOAL_SESSION_ID`, `SHOAL_SESSION_NAME`,
+  `SHOAL_OLD_STATUS`, `SHOAL_NEW_STATUS`. Loaded at API startup from project git root.
+
+### Fixed
+- **Lifecycle hooks never fired in production**: `register_builtin_hooks()` was only
+  called in tests, never at API startup — fish events and journal writes were silently
+  broken since v0.18.0. Fixed by wiring both `register_builtin_hooks()` and
+  `register_project_hooks()` into the API `lifespan` context.
+- **Prompt file path traversal**: session names containing `/` (e.g. `repo/incident-worker`)
+  would produce invalid file paths. Path separators are now replaced with `-` before
+  constructing the prompt filename.
+
 ## [0.25.0] - 2026-03-18
 
 ### Changed
