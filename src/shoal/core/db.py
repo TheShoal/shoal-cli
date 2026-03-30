@@ -11,6 +11,7 @@ from typing import Any, cast
 
 import aiosqlite
 
+from shoal.models.incident import IncidentRecord
 from shoal.models.state import RoboState, SessionState
 
 logger = logging.getLogger("shoal.db")
@@ -100,6 +101,25 @@ class ShoalDB:
                 name TEXT PRIMARY KEY,
                 data TEXT NOT NULL
             )
+        """)
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS incidents (
+                id TEXT PRIMARY KEY,
+                slug TEXT NOT NULL,
+                status TEXT NOT NULL,
+                git_root TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                data TEXT NOT NULL
+            )
+        """)
+        await self._conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_incidents_slug
+            ON incidents(slug)
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_incidents_status_updated
+            ON incidents(status, updated_at DESC)
         """)
         await self._conn.execute("""
             CREATE TABLE IF NOT EXISTS status_transitions (
@@ -333,6 +353,105 @@ class ShoalDB:
             await conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             await conn.commit()
         logger.debug("delete_session: %s (%.1fms)", session_id, (time.monotonic() - t0) * 1000)
+
+    async def save_incident(self, incident: IncidentRecord) -> None:
+        """Save or update an incident record."""
+        t0 = time.monotonic()
+        async with self._connection() as conn:
+            await conn.execute(
+                "INSERT OR REPLACE INTO incidents"
+                " (id, slug, status, git_root, created_at, updated_at, data)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    incident.id,
+                    incident.slug,
+                    incident.status.value,
+                    incident.git_root,
+                    incident.created_at.isoformat(),
+                    incident.updated_at.isoformat(),
+                    incident.model_dump_json(),
+                ),
+            )
+            await conn.commit()
+        logger.debug(
+            "save_incident: %s (%s) (%.1fms)",
+            incident.id,
+            incident.slug,
+            (time.monotonic() - t0) * 1000,
+        )
+
+    async def get_incident(self, incident_id: str) -> IncidentRecord | None:
+        """Get an incident by ID."""
+        t0 = time.monotonic()
+        async with (
+            self._connection() as conn,
+            conn.execute("SELECT data FROM incidents WHERE id = ?", (incident_id,)) as cursor,
+        ):
+            row = await cursor.fetchone()
+            logger.debug("get_incident: %s (%.1fms)", incident_id, (time.monotonic() - t0) * 1000)
+            if row:
+                return IncidentRecord.model_validate_json(row[0])
+        return None
+
+    async def find_incident_by_slug(self, slug: str) -> IncidentRecord | None:
+        """Find an incident by slug."""
+        async with (
+            self._connection() as conn,
+            conn.execute("SELECT data FROM incidents WHERE slug = ?", (slug,)) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return IncidentRecord.model_validate_json(row[0])
+        return None
+
+    async def list_incidents(self, status: str | None = None) -> list[IncidentRecord]:
+        """List incident records, optionally filtered by status."""
+        t0 = time.monotonic()
+        query = "SELECT data FROM incidents"
+        params: tuple[object, ...] = ()
+        if status is not None:
+            query += " WHERE status = ?"
+            params = (status,)
+        query += " ORDER BY updated_at DESC, created_at DESC"
+        async with self._connection() as conn, conn.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            result = [IncidentRecord.model_validate_json(row[0]) for row in rows]
+            logger.debug(
+                "list_incidents: %d rows status=%s (%.1fms)",
+                len(result),
+                status,
+                (time.monotonic() - t0) * 1000,
+            )
+            return result
+
+    async def update_incident(self, incident_id: str, **fields: Any) -> IncidentRecord | None:
+        """Update specific fields of an incident."""
+        from datetime import UTC, datetime
+
+        t0 = time.monotonic()
+        async with self._update_lock:
+            incident = await self.get_incident(incident_id)
+            if not incident:
+                return None
+
+            fields.setdefault("updated_at", datetime.now(UTC))
+            updated = incident.model_copy(update=fields)
+            await self.save_incident(updated)
+            logger.debug(
+                "update_incident: %s fields=%s (%.1fms)",
+                incident_id,
+                list(fields.keys()),
+                (time.monotonic() - t0) * 1000,
+            )
+            return updated
+
+    async def delete_incident(self, incident_id: str) -> None:
+        """Delete an incident."""
+        t0 = time.monotonic()
+        async with self._connection() as conn:
+            await conn.execute("DELETE FROM incidents WHERE id = ?", (incident_id,))
+            await conn.commit()
+        logger.debug("delete_incident: %s (%.1fms)", incident_id, (time.monotonic() - t0) * 1000)
 
     async def save_robo(self, state: RoboState) -> None:
         """Save or update robo state."""

@@ -13,6 +13,7 @@ from shoal.cli.demo import app as demo_app
 from shoal.cli.diag import diag
 from shoal.cli.fin import app as fin_app
 from shoal.cli.history import history
+from shoal.cli.incident import app as incident_app
 from shoal.cli.journal import journal_view
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.nvim import app as nvim_app
@@ -110,6 +111,7 @@ app.add_typer(setup_app, name="setup", help="Setup shell integrations.")
 app.add_typer(tag_app, name="tag", help="Session tags.")
 app.add_typer(template_app, name="template", help="Session templates.")
 app.add_typer(config_app, name="config", help="Configuration inspection.")
+app.add_typer(incident_app, name="incident", help="Incident supervision workflow.")
 app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
 
 

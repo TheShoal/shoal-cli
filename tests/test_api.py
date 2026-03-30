@@ -1104,3 +1104,110 @@ class TestBatchEndpoints:
         assert data["results"][1]["success"] is False
         assert data["results"][1]["error"]["code"] == "skipped"
         assert read_journal(alpha.id) == []
+
+
+@pytest.mark.asyncio
+class TestIncidents:
+    async def test_list_incidents_empty(self, async_client):
+        response = await async_client.get("/incidents")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_create_incident(self, async_client, tmp_path):
+        response = await async_client.post(
+            "/incidents",
+            json={
+                "alert": {
+                    "severity": "critical",
+                    "title": "API outage in payments",
+                    "source": "pagerduty",
+                    "reason": "Checkout requests are timing out for multiple customers",
+                    "score": 97.3,
+                    "url": "https://status.example.com/incidents/123",
+                },
+                "path": str(tmp_path),
+                "spawn_supervisor": False,
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["alert"]["title"] == "API outage in payments"
+        assert data["events"][0]["kind"] == "incident.ingested"
+
+    async def test_spawn_incident_lane(self, async_client, tmp_path):
+        from shoal.models.incident import IncidentIngestRequest
+        from shoal.models.state import SessionState, TmuxRuntimeState
+        from shoal.services.incident import ingest_incident
+
+        incident = await ingest_incident(
+            IncidentIngestRequest(
+                alert={
+                    "severity": "critical",
+                    "title": "API outage in payments",
+                    "source": "pagerduty",
+                    "reason": "Checkout requests are timing out for multiple customers",
+                },
+                path=str(tmp_path),
+                spawn_supervisor=False,
+            )
+        )
+
+        fake_session = SessionState(
+            id="sess-remote",
+            name="repo/incident-api-investigator",
+            tool="omp",
+            path=str(tmp_path),
+            branch="main",
+            runtime=TmuxRuntimeState(session_name="shoal-sess-remote"),
+        )
+
+        with patch(
+            "shoal.api.server.spawn_incident_lane",
+            new=AsyncMock(return_value=fake_session),
+        ):
+            response = await async_client.post(
+                f"/incidents/{incident.id}/lanes",
+                json={"role": "incident-investigator", "tool": "omp", "summary": "Focus on repro"},
+            )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "repo/incident-api-investigator"
+        assert data["tool"] == "omp"
+
+    async def test_record_claude_hook(self, async_client, tmp_path):
+        from shoal.core.state import create_session
+        from shoal.models.incident import IncidentIngestRequest
+        from shoal.services.incident import incident_tag, ingest_incident
+
+        incident = await ingest_incident(
+            IncidentIngestRequest(
+                alert={
+                    "severity": "critical",
+                    "title": "API outage in payments",
+                    "source": "pagerduty",
+                    "reason": "Checkout requests are timing out for multiple customers",
+                },
+                path=str(tmp_path),
+                spawn_supervisor=False,
+            )
+        )
+        session = await create_session(
+            "incident-hook-worker",
+            "claude",
+            str(tmp_path),
+            tags=[incident_tag(incident.id)],
+        )
+
+        response = await async_client.post(
+            "/incidents/hooks/claude",
+            json={
+                "event_name": "TaskCompleted",
+                "session_id": session.id,
+                "payload": {"summary": "triage notes captured"},
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["recorded"] is True
+        assert data["incident_id"] == incident.id

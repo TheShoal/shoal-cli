@@ -34,9 +34,23 @@ from shoal.models.batch import (
     SessionSnapshotRequest,
     SessionSnapshotResponse,
 )
+from shoal.models.incident import (
+    IncidentHookEnvelope,
+    IncidentIngestRequest,
+    IncidentRecord,
+    IncidentSpawnRequest,
+    IncidentStatus,
+)
 from shoal.models.state import SessionState, SessionStatus
 from shoal.services.batch import execute_batch
 from shoal.services.batch import session_snapshot as build_session_snapshot
+from shoal.services.incident import (
+    get_incident_record,
+    ingest_incident,
+    list_incident_records,
+    spawn_incident_lane,
+)
+from shoal.services.incident_hooks import record_claude_hook_event
 from shoal.services.lifecycle import (
     DirtyWorktreeError,
     SessionExistsError,
@@ -44,6 +58,8 @@ from shoal.services.lifecycle import (
     TmuxSetupError,
     create_session_lifecycle,
     kill_session_lifecycle,
+    register_builtin_hooks,
+    register_project_hooks,
 )
 from shoal.services.mcp_pool import (
     is_mcp_running,
@@ -204,6 +220,8 @@ async def poll_status_changes() -> None:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     ensure_dirs()
     await get_db()  # Initialize DB
+    register_builtin_hooks()
+    register_project_hooks()
     global status_poller_task
     status_poller_task = asyncio.create_task(poll_status_changes())
     yield
@@ -344,6 +362,59 @@ async def batch_execute_api(data: BatchExecutionRequest) -> BatchExecutionRespon
 async def session_snapshot_api(data: SessionSnapshotRequest) -> SessionSnapshotResponse:
     """Capture selected fields across multiple sessions in one read-optimized call."""
     return await build_session_snapshot(data)
+
+
+@app.get("/incidents", response_model=list[IncidentRecord])
+async def list_incidents_api(status: str | None = None) -> list[IncidentRecord]:
+    if status is not None:
+        try:
+            parsed_status = IncidentStatus(status)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid incident status") from exc
+    else:
+        parsed_status = None
+
+    return await list_incident_records(status=parsed_status)
+
+
+@app.get("/incidents/{incident_id}", response_model=IncidentRecord)
+async def get_incident_api(incident_id: str) -> IncidentRecord:
+    incident = await get_incident_record(incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return incident
+
+
+@app.post("/incidents", response_model=IncidentRecord, status_code=201)
+async def create_incident_api(data: IncidentIngestRequest) -> IncidentRecord:
+    return await ingest_incident(data)
+
+
+@app.post("/incidents/{incident_id}/lanes", response_model=SessionResponse, status_code=201)
+async def spawn_incident_lane_api(
+    incident_id: str,
+    body: IncidentSpawnRequest,
+) -> SessionResponse:
+    try:
+        session = await spawn_incident_lane(incident_id, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (FileNotFoundError, RuntimeError) as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return _session_to_response(session)
+
+
+@app.post("/incidents/hooks/claude")
+async def record_claude_hook_api(data: IncidentHookEnvelope) -> dict[str, object]:
+    try:
+        incident = await record_claude_hook_event(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "recorded": incident is not None,
+        "incident_id": incident.id if incident is not None else None,
+    }
 
 
 @app.get("/sessions", response_model=list[SessionResponse])
