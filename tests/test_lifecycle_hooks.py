@@ -11,6 +11,7 @@ from shoal.models.state import LifecycleEvent, SessionState, SessionStatus
 from shoal.services.lifecycle import (
     _hook_fish_event,
     _hook_journal_on_create,
+    _hooks,
     clear_hooks,
     create_session_lifecycle,
     emit,
@@ -759,3 +760,29 @@ class TestRegisterProjectHooks:
             session.name = "x"
             # Must not raise
             await emit(LifecycleEvent.session_completed, session=session)
+
+    def test_register_builtin_hooks_is_idempotent(self) -> None:
+        """Calling register_builtin_hooks twice must not double-register."""
+        from shoal.services.lifecycle import register_builtin_hooks
+
+        register_builtin_hooks()
+        count_after_first = sum(len(cbs) for cbs in _hooks.values())
+        register_builtin_hooks()
+        count_after_second = sum(len(cbs) for cbs in _hooks.values())
+        assert count_after_first == count_after_second
+
+    @pytest.mark.asyncio
+    async def test_register_one_project_hook_is_idempotent(self, tmp_path: Path) -> None:
+        """Registering the same entry twice fires the command only once per emit."""
+        from shoal.models.config import ProjectHookEntry
+        from shoal.services.lifecycle import _register_one_project_hook, emit
+
+        entry = ProjectHookEntry(event="session_completed", command="true")
+        with patch("subprocess.run") as mock_run:
+            _register_one_project_hook(entry)
+            _register_one_project_hook(entry)  # second call must be a no-op
+            session = MagicMock(spec=SessionState)
+            session.id = "x"
+            session.name = "x"
+            await emit(LifecycleEvent.session_completed, session=session)
+        assert mock_run.call_count == 1

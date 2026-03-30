@@ -44,6 +44,7 @@ logger = logging.getLogger("shoal.lifecycle")
 HookCallback = Callable[..., Awaitable[None]]
 
 _hooks: dict[LifecycleEvent, list[HookCallback]] = defaultdict(list)
+_registered: set[str] = set()  # idempotency keys; cleared alongside _hooks
 
 
 def on(event: LifecycleEvent, callback: HookCallback) -> None:
@@ -67,6 +68,7 @@ async def emit(event: LifecycleEvent, **kwargs: Any) -> None:
 def clear_hooks() -> None:
     """Remove all registered hooks.  Intended for testing."""
     _hooks.clear()
+    _registered.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -1375,7 +1377,10 @@ async def _hook_journal_on_status_change(event: LifecycleEvent, **kwargs: Any) -
 
 
 def register_builtin_hooks() -> None:
-    """Register the default set of lifecycle hooks."""
+    """Register the default set of lifecycle hooks (idempotent)."""
+    if "builtin" in _registered:
+        return
+    _registered.add("builtin")
     on(LifecycleEvent.session_created, _hook_journal_on_create)
     on(LifecycleEvent.session_forked, _hook_journal_on_create)
     on(LifecycleEvent.status_changed, _hook_record_status_transition)
@@ -1385,12 +1390,7 @@ def register_builtin_hooks() -> None:
 
 
 def register_project_hooks() -> None:
-    """Register project-local lifecycle hooks from ``.shoal/hooks.toml``.
-
-    Each entry becomes an async callback wired via ``on()``.  The callback
-    execs the configured shell command with lifecycle context injected as
-    environment variables.  Errors are logged and never propagate.
-    """
+    """Register project-local lifecycle hooks from ``.shoal/hooks.toml`` (idempotent)."""
     from shoal.core.config import load_project_hooks
 
     for entry in load_project_hooks():
@@ -1400,6 +1400,11 @@ def register_project_hooks() -> None:
 def _register_one_project_hook(entry: ProjectHookEntry) -> None:
     """Build and register one async callback for a ProjectHookEntry."""
     import subprocess as _sp
+
+    key = f"project:{entry.event}:{entry.when_status}:{entry.command}"
+    if key in _registered:
+        return
+    _registered.add(key)
 
     event = LifecycleEvent(entry.event)
     when_status: str = entry.when_status
