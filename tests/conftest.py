@@ -44,6 +44,7 @@ name = "claude"
 command = "claude"
 icon = "🤖"
 status_provider = "regex"
+input_mode = "arg"
 
 [detection]
 busy_patterns = ["⠋", "thinking"]
@@ -63,12 +64,36 @@ name = "opencode"
 command = "opencode"
 icon = "🌐"
 status_provider = "opencode_compat"
+input_mode = "flag"
+prompt_flag = "--prompt"
 
 [detection]
 busy_patterns = ["working", "thinking"]
 waiting_patterns = ["│ >", "permission"]
 error_patterns = ["error", "Error"]
 idle_patterns = ["│ >"]
+"""
+    )
+
+    (tools / "omp.toml").write_text(
+        """
+[tool]
+name = "omp"
+command = "omp"
+icon = "🥧"
+status_provider = "pi"
+input_mode = "arg"
+prompt_file_prefix = "@"
+
+[detection]
+busy_patterns = ["thinking", "generating", "executing"]
+waiting_patterns = ["permission", "confirm", "approve", "y/n"]
+error_patterns = ["Error:", "error:", "ERROR", "FAILED"]
+
+[mcp]
+config_cmd = ""
+config_file = ".omp/config.yml"
+socket_env = ""
 """
     )
 

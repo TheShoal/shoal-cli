@@ -1,0 +1,12 @@
+# Shoal — OMP development template
+# Inherits the base layout and pins the worker tool to oh-my-pi.
+# Usage: shoal new --template omp-dev
+
+[template]
+name = "omp-dev"
+description = "OMP agent with base editor + terminal layout"
+extends = "base-dev"
+tool = "omp"
+
+[template.env]
+SHOAL_TOOL = "omp"

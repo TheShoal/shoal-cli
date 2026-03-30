@@ -1,6 +1,8 @@
 # Shoal — OpenCode tool definition
 # Place in ~/.config/shoal/tools/opencode.toml
 # Compatibility backend: status detection is best-effort and regex-based.
+# Incident workflow support uses the shared `shoal incident ...` surface with
+# the bundled `opencode-dev` template.
 
 [tool]
 name = "opencode"

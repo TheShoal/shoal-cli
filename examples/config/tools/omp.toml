@@ -6,6 +6,9 @@
 # oh-my-pi is the actively maintained fork of pi-coding-agent.
 # Binary: omp  (v13+)
 # Use this profile if you installed via @oh-my-pi/pi-coding-agent.
+# Incident workflow support uses the shared `shoal incident ...` surface with
+# the bundled `omp-dev` template; Claude hook integration remains optional and
+# Claude-specific.
 # See docs/AGENTS.md for the full CLI reference.
 
 [tool]

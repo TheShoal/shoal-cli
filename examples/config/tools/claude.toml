@@ -1,5 +1,8 @@
 # Shoal — Claude Code tool definition
 # Place in ~/.config/shoal/tools/claude.toml
+# Optional incident hooks: run `shoal incident hook-scaffold` to generate
+# example TaskCreated/TaskCompleted/StopFailure hook files. Shoal does not
+# modify Claude settings automatically.
 
 [tool]
 # Display name (used in shoal ls output)

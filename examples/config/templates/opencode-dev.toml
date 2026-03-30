@@ -1,0 +1,12 @@
+# Shoal — OpenCode development template
+# Inherits the base layout and pins the worker tool to OpenCode.
+# Usage: shoal new --template opencode-dev
+
+[template]
+name = "opencode-dev"
+description = "OpenCode agent with base editor + terminal layout"
+extends = "base-dev"
+tool = "opencode"
+
+[template.env]
+SHOAL_TOOL = "opencode"
