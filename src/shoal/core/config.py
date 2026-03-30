@@ -8,7 +8,10 @@ import subprocess
 import tomllib
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from shoal.models.config import ProjectHookEntry
 
 from shoal.core.status_provider import default_status_provider_for_tool
 from shoal.models.config import (
@@ -557,3 +560,36 @@ def refresh_tools() -> list[str]:
         logger.debug("Refreshed tool profile: %s", src_file.name)
 
     return refreshed
+
+
+def load_project_hooks() -> list[ProjectHookEntry]:
+    """Load project-local lifecycle hooks from ``.shoal/hooks.toml``.
+
+    Returns an empty list if the file does not exist or the git root cannot
+    be determined.  Validation errors are logged and that entry is skipped.
+    """
+    from shoal.core import git
+    from shoal.models.config import ProjectHookEntry
+
+    try:
+        root = git.git_root(".")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return []
+
+    hooks_path = Path(root) / ".shoal" / "hooks.toml"
+    if not hooks_path.exists():
+        return []
+
+    try:
+        data = tomllib.loads(hooks_path.read_text())
+    except tomllib.TOMLDecodeError as exc:
+        logger.warning("hooks.toml parse error: %s", exc)
+        return []
+
+    entries: list[ProjectHookEntry] = []
+    for raw in data.get("hooks", []):
+        try:
+            entries.append(ProjectHookEntry.model_validate(raw))
+        except Exception as exc:
+            logger.warning("Skipping invalid hooks.toml entry %r: %s", raw, exc)
+    return entries

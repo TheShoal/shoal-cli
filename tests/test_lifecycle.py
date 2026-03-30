@@ -2334,3 +2334,105 @@ class TestSetupCommandsLifecycle:
         cmd1_idx = all_send_keys.index("cmd1")
         tool_idx = next(i for i, cmd in enumerate(all_send_keys) if "claude" in cmd)
         assert cmd1_idx < tool_idx
+
+
+# ---------------------------------------------------------------------------
+# Post-worktree hook
+# ---------------------------------------------------------------------------
+
+
+class TestRunPostWorktreeHook:
+    """Tests for _run_post_worktree_hook()."""
+
+    def test_noop_when_no_template(self, tmp_path):
+        """No-op when template_cfg is None."""
+        from shoal.services.lifecycle import _run_post_worktree_hook
+
+        with patch("subprocess.run") as mock_run:
+            _run_post_worktree_hook(None, str(tmp_path), str(tmp_path))
+            mock_run.assert_not_called()
+
+    def test_noop_when_field_empty(self, tmp_path):
+        """No-op when post_worktree_create is empty string."""
+        from shoal.models.config import SessionTemplateConfig, TemplateWorktreeConfig
+        from shoal.services.lifecycle import _run_post_worktree_hook
+
+        template_cfg = SessionTemplateConfig(
+            name="t",
+            extends="base",
+            worktree=TemplateWorktreeConfig(),  # post_worktree_create defaults to ""
+        )
+        with patch("subprocess.run") as mock_run:
+            _run_post_worktree_hook(template_cfg, str(tmp_path), str(tmp_path))
+            mock_run.assert_not_called()
+
+    def test_calls_script_with_wt_path(self, tmp_path):
+        """Script is invoked with the worktree path as first argument."""
+        from shoal.models.config import SessionTemplateConfig, TemplateWorktreeConfig
+        from shoal.services.lifecycle import _run_post_worktree_hook
+
+        # Create a real script file so the existence check passes.
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        script = scripts_dir / "shoal-sync.sh"
+        script.write_text("#!/bin/sh\n")
+
+        wt_path = str(tmp_path / "worktree")
+        template_cfg = SessionTemplateConfig(
+            name="test-template",
+            extends="base",
+            worktree=TemplateWorktreeConfig(post_worktree_create="scripts/shoal-sync.sh"),
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            _run_post_worktree_hook(template_cfg, wt_path, str(tmp_path))
+
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args[0][0]  # first positional arg is the command list
+        assert call_args[0] == str(script)
+        assert call_args[1] == wt_path
+
+    def test_warns_on_missing_script(self, tmp_path, caplog):
+        """Log a warning when the script file does not exist; no exception raised."""
+        import logging
+
+        from shoal.models.config import SessionTemplateConfig, TemplateWorktreeConfig
+        from shoal.services.lifecycle import _run_post_worktree_hook
+
+        template_cfg = SessionTemplateConfig(
+            name="test-template",
+            extends="base",
+            worktree=TemplateWorktreeConfig(post_worktree_create="scripts/missing.sh"),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="shoal.lifecycle"):
+            # Must not raise
+            _run_post_worktree_hook(template_cfg, "/tmp/wt", str(tmp_path))
+
+        assert any("not found" in r.message for r in caplog.records)
+
+    def test_warns_on_nonzero_exit(self, tmp_path, caplog):
+        """Log a warning when script exits non-zero; no exception raised."""
+        import logging
+
+        from shoal.models.config import SessionTemplateConfig, TemplateWorktreeConfig
+        from shoal.services.lifecycle import _run_post_worktree_hook
+
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        script = scripts_dir / "failing.sh"
+        script.write_text("#!/bin/sh\n")
+
+        template_cfg = SessionTemplateConfig(
+            name="test-template",
+            extends="base",
+            worktree=TemplateWorktreeConfig(post_worktree_create="scripts/failing.sh"),
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=1)
+            with caplog.at_level(logging.WARNING, logger="shoal.lifecycle"):
+                _run_post_worktree_hook(template_cfg, "/tmp/wt", str(tmp_path))
+
+        assert any("exited" in r.message for r in caplog.records)

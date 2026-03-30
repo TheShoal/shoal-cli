@@ -36,6 +36,7 @@ from shoal.services.lifecycle import (
     TmuxSetupError,
     _preview_default_startup_commands,
     _preview_template_startup,
+    _run_post_worktree_hook,
     create_session_lifecycle,
     fork_session_lifecycle,
     kill_session_lifecycle,
@@ -313,6 +314,7 @@ async def _add_impl(
         else:
             git.worktree_add(root, wt_path)
             branch_name = git.current_branch(wt_path)
+        await asyncio.to_thread(_run_post_worktree_hook, template_cfg, wt_path, root)
 
     # Delegate to lifecycle service
     try:

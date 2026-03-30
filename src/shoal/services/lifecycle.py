@@ -9,12 +9,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import shlex
 import subprocess
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from shoal.models.config import ProjectHookEntry
 
 from shoal.core import git, tmux
 from shoal.core.config import load_config
@@ -101,6 +105,52 @@ class DirtyWorktreeError(LifecycleError):
 
 class SessionNotFoundError(LifecycleError):
     """Session not found."""
+
+
+# ---------------------------------------------------------------------------
+# Post-worktree hook
+# ---------------------------------------------------------------------------
+
+
+def _run_post_worktree_hook(
+    template_cfg: SessionTemplateConfig | None,
+    wt_path: str,
+    git_root: str,
+) -> None:
+    """Execute post_worktree_create script synchronously, if configured.
+
+    Errors are logged as warnings and do not propagate — a misconfigured or
+    failing hook must not abort session creation.
+    """
+    if not template_cfg or not template_cfg.worktree.post_worktree_create:
+        return
+    script_raw = template_cfg.worktree.post_worktree_create
+    # Resolve relative paths against the git root so scripts can live in the repo.
+    script_path = (
+        Path(script_raw) if Path(script_raw).is_absolute() else Path(git_root) / script_raw
+    )
+    if not script_path.exists():
+        logger.warning(
+            "post_worktree_create script not found: %s (resolved from %s)",
+            script_path,
+            script_raw,
+        )
+        return
+    try:
+        result = subprocess.run(
+            [str(script_path), wt_path],
+            check=False,
+        )
+        if result.returncode != 0:
+            logger.warning(
+                "post_worktree_create script exited %d: %s",
+                result.returncode,
+                script_path,
+            )
+    except Exception:
+        logger.warning(
+            "post_worktree_create script raised an exception: %s", script_path, exc_info=True
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -628,6 +678,8 @@ async def create_session_lifecycle(
     template_cfg: SessionTemplateConfig | None = None,
     worktree_name: str = "",
     mcp_servers: list[str] | None = None,
+    extra_env: dict[str, str] | None = None,
+    tags: list[str] | None = None,
 ) -> SessionState:
     """Create a session with full rollback on failure.
 
@@ -652,6 +704,7 @@ async def create_session_lifecycle(
             git_root,
             wt_path,
             branch_name,
+            tags=tags or [],
             template_name=template_name,
         )
     except ValueError as exc:
@@ -685,18 +738,23 @@ async def create_session_lifecycle(
     # 3. Set environment variables
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
+    session_env: dict[str, str] = {}
     if template_cfg:
-        for key, value in template_cfg.env.items():
+        session_env.update(template_cfg.env)
+    if extra_env:
+        session_env.update(extra_env)
+
+    if session_env:
+        for key, value in session_env.items():
             await tmux.async_set_environment(tmux_session, key, value)
         # Apply env to the initial pane via fish set (tmux set-environment only affects new panes)
-        if template_cfg.env:
-            initial_pane = await tmux.async_first_pane(tmux_session)
-            for key, value in template_cfg.env.items():
-                await tmux.async_send_keys(
-                    initial_pane,
-                    f"set -gx {shlex.quote(key)} {shlex.quote(value)}",
-                    enter=True,
-                )
+        initial_pane = await tmux.async_first_pane(tmux_session)
+        for key, value in session_env.items():
+            await tmux.async_send_keys(
+                initial_pane,
+                f"set -gx {shlex.quote(key)} {shlex.quote(value)}",
+                enter=True,
+            )
 
     # 3.5. Run template setup_commands in initial pane
     if template_cfg and template_cfg.setup_commands:
@@ -1324,3 +1382,61 @@ def register_builtin_hooks() -> None:
     on(LifecycleEvent.status_changed, _hook_journal_on_status_change)
     for evt in LifecycleEvent:
         on(evt, _hook_fish_event)
+
+
+def register_project_hooks() -> None:
+    """Register project-local lifecycle hooks from ``.shoal/hooks.toml``.
+
+    Each entry becomes an async callback wired via ``on()``.  The callback
+    execs the configured shell command with lifecycle context injected as
+    environment variables.  Errors are logged and never propagate.
+    """
+    from shoal.core.config import load_project_hooks
+
+    for entry in load_project_hooks():
+        _register_one_project_hook(entry)
+
+
+def _register_one_project_hook(entry: ProjectHookEntry) -> None:
+    """Build and register one async callback for a ProjectHookEntry."""
+    import subprocess as _sp
+
+    event = LifecycleEvent(entry.event)
+    when_status: str = entry.when_status
+    command: str = entry.command
+
+    async def _project_hook(evt: LifecycleEvent, **kwargs: Any) -> None:
+        session = kwargs.get("session")
+        new_status = kwargs.get("new_status")
+        old_status = kwargs.get("old_status")
+
+        # Apply when_status filter for status_changed events.
+        if (
+            when_status
+            and evt == LifecycleEvent.status_changed
+            and (new_status is None or str(new_status.value) != when_status)
+        ):
+            return
+
+        env = dict(os.environ)
+        env["SHOAL_EVENT"] = evt.value
+        if session is not None:
+            env["SHOAL_SESSION_ID"] = getattr(session, "id", "")
+            env["SHOAL_SESSION_NAME"] = getattr(session, "name", "")
+        if old_status is not None:
+            env["SHOAL_OLD_STATUS"] = str(old_status.value)
+        if new_status is not None:
+            env["SHOAL_NEW_STATUS"] = str(new_status.value)
+
+        try:
+            await asyncio.to_thread(  # noqa: S604 — shell=True is intentional; command is user-authored
+                _sp.run,
+                command,
+                shell=True,
+                env=env,
+                timeout=30,
+            )
+        except Exception:
+            logger.exception("Project hook failed for event %s: %s", evt, command)
+
+    on(event, _project_hook)

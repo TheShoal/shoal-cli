@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -627,3 +628,134 @@ class TestAutoCommitOnKill:
 
         assert result["db_deleted"] is True  # kill completed
         assert result["auto_committed"] is False
+
+
+# ---------------------------------------------------------------------------
+# register_project_hooks + load_project_hooks
+# ---------------------------------------------------------------------------
+
+
+class TestRegisterProjectHooks:
+    """Unit tests for .shoal/hooks.toml loading and callback wiring."""
+
+    def setup_method(self) -> None:
+        from shoal.services.lifecycle import clear_hooks
+
+        clear_hooks()
+
+    def _write_hooks_toml(self, tmp_path: Path, content: str) -> None:
+        shoal_dir = tmp_path / ".shoal"
+        shoal_dir.mkdir()
+        (shoal_dir / "hooks.toml").write_text(content)
+
+    def test_load_empty_when_no_file(self, tmp_path: Path) -> None:
+        from shoal.core.config import load_project_hooks
+
+        with patch("shoal.core.git.git_root") as mock_git_root:
+            mock_git_root.return_value = str(tmp_path)
+            entries = load_project_hooks()
+        assert entries == []
+
+    def test_load_valid_entry(self, tmp_path: Path) -> None:
+        from shoal.core.config import load_project_hooks
+
+        self._write_hooks_toml(
+            tmp_path,
+            '[[hooks]]\nevent = "status_changed"\nwhen_status = "waiting"\ncommand = "echo $SHOAL_SESSION_NAME"',
+        )
+        with patch("shoal.core.git.git_root") as mock_git_root:
+            mock_git_root.return_value = str(tmp_path)
+            entries = load_project_hooks()
+        assert len(entries) == 1
+        assert entries[0].event == "status_changed"
+        assert entries[0].when_status == "waiting"
+        assert entries[0].command == "echo $SHOAL_SESSION_NAME"
+
+    def test_invalid_event_skipped(self, tmp_path: Path) -> None:
+        from shoal.core.config import load_project_hooks
+
+        self._write_hooks_toml(
+            tmp_path,
+            '[[hooks]]\nevent = "not_a_real_event"\ncommand = "echo hi"',
+        )
+        with patch("shoal.core.git.git_root") as mock_git_root:
+            mock_git_root.return_value = str(tmp_path)
+            entries = load_project_hooks()
+        assert entries == []
+
+    @pytest.mark.asyncio
+    async def test_hook_fires_on_matching_status(self, tmp_path: Path) -> None:
+        """when_status filter: hook fires when new_status matches, skips otherwise."""
+        from shoal.models.config import ProjectHookEntry
+        from shoal.services.lifecycle import _register_one_project_hook, emit
+
+        entry = ProjectHookEntry(event="status_changed", when_status="waiting", command="true")
+        # Patch subprocess.run so we can observe calls without executing
+        with patch("subprocess.run") as mock_run:
+            _register_one_project_hook(entry)
+            session = MagicMock(spec=SessionState)
+            session.id = "sess-1"
+            session.name = "my-session"
+            # Fire with matching status — should call subprocess.run
+            await emit(
+                LifecycleEvent.status_changed,
+                session=session,
+                old_status=SessionStatus.running,
+                new_status=SessionStatus.waiting,
+            )
+            assert mock_run.called
+            # Fire with non-matching status — should NOT call subprocess.run again
+            mock_run.reset_mock()
+            await emit(
+                LifecycleEvent.status_changed,
+                session=session,
+                old_status=SessionStatus.waiting,
+                new_status=SessionStatus.running,
+            )
+            assert not mock_run.called
+
+    @pytest.mark.asyncio
+    async def test_hook_env_vars_injected(self, tmp_path: Path) -> None:
+        """SHOAL_SESSION_ID, SHOAL_SESSION_NAME, SHOAL_NEW_STATUS are injected."""
+
+        from shoal.models.config import ProjectHookEntry
+        from shoal.services.lifecycle import _register_one_project_hook, emit
+
+        captured_env: dict[str, str] = {}
+
+        def _capture_env(*args: object, **kwargs: object) -> None:
+            captured_env.update(kwargs.get("env", {}))
+
+        entry = ProjectHookEntry(event="status_changed", command="true")
+        with patch("subprocess.run", side_effect=_capture_env):
+            _register_one_project_hook(entry)
+            session = MagicMock(spec=SessionState)
+            session.id = "abc-123"
+            session.name = "be-worker"
+            await emit(
+                LifecycleEvent.status_changed,
+                session=session,
+                old_status=SessionStatus.running,
+                new_status=SessionStatus.waiting,
+            )
+
+        assert captured_env["SHOAL_SESSION_ID"] == "abc-123"
+        assert captured_env["SHOAL_SESSION_NAME"] == "be-worker"
+        assert captured_env["SHOAL_NEW_STATUS"] == "waiting"
+        assert captured_env["SHOAL_OLD_STATUS"] == "running"
+        assert captured_env["SHOAL_EVENT"] == "status_changed"
+
+    @pytest.mark.asyncio
+    async def test_hook_exception_does_not_propagate(self, tmp_path: Path) -> None:
+        """A crashing hook must not surface to the caller of emit()."""
+        from shoal.models.config import ProjectHookEntry
+        from shoal.services.lifecycle import _register_one_project_hook, emit
+
+        entry = ProjectHookEntry(event="session_completed", command="true")
+        with patch("subprocess.run", side_effect=RuntimeError("boom")):
+            _register_one_project_hook(entry)
+            session = MagicMock(spec=SessionState)
+            session.id = "x"
+            session.name = "x"
+            # Must not raise
+            await emit(LifecycleEvent.session_completed, session=session)
