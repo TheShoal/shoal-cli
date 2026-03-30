@@ -689,6 +689,7 @@ class TestAttachSession:
 
         with (
             patch("shoal.services.runtime_providers.tmux.tmux.has_session", return_value=True),
+            patch("shoal.services.runtime_providers.tmux.tmux.is_inside_tmux", return_value=True),
             patch("shoal.services.runtime_providers.tmux.tmux.switch_client") as mock_switch,
         ):
             response = await async_client.post(f"/sessions/{s.id}/attach")
