@@ -271,3 +271,79 @@ class TestRemoteDefault:
         result = runner.invoke(app, [])
         assert result.exit_code == 0
         assert "No remote hosts configured" in result.stdout
+
+
+class TestRemoteIncidents:
+    def test_incident_ls_success(self, mock_dirs: tuple[Path, Path]) -> None:
+        mock_incidents = [
+            {
+                "id": "inc-1234",
+                "status": "active",
+                "alert": {
+                    "severity": "critical",
+                    "title": "API outage in payments",
+                    "source": "pagerduty",
+                },
+                "lanes": [{"session_id": "s1"}],
+            }
+        ]
+        with (
+            patch("shoal.cli.remote.is_tunnel_active", return_value=True),
+            patch("shoal.cli.remote.remote_api_get", return_value=mock_incidents),
+        ):
+            result = runner.invoke(app, ["incident", "ls", "devbox"])
+
+        assert result.exit_code == 0
+        assert "inc-1234" in result.stdout
+        assert "API outage in payments" in result.stdout
+
+    def test_incident_ingest_posts_payload(
+        self, mock_dirs: tuple[Path, Path], tmp_path: Path
+    ) -> None:
+        payload_path = tmp_path / "alert.json"
+        _ = payload_path.write_text(
+            '{"severity":"critical","title":"API outage","source":"pagerduty","reason":"Customers failing"}'
+        )
+        with (
+            patch("shoal.cli.remote.is_tunnel_active", return_value=True),
+            patch(
+                "shoal.cli.remote.remote_api_post",
+                return_value={"id": "inc-1234", "supervisor_session_id": "sess-1"},
+            ) as mock_post,
+        ):
+            result = runner.invoke(
+                app,
+                ["incident", "ingest", "devbox", str(payload_path), "--path", "/srv/repo"],
+            )
+
+        assert result.exit_code == 0
+        assert "inc-1234" in result.stdout
+        assert mock_post.call_args.args[1] == "/incidents"
+        assert mock_post.call_args.args[2]["spawn_supervisor"] is True
+
+    def test_incident_spawn_posts_lane_request(self, mock_dirs: tuple[Path, Path]) -> None:
+        with (
+            patch("shoal.cli.remote.is_tunnel_active", return_value=True),
+            patch(
+                "shoal.cli.remote.remote_api_post",
+                return_value={"name": "repo/incident-api-investigator"},
+            ) as mock_post,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "incident",
+                    "spawn",
+                    "devbox",
+                    "inc-1234",
+                    "--role",
+                    "incident-investigator",
+                    "--tool",
+                    "omp",
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "incident-api-investigator" in result.stdout
+        assert mock_post.call_args.args[1] == "/incidents/inc-1234/lanes"
+        assert mock_post.call_args.args[2]["role"] == "incident-investigator"

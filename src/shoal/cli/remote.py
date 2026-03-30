@@ -29,6 +29,8 @@ from shoal.core.theme import (
     get_status_icon,
     get_status_style,
 )
+from shoal.models.incident import IncidentRole
+from shoal.services.incident import load_alert_payload
 
 console = Console()
 
@@ -38,6 +40,20 @@ app = typer.Typer(
     no_args_is_help=False,
     invoke_without_command=True,
 )
+
+incident_app = typer.Typer(
+    name="incident", help="Remote incident supervision.", no_args_is_help=True
+)
+
+_REMOTE_INCIDENT_SEVERITY_STYLE = {
+    "critical": "bold red",
+    "high": "red",
+    "medium": "yellow",
+    "low": "cyan",
+    "info": "dim",
+}
+
+app.add_typer(incident_app, name="incident", help="Remote incident supervision.")
 
 
 @app.callback(invoke_without_command=True)
@@ -318,6 +334,200 @@ def remote_attach(
     console.print(f"[dim]Attaching to {host}:{session}...[/dim]")
     with contextlib.suppress(KeyboardInterrupt):
         subprocess.run(cmd, check=False)
+
+
+@incident_app.command("ls")
+def remote_incident_ls(
+    host: Annotated[str, typer.Argument(help="Remote host name")],
+    status: Annotated[
+        str | None,
+        typer.Option("--status", help="Filter by status: active, monitoring, resolved"),
+    ] = None,
+) -> None:
+    """List incidents on a remote host."""
+    _ensure_connected(host)
+
+    path = "/incidents" if status is None else f"/incidents?status={status}"
+    try:
+        incidents = remote_api_get(host, path)
+    except RemoteConnectionError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1) from None
+
+    if not incidents:
+        console.print(f"[yellow]No incidents on '{host}'[/yellow]")
+        return
+
+    table = create_table(padding=(0, 1))
+    table.add_column("ID", width=12)
+    table.add_column("SEV", width=8)
+    table.add_column("STATUS", width=12)
+    table.add_column("TITLE", min_width=24, ratio=3, overflow="fold")
+    table.add_column("SOURCE", min_width=16, ratio=2, overflow="fold")
+    table.add_column("LANES", width=7, justify="right")
+
+    for incident in incidents:
+        severity = str(incident.get("alert", {}).get("severity", "info"))
+        severity_style = _REMOTE_INCIDENT_SEVERITY_STYLE.get(severity, "dim")
+        table.add_row(
+            str(incident.get("id", "")),
+            f"[{severity_style}]{severity}[/{severity_style}]",
+            str(incident.get("status", "")),
+            str(incident.get("alert", {}).get("title", "")),
+            str(incident.get("alert", {}).get("source", "")),
+            str(len(incident.get("lanes", []))),
+        )
+
+    console.print(
+        create_panel(
+            table,
+            title=f"[bold blue]{Icons.STATUS} {host} incidents[/bold blue]",
+            title_align="left",
+            primary=True,
+            padding=(0, 1),
+        )
+    )
+
+
+@incident_app.command("show")
+def remote_incident_show(
+    host: Annotated[str, typer.Argument(help="Remote host name")],
+    incident: Annotated[str, typer.Argument(help="Incident ID or slug on remote")],
+) -> None:
+    """Show a remote incident record."""
+    _ensure_connected(host)
+
+    try:
+        record = remote_api_get(host, f"/incidents/{incident}")
+    except RemoteConnectionError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1) from None
+
+    summary = create_table(padding=(0, 1))
+    summary.add_column("Field", style="bold cyan", width=16)
+    summary.add_column("Value", overflow="fold")
+    severity = str(record.get("alert", {}).get("severity", "info"))
+    severity_style = _REMOTE_INCIDENT_SEVERITY_STYLE.get(severity, "dim")
+    summary.add_row("Incident", f"[bold]{record.get('id', '')}[/bold] ({record.get('slug', '')})")
+    summary.add_row("Status", str(record.get("status", "")))
+    summary.add_row("Severity", f"[{severity_style}]{severity}[/{severity_style}]")
+    summary.add_row("Title", str(record.get("alert", {}).get("title", "")))
+    summary.add_row("Source", str(record.get("alert", {}).get("source", "")))
+    summary.add_row("Reason", str(record.get("alert", {}).get("reason", "")))
+    supervisor = record.get("supervisor_session_id")
+    if supervisor:
+        summary.add_row("Supervisor", str(supervisor))
+
+    console.print(
+        create_panel(
+            summary,
+            title=f"[bold blue]{Icons.STATUS} {host} incident[/bold blue]",
+            title_align="left",
+            primary=True,
+            padding=(0, 1),
+        )
+    )
+
+
+@incident_app.command("ingest")
+def remote_incident_ingest(
+    host: Annotated[str, typer.Argument(help="Remote host name")],
+    payload: Annotated[str, typer.Argument(help="JSON string, file path, or '-' for stdin")],
+    path: Annotated[
+        str | None,
+        typer.Option("--path", help="Repo path for the incident context on the remote host"),
+    ] = None,
+    tool: Annotated[
+        str | None,
+        typer.Option("--tool", help="Preferred remote supervisor tool"),
+    ] = None,
+    template: Annotated[
+        str | None,
+        typer.Option("--template", help="Preferred remote supervisor template"),
+    ] = None,
+    no_supervisor: Annotated[
+        bool,
+        typer.Option("--no-supervisor", help="Ingest only; do not auto-spawn a supervisor lane"),
+    ] = False,
+) -> None:
+    """Ingest an incident on a remote host."""
+    _ensure_connected(host)
+
+    try:
+        alert = load_alert_payload(payload)
+        incident = remote_api_post(
+            host,
+            "/incidents",
+            {
+                "alert": alert.model_dump(mode="json"),
+                "path": path or ".",
+                "spawn_supervisor": not no_supervisor,
+                "tool": tool,
+                "template": template,
+            },
+        )
+    except (RemoteConnectionError, ValueError) as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1) from None
+
+    console.print(
+        f"[green]{Symbols.CHECK}[/green] Ingested [bold]{incident.get('id', '')}[/bold] on {host}"
+    )
+
+
+@incident_app.command("spawn")
+def remote_incident_spawn(
+    host: Annotated[str, typer.Argument(help="Remote host name")],
+    incident: Annotated[str, typer.Argument(help="Incident ID or slug on remote")],
+    role: Annotated[
+        IncidentRole,
+        typer.Option(
+            "--role",
+            help=(
+                "Lane role: incident-supervisor, incident-investigator, incident-repro, "
+                "incident-comms, incident-reviewer"
+            ),
+        ),
+    ],
+    tool: Annotated[
+        str | None,
+        typer.Option("--tool", help="Worker tool override on the remote host"),
+    ] = None,
+    template: Annotated[
+        str | None,
+        typer.Option("--template", help="Template override on the remote host"),
+    ] = None,
+    name: Annotated[
+        str | None,
+        typer.Option("--name", help="Explicit remote session name override"),
+    ] = None,
+    summary: Annotated[
+        str,
+        typer.Option("--summary", help="Additional operator direction for this lane"),
+    ] = "",
+) -> None:
+    """Spawn a remote incident worker lane."""
+    _ensure_connected(host)
+
+    try:
+        session = remote_api_post(
+            host,
+            f"/incidents/{incident}/lanes",
+            {
+                "role": role.value,
+                "tool": tool,
+                "template": template,
+                "name": name,
+                "summary": summary,
+            },
+        )
+    except RemoteConnectionError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1) from None
+
+    console.print(
+        f"[green]{Symbols.CHECK}[/green] Spawned [bold]{session.get('name', '')}[/bold] on {host}"
+    )
 
 
 # --- Helpers ---
