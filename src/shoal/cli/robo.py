@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core import tmux
 from shoal.core.config import (
     ConfigLoadError,
@@ -27,8 +27,6 @@ from shoal.core.config import (
 from shoal.core.db import get_db, with_db
 from shoal.core.theme import Icons, create_panel, create_table
 from shoal.models.state import RoboState, SessionStatus
-
-console = Console()
 
 app = typer.Typer(no_args_is_help=False, invoke_without_command=True)
 
@@ -123,9 +121,9 @@ auto_respond = false
 log_file = "task-log.md"
 """
         )
-        console.print(f"Created profile: {profile_file}")
+        get_console().print(f"Created profile: {profile_file}")
     else:
-        console.print(f"Profile already exists: {profile_file}")
+        get_console().print(f"Profile already exists: {profile_file}")
 
     # Create runtime directory with AGENTS.md
     robo_rt_dir.mkdir(parents=True, exist_ok=True)
@@ -179,19 +177,19 @@ agents, approve their actions, and ensure the group stays on track.
 - Prefer asking the user over making assumptions about intent
 """
         )
-        console.print(f"Created AGENTS.md: {agents_file}")
+        get_console().print(f"Created AGENTS.md: {agents_file}")
 
     task_log = robo_rt_dir / "task-log.md"
     if not task_log.exists():
         task_log.write_text(f"# Robo Task Log: {name}\n\n---\n\n")
-        console.print(f"Created task log: {task_log}")
+        get_console().print(f"Created task log: {task_log}")
 
-    console.print()
-    console.print(f"Robo '{name}' ready")
-    console.print(f"  Profile: {profile_file}")
-    console.print(f"  Runtime: {robo_rt_dir}")
-    console.print()
-    console.print(f"Start with: shoal robo start {name}")
+    get_console().print()
+    get_console().print(f"Robo '{name}' ready")
+    get_console().print(f"  Profile: {profile_file}")
+    get_console().print(f"  Runtime: {robo_rt_dir}")
+    get_console().print()
+    get_console().print(f"Start with: shoal robo start {name}")
 
 
 @app.command("start")
@@ -212,31 +210,33 @@ async def _robo_start_impl(name: str | None) -> None:
         profile = load_robo_profile(name)
         tool = profile.tool
     except ConfigLoadError as e:
-        console.print(f"[red]{e}[/red]")
+        get_console().print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
     except FileNotFoundError:
-        console.print(f"[red]Error: Robo profile '{name}' not found[/red]")
-        console.print()
-        console.print("[yellow]Available profiles:[/yellow]")
+        get_console().print(f"[red]Error: Robo profile '{name}' not found[/red]")
+        get_console().print()
+        get_console().print("[yellow]Available profiles:[/yellow]")
         robo_dir = config_dir() / "robo"
         if robo_dir.exists() and list(robo_dir.glob("*.toml")):
             for f in sorted(robo_dir.glob("*.toml")):
-                console.print(f"  • {f.stem}")
+                get_console().print(f"  • {f.stem}")
         else:
-            console.print("  [dim](none configured)[/dim]")
-        console.print()
-        console.print(f"[yellow]Create a profile:[/yellow] shoal robo setup {name}")
+            get_console().print("  [dim](none configured)[/dim]")
+        get_console().print()
+        get_console().print(f"[yellow]Create a profile:[/yellow] shoal robo setup {name}")
         raise typer.Exit(1) from None
 
     tmux_session = _build_robo_tmux_session(name)
 
     if tmux.has_session(tmux_session):
-        console.print(f"[red]Error: Robo '{name}' is already running[/red]")
-        console.print(f"[dim]Tmux session: {tmux_session}[/dim]")
-        console.print()
-        console.print("[yellow]Options:[/yellow]")
-        console.print(f"  • Attach to existing robo: tmux attach -t {tmux_session}")
-        console.print(f"  • Stop and restart: shoal robo stop {name} && shoal robo start {name}")
+        get_console().print(f"[red]Error: Robo '{name}' is already running[/red]")
+        get_console().print(f"[dim]Tmux session: {tmux_session}[/dim]")
+        get_console().print()
+        get_console().print("[yellow]Options:[/yellow]")
+        get_console().print(f"  • Attach to existing robo: tmux attach -t {tmux_session}")
+        get_console().print(
+            f"  • Stop and restart: shoal robo stop {name} && shoal robo start {name}"
+        )
         raise typer.Exit(1)
 
     # Ensure runtime dir exists
@@ -269,12 +269,12 @@ async def _robo_start_impl(name: str | None) -> None:
     db = await get_db()
     await db.save_robo(state)
 
-    console.print(f"Robo '{name}' started")
-    console.print(f"  Tool: {tool}")
-    console.print(f"  Tmux: {tmux_session}")
-    console.print(f"  Runtime: {robo_rt_dir}")
-    console.print()
-    console.print(f"Attach with: tmux attach -t {tmux_session}")
+    get_console().print(f"Robo '{name}' started")
+    get_console().print(f"  Tool: {tool}")
+    get_console().print(f"  Tmux: {tmux_session}")
+    get_console().print(f"  Runtime: {robo_rt_dir}")
+    get_console().print()
+    get_console().print(f"Attach with: tmux attach -t {tmux_session}")
 
 
 @app.command("stop")
@@ -294,7 +294,7 @@ async def _robo_stop_impl(name: str | None) -> None:
     tmux_session = state.tmux_session if state else _build_robo_tmux_session(name)
 
     if not tmux.has_session(tmux_session):
-        console.print(f"[red]Robo '{name}' is not running[/red]")
+        get_console().print(f"[red]Robo '{name}' is not running[/red]")
         if state:
             updated = state.model_copy(update={"status": "stopped"})
             await db.save_robo(updated)
@@ -306,7 +306,7 @@ async def _robo_stop_impl(name: str | None) -> None:
         updated = state.model_copy(update={"status": "stopped"})
         await db.save_robo(updated)
 
-    console.print(f"Robo '{name}' stopped")
+    get_console().print(f"Robo '{name}' stopped")
 
 
 @app.command("send")
@@ -324,7 +324,7 @@ async def _robo_send_impl(session_name_or_id: str, keys: str) -> None:
 
     sid = await resolve_session(session_name_or_id)
     if not sid:
-        console.print(f"[red]Session not found: {session_name_or_id}[/red]")
+        get_console().print(f"[red]Session not found: {session_name_or_id}[/red]")
         raise typer.Exit(1)
 
     s = await get_session(sid)
@@ -332,11 +332,11 @@ async def _robo_send_impl(session_name_or_id: str, keys: str) -> None:
         raise typer.Exit(1)
 
     if not tmux.has_session(s.runtime.session_name):
-        console.print(f"[red]Tmux session '{s.runtime.session_name}' not found[/red]")
+        get_console().print(f"[red]Tmux session '{s.runtime.session_name}' not found[/red]")
         raise typer.Exit(1)
     pane_target = tmux.preferred_pane(s.runtime.session_name, title=f"shoal:{s.id}")
     tmux.send_keys(pane_target, keys)
-    console.print(f"Sent keys to '{s.name}'")
+    get_console().print(f"Sent keys to '{s.name}'")
 
 
 @app.command("approve")
@@ -359,8 +359,8 @@ async def _robo_status_impl() -> None:
     robos = await db.list_robos()
 
     if not robos:
-        console.print("No robos configured")
-        console.print("Create one with: shoal robo setup <name>")
+        get_console().print("No robos configured")
+        get_console().print("Create one with: shoal robo setup <name>")
         return
 
     for state in robos:
@@ -373,12 +373,12 @@ async def _robo_status_impl() -> None:
                 await db.save_robo(state)
 
         started = state.started_at.strftime("%Y-%m-%dT%H:%M:%SZ") if state.started_at else "-"
-        console.print(f"Robo: {state.name}")
-        console.print(f"  Tool: {state.tool}")
-        console.print(f"  Status: {robo_status_text}")
-        console.print(f"  Tmux: {state.tmux_session}")
-        console.print(f"  Started: {started}")
-        console.print()
+        get_console().print(f"Robo: {state.name}")
+        get_console().print(f"  Tool: {state.tool}")
+        get_console().print(f"  Status: {robo_status_text}")
+        get_console().print(f"  Tmux: {state.tmux_session}")
+        get_console().print(f"  Started: {started}")
+        get_console().print()
 
 
 @app.command("ls")
@@ -396,8 +396,8 @@ async def _robo_ls_impl() -> None:
     profiles = sorted(profiles_dir.glob("*.toml")) if profiles_dir.exists() else []
 
     if not profiles:
-        console.print("No robo profiles")
-        console.print("Create one with: shoal robo setup <name>")
+        get_console().print("No robo profiles")
+        get_console().print("Create one with: shoal robo setup <name>")
         return
 
     # Use consistent table style with Panel (fixing Task 1)
@@ -429,8 +429,8 @@ async def _robo_ls_impl() -> None:
 
         table.add_row(name, tool, robo_status_display, started)
 
-    console.print()
-    console.print(
+    get_console().print()
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.DASHBOARD} Robo[/bold blue]",
@@ -452,26 +452,26 @@ def robo_watch(
     try:
         cfg = load_robo_profile(profile)
     except ConfigLoadError as e:
-        console.print(f"[red]{e}[/red]")
+        get_console().print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
     except FileNotFoundError:
-        console.print(f"[red]Error: Robo profile '{profile}' not found[/red]")
-        console.print(f"[yellow]Create one with:[/yellow] shoal robo setup {profile}")
+        get_console().print(f"[red]Error: Robo profile '{profile}' not found[/red]")
+        get_console().print(f"[yellow]Create one with:[/yellow] shoal robo setup {profile}")
         raise typer.Exit(1) from None
 
-    console.print(f"[bold]Robo watch[/bold] — profile: {profile}")
-    console.print(f"  poll_interval:   {cfg.monitoring.poll_interval}s")
-    console.print(f"  waiting_timeout: {cfg.monitoring.waiting_timeout}s")
-    console.print(f"  auto_approve:    {cfg.auto_approve}")
-    console.print()
+    get_console().print(f"[bold]Robo watch[/bold] — profile: {profile}")
+    get_console().print(f"  poll_interval:   {cfg.monitoring.poll_interval}s")
+    get_console().print(f"  waiting_timeout: {cfg.monitoring.waiting_timeout}s")
+    get_console().print(f"  auto_approve:    {cfg.auto_approve}")
+    get_console().print()
 
     if daemon:
         existing = _read_robo_pid(profile)
         if existing:
-            console.print(
+            get_console().print(
                 f"[red]Error: Robo watch '{profile}' already running (pid: {existing})[/red]"
             )
-            console.print(f"  Stop with: shoal robo watch-stop {profile}")
+            get_console().print(f"  Stop with: shoal robo watch-stop {profile}")
             raise typer.Exit(1)
 
         proc = subprocess.Popen(
@@ -480,13 +480,13 @@ def robo_watch(
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        console.print(f"Robo watch '{profile}' started as daemon (pid: {proc.pid})")
+        get_console().print(f"Robo watch '{profile}' started as daemon (pid: {proc.pid})")
         return
 
     try:
         from shoal.services.robo_supervisor import RoboSupervisor
     except ImportError:
-        console.print(
+        get_console().print(
             "[yellow]RoboSupervisor not implemented yet — "
             "services/robo_supervisor.py is pending.[/yellow]"
         )
@@ -504,13 +504,13 @@ def robo_watch_stop(
     profile = profile or "default"
     pid = _read_robo_pid(profile)
     if not pid:
-        console.print(f"[red]Robo watch '{profile}' is not running[/red]")
-        console.print(f"  Start with: shoal robo watch {profile} --daemon")
+        get_console().print(f"[red]Robo watch '{profile}' is not running[/red]")
+        get_console().print(f"  Start with: shoal robo watch {profile} --daemon")
         raise typer.Exit(1)
 
     os.kill(pid, signal.SIGTERM)
     _robo_pid_file(profile).unlink(missing_ok=True)
-    console.print(f"Robo watch '{profile}' stopped (pid: {pid})")
+    get_console().print(f"Robo watch '{profile}' stopped (pid: {pid})")
 
 
 @app.command("watch-status")
@@ -521,6 +521,6 @@ def robo_watch_status(
     profile = profile or "default"
     pid = _read_robo_pid(profile)
     if pid:
-        console.print(f"[green]Robo watch '{profile}' is running (pid: {pid})[/green]")
+        get_console().print(f"[green]Robo watch '{profile}' is running (pid: {pid})[/green]")
     else:
-        console.print(f"Robo watch '{profile}' is not running")
+        get_console().print(f"Robo watch '{profile}' is not running")

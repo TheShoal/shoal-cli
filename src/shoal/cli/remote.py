@@ -8,8 +8,8 @@ import subprocess
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core.config import load_config
 from shoal.core.remote import (
     RemoteConnectionError,
@@ -31,8 +31,6 @@ from shoal.core.theme import (
 )
 from shoal.models.incident import IncidentRole
 from shoal.services.incident import load_alert_payload
-
-console = Console()
 
 app = typer.Typer(
     name="remote",
@@ -79,12 +77,12 @@ def remote_ls(
 
     if format == "plain":
         for name in sorted(cfg.remote):
-            console.print(name)
+            get_console().print(name)
         return
 
     if not cfg.remote:
-        console.print("[yellow]No remote hosts configured[/yellow]")
-        console.print(
+        get_console().print("[yellow]No remote hosts configured[/yellow]")
+        get_console().print(
             "Add hosts to [bold]~/.config/shoal/config.toml[/bold]:\n"
             '\n[dim][remote.myhost]\nhost = "myhost.example.com"\n[/dim]'
         )
@@ -115,7 +113,7 @@ def remote_ls(
             status_text,
         )
 
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.MCP} Remote Hosts[/bold blue]",
@@ -138,12 +136,12 @@ def remote_connect(
     try:
         host_cfg = resolve_host(host)
     except KeyError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
     if is_tunnel_active(host):
         local_port = read_tunnel_port(host)
-        console.print(f"[yellow]Already connected to '{host}' on port {local_port}[/yellow]")
+        get_console().print(f"[yellow]Already connected to '{host}' on port {local_port}[/yellow]")
         return
 
     try:
@@ -157,10 +155,10 @@ def remote_connect(
             ssh_port=host_cfg["port"],
         )
     except RuntimeError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
-    console.print(
+    get_console().print(
         f"[green]{Symbols.CHECK}[/green] Connected to [bold]{host}[/bold] "
         f"(localhost:{local_port} → {host_cfg['host']}:{host_cfg['api_port']})"
     )
@@ -172,14 +170,14 @@ def remote_disconnect(
 ) -> None:
     """Disconnect from a remote host."""
     if not is_tunnel_active(host):
-        console.print(f"[yellow]Not connected to '{host}'[/yellow]")
+        get_console().print(f"[yellow]Not connected to '{host}'[/yellow]")
         return
 
     stopped = stop_tunnel(host)
     if stopped:
-        console.print(f"[green]{Symbols.CHECK}[/green] Disconnected from [bold]{host}[/bold]")
+        get_console().print(f"[green]{Symbols.CHECK}[/green] Disconnected from [bold]{host}[/bold]")
     else:
-        console.print(f"[red]Failed to disconnect from '{host}'[/red]")
+        get_console().print(f"[red]Failed to disconnect from '{host}'[/red]")
 
 
 @app.command("status")
@@ -192,7 +190,7 @@ def remote_status(
     try:
         data = remote_api_get(host, "/status")
     except RemoteConnectionError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
     table = create_table(padding=(0, 2))
@@ -210,7 +208,7 @@ def remote_status(
         )
 
     version = data.get("version", "unknown")
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.STATUS} {host} (v{version})[/bold blue]",
@@ -239,16 +237,16 @@ def remote_sessions(
     try:
         sessions = remote_api_get(host, "/sessions")
     except RemoteConnectionError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
     if format == "plain":
         for s in sorted(sessions, key=lambda x: x.get("name", "")):
-            console.print(s.get("name", ""))
+            get_console().print(s.get("name", ""))
         return
 
     if not sessions:
-        console.print(f"[yellow]No sessions on '{host}'[/yellow]")
+        get_console().print(f"[yellow]No sessions on '{host}'[/yellow]")
         return
 
     table = create_table(padding=(0, 1))
@@ -273,7 +271,7 @@ def remote_sessions(
             f"[cyan]{branch}[/cyan]",
         )
 
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.SESSION} {host} sessions[/bold blue]",
@@ -299,10 +297,12 @@ def remote_send(
     try:
         remote_api_post(host, f"/sessions/{session_id}/send", {"keys": keys})
     except RemoteConnectionError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
-    console.print(f"[green]{Symbols.CHECK}[/green] Sent keys to [bold]{session}[/bold] on {host}")
+    get_console().print(
+        f"[green]{Symbols.CHECK}[/green] Sent keys to [bold]{session}[/bold] on {host}"
+    )
 
 
 @app.command("attach")
@@ -314,7 +314,7 @@ def remote_attach(
     try:
         host_cfg = resolve_host(host)
     except KeyError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
     # Build SSH command to attach to remote tmux
@@ -331,7 +331,7 @@ def remote_attach(
     cmd.append(target)
     cmd.append(f"tmux attach-session -t {prefix}{session}")
 
-    console.print(f"[dim]Attaching to {host}:{session}...[/dim]")
+    get_console().print(f"[dim]Attaching to {host}:{session}...[/dim]")
     with contextlib.suppress(KeyboardInterrupt):
         subprocess.run(cmd, check=False)
 
@@ -351,11 +351,11 @@ def remote_incident_ls(
     try:
         incidents = remote_api_get(host, path)
     except RemoteConnectionError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
     if not incidents:
-        console.print(f"[yellow]No incidents on '{host}'[/yellow]")
+        get_console().print(f"[yellow]No incidents on '{host}'[/yellow]")
         return
 
     table = create_table(padding=(0, 1))
@@ -378,7 +378,7 @@ def remote_incident_ls(
             str(len(incident.get("lanes", []))),
         )
 
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.STATUS} {host} incidents[/bold blue]",
@@ -400,7 +400,7 @@ def remote_incident_show(
     try:
         record = remote_api_get(host, f"/incidents/{incident}")
     except RemoteConnectionError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
     summary = create_table(padding=(0, 1))
@@ -418,7 +418,7 @@ def remote_incident_show(
     if supervisor:
         summary.add_row("Supervisor", str(supervisor))
 
-    console.print(
+    get_console().print(
         create_panel(
             summary,
             title=f"[bold blue]{Icons.STATUS} {host} incident[/bold blue]",
@@ -467,10 +467,10 @@ def remote_incident_ingest(
             },
         )
     except (RemoteConnectionError, ValueError) as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
-    console.print(
+    get_console().print(
         f"[green]{Symbols.CHECK}[/green] Ingested [bold]{incident.get('id', '')}[/bold] on {host}"
     )
 
@@ -522,10 +522,10 @@ def remote_incident_spawn(
             },
         )
     except RemoteConnectionError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
-    console.print(
+    get_console().print(
         f"[green]{Symbols.CHECK}[/green] Spawned [bold]{session.get('name', '')}[/bold] on {host}"
     )
 
@@ -536,7 +536,7 @@ def remote_incident_spawn(
 def _ensure_connected(host: str) -> None:
     """Ensure a tunnel is active to the given host, or exit."""
     if not is_tunnel_active(host):
-        console.print(
+        get_console().print(
             f"[red]Not connected to '{host}'.[/red] Run: [bold]shoal remote connect {host}[/bold]"
         )
         raise typer.Exit(1)
@@ -547,7 +547,7 @@ def _resolve_remote_session(host: str, name_or_id: str) -> str:
     try:
         sessions = remote_api_get(host, "/sessions")
     except RemoteConnectionError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
     # Try exact ID match
@@ -561,5 +561,5 @@ def _resolve_remote_session(host: str, name_or_id: str) -> str:
             sid: str = s["id"]
             return sid
 
-    console.print(f"[red]Session '{name_or_id}' not found on '{host}'[/red]")
+    get_console().print(f"[red]Session '{name_or_id}' not found on '{host}'[/red]")
     raise typer.Exit(1)

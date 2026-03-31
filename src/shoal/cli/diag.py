@@ -6,8 +6,8 @@ import json
 import os
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core.config import data_dir, state_dir
 from shoal.core.theme import Icons, Symbols, create_panel, create_table
 
@@ -85,7 +85,7 @@ def diag(
         print(json.dumps({"status": "healthy" if all_healthy else "degraded", **data}))
         return
 
-    console = Console()
+    console = get_console()
     table = create_table(padding=(0, 2))
     table.add_column("Component", width=16)
     table.add_column("Status", width=12)

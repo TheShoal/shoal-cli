@@ -3,18 +3,18 @@
 from __future__ import annotations
 
 import typer
-from rich.console import Console
-from rich.table import Table
 
+from shoal.cli._console import get_console
 from shoal.cli.mode_presets import MODE_REGISTRY
 
 app = typer.Typer(no_args_is_help=True)
-console = Console()
 
 
 @app.command("ls")
 def mode_ls() -> None:
     """List available operating modes."""
+    from rich.table import Table
+
     table = Table(show_header=True)
     table.add_column("Mode", style="bold cyan")
     table.add_column("Description")
@@ -32,4 +32,4 @@ def mode_ls() -> None:
             tags,
         )
 
-    console.print(table)
+    get_console().print(table)

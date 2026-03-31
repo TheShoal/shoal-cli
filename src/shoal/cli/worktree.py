@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core import git, tmux
 from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
@@ -21,8 +21,6 @@ from shoal.core.state import (
 )
 from shoal.core.theme import Icons, Symbols, create_panel, create_table, get_status_style
 from shoal.models.state import SessionStatus
-
-console = Console()
 
 app = typer.Typer(no_args_is_help=False, invoke_without_command=True)
 
@@ -76,8 +74,8 @@ async def _wt_ls_impl() -> None:
         )
 
     if worktree_sessions:
-        console.print()
-        console.print(
+        get_console().print()
+        get_console().print(
             create_panel(
                 table,
                 title=f"[bold blue]{Icons.WORKTREE} Managed Worktrees[/bold blue]",
@@ -85,7 +83,7 @@ async def _wt_ls_impl() -> None:
             )
         )
     else:
-        console.print("[yellow]No worktrees managed by shoal[/yellow]")
+        get_console().print("[yellow]No worktrees managed by shoal[/yellow]")
 
 
 @app.command("finish")
@@ -106,23 +104,23 @@ async def _wt_finish_impl(session: str | None, pr: bool, no_merge: bool) -> None
         raise typer.Exit(1)
 
     if not s.worktree:
-        console.print(f"[red]Session '{s.name}' has no worktree to finish[/red]")
+        get_console().print(f"[red]Session '{s.name}' has no worktree to finish[/red]")
         raise typer.Exit(1)
 
-    console.print(f"Finishing session: {s.name}")
-    console.print(f"  Branch: {s.branch}")
-    console.print(f"  Worktree: {s.worktree}")
-    console.print()
+    get_console().print(f"Finishing session: {s.name}")
+    get_console().print(f"  Branch: {s.branch}")
+    get_console().print(f"  Worktree: {s.worktree}")
+    get_console().print()
 
     # Kill tmux session
     if tmux.has_session(s.runtime.session_name):
         tmux.kill_session(s.runtime.session_name)
-        console.print("  Killed runtime session")
+        get_console().print("  Killed runtime session")
 
     # Handle merge/PR
     if not no_merge:
         if pr:
-            console.print(f"  Opening PR for branch: {s.branch}")
+            get_console().print(f"  Opening PR for branch: {s.branch}")
             git.push(s.worktree, s.branch, set_upstream=True)
             import subprocess
 
@@ -133,21 +131,21 @@ async def _wt_finish_impl(session: str | None, pr: bool, no_merge: bool) -> None
                 check=False,
             )
         else:
-            console.print(f"  Merging {s.branch} into main...")
+            get_console().print(f"  Merging {s.branch} into main...")
             main = git.main_branch(s.path)
             git.checkout(s.path, main)
             if not git.merge(s.path, s.branch):
-                console.print("  [red]Merge failed — resolve conflicts manually[/red]")
-                console.print(f"  Worktree preserved at: {s.worktree}")
+                get_console().print("  [red]Merge failed — resolve conflicts manually[/red]")
+                get_console().print(f"  Worktree preserved at: {s.worktree}")
                 raise typer.Exit(1)
-            console.print("  Merged successfully")
+            get_console().print("  Merged successfully")
 
     # Remove worktree
     if Path(s.worktree).is_dir():
         if git.worktree_remove(s.path, s.worktree, force=True):
-            console.print("  Removed worktree")
+            get_console().print("  Removed worktree")
         else:
-            console.print(
+            get_console().print(
                 f"  [yellow]Warning: Failed to remove worktree"
                 f" (try: git worktree remove {s.worktree} --force)[/yellow]"
             )
@@ -159,11 +157,11 @@ async def _wt_finish_impl(session: str | None, pr: bool, no_merge: bool) -> None
         and s.branch not in ("main", "master")
         and git.branch_delete(s.path, s.branch)
     ):
-        console.print(f"  Deleted branch: {s.branch}")
+        get_console().print(f"  Deleted branch: {s.branch}")
 
     await delete_session(sid)
-    console.print()
-    console.print(f"Session '{s.name}' finished and cleaned up")
+    get_console().print()
+    get_console().print(f"Session '{s.name}' finished and cleaned up")
 
 
 @app.command("cleanup")
@@ -190,13 +188,13 @@ async def _wt_cleanup_impl() -> None:
 
     # Report stale sessions
     if stale:
-        console.print("Stale sessions (tmux session gone):")
+        get_console().print("Stale sessions (tmux session gone):")
         for sid in stale:
             stale_s = await get_session(sid)
             if stale_s:
-                console.print(f"  {stale_s.name} ({sid}) — marking as stopped")
+                get_console().print(f"  {stale_s.name} ({sid}) — marking as stopped")
                 await update_session(sid, status=SessionStatus.stopped)
-        console.print()
+        get_console().print()
 
     # Find orphaned worktrees
     checked_repos: set[str] = set()
@@ -225,17 +223,17 @@ async def _wt_cleanup_impl() -> None:
         )
 
     if not orphans:
-        console.print("No orphaned worktrees found")
+        get_console().print("No orphaned worktrees found")
         return
 
-    console.print("Orphaned worktrees (not tracked by any session):")
+    get_console().print("Orphaned worktrees (not tracked by any session):")
     for wt in orphans:
-        console.print(f"  {wt.replace(str(Path.home()), '~')}")
-    console.print()
+        get_console().print(f"  {wt.replace(str(Path.home()), '~')}")
+    get_console().print()
 
     confirm = typer.confirm("Remove these worktrees?", default=False)
     if not confirm:
-        console.print("Aborted")
+        get_console().print("Aborted")
         return
 
     for wt in orphans:
@@ -244,8 +242,8 @@ async def _wt_cleanup_impl() -> None:
         except Exception:
             repo = str(Path(wt).parent.parent)
         if git.worktree_remove(repo, wt, force=True):
-            console.print(f"  Removed: {wt}")
+            get_console().print(f"  Removed: {wt}")
         else:
-            console.print(f"  [red]Failed: {wt}[/red]")
+            get_console().print(f"  [red]Failed: {wt}[/red]")
 
-    console.print("Cleanup complete")
+    get_console().print("Cleanup complete")

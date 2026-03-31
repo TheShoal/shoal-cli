@@ -5,9 +5,8 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 import typer
-from rich.console import Console
-from rich.markdown import Markdown
 
+from shoal.cli._console import get_console
 from shoal.core.db import with_db
 from shoal.core.journal import (
     JournalEntry,
@@ -22,8 +21,6 @@ from shoal.core.journal import (
     write_handoff_artifact,
 )
 from shoal.core.state import resolve_session
-
-console = Console()
 
 
 def journal_view(
@@ -57,7 +54,7 @@ def journal_view(
         return
 
     if not session:
-        console.print("[red]Session argument required (or use --search)[/red]")
+        get_console().print("[red]Session argument required (or use --search)[/red]")
         raise typer.Exit(1)
 
     if archived:
@@ -73,7 +70,7 @@ def journal_view(
 
     session_id, session_state = asyncio.run(with_db(_impl()))
     if not session_id:
-        console.print(f"[red]Session not found: {session}[/red]")
+        get_console().print(f"[red]Session not found: {session}[/red]")
         raise typer.Exit(1)
 
     if append:
@@ -81,16 +78,16 @@ def journal_view(
         if not journal_exists(session_id) and session_state:
             metadata = build_journal_metadata(session_state)
         path = append_entry(session_id, append, source=source, metadata=metadata)
-        console.print(f"[green]Entry appended to {path.name}[/green]")
+        get_console().print(f"[green]Entry appended to {path.name}[/green]")
         return
 
     if not journal_exists(session_id):
-        console.print(f"[yellow]No journal for session '{session}'[/yellow]")
+        get_console().print(f"[yellow]No journal for session '{session}'[/yellow]")
         return
 
     entries = read_journal(session_id, limit=limit)
     if not entries:
-        console.print("[yellow]Journal is empty[/yellow]")
+        get_console().print("[yellow]Journal is empty[/yellow]")
         return
 
     if handoff:
@@ -104,6 +101,8 @@ def _render_handoff(session_id: str, session_state: object) -> None:
     """Generate and display a structured handoff summary."""
     import asyncio
 
+    from rich.markdown import Markdown
+
     from shoal.core.db import get_db, with_db
 
     entries = read_journal(session_id)
@@ -116,8 +115,8 @@ def _render_handoff(session_id: str, session_state: object) -> None:
 
     artifact = generate_handoff(session_state or {}, entries, transitions)
     artifact_path = write_handoff_artifact(session_id, artifact)
-    console.print(f"[green]Saved handoff artifact:[/green] {artifact_path}")
-    console.print(Markdown(artifact.to_markdown()))
+    get_console().print(f"[green]Saved handoff artifact:[/green] {artifact_path}")
+    get_console().print(Markdown(artifact.to_markdown()))
 
 
 def _view_archived(session: str, *, limit: int | None = None) -> None:
@@ -142,42 +141,45 @@ def _view_archived(session: str, *, limit: int | None = None) -> None:
             # Last resort: scan archive frontmatter when session is deleted from DB
             found = find_archived_session_id(session)
             if not found:
-                console.print(f"[red]No archived journal found for '{session}'[/red]")
+                get_console().print(f"[red]No archived journal found for '{session}'[/red]")
                 raise typer.Exit(1)
             session_id = found
 
     entries = read_archived_journal(session_id, limit=limit)
     if not entries:
-        console.print(f"[yellow]No archived journal found for '{session}'[/yellow]")
+        get_console().print(f"[yellow]No archived journal found for '{session}'[/yellow]")
         return
 
-    console.print(f"[dim]Archived journal for {session}[/dim]\n")
+    get_console().print(f"[dim]Archived journal for {session}[/dim]\n")
     _render_entries(entries)
 
 
 def _search_journals(query: str, *, limit: int = 10) -> None:
     """Search across all journals and display results."""
+    from rich.markdown import Markdown
+
     results = search_journals(query, limit=limit)
     if not results:
-        console.print(f"[yellow]No results for '{query}'[/yellow]")
+        get_console().print(f"[yellow]No results for '{query}'[/yellow]")
         return
 
-    console.print(f"[bold]Found {len(results)} result(s) for '{query}':[/bold]\n")
+    get_console().print(f"[bold]Found {len(results)} result(s) for '{query}':[/bold]\n")
     for result in results:
         ts = result.entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         src_tag = f" [{result.entry.source}]" if result.entry.source else ""
-        console.print(f"[dim]{result.session_id}[/dim] {ts}{src_tag}")
-        console.print(Markdown(result.entry.content))
-        console.print("[dim]---[/dim]")
+        get_console().print(f"[dim]{result.session_id}[/dim] {ts}{src_tag}")
+        get_console().print(Markdown(result.entry.content))
+        get_console().print("[dim]---[/dim]")
 
 
 def _render_entries(entries: list[JournalEntry]) -> None:
     """Render journal entries to the console."""
+    from rich.markdown import Markdown
 
     for entry in entries:
         ts = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         src_tag = f" [{entry.source}]" if entry.source else ""
         header = f"### {ts}{src_tag}"
-        console.print(Markdown(header))
-        console.print(Markdown(entry.content))
-        console.print("[dim]---[/dim]")
+        get_console().print(Markdown(header))
+        get_console().print(Markdown(entry.content))
+        get_console().print("[dim]---[/dim]")

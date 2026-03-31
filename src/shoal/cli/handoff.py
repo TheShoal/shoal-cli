@@ -7,16 +7,14 @@ from datetime import UTC
 from typing import Annotated
 
 import typer
-from rich.console import Console
-from rich.markdown import Markdown
 
+from shoal.cli._console import get_console
 from shoal.core.journal import (
     generate_handoff,
     read_journal,
     write_handoff_artifact,
 )
 
-console = Console()
 app = typer.Typer(no_args_is_help=True)
 
 
@@ -34,14 +32,14 @@ def handoff_show(
     async def _impl() -> None:
         session_id = await _resolve_session_interactive_impl(session)
         if not session_id:
-            console.print(f"[red]Session '{session}' not found[/red]")
+            get_console().print(f"[red]Session '{session}' not found[/red]")
             raise typer.Exit(1)
 
         from shoal.core.state import get_session
 
         session_state = await get_session(session_id)
         if not session_state:
-            console.print(f"[red]Session '{session}' not found in DB[/red]")
+            get_console().print(f"[red]Session '{session}' not found in DB[/red]")
             raise typer.Exit(1)
 
         entries = read_journal(session_id)
@@ -51,12 +49,14 @@ def handoff_show(
 
         if save:
             path = write_handoff_artifact(session_id, artifact)
-            console.print(f"[green]Saved:[/green] {path}")
+            get_console().print(f"[green]Saved:[/green] {path}")
 
         if as_json:
-            console.print_json(json.dumps(artifact.to_dict()))
+            get_console().print_json(json.dumps(artifact.to_dict()))
         else:
-            console.print(Markdown(artifact.to_markdown()))
+            from rich.markdown import Markdown
+
+            get_console().print(Markdown(artifact.to_markdown()))
 
     asyncio.run(with_db(_impl()))
 
@@ -67,12 +67,12 @@ def handoff_ls() -> None:
 
     handoffs_dir = _journals_dir() / "handoffs"
     if not handoffs_dir.exists():
-        console.print("[dim]No handoff artifacts found.[/dim]")
+        get_console().print("[dim]No handoff artifacts found.[/dim]")
         return
 
     artifacts = sorted(handoffs_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not artifacts:
-        console.print("[dim]No handoff artifacts found.[/dim]")
+        get_console().print("[dim]No handoff artifacts found.[/dim]")
         return
 
     from rich.table import Table
@@ -90,4 +90,4 @@ def handoff_ls() -> None:
         size = f"{st.st_size:,} B"
         table.add_row(path.stem, mtime.strftime("%Y-%m-%d %H:%M"), size)
 
-    console.print(table)
+    get_console().print(table)

@@ -7,8 +7,8 @@ import contextlib
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core import tmux
 from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
@@ -29,8 +29,6 @@ from shoal.core.state import (
 from shoal.models.state import SessionStatus
 from shoal.services.runtime_provider import provider_for_session
 
-console = Console()
-
 
 def attach(
     session: Annotated[str | None, typer.Argument(help="Session name or ID")] = None,
@@ -47,7 +45,7 @@ async def _attach_impl(session_name_or_id: str | None) -> None:
         raise typer.Exit(1)
     provider = provider_for_session(s)
     if not provider.exists(s):
-        console.print(
+        get_console().print(
             "[red]Runtime session "
             f"'{s.runtime.session_name}' not found (session may have died)[/red]"
         )
@@ -61,12 +59,12 @@ async def _attach_impl(session_name_or_id: str | None) -> None:
 def detach() -> None:
     """Detach from current session."""
     if not tmux.is_inside_tmux():
-        console.print("[red]Not inside a tmux session[/red]")
+        get_console().print("[red]Not inside a tmux session[/red]")
         raise typer.Exit(1)
 
     current = tmux.current_session_name()
     if not is_shoal_tmux_session_name(current):
-        console.print(f"[red]Not inside a shoal session (current: {current})[/red]")
+        get_console().print(f"[red]Not inside a shoal session (current: {current})[/red]")
         raise typer.Exit(1)
 
     tmux.detach_client()
@@ -88,12 +86,12 @@ async def _rename_impl(old_name: str, new_name: str) -> None:
     try:
         validate_session_name(new_name)
     except ValueError as e:
-        console.print(f"[red]Invalid session name: {e}[/red]")
+        get_console().print(f"[red]Invalid session name: {e}[/red]")
         raise typer.Exit(1) from e
 
     sid = await resolve_session(old_name)
     if not sid:
-        console.print(f"[red]Session not found: {old_name}[/red]")
+        get_console().print(f"[red]Session not found: {old_name}[/red]")
         raise typer.Exit(1)
 
     s = await get_session(sid)
@@ -101,12 +99,12 @@ async def _rename_impl(old_name: str, new_name: str) -> None:
         raise typer.Exit(1)
 
     if await find_by_name(new_name):
-        console.print(f"[red]Session with name '{new_name}' already exists[/red]")
+        get_console().print(f"[red]Session with name '{new_name}' already exists[/red]")
         raise typer.Exit(1)
 
     updated_runtime = await provider_for_session(s).async_rename(s, new_name)
     await update_session(sid, name=new_name, runtime=updated_runtime)
-    console.print(f"Renamed session: {s.name} → {new_name}")
+    get_console().print(f"Renamed session: {s.name} → {new_name}")
 
 
 def prune(
@@ -124,14 +122,14 @@ async def _prune_impl(force: bool) -> None:
     stopped = [s for s in sessions if s.status.value == "stopped"]
 
     if not stopped:
-        console.print("No stopped sessions to prune")
+        get_console().print("No stopped sessions to prune")
         return
 
     if not force:
-        console.print()
-        console.print(f"Found {len(stopped)} stopped sessions:")
+        get_console().print()
+        get_console().print(f"Found {len(stopped)} stopped sessions:")
         for s in stopped:
-            console.print(f"  - {s.name} ({s.id})")
+            get_console().print(f"  - {s.name} ({s.id})")
         if not typer.confirm("Are you sure you want to remove these?"):
             raise typer.Abort
 
@@ -139,7 +137,7 @@ async def _prune_impl(force: bool) -> None:
         with contextlib.suppress(OSError):
             await asyncio.to_thread(archive_journal, s.id)
         await delete_session(s.id)
-        console.print(f"Removed session '{s.name}' ({s.id})")
+        get_console().print(f"Removed session '{s.name}' ({s.id})")
 
 
 def send(
@@ -156,7 +154,7 @@ async def _send_impl(session_name_or_id: str, keys: str) -> None:
 
     sid = await resolve_session(session_name_or_id)
     if not sid:
-        console.print(f"[red]Session not found: {session_name_or_id}[/red]")
+        get_console().print(f"[red]Session not found: {session_name_or_id}[/red]")
         raise typer.Exit(1)
     s = await get_session(sid)
     if not s:

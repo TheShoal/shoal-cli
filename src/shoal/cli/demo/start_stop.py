@@ -10,9 +10,9 @@ from typing import Annotated
 
 import typer
 
+from shoal.cli._console import get_console
 from shoal.cli.demo import (
     build_demo_pane_command,
-    console,
     create_demo_project,
     demo_dir,
     sanitize_demo_tmux_name,
@@ -31,7 +31,7 @@ async def _pin_demo_tmux_name(session_name: str, session_id: str, current_tmux_n
     if target_tmux_name == current_tmux_name:
         return current_tmux_name
     if tmux.has_session(target_tmux_name):
-        console.print(
+        get_console().print(
             "[red]Error: Demo tmux session name already exists:[/red] "
             f"[bold]{target_tmux_name}[/bold]"
         )
@@ -78,25 +78,25 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
 
     # Check prerequisites
     if not shutil.which("tmux"):
-        console.print("[red]Error: tmux not found. Please install tmux first.[/red]")
+        get_console().print("[red]Error: tmux not found. Please install tmux first.[/red]")
         raise typer.Exit(1)
     if not shutil.which("git"):
-        console.print("[red]Error: git not found. Please install git first.[/red]")
+        get_console().print("[red]Error: git not found. Please install git first.[/red]")
         raise typer.Exit(1)
 
     # Check if demo already exists
     marker_file = _demo_dir / ".shoal-demo"
     if marker_file.exists():
-        console.print(f"[yellow]Demo already running at {_demo_dir}[/yellow]")
-        console.print("Run 'shoal demo stop' first, or use a different --dir")
+        get_console().print(f"[yellow]Demo already running at {_demo_dir}[/yellow]")
+        get_console().print("Run 'shoal demo stop' first, or use a different --dir")
         raise typer.Exit(1)
 
-    console.print(f"[bold blue]Creating demo environment at {_demo_dir}[/bold blue]")
-    console.print()
+    get_console().print(f"[bold blue]Creating demo environment at {_demo_dir}[/bold blue]")
+    get_console().print()
 
     # Create demo project
     create_demo_project(_demo_dir)
-    console.print("  \u2713 Created demo git repository")
+    get_console().print("  \u2713 Created demo git repository")
 
     session_ids = []
 
@@ -110,7 +110,7 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
     display_path = str(_demo_dir).replace(str(Path.home()), "~")
 
     # ── Session 1: Main branch (feature: session management) ──
-    console.print("  \u2713 Creating session: demo-main (main branch)")
+    get_console().print("  \u2713 Creating session: demo-main (main branch)")
     s1 = await create_session(
         name="demo-main",
         tool=default_tool,
@@ -139,7 +139,7 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
     )
 
     # ── Session 2: Feature branch with worktree (feature: worktrees) ──
-    console.print("  \u2713 Creating session: demo-feature (feat/api-endpoint worktree)")
+    get_console().print("  \u2713 Creating session: demo-feature (feat/api-endpoint worktree)")
     worktree_path = _demo_dir / ".worktrees" / "feat-api-endpoint"
     (_demo_dir / ".worktrees").mkdir(parents=True, exist_ok=True)
     git.worktree_add(str(_demo_dir), str(worktree_path), branch="feat/api-endpoint")
@@ -175,7 +175,7 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
     )
 
     # ── Session 3: Bugfix branch with worktree (feature: detection) ──
-    console.print("  \u2713 Creating session: demo-bugfix (fix/login-bug worktree)")
+    get_console().print("  \u2713 Creating session: demo-bugfix (fix/login-bug worktree)")
     bugfix_path = _demo_dir / ".worktrees" / "fix-login-bug"
     git.worktree_add(str(_demo_dir), str(bugfix_path), branch="fix/login-bug")
 
@@ -210,7 +210,7 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
     )
 
     # ── Session 4: Robo supervisor ──
-    console.print("  \u2713 Creating session: demo-robo (supervisor)")
+    get_console().print("  \u2713 Creating session: demo-robo (supervisor)")
     s4 = await create_session(
         name="demo-robo",
         tool=default_tool,
@@ -247,8 +247,8 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
     # Write marker file
     marker_file.write_text("\n".join(session_ids))
 
-    console.print()
-    console.print(
+    get_console().print()
+    get_console().print(
         create_panel(
             f"""[bold green]Demo environment ready![/bold green]
 
@@ -307,12 +307,12 @@ async def _demo_stop_impl(custom_dir: str | Path | None) -> None:
     marker_file = _demo_dir / ".shoal-demo"
 
     if not marker_file.exists():
-        console.print(f"[yellow]No demo found at {_demo_dir}[/yellow]")
-        console.print("Nothing to clean up.")
+        get_console().print(f"[yellow]No demo found at {_demo_dir}[/yellow]")
+        get_console().print("Nothing to clean up.")
         raise typer.Exit(0)
 
-    console.print(f"[bold blue]Stopping demo environment at {_demo_dir}[/bold blue]")
-    console.print()
+    get_console().print(f"[bold blue]Stopping demo environment at {_demo_dir}[/bold blue]")
+    get_console().print()
 
     # Read session IDs
     session_ids = marker_file.read_text().strip().split("\n")
@@ -325,14 +325,14 @@ async def _demo_stop_impl(custom_dir: str | Path | None) -> None:
         if s:
             if tmux.has_session(s.runtime.session_name):
                 tmux.kill_session(s.runtime.session_name)
-                console.print(f"  \u2713 Killed tmux session: {s.name}")
+                get_console().print(f"  \u2713 Killed tmux session: {s.name}")
             await delete_session(sid)
-            console.print(f"  \u2713 Deleted session: {s.name}")
+            get_console().print(f"  \u2713 Deleted session: {s.name}")
 
     # Remove demo directory
     if _demo_dir.exists():
         shutil.rmtree(_demo_dir)
-        console.print("  \u2713 Removed demo directory")
+        get_console().print("  \u2713 Removed demo directory")
 
-    console.print()
-    console.print("[bold green]Demo environment cleaned up![/bold green]")
+    get_console().print()
+    get_console().print("[bold green]Demo environment cleaned up![/bold green]")

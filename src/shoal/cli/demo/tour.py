@@ -11,9 +11,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from rich.rule import Rule
-
-from shoal.cli.demo import console
+from shoal.cli._console import get_console
 from shoal.core.config import config_dir, data_dir, templates_dir
 from shoal.core.db import with_db
 from shoal.core.state import list_sessions
@@ -43,10 +41,12 @@ class TourResult:
 
 async def step_session_lifecycle() -> TourResult:
     """Step 1: Session Lifecycle — list real sessions, explain what they are."""
-    console.print("[bold]1. Session Lifecycle[/bold]")
-    console.print("[dim]   Sessions are AI agents running in tmux with git context.[/dim]")
-    console.print("[dim]   Create: shoal new <name> [--tool claude] [--worktree branch][/dim]")
-    console.print()
+    get_console().print("[bold]1. Session Lifecycle[/bold]")
+    get_console().print("[dim]   Sessions are AI agents running in tmux with git context.[/dim]")
+    get_console().print(
+        "[dim]   Create: shoal new <name> [--tool claude] [--worktree branch][/dim]"
+    )
+    get_console().print()
 
     sessions = await list_sessions()
     if sessions:
@@ -62,8 +62,8 @@ async def step_session_lifecycle() -> TourResult:
             status_text = f"[{style}]{icon} {s.status.value}[/{style}]"
             wt = Path(s.worktree).name if s.worktree else "(root)"
             table.add_row(s.name, s.tool, status_text, s.branch or "main", wt)
-        console.print(table)
-        console.print()
+        get_console().print(table)
+        get_console().print()
 
         counts: dict[str, int] = {}
         for s in sessions:
@@ -72,14 +72,14 @@ async def step_session_lifecycle() -> TourResult:
         for status_val, count in sorted(counts.items()):
             icon = get_status_icon(status_val)
             parts.append(f"{icon} {count} {status_val}")
-        console.print(f"   Total: {len(sessions)} sessions \u2014 {', '.join(parts)}")
+        get_console().print(f"   Total: {len(sessions)} sessions \u2014 {', '.join(parts)}")
     else:
-        console.print(
+        get_console().print(
             "   [dim]No sessions found (run 'shoal demo start' for full experience)[/dim]"
         )
 
-    console.print(f"   [green]{Symbols.CHECK} Session state queries work[/green]")
-    console.print()
+    get_console().print(f"   [green]{Symbols.CHECK} Session state queries work[/green]")
+    get_console().print()
     return TourResult(passed=True, label="Session Lifecycle")
 
 
@@ -88,10 +88,10 @@ async def step_status_detection() -> TourResult:
     from shoal.core.detection import detect_status
     from shoal.models.config import DetectionPatterns, ToolConfig
 
-    console.print("[bold]2. Status Detection[/bold]")
-    console.print("[dim]   Shoal monitors tmux pane output for tool-specific patterns.[/dim]")
-    console.print("[dim]   Each tool has configurable busy/waiting/error/idle regexes.[/dim]")
-    console.print()
+    get_console().print("[bold]2. Status Detection[/bold]")
+    get_console().print("[dim]   Shoal monitors tmux pane output for tool-specific patterns.[/dim]")
+    get_console().print("[dim]   Each tool has configurable busy/waiting/error/idle regexes.[/dim]")
+    get_console().print()
 
     claude_tool = ToolConfig(
         name="claude",
@@ -120,7 +120,7 @@ async def step_status_detection() -> TourResult:
         mark = Symbols.CHECK if ok else Symbols.CROSS
         color = "green" if ok else "red"
         short = content[:42].replace("\n", "\\n")
-        console.print(
+        get_console().print(
             f"   [{color}]{mark}[/{color}] [{style}]{icon} {result.value:8}[/{style}] "
             f'\u2190 "{short}"'
         )
@@ -128,10 +128,10 @@ async def step_status_detection() -> TourResult:
             detection_ok = False
 
     if detection_ok:
-        console.print(f"   [green]{Symbols.CHECK} All detection tests passed[/green]")
+        get_console().print(f"   [green]{Symbols.CHECK} All detection tests passed[/green]")
     else:
-        console.print(f"   [red]{Symbols.CROSS} Some detection tests failed[/red]")
-    console.print()
+        get_console().print(f"   [red]{Symbols.CROSS} Some detection tests failed[/red]")
+    get_console().print()
     return TourResult(passed=detection_ok, label="Status Detection")
 
 
@@ -145,9 +145,11 @@ async def step_templates_and_inheritance() -> TourResult:
         TemplateWindowConfig,
     )
 
-    console.print("[bold]3. Templates & Inheritance[/bold]")
-    console.print("[dim]   Declarative session layouts with extends + mixins composition.[/dim]")
-    console.print()
+    get_console().print("[bold]3. Templates & Inheritance[/bold]")
+    get_console().print(
+        "[dim]   Declarative session layouts with extends + mixins composition.[/dim]"
+    )
+    get_console().print()
 
     tpl_dir = templates_dir()
     ok = True
@@ -163,15 +165,15 @@ async def step_templates_and_inheritance() -> TourResult:
                     t = resolve_template(tf.stem)
                     extends = f" (extends {t.extends})" if t.extends else ""
                     mixins = f" +{','.join(t.mixins)}" if t.mixins else ""
-                    console.print(
+                    get_console().print(
                         f"   [green]{Symbols.CHECK}[/green] {t.name:20} "
                         f"tool={t.tool or 'default'}{extends}{mixins}"
                     )
                 except Exception as e:
-                    console.print(f"   [red]{Symbols.CROSS}[/red] {tf.stem}: {e}")
+                    get_console().print(f"   [red]{Symbols.CROSS}[/red] {tf.stem}: {e}")
                     ok = False
         else:
-            console.print("   [dim]No templates in config dir (shoal init to scaffold)[/dim]")
+            get_console().print("   [dim]No templates in config dir (shoal init to scaffold)[/dim]")
 
     # In-memory inheritance test
     _win = [
@@ -209,7 +211,7 @@ async def step_templates_and_inheritance() -> TourResult:
     for check_ok, label in inherit_checks:
         mark = Symbols.CHECK if check_ok else Symbols.CROSS
         color = "green" if check_ok else "red"
-        console.print(f"   [{color}]{mark}[/{color}] {label}")
+        get_console().print(f"   [{color}]{mark}[/{color}] {label}")
         if not check_ok:
             ok = False
 
@@ -227,16 +229,16 @@ async def step_templates_and_inheritance() -> TourResult:
     )
     mixed = _apply_mixin(merged, mixin)
     if len(mixed.windows) == 2 and mixed.windows[-1].name == "tests":
-        console.print(f"   [green]{Symbols.CHECK}[/green] mixin window appended correctly")
+        get_console().print(f"   [green]{Symbols.CHECK}[/green] mixin window appended correctly")
     else:
-        console.print(f"   [red]{Symbols.CROSS}[/red] mixin application failed")
+        get_console().print(f"   [red]{Symbols.CROSS}[/red] mixin application failed")
         ok = False
 
     if ok:
-        console.print(f"   [green]{Symbols.CHECK} Template system works[/green]")
+        get_console().print(f"   [green]{Symbols.CHECK} Template system works[/green]")
     else:
-        console.print(f"   [red]{Symbols.CROSS} Template issues[/red]")
-    console.print()
+        get_console().print(f"   [red]{Symbols.CROSS} Template issues[/red]")
+    get_console().print()
     return TourResult(passed=ok, label="Templates & Inheritance")
 
 
@@ -250,10 +252,12 @@ async def step_journals() -> TourResult:
     )
     from shoal.core.state import create_session, delete_session
 
-    console.print("[bold]4. Journals[/bold]")
-    console.print("[dim]   Append-only markdown journals for session notes and handoffs.[/dim]")
-    console.print("[dim]   Obsidian-compatible YAML frontmatter on creation.[/dim]")
-    console.print()
+    get_console().print("[bold]4. Journals[/bold]")
+    get_console().print(
+        "[dim]   Append-only markdown journals for session notes and handoffs.[/dim]"
+    )
+    get_console().print("[dim]   Obsidian-compatible YAML frontmatter on creation.[/dim]")
+    get_console().print()
 
     ok = True
     session = await create_session("tour-journal-test", "claude", "/tmp/tour-test")
@@ -270,16 +274,18 @@ async def step_journals() -> TourResult:
             source="tour",
             metadata=meta,
         )
-        console.print(f"   [green]{Symbols.CHECK}[/green] Journal entry written with frontmatter")
+        get_console().print(
+            f"   [green]{Symbols.CHECK}[/green] Journal entry written with frontmatter"
+        )
 
         entries = read_journal(session.id)
         if entries and "Tour test entry" in entries[-1].content:
-            console.print(
+            get_console().print(
                 f"   [green]{Symbols.CHECK}[/green] "
                 f"Read back {len(entries)} entry — source={entries[-1].source}"
             )
         else:
-            console.print(f"   [red]{Symbols.CROSS}[/red] Failed to read journal entry")
+            get_console().print(f"   [red]{Symbols.CROSS}[/red] Failed to read journal entry")
             ok = False
 
         # Verify frontmatter
@@ -287,35 +293,37 @@ async def step_journals() -> TourResult:
 
         fm = read_frontmatter(session.id)
         if fm and fm.get("session_id") == session.id:
-            console.print(f"   [green]{Symbols.CHECK}[/green] Frontmatter has session_id")
+            get_console().print(f"   [green]{Symbols.CHECK}[/green] Frontmatter has session_id")
         else:
-            console.print(f"   [red]{Symbols.CROSS}[/red] Frontmatter missing or incorrect")
+            get_console().print(f"   [red]{Symbols.CROSS}[/red] Frontmatter missing or incorrect")
             ok = False
 
         # Clean up
         delete_journal(session.id)
         await delete_session(session.id)
-        console.print(f"   [green]{Symbols.CHECK}[/green] Cleaned up temp session and journal")
+        get_console().print(
+            f"   [green]{Symbols.CHECK}[/green] Cleaned up temp session and journal"
+        )
     except Exception as e:
-        console.print(f"   [red]{Symbols.CROSS}[/red] Journal test failed: {e}")
+        get_console().print(f"   [red]{Symbols.CROSS}[/red] Journal test failed: {e}")
         ok = False
         # Best-effort cleanup
         delete_journal(session.id)
         await delete_session(session.id)
 
     if ok:
-        console.print(f"   [green]{Symbols.CHECK} Journal system works[/green]")
+        get_console().print(f"   [green]{Symbols.CHECK} Journal system works[/green]")
     else:
-        console.print(f"   [red]{Symbols.CROSS} Journal issues[/red]")
-    console.print()
+        get_console().print(f"   [red]{Symbols.CROSS} Journal issues[/red]")
+    get_console().print()
     return TourResult(passed=ok, label="Journals")
 
 
 async def step_diagnostics() -> TourResult:
     """Step 5: Diagnostics — run DB/tmux/MCP checks inline."""
-    console.print("[bold]5. Diagnostics[/bold]")
-    console.print("[dim]   Component health checks (same as 'shoal diag').[/dim]")
-    console.print()
+    get_console().print("[bold]5. Diagnostics[/bold]")
+    get_console().print("[dim]   Component health checks (same as 'shoal diag').[/dim]")
+    get_console().print()
 
     ok = True
     checks: list[tuple[str, bool, str]] = []
@@ -347,23 +355,27 @@ async def step_diagnostics() -> TourResult:
     for name, healthy, detail in checks:
         mark = Symbols.CHECK if healthy else Symbols.CROSS
         color = "green" if healthy else "red"
-        console.print(f"   [{color}]{mark}[/{color}] {name:16} {detail}")
+        get_console().print(f"   [{color}]{mark}[/{color}] {name:16} {detail}")
         if not healthy:
             ok = False
 
     if ok:
-        console.print(f"   [green]{Symbols.CHECK} All components healthy[/green]")
+        get_console().print(f"   [green]{Symbols.CHECK} All components healthy[/green]")
     else:
-        console.print(f"   [yellow]{Symbols.BULLET_WAITING} Some components unavailable[/yellow]")
-    console.print()
+        get_console().print(
+            f"   [yellow]{Symbols.BULLET_WAITING} Some components unavailable[/yellow]"
+        )
+    get_console().print()
     return TourResult(passed=True, label="Diagnostics")
 
 
 async def step_mcp_orchestration() -> TourResult:
     """Step 6: MCP Orchestration — list FastMCP tools or skip if not installed."""
-    console.print("[bold]6. MCP Orchestration[/bold]")
-    console.print("[dim]   Shoal exposes itself as MCP tools for agent-to-agent control.[/dim]")
-    console.print()
+    get_console().print("[bold]6. MCP Orchestration[/bold]")
+    get_console().print(
+        "[dim]   Shoal exposes itself as MCP tools for agent-to-agent control.[/dim]"
+    )
+    get_console().print()
 
     try:
         from shoal.services.mcp_shoal_server import mcp as shoal_mcp
@@ -392,9 +404,11 @@ async def step_mcp_orchestration() -> TourResult:
         ]
         ok = tool_names == expected_tools
         if ok:
-            console.print(f"   [green]{Symbols.CHECK}[/green] {len(tools)} MCP tools registered")
+            get_console().print(
+                f"   [green]{Symbols.CHECK}[/green] {len(tools)} MCP tools registered"
+            )
         else:
-            console.print(
+            get_console().print(
                 f"   [red]{Symbols.CROSS}[/red] Expected {expected_tools}, got {tool_names}"
             )
 
@@ -408,47 +422,49 @@ async def step_mcp_orchestration() -> TourResult:
                 badge = "[dim red]destructive[/dim red]"
             else:
                 badge = "[dim]mutating[/dim]"
-            console.print(f"   [green]{Symbols.CHECK}[/green] {tool_obj.name:20} {badge}")
+            get_console().print(f"   [green]{Symbols.CHECK}[/green] {tool_obj.name:20} {badge}")
 
         if ok:
-            console.print(f"   [green]{Symbols.CHECK} MCP orchestration works[/green]")
+            get_console().print(f"   [green]{Symbols.CHECK} MCP orchestration works[/green]")
         else:
-            console.print(f"   [red]{Symbols.CROSS} MCP orchestration issues[/red]")
-        console.print()
+            get_console().print(f"   [red]{Symbols.CROSS} MCP orchestration issues[/red]")
+        get_console().print()
         return TourResult(passed=ok, label="MCP Orchestration")
 
     except ImportError:
-        console.print(
+        get_console().print(
             f"   [yellow]{Symbols.BULLET_FILLED}[/yellow] "
             "fastmcp not installed (pip install shoal[mcp])"
         )
-        console.print(
+        get_console().print(
             f"   [yellow]{Symbols.BULLET_WAITING} MCP orchestration skipped "
             "(optional dependency)[/yellow]"
         )
-        console.print()
+        get_console().print()
         return TourResult(passed=True, label="MCP Orchestration", skipped=True)
 
     except Exception as e:
-        console.print(f"   [red]{Symbols.CROSS}[/red] MCP introspection failed: {e}")
-        console.print()
+        get_console().print(f"   [red]{Symbols.CROSS}[/red] MCP introspection failed: {e}")
+        get_console().print()
         return TourResult(passed=False, label="MCP Orchestration")
 
 
 async def step_theme_and_status() -> TourResult:
     """Step 7: Theme & Status — show 5 status styles with icons."""
-    console.print("[bold]7. Theme & Status[/bold]")
-    console.print("[dim]   Centralized icons, colors, and Nerd Font glyphs for the CLI.[/dim]")
-    console.print()
+    get_console().print("[bold]7. Theme & Status[/bold]")
+    get_console().print(
+        "[dim]   Centralized icons, colors, and Nerd Font glyphs for the CLI.[/dim]"
+    )
+    get_console().print()
 
     for status_name, status_style in STATUS_STYLES.items():
-        console.print(
+        get_console().print(
             f"   [{status_style.rich}]{status_style.icon} {status_name:10}[/{status_style.rich}] "
             f"nerd: {status_style.nerd}"
         )
 
-    console.print(f"   [green]{Symbols.CHECK} Theme system works[/green]")
-    console.print()
+    get_console().print(f"   [green]{Symbols.CHECK} Theme system works[/green]")
+    get_console().print()
     return TourResult(passed=True, label="Theme & Status")
 
 
@@ -473,10 +489,12 @@ def demo_tour() -> None:
 
 
 async def _demo_tour_impl() -> None:
-    console.print()
-    console.print(Rule("[bold cyan]SHOAL FEATURE TOUR[/bold cyan]", style="cyan"))
-    console.print("[dim]Showcasing what Shoal can do \u2014 7 feature areas.[/dim]")
-    console.print()
+    from rich.rule import Rule
+
+    get_console().print()
+    get_console().print(Rule("[bold cyan]SHOAL FEATURE TOUR[/bold cyan]", style="cyan"))
+    get_console().print("[dim]Showcasing what Shoal can do \u2014 7 feature areas.[/dim]")
+    get_console().print()
 
     results: list[TourResult] = []
     for step_fn in TOUR_STEPS:
@@ -488,16 +506,18 @@ async def _demo_tour_impl() -> None:
     skipped = sum(1 for r in results if r.skipped)
     total = passed + failed + skipped
 
-    console.print(Rule(style="cyan"))
+    get_console().print(Rule(style="cyan"))
     if failed == 0 and skipped == 0:
-        console.print(f"[bold green]{Symbols.CHECK} All {total} feature areas passed![/bold green]")
+        get_console().print(
+            f"[bold green]{Symbols.CHECK} All {total} feature areas passed![/bold green]"
+        )
     elif failed == 0 and skipped > 0:
-        console.print(
+        get_console().print(
             f"[bold green]{Symbols.CHECK} {passed} feature areas passed, "
             f"{skipped} skipped[/bold green]"
         )
     else:
-        console.print(
+        get_console().print(
             f"[bold yellow]{passed}/{total} feature areas passed, {failed} failed[/bold yellow]"
         )
-    console.print()
+    get_console().print()

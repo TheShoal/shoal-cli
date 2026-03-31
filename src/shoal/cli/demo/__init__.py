@@ -9,12 +9,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
-from rich.rule import Rule
-from rich.table import Table
-from rich.text import Text
 
-console = Console()
+from shoal.cli._console import get_console
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -198,8 +194,11 @@ def build_demo_pane_command(
 
 def _render_sessions_pane_content() -> None:
     """Session management feature showcase."""
-    console.print(Text("Session Management Commands", style="bold green"))
-    console.print()
+    from rich.table import Table
+    from rich.text import Text
+
+    get_console().print(Text("Session Management Commands", style="bold green"))
+    get_console().print()
     cmds = Table.grid(padding=(0, 1), expand=True)
     cmds.add_column(style="bold yellow", width=34)
     cmds.add_column(style="white")
@@ -213,15 +212,18 @@ def _render_sessions_pane_content() -> None:
     cmds.add_row("shoal mcp doctor", "MCP health checks")
     cmds.add_row("shoal demo tour", "Guided feature walkthrough")
     cmds.add_row("shoal demo tutorial", "Interactive hands-on tutorial")
-    console.print(cmds)
+    get_console().print(cmds)
 
 
 def _render_worktrees_pane_content() -> None:
     """Worktree isolation feature showcase."""
-    console.print(Text("Worktree Isolation", style="bold green"))
-    console.print(Text("This session runs in an isolated git worktree.", style="white"))
-    console.print(Text("Files here are independent from other sessions.", style="white"))
-    console.print()
+    from rich.table import Table
+    from rich.text import Text
+
+    get_console().print(Text("Worktree Isolation", style="bold green"))
+    get_console().print(Text("This session runs in an isolated git worktree.", style="white"))
+    get_console().print(Text("Files here are independent from other sessions.", style="white"))
+    get_console().print()
     cmds = Table.grid(padding=(0, 1), expand=True)
     cmds.add_column(style="bold yellow", width=34)
     cmds.add_column(style="white")
@@ -229,14 +231,18 @@ def _render_worktrees_pane_content() -> None:
     cmds.add_row("shoal wt finish demo-feature", "Merge worktree back")
     cmds.add_row("shoal wt cleanup", "Remove orphaned worktrees")
     cmds.add_row("shoal new -w fix/my-bug -b", "Create session + worktree")
-    console.print(cmds)
+    get_console().print(cmds)
 
 
 def _render_detection_pane_content() -> None:
     """Status detection feature showcase."""
-    console.print(Text("Status Detection", style="bold green"))
-    console.print(Text("Shoal monitors pane output for tool-specific patterns:", style="white"))
-    console.print()
+    from rich.text import Text
+
+    get_console().print(Text("Status Detection", style="bold green"))
+    get_console().print(
+        Text("Shoal monitors pane output for tool-specific patterns:", style="white")
+    )
+    get_console().print()
     from shoal.core.theme import STATUS_STYLES
 
     for status_name in ["running", "waiting", "error", "idle", "stopped"]:
@@ -248,15 +254,20 @@ def _render_detection_pane_content() -> None:
             "idle": "Agent is ready for a task",
             "stopped": "Session is not running",
         }[status_name]
-        console.print(f"  [{style.rich}]{style.icon} {status_name:10}[/{style.rich}] {desc}")
-    console.print()
-    console.print(Text("Try: shoal status  — see varied statuses in action", style="bold yellow"))
+        get_console().print(f"  [{style.rich}]{style.icon} {status_name:10}[/{style.rich}] {desc}")
+    get_console().print()
+    get_console().print(
+        Text("Try: shoal status  — see varied statuses in action", style="bold yellow")
+    )
 
 
 def _render_robo_pane_content() -> None:
     """Robo supervisor feature showcase."""
-    console.print(Text("Supervisor Commands", style="bold green"))
-    console.print()
+    from rich.table import Table
+    from rich.text import Text
+
+    get_console().print(Text("Supervisor Commands", style="bold green"))
+    get_console().print()
     cmds = Table.grid(padding=(0, 1), expand=True)
     cmds.add_column(style="bold yellow", width=42)
     cmds.add_column(style="white")
@@ -266,22 +277,28 @@ def _render_robo_pane_content() -> None:
     cmds.add_row("shoal logs demo-feature", "Check a worker's output")
     cmds.add_row("shoal robo approve demo-feature", "Approve an action")
     cmds.add_row("shoal robo send demo-main 'pytest'", "Send command to worker")
-    console.print(cmds)
-    console.print()
-    console.print(Text("MCP Orchestration", style="bold green"))
-    console.print(Text("Robo agents can also control sessions via MCP tools:", style="white"))
-    console.print(Text("  list_sessions, session_status, send_keys,", style="dim"))
-    console.print(Text("  create_session, kill_session, session_info", style="dim"))
+    get_console().print(cmds)
+    get_console().print()
+    get_console().print(Text("MCP Orchestration", style="bold green"))
+    get_console().print(Text("Robo agents can also control sessions via MCP tools:", style="white"))
+    get_console().print(Text("  list_sessions, session_status, send_keys,", style="dim"))
+    get_console().print(Text("  create_session, kill_session, session_info", style="dim"))
 
 
 def _render_default_pane_content(tool: str, worktree_note: bool) -> None:
     """Fallback pane content."""
-    console.print(Text("Start Here", style="bold green"))
-    console.print(Text(f"1) Authenticate {tool} if needed.", style="white"))
+    from rich.text import Text
+
+    get_console().print(Text("Start Here", style="bold green"))
+    get_console().print(Text(f"1) Authenticate {tool} if needed.", style="white"))
     if worktree_note:
-        console.print(Text("2) You are in an isolated worktree. Iterate freely.", style="white"))
+        get_console().print(
+            Text("2) You are in an isolated worktree. Iterate freely.", style="white")
+        )
     else:
-        console.print(Text(f"2) Ask {tool} for a quick repo + branch summary.", style="white"))
+        get_console().print(
+            Text(f"2) Ask {tool} for a quick repo + branch summary.", style="white")
+        )
 
 
 def _render_demo_pane(
@@ -297,6 +314,10 @@ def _render_demo_pane(
     feature: str,
 ) -> None:
     """Render feature-focused demo pane output with Rich."""
+    from rich.rule import Rule
+    from rich.table import Table
+    from rich.text import Text
+
     if robo:
         header_style = "bold white on magenta"
         header = " ROBO SUPERVISOR "
@@ -312,10 +333,10 @@ def _render_demo_pane(
         }.get(feature, "AI Agent")
         accent = "cyan"
 
-    console.print(Text(f"{header}\u2014 {subtitle}", style=header_style))
-    console.print(Text(f"session: {session_name}", style="bold white"))
-    console.print(Text(f"project: {project_path}", style="dim"))
-    console.print(Rule(style=accent))
+    get_console().print(Text(f"{header}\u2014 {subtitle}", style=header_style))
+    get_console().print(Text(f"session: {session_name}", style="bold white"))
+    get_console().print(Text(f"project: {project_path}", style="dim"))
+    get_console().print(Rule(style=accent))
 
     # Session details
     details = Table.grid(padding=(0, 1), expand=True)
@@ -325,8 +346,8 @@ def _render_demo_pane(
     details.add_row("tool", tool)
     details.add_row("branch", branch)
     details.add_row("tmux", tmux_session_name)
-    console.print(details)
-    console.print()
+    get_console().print(details)
+    get_console().print()
 
     # Feature-specific content
     if robo:
@@ -340,12 +361,12 @@ def _render_demo_pane(
     else:
         _render_default_pane_content(tool, worktree_note)
 
-    console.print()
-    console.print(Rule(style="dim"))
-    console.print(
+    get_console().print()
+    get_console().print(Rule(style="dim"))
+    get_console().print(
         Text("Run 'shoal demo tour' for a guided feature walkthrough.", style="bold green")
     )
-    console.print(Text("Cleanup: shoal demo stop", style="dim italic"))
+    get_console().print(Text("Cleanup: shoal demo stop", style="dim italic"))
 
 
 @app.command("pane", hidden=True)

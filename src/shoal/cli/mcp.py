@@ -7,8 +7,8 @@ from contextlib import suppress
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core.config import data_dir, ensure_dirs
 from shoal.core.db import with_db
 from shoal.core.state import (
@@ -30,8 +30,6 @@ from shoal.services.mcp_pool import (
     stop_mcp_server,
     validate_mcp_name,
 )
-
-console = Console()
 
 app = typer.Typer(no_args_is_help=False, invoke_without_command=True)
 
@@ -61,7 +59,7 @@ async def _mcp_ls_impl() -> None:
     ensure_dirs()
     names = _discover_servers()
     if not names:
-        console.print("[yellow]No MCP servers in pool[/yellow]")
+        get_console().print("[yellow]No MCP servers in pool[/yellow]")
         return
 
     table = create_table(padding=(0, 2))
@@ -93,8 +91,8 @@ async def _mcp_ls_impl() -> None:
         sessions_str = ", ".join(using) if using else "[dim]-(none)-[/dim]"
         table.add_row(f"[bold]{name}[/bold]", pid_str, transport, mcp_status, sessions_str)
 
-    console.print()
-    console.print(
+    get_console().print()
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.MCP} MCP Server Pool[/bold blue]",
@@ -118,16 +116,20 @@ def mcp_start(
     try:
         validate_mcp_name(name)
     except ValueError as e:
-        console.print(f"[red]{e}[/red]")
+        get_console().print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
 
     if is_mcp_running(name):
         pid = read_pid(name)
-        console.print(f"[red]Error: MCP server '{name}' is already running (pid: {pid})[/red]")
-        console.print()
-        console.print("[yellow]Actionable suggestions:[/yellow]")
-        console.print(f"  • Use existing server: [bold]shoal mcp attach <session> {name}[/bold]")
-        console.print(
+        get_console().print(
+            f"[red]Error: MCP server '{name}' is already running (pid: {pid})[/red]"
+        )
+        get_console().print()
+        get_console().print("[yellow]Actionable suggestions:[/yellow]")
+        get_console().print(
+            f"  • Use existing server: [bold]shoal mcp attach <session> {name}[/bold]"
+        )
+        get_console().print(
             f"  • Restart server:      [bold]shoal mcp stop {name} && shoal mcp start {name}[/bold]"
         )
         raise typer.Exit(1)
@@ -138,20 +140,20 @@ def mcp_start(
     try:
         pid, path, cmd = start_mcp_server(name, command, http=use_http, http_port=port)
     except ValueError as e:
-        console.print(f"[red]{e}[/red]")
+        get_console().print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
     except RuntimeError as e:
-        console.print(f"[red]{e}[/red]")
+        get_console().print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
 
-    console.print(f"MCP server '{name}' started")
+    get_console().print(f"MCP server '{name}' started")
     if use_http:
         effective_port = port or 8390
-        console.print(f"  URL: http://localhost:{effective_port}")
+        get_console().print(f"  URL: http://localhost:{effective_port}")
     else:
-        console.print(f"  Socket: {path}")
-    console.print(f"  PID: {pid}")
-    console.print(f"  Command: {cmd}")
+        get_console().print(f"  Socket: {path}")
+    get_console().print(f"  PID: {pid}")
+    get_console().print(f"  Command: {cmd}")
 
 
 @app.command("stop")
@@ -167,10 +169,10 @@ async def _mcp_stop_impl(name: str) -> None:
     try:
         stop_mcp_server(name)
     except FileNotFoundError:
-        console.print(f"[red]MCP server '{name}' is not running[/red]")
+        get_console().print(f"[red]MCP server '{name}' is not running[/red]")
         raise typer.Exit(1) from None
 
-    console.print(f"MCP server '{name}' stopped")
+    get_console().print(f"MCP server '{name}' stopped")
 
     # Remove MCP from any sessions that reference it
     sessions = await list_sessions()
@@ -194,7 +196,7 @@ async def _mcp_attach_impl(session: str, mcp_name: str) -> None:
     try:
         validate_mcp_name(mcp_name)
     except ValueError as e:
-        console.print(f"[red]{e}[/red]")
+        get_console().print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
 
     sid = await _resolve_session_interactive_impl(session)
@@ -208,13 +210,15 @@ async def _mcp_attach_impl(session: str, mcp_name: str) -> None:
         command = registry.get(mcp_name)
 
         if not command:
-            console.print(f"[red]Error: MCP server '{mcp_name}' is not running[/red]")
-            console.print()
-            console.print("[yellow]Actionable suggestions:[/yellow]")
-            console.print(
+            get_console().print(f"[red]Error: MCP server '{mcp_name}' is not running[/red]")
+            get_console().print()
+            get_console().print("[yellow]Actionable suggestions:[/yellow]")
+            get_console().print(
                 f"  • Start with command: [bold]shoal mcp start {mcp_name} -c '<command>'[/bold]"
             )
-            console.print("  • Add to registry:   [bold]~/.config/shoal/mcp-servers.toml[/bold]")
+            get_console().print(
+                "  • Add to registry:   [bold]~/.config/shoal/mcp-servers.toml[/bold]"
+            )
             raise typer.Exit(1)
 
         # Clean up stale socket if needed
@@ -224,9 +228,9 @@ async def _mcp_attach_impl(session: str, mcp_name: str) -> None:
 
         try:
             pid, socket, _cmd = start_mcp_server(mcp_name, command)
-            console.print(f"Auto-started MCP server '{mcp_name}' (pid: {pid})")
+            get_console().print(f"Auto-started MCP server '{mcp_name}' (pid: {pid})")
         except (ValueError, RuntimeError) as e:
-            console.print(f"[red]Error: Failed to auto-start MCP server: {e}[/red]")
+            get_console().print(f"[red]Error: Failed to auto-start MCP server: {e}[/red]")
             raise typer.Exit(1) from None
 
     await add_mcp_to_session(sid, mcp_name)
@@ -236,8 +240,8 @@ async def _mcp_attach_impl(session: str, mcp_name: str) -> None:
     tool = s.tool if s else "unknown"
     work_dir = (s.worktree or s.path) if s else ""
 
-    console.print(f"Attached MCP '{mcp_name}' to session '{name}'")
-    console.print(f"  Socket: {socket}")
+    get_console().print(f"Attached MCP '{mcp_name}' to session '{name}'")
+    get_console().print(f"  Socket: {socket}")
 
     # Auto-configure tool to use this MCP server
     from shoal.services.mcp_configure import McpConfigureError, configure_mcp_for_tool
@@ -245,16 +249,16 @@ async def _mcp_attach_impl(session: str, mcp_name: str) -> None:
     try:
         result = configure_mcp_for_tool(tool, mcp_name, work_dir)
         if result:
-            console.print(f"  {result}")
+            get_console().print(f"  {result}")
         else:
-            console.print()
-            console.print(f"[yellow]Note: No auto-config available for {tool}.[/yellow]")
-            console.print(
+            get_console().print()
+            get_console().print(f"[yellow]Note: No auto-config available for {tool}.[/yellow]")
+            get_console().print(
                 f"  Configure manually: claude mcp add {mcp_name} -- shoal-mcp-proxy {mcp_name}"
             )
     except McpConfigureError as e:
-        console.print(f"\n[yellow]Warning: Auto-configure failed: {e}[/yellow]")
-        console.print(
+        get_console().print(f"\n[yellow]Warning: Auto-configure failed: {e}[/yellow]")
+        get_console().print(
             f"  Configure manually: claude mcp add {mcp_name} -- shoal-mcp-proxy {mcp_name}"
         )
 
@@ -286,8 +290,8 @@ def mcp_status() -> None:
     else:
         summary = Text.from_markup("  |  ".join(parts))
 
-    console.print()
-    console.print(
+    get_console().print()
+    get_console().print(
         create_panel(
             summary,
             title=f"[bold blue]{Icons.MCP} MCP Pool Status ({total} total)[/bold blue]",
@@ -296,12 +300,12 @@ def mcp_status() -> None:
     )
 
     if total == 0:
-        console.print("\n[dim]Start one with: [bold]shoal mcp start <name>[/bold][/dim]")
-        console.print("[dim]Configure servers in ~/.config/shoal/mcp-servers.toml[/dim]")
+        get_console().print("\n[dim]Start one with: [bold]shoal mcp start <name>[/bold][/dim]")
+        get_console().print("[dim]Configure servers in ~/.config/shoal/mcp-servers.toml[/dim]")
 
     if dead:
-        console.print("\n[yellow]󰀦 Stale entries detected.[/yellow]")
-        console.print("[dim]Run 'shoal mcp doctor --cleanup' to clean up.[/dim]")
+        get_console().print("\n[yellow]󰀦 Stale entries detected.[/yellow]")
+        get_console().print("[dim]Run 'shoal mcp doctor --cleanup' to clean up.[/dim]")
 
 
 @app.command("logs")
@@ -312,12 +316,12 @@ def mcp_logs(
     """Show logs for an MCP server."""
     log_path = mcp_log_file(name)
     if not log_path.exists():
-        console.print(f"[red]No log file for MCP server '{name}'[/red]")
+        get_console().print(f"[red]No log file for MCP server '{name}'[/red]")
         raise typer.Exit(1) from None
 
     lines = log_path.read_text().splitlines()
     for line in lines[-tail:]:
-        console.print(line)
+        get_console().print(line)
 
 
 class _ProbeResult:
@@ -431,7 +435,7 @@ def mcp_doctor(
     names = _discover_servers()
 
     if not names:
-        console.print("[yellow]No MCP servers to check[/yellow]")
+        get_console().print("[yellow]No MCP servers to check[/yellow]")
         return
 
     try:
@@ -502,8 +506,8 @@ def mcp_doctor(
             name_col, pid_status, transport, proto_status, tools_str, version_str, latency_str
         )
 
-    console.print()
-    console.print(
+    get_console().print()
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.MCP} MCP Doctor[/bold blue]",
@@ -519,13 +523,15 @@ def mcp_doctor(
                 stop_mcp_server(name)
                 cleaned += 1
         if cleaned:
-            console.print(f"\n[green]{Symbols.CHECK} Cleaned up {cleaned} stale server(s)[/green]")
+            get_console().print(
+                f"\n[green]{Symbols.CHECK} Cleaned up {cleaned} stale server(s)[/green]"
+            )
         else:
-            console.print("\n[dim]No stale servers to clean up.[/dim]")
+            get_console().print("\n[dim]No stale servers to clean up.[/dim]")
 
     if not has_fastmcp:
-        console.print()
-        console.print(
+        get_console().print()
+        get_console().print(
             "[yellow]Note: Install fastmcp for protocol-level health checks: "
             "pip install shoal\\[mcp][/yellow]"
         )
@@ -570,8 +576,8 @@ def mcp_registry() -> None:
         )
         table.add_row(name, source_style, transport, f"[dim]{command}[/dim]")
 
-    console.print()
-    console.print(
+    get_console().print()
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.MCP} MCP Server Registry[/bold blue]",
