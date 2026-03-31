@@ -338,6 +338,25 @@ You are the meta-robo. Monitor all robo sessions:
 - Escalate if any robo is stuck
 ```
 
+### MCP Tools for Robo Workflows
+
+Robo supervisors with the `shoal-orchestrator` MCP server can use these tools to coordinate workers:
+
+| Tool | Purpose |
+|------|---------|
+| `list_sessions` | Discover active workers |
+| `session_status` | Fleet health at a glance |
+| `capture_pane` | See what a worker is doing |
+| `send_keys` | Send instructions or approvals |
+| `mark_complete` | Workers signal "I'm done" |
+| `read_worktree_file` | Read output files from worker worktrees |
+| `list_worktree_files` | See what a worker produced |
+| `read_journal` / `append_journal` | Cross-session journal communication |
+| `wait_for_completion` | Block until a worker finishes |
+| `branch_status` / `merge_branch` | Git operations without raw `send_keys` |
+
+See [Handoffs & Modes](handoffs-and-modes.md) for the full handoff workflow.
+
 ---
 
 ## Safety Rules

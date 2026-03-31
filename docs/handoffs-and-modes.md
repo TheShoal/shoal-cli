@@ -53,6 +53,15 @@ Handoff artifacts are saved as markdown files:
 
 The `shoal journal <session> --handoff` flag also generates handoffs (backward-compatible alias).
 
+### MCP tools for supervisors
+
+Agents and supervisors can use these MCP tools for handoff workflows:
+
+- **`mark_complete`** — agents signal "I'm done" with an optional summary
+- **`read_worktree_file`** — supervisors read output files from worker worktrees
+- **`list_worktree_files`** — supervisors enumerate what a worker produced
+- **`read_journal`** / **`append_journal`** — read/write journal entries across sessions
+
 ---
 
 ## Operating Modes

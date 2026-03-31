@@ -40,7 +40,7 @@ The doctor probes HTTP servers using FastMCP's `StreamableHttpTransport` and rep
 ┌────────────────────┬──────────┬──────┬─────────┬─────────┐
 │ NAME               │ PROTOCOL │ TOOLS│ VERSION │ LATENCY │
 ├────────────────────┼──────────┼──────┼─────────┼─────────┤
-│ shoal-orchestrator │ http     │ 12   │ 0.17.0  │ 12ms    │
+│ shoal-orchestrator │ http     │ 18   │ 0.28.0  │ 12ms    │
 └────────────────────┴──────────┴──────┴─────────┴─────────┘
 ```
 

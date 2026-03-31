@@ -106,6 +106,14 @@ Modes are single-session presets for `shoal new --mode <name>`. See [Handoffs & 
 | `shoal incident spawn` | Spawn a worker lane for an incident |
 | `shoal incident resolve` | Resolve an incident |
 
+## Skills
+
+| Command | Purpose |
+| ------- | ------- |
+| `shoal skill ls` | List discovered skills from project-local and global paths |
+
+Skills in `.shoal/skills/<name>/SKILL.md` are auto-symlinked into `.claude/skills/` for Claude Code sessions. See [Cross-Agent Skills](cross-agent-skills.md) for details.
+
 ## Templates, tags, and config
 
 | Command | Purpose |

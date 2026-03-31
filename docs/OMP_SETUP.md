@@ -154,7 +154,7 @@ mcpServers:
     url: http://localhost:8390/mcp/
 ```
 
-This gives OMP access to Shoal orchestration tools: `list_sessions`, `session_status`, `send_keys`, `create_session`, `kill_session`, `capture_pane`, etc.
+This gives OMP access to all 18 Shoal orchestration tools including `list_sessions`, `send_keys`, `capture_pane`, `read_worktree_file`, `list_worktree_files`, `mark_complete`, and more.
 
 ---
 
