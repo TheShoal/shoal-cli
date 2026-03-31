@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator,
 class GeneralConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    default_tool: str = "pi"
+    default_tool: str = "omp"
     worktree_dir: str = ".worktrees"
     use_nerd_fonts: bool = True
     auto_commit: bool = False
@@ -48,7 +48,7 @@ class NotificationsConfig(BaseModel):
 class RoboGlobalConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    default_tool: str = "pi"
+    default_tool: str = "omp"
     default_profile: str = "default"
     session_prefix: str = "__"
 
