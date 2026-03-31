@@ -34,7 +34,7 @@ class TestLoadConfig:
         load_config.cache_clear()
         monkeypatch.setattr(config_mod, "config_dir", lambda: tmp_path / "nonexistent")
         cfg = load_config()
-        assert cfg.general.default_tool == "pi"
+        assert cfg.general.default_tool == "omp"
         load_config.cache_clear()
 
     def test_use_nerd_fonts_default(self, mock_dirs):

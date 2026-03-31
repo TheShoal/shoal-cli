@@ -8,7 +8,7 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.28.0-8BD5CA?style=flat-square" alt="v0.28.0">
+  <img src="https://img.shields.io/badge/v0.29.0-8BD5CA?style=flat-square" alt="v0.29.0">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-MIT-A6DA95?style=flat-square" alt="License: MIT">
 </p>
@@ -432,7 +432,8 @@ Shoal currently ships one runtime provider (`tmux`) and multiple status provider
 
 | Milestone   | Focus                                                   | Status   |
 | ----------- | ------------------------------------------------------- | -------- |
-| **v0.28.0** | Fleet demo, shoal-native skills, project config, pane targeting fix | Current  |
+| **v0.29.0** | MCP robo tools, PyApp binary, omp default, deferred imports, config split | Current  |
+| **v0.28.0** | Fleet demo, shoal-native skills, project config, pane targeting fix | Complete |
 | **v0.27.0** | Workspace routing, structured handoff packets, operating modes, template tags | Complete |
 | **v0.26.0** | Incident supervision, lifecycle hooks, Claude hook integration | Complete |
 | **v0.25.0** | Runtime-provider architecture, nested session runtime model | Complete |

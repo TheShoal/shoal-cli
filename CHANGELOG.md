@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-03-31
+
+### Added
+- **MCP tools for robo workflows**: `mark_complete` (agents signal task completion),
+  `read_worktree_file` (supervisors read worker output files with path traversal
+  protection), `list_worktree_files` (enumerate worktree contents). MCP server
+  now exposes 18 tools.
+- **PyApp binary distribution**: Self-contained `shoal` binary via PyApp packaging.
+  Homebrew formula at `TheShoal/tap/shoal-cli`.
+- **omp as default tool**: Replaced `pi` with `omp` (oh-my-pi) as the default tool
+  across `GeneralConfig`, robo profiles, mode presets, and templates.
+
+### Changed
+- **Deferred CLI imports**: All subcommand modules now use lazy imports via thin
+  wrappers in `cli/__init__.py`, improving `shoal --help` startup latency.
+- **Config model split**: Monolithic `models/config.py` refactored into focused
+  submodules (`models/config/general.py`, `tools.py`, `templates.py`, `hooks.py`,
+  `workspace.py`, `robo.py`). Public API unchanged via `__init__.py` re-exports.
+
+### Fixed
+- Default tool assertions in tests updated for omp default.
+
 ## [0.28.0] - 2026-03-31
 
 ### Added

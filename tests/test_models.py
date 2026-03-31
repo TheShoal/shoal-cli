@@ -14,10 +14,10 @@ from shoal.models.state import RoboState, SessionState, SessionStatus
 class TestShoalConfig:
     def test_defaults(self):
         cfg = ShoalConfig()
-        assert cfg.general.default_tool == "pi"
+        assert cfg.general.default_tool == "omp"
         assert cfg.tmux.session_prefix == "_"
         assert cfg.notifications.enabled is True
-        assert cfg.robo.default_tool == "pi"
+        assert cfg.robo.default_tool == "omp"
         assert cfg.robo.session_prefix == "__"
 
     def test_override(self):
