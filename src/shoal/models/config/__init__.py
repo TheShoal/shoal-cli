@@ -4,6 +4,7 @@ Re-exports all config models so ``from shoal.models.config import X`` continues
 to work unchanged across the codebase.
 """
 
+from shoal.models.config.claw import ClawConfig
 from shoal.models.config.general import (
     GeneralConfig,
     NotificationsConfig,
@@ -36,6 +37,7 @@ from shoal.models.config.tools import (
 from shoal.models.config.workspace import ProjectConfig, SkillConfig, WorkspaceConfig
 
 __all__ = [
+    "ClawConfig",
     "DetectionPatterns",
     "EscalationConfig",
     "GeneralConfig",

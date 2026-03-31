@@ -51,6 +51,11 @@ Issues = "https://github.com/TheShoal/shoal-cli/issues"
 Changelog = "https://github.com/TheShoal/shoal-cli/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+claw = [
+    "grpcio>=1.60",
+    "grpcio-tools>=1.60",
+    "protobuf>=4.25",
+]
 mcp = [
     "fastmcp>=3.0.0",
 ]
@@ -94,6 +99,15 @@ ignore = ["ASYNC240", "RUF001", "S101", "S603", "S607", "S108"]
 python_version = "3.12"
 strict = true
 warn_return_any = true
+
+# Claw client uses optional grpcio dependency - type errors expected until proto stubs generated
+[[tool.mypy.overrides]]
+module = "shoal.core.claw_client"
+disable_error_code = ["import-not-found", "import-untyped", "attr-defined", "union-attr", "no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "shoal.core.claw_conversations"
+disable_error_code = ["call-overload", "arg-type"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

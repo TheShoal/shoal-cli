@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from shoal.models.config.claw import ClawConfig
+
 
 class GeneralConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    default_tool: str = "pi"
+    default_tool: str = "omp"
     worktree_dir: str = ".worktrees"
     use_nerd_fonts: bool = True
     auto_commit: bool = False
@@ -45,7 +47,7 @@ class NotificationsConfig(BaseModel):
 class RoboGlobalConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    default_tool: str = "pi"
+    default_tool: str = "omp"
     default_profile: str = "default"
     session_prefix: str = "__"
 
@@ -85,3 +87,4 @@ class ShoalConfig(BaseModel):
     robo: RoboGlobalConfig = Field(default_factory=RoboGlobalConfig)
     remote: dict[str, RemoteHostConfig] = Field(default_factory=dict)
     operator: OperatorConfig = Field(default_factory=OperatorConfig)
+    claw: ClawConfig = Field(default_factory=ClawConfig)

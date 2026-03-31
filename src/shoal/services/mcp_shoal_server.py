@@ -945,6 +945,8 @@ async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
     try:
         status = await client.status(claw_id)
         return {"state": status.state, "grpc_addr": grpc_addr}
+    except Exception as e:
+        return {"error": str(e)}
     finally:
         await client.close()
 
