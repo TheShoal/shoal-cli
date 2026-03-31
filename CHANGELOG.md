@@ -24,8 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (union-merged during inheritance) and `mode: str`. Auto-applied to sessions at creation.
 - **Branch categories**: `plan`, `impl`, `review`, `batch` added to allowed branch prefixes.
 - **Git helpers**: `diff_stat()`, `commit_count_since_main()` with async wrappers.
-- **Docs**: New "Handoffs & Modes" mkdocs page. Updated JOURNALS, LOCAL_TEMPLATES,
-  operator playbooks, and AGENTS docs with Bedrock section.
+- **Cross-agent skills**: `.shoal/skills/<name>/SKILL.md` tool-agnostic skill format with
+  transpilation to Claude Code (symlink), OpenCode (instructions), and omp (`@file`).
+  Bundled `shoal-skill-sync.sh` script for `post_worktree_create` hook.
+- **`claude-review` template**: Review-oriented Claude session with `review-ready` tagging.
+- **Docs**: New "Handoffs & Modes" and "Cross-Agent Skills" mkdocs pages. Updated CLI
+  reference, JOURNALS, LOCAL_TEMPLATES, operator playbooks, and AGENTS docs (Bedrock
+  section, workspace.toml, missing commands).
 
 ### Fixed
 - Template inheritance now merges `mode` and `tags` fields (previously dropped).
@@ -33,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handoff generation runs before DB row deletion (was after, risking empty transitions).
 - `generate_handoff()` wrapped in `asyncio.to_thread()` to avoid blocking event loop.
 - Path traversal validation on workspace repo paths (rejects `..` and absolute paths).
+- `shoal new <nonexistent-path>` no longer crashes with raw traceback; shows friendly
+  error with `--name` hint (TheShoal/shoal-cli#7).
 
 ## [0.26.0] - 2026-03-30
 
