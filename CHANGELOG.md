@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-03-31
+
+### Added
+- **Meta-repo workspace routing**: `.shoal/workspace.toml` manifest maps logical names
+  to sub-repo paths for nested workspace support (SMORGASBORD §3.1). `--repo` CLI/API
+  flag for explicit targeting. Auto-match by worktree hint or path prefix.
+- **Structured handoff packets**: `HandoffArtifact` enriched with worktree path, git diff
+  summary, and commit count. `to_dict()` for JSON serialization. Auto-generated on every
+  `shoal kill` (before journal archival). New `shoal handoff <session>` command with
+  `--json` and `--save` flags. `shoal handoff-ls` lists saved artifacts.
+- **Operating modes**: Data-driven `MODE_REGISTRY` with `ModeSpec` replacing hardcoded
+  if/elif chain. Three new modes: `planner`, `implementer`, `reviewer`. `shoal mode ls`
+  command. Modes auto-tag sessions (e.g., reviewer → `review-ready` urgency tier).
+- **Template `tags` and `mode` fields**: `SessionTemplateConfig` gains `tags: list[str]`
+  (union-merged during inheritance) and `mode: str`. Auto-applied to sessions at creation.
+- **Branch categories**: `plan`, `impl`, `review`, `batch` added to allowed branch prefixes.
+- **Git helpers**: `diff_stat()`, `commit_count_since_main()` with async wrappers.
+- **Docs**: New "Handoffs & Modes" mkdocs page. Updated JOURNALS, LOCAL_TEMPLATES,
+  operator playbooks, and AGENTS docs with Bedrock section.
+
+### Fixed
+- Template inheritance now merges `mode` and `tags` fields (previously dropped).
+- Template TOML parser now extracts `mode` and `tags` from `[template]` section.
+- Handoff generation runs before DB row deletion (was after, risking empty transitions).
+- `generate_handoff()` wrapped in `asyncio.to_thread()` to avoid blocking event loop.
+- Path traversal validation on workspace repo paths (rejects `..` and absolute paths).
+
 ## [0.26.0] - 2026-03-30
 
 ### Added

@@ -143,14 +143,25 @@ Released 2026-03-07
 - **README badge/copy refresh**: Version badge v0.21.0-beta, test count 1087, ecosystem note removed, status table updated through v0.21.0
 - **Docs copy fixes**: CONTRIBUTING.md and ARCHITECTURE.md stack reference updated to Pi as primary; getting-started.md PyPI install as primary
 
+## v0.27.0
+
+Released 2026-03-31
+
+- **Meta-repo workspace routing**: `.shoal/workspace.toml` manifest, `--repo` flag, auto-match by worktree hint or path prefix (SMORGASBORD §3.1)
+- **Structured handoff packets (B2)**: `HandoffArtifact` with git context (diff stat, commit count), `to_dict()` JSON export, auto-generation on kill, `shoal handoff` command with `--json`/`--save`, `shoal handoff-ls`
+- **Operating modes (B3)**: Data-driven `MODE_REGISTRY` with `ModeSpec`, 3 new modes (planner, implementer, reviewer), `shoal mode ls`, auto-tagging from modes and templates
+- **Template `tags` and `mode` fields**: Union-merged during inheritance, auto-applied to sessions
+- **Branch categories**: `plan`, `impl`, `review`, `batch` added
+- **Docs**: New "Handoffs & Modes" mkdocs page, Bedrock section in AGENTS.md
+
 ## Backlog
 
- > Near-term product differentiation is operator experience: structured handoff packets, role/mode templates, and a flagship secure-fleet demo that shows Shoal's control-plane layer above secure agent runtimes instead of pretending to be the runtime itself.
+ > Near-term product differentiation is operator experience and a flagship secure-fleet demo.
 
 ### Operator Experience
 
-- **Structured handoff packets** (B2): Turn journals into first-class handoff artifacts instead of leaving recovery to raw thread history. When a session ends or hits a milestone, emit a structured packet: resume brief, reviewer brief, assumptions made, unresolved blockers, risky changes, and suggested next action. Formats: markdown summary + optional JSON. Design: new `shoal journal handoff <session>` command; structured fields as YAML front-matter extension or a separate `handoff.md` artifact written to the session journal dir on kill.
-- **Role/mode templates** (B3): Make the documented operating modes (author/reviewer/supervisor, planner/implementer/closer, local/remote) concrete product flows, not just concepts. Implement as named template presets: `shoal new --mode author-review`, `shoal new --mode remote-batch`, `shoal new --mode feature-lane`. Each mode wires up naming conventions, role tags, review contracts, and escalation defaults. Design: `mode` field on template config that expands to a canonical set of tags, naming patterns, and robo config. Documented in operator playbooks.
+- ~~**Structured handoff packets** (B2)~~ — **Done** (v0.27.0)
+- ~~**Role/mode templates** (B3)~~ — **Done** (v0.27.0)
 - **Flagship secure-fleet demo** (B6): Build and script a single end-to-end demo that tells the full control-plane story: (1) planner scopes work, (2) implementer works in an isolated worktree, (3) reviewer critiques changes, (4) supervisor escalates a blocker, (5) one task runs remotely overnight, (6) next morning Shoal surfaces what changed, what is blocked, what needs approval, and what is ready to merge. The point is to show Shoal coordinating lanes, handoffs, and approvals even when the underlying agent runtime is security-focused (for example OpenShell), not to turn Shoal into the sandbox/privacy/policy runtime. Implement via `shoal demo fleet` scenario in the demo CLI package; requires B2 handoff packets and at least partial B1 operator board improvements to be credible.
 
 ### Worktree & Environment Initialization
