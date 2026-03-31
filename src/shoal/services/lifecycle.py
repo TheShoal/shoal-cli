@@ -1122,9 +1122,7 @@ async def kill_session_lifecycle(
             entries = await asyncio.to_thread(read_journal, session_id)
             handoff_db = await get_db()
             transitions = await handoff_db.get_status_transitions(session_id, limit=5)
-            artifact = await asyncio.to_thread(
-                generate_handoff, session, entries, transitions
-            )
+            artifact = await asyncio.to_thread(generate_handoff, session, entries, transitions)
             await asyncio.to_thread(write_handoff_artifact, session_id, artifact)
             summary["handoff_generated"] = True
             logger.info("[%s] kill: handoff artifact generated", session_id)

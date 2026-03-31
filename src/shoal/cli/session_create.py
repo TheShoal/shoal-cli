@@ -93,9 +93,7 @@ def add(
     mcp_list = [s.strip() for s in mcp.split(",") if s.strip()] if mcp else []
     asyncio.run(
         with_db(
-            _add_impl(
-                path, tool, template, mode, worktree, branch, dry_run, name, mcp_list, repo
-            )
+            _add_impl(path, tool, template, mode, worktree, branch, dry_run, name, mcp_list, repo)
         )
     )
 
