@@ -8,7 +8,7 @@
 
 <!-- Badges -->
 <p align="center">
-  <img src="https://img.shields.io/badge/v0.27.0-8BD5CA?style=flat-square" alt="v0.27.0">
+  <img src="https://img.shields.io/badge/v0.28.0-8BD5CA?style=flat-square" alt="v0.28.0">
   <img src="https://img.shields.io/badge/python-3.12+-8AADF4?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-MIT-A6DA95?style=flat-square" alt="License: MIT">
 </p>
@@ -26,7 +26,7 @@
 
 <!-- Row 3 — Quality -->
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-1306_passing-A6DA95?style=flat-square" alt="Tests: 1306 passing">
+  <img src="https://img.shields.io/badge/tests-1325_passing-A6DA95?style=flat-square" alt="Tests: 1325 passing">
   <img src="https://img.shields.io/badge/coverage-82%25-8BD5CA?style=flat-square" alt="Coverage: 82%">
   <img src="https://img.shields.io/badge/mypy-strict-CBA6F7?style=flat-square" alt="mypy strict">
   <img src="https://img.shields.io/badge/pre--commit-enabled-C6A0F6?style=flat-square&logo=pre-commit&logoColor=white" alt="pre-commit enabled">
@@ -414,7 +414,8 @@ Shoal currently ships one runtime provider (`tmux`) and multiple status provider
 
 | Milestone   | Focus                                                   | Status   |
 | ----------- | ------------------------------------------------------- | -------- |
-| **v0.27.0** | Workspace routing, structured handoff packets, operating modes, template tags | Current  |
+| **v0.28.0** | Fleet demo, shoal-native skills, project config, pane targeting fix | Current  |
+| **v0.27.0** | Workspace routing, structured handoff packets, operating modes, template tags | Complete |
 | **v0.26.0** | Incident supervision, lifecycle hooks, Claude hook integration | Complete |
 | **v0.25.0** | Runtime-provider architecture, nested session runtime model | Complete |
 | **v0.24.0** | Worker completion signals, git MCP tools, remote fin install | Complete |

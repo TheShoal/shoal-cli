@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-03-31
+
+### Added
+- **Flagship fleet demo**: `shoal demo fleet` runs a 6-step scripted showcase —
+  planner → implementer → reviewer → supervisor escalation → overnight progress
+  → morning fleet summary. Uses real sessions, worktrees, journals, and handoff
+  artifacts in a scratch repo.
+- **Shoal-native skills**: `SkillConfig` model, `discover_skills()` searches
+  `.shoal/skills/` (project-local) and `~/.config/shoal/skills/` (global) with
+  local-wins dedup. `shoal skill ls` command. Auto-symlink into `.claude/skills/`
+  for Claude Code sessions on worktree creation.
+- **Project-level `.shoal.toml`**: Committed config at git root with `[env]`,
+  `setup_commands`, `default_tool`, `default_template`. Precedence: project <
+  template < CLI flags.
+- **Cross-agent skill setup**: OpenCode agents (`.opencode/agents/`), omp skills
+  (`.omp/skills/`), and rules for both tools. Parity with Claude Code skills.
+  New docs: `OPENCODE_SETUP.md`, `OMP_SETUP.md`.
+- **`claude-review` template**: Review-oriented Claude session for reviewer mode.
+
+### Fixed
+- **`send_keys` pane targeting**: `shoal:<session_id>` title was set on the active
+  pane (terminal) instead of the agent pane (first pane) in multi-pane templates.
+  Now uses `first_pane()` for both create and fork lifecycle paths.
+- **GitHub Actions Node.js 24**: Bumped checkout v6, setup-python v6, setup-uv v7,
+  codeql-action v4, upload-pages-artifact v4.
+
+### Changed
+- **CLI reference docs**: Added `shoal handoff`, `handoff-ls`, `mode ls`, `done`,
+  `incident` commands. AGENTS.md added to mkdocs nav. Workspace routing
+  documented in LOCAL_TEMPLATES.md.
+
 ## [0.27.0] - 2026-03-31
 
 ### Added
