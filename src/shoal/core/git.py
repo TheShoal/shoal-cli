@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import subprocess
+from pathlib import Path
 
 logger = logging.getLogger("shoal.git")
 
@@ -226,3 +227,80 @@ def validate_branch_name(branch_name: str) -> None:
         "Branch name must follow category/slug (for example: feat/my-change) "
         f"with category in: {allowed}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Workspace routing — meta-repo sub-repo resolution
+# ---------------------------------------------------------------------------
+
+
+def resolve_workspace_repo(
+    meta_root: str,
+    repos: dict[str, str],
+    *,
+    repo_key: str | None = None,
+    worktree_hint: str | None = None,
+    resolved_path: str | None = None,
+) -> str | None:
+    """Resolve a sub-repo git root from a workspace manifest.
+
+    Matching order:
+
+    1. **Explicit key** (``--repo`` flag): must exist in *repos*.
+    2. **Worktree hint** (``-w`` value): exact key match against *repos*.
+    3. **Path prefix**: if *resolved_path* starts with a repo path.
+    4. No match → return ``None`` (fall through to meta-repo behaviour).
+
+    Returns the **absolute path** to the sub-repo directory, or ``None``.
+    The caller should run ``git_root()`` on the result to canonicalize.
+    """
+    if repo_key:
+        rel = repos.get(repo_key)
+        if rel is None:
+            available = ", ".join(sorted(repos)) or "(none)"
+            raise ValueError(f"Workspace repo '{repo_key}' not found. Available: {available}")
+        return str(Path(meta_root) / rel)
+
+    if worktree_hint:
+        rel = repos.get(worktree_hint)
+        if rel is not None:
+            return str(Path(meta_root) / rel)
+
+    if resolved_path:
+        resolved = Path(resolved_path).resolve()
+        meta = Path(meta_root).resolve()
+        for rel in repos.values():
+            candidate = meta / rel
+            if resolved.is_relative_to(candidate):
+                return str(candidate)
+
+    return None
+
+
+def apply_workspace_routing(
+    root: str,
+    resolved_path: str,
+    *,
+    repo: str | None = None,
+    worktree: str | None = None,
+    repos: dict[str, str],
+) -> tuple[str, str]:
+    """Re-target git root to a sub-repo based on workspace manifest.
+
+    Returns ``(new_root, new_resolved_path)``.  Raises ``ValueError`` on
+    user errors (unknown repo key, sub-path not a git repo).
+    """
+    sub_root = resolve_workspace_repo(
+        root,
+        repos,
+        repo_key=repo,
+        worktree_hint=worktree,
+        resolved_path=resolved_path,
+    )
+    if sub_root is None:
+        return root, resolved_path
+    try:
+        new_root = git_root(sub_root)
+    except subprocess.CalledProcessError:
+        raise ValueError(f"Not a git repo: {sub_root}") from None
+    return new_root, str(Path(new_root).resolve())

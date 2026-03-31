@@ -17,7 +17,12 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 
 import shoal
 from shoal.core import git, tmux
-from shoal.core.config import ensure_dirs, load_config, load_tool_config
+from shoal.core.config import (
+    ensure_dirs,
+    load_config,
+    load_tool_config,
+    load_workspace_config,
+)
 from shoal.core.db import ShoalDB, get_db
 from shoal.core.session_names import validate_session_name
 from shoal.core.state import (
@@ -80,6 +85,7 @@ class SessionCreate(BaseModel):
     branch: bool = False
     name: str | None = None
     mcp: list[str] | None = None
+    repo: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -451,6 +457,26 @@ async def create_session_api(data: SessionCreate) -> SessionResponse:
         raise HTTPException(status_code=400, detail=f"Unknown tool: {tool}") from None
 
     root = git.git_root(resolved_path)
+
+    # --- Workspace routing: re-target to a sub-repo if inside a meta-repo ---
+    ws_cfg = load_workspace_config(root)
+    if data.repo and not ws_cfg:
+        raise HTTPException(
+            status_code=400,
+            detail="--repo requires .shoal/workspace.toml in the git root",
+        )
+    if ws_cfg and ws_cfg.repos:
+        try:
+            root, resolved_path = git.apply_workspace_routing(
+                root,
+                resolved_path,
+                repo=data.repo,
+                worktree=data.worktree,
+                repos=ws_cfg.repos,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+
     work_dir = resolved_path
     branch_name = ""
     wt_path = ""

@@ -18,6 +18,7 @@ from shoal.core.config import (
     load_config,
     load_template,
     load_tool_config,
+    load_workspace_config,
     template_source,
     templates_dir,
 )
@@ -83,11 +84,19 @@ def add(
         str | None,
         typer.Option("--mcp", help="MCP servers to provision (comma-separated)"),
     ] = None,
+    repo: Annotated[
+        str | None,
+        typer.Option("--repo", help="Target sub-repo from .shoal/workspace.toml"),
+    ] = None,
 ) -> None:
     """Create a new session."""
     mcp_list = [s.strip() for s in mcp.split(",") if s.strip()] if mcp else []
     asyncio.run(
-        with_db(_add_impl(path, tool, template, mode, worktree, branch, dry_run, name, mcp_list))
+        with_db(
+            _add_impl(
+                path, tool, template, mode, worktree, branch, dry_run, name, mcp_list, repo
+            )
+        )
     )
 
 
@@ -101,6 +110,7 @@ async def _add_impl(
     dry_run: bool,
     name: str | None,
     mcp_servers: list[str] | None = None,
+    repo: str | None = None,
 ) -> None:
     ensure_dirs()
     cfg = load_config()
@@ -120,6 +130,28 @@ async def _add_impl(
         raise typer.Exit(1)
 
     root = git.git_root(str(resolved_path))
+
+    # --- Workspace routing: re-target to a sub-repo if inside a meta-repo ---
+    ws_cfg = load_workspace_config(root)
+    if repo and not ws_cfg:
+        console.print("[red]Error: --repo requires .shoal/workspace.toml[/red]")
+        console.print(f"[dim]No workspace manifest found at {root}/.shoal/workspace.toml[/dim]")
+        raise typer.Exit(1)
+    if ws_cfg and ws_cfg.repos:
+        try:
+            old_root = root
+            root, resolved_path_str = git.apply_workspace_routing(
+                root, str(resolved_path), repo=repo, worktree=worktree, repos=ws_cfg.repos
+            )
+            resolved_path = Path(resolved_path_str)
+            if root != old_root:
+                console.print(f"[dim]Workspace routing: {old_root} → {root}[/dim]")
+        except ValueError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            raise typer.Exit(1) from None
+        except ConfigLoadError as e:
+            console.print(f"[red]{e}[/red]")
+            raise typer.Exit(1) from None
 
     if mode:
         try:

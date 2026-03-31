@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from shoal.models.config import ProjectHookEntry
+    from shoal.models.config import ProjectHookEntry, WorkspaceConfig
 
 from shoal.core.status_provider import default_status_provider_for_tool
 from shoal.models.config import (
@@ -560,6 +560,33 @@ def refresh_tools() -> list[str]:
         logger.debug("Refreshed tool profile: %s", src_file.name)
 
     return refreshed
+
+
+def load_workspace_config(git_root: str) -> WorkspaceConfig | None:
+    """Load workspace manifest from ``<git_root>/.shoal/workspace.toml``.
+
+    Returns ``None`` if the file does not exist.  Raises ``ConfigLoadError``
+    on parse or validation errors so the caller can surface them.
+    """
+    from pydantic import ValidationError
+
+    from shoal.models.config import WorkspaceConfig
+
+    ws_path = Path(git_root) / ".shoal" / "workspace.toml"
+    if not ws_path.exists():
+        return None
+
+    try:
+        with open(ws_path, "rb") as f:
+            data = tomllib.load(f)
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigLoadError(ws_path, f"TOML parse error: {exc}") from exc
+
+    ws_data = data.get("workspace", {})
+    try:
+        return WorkspaceConfig.model_validate(ws_data)
+    except ValidationError as exc:
+        raise ConfigLoadError(ws_path, f"validation error: {exc}") from exc
 
 
 def load_project_hooks() -> list[ProjectHookEntry]:

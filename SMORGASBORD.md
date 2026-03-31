@@ -80,22 +80,37 @@ We created a `scripts/shoal-sync.sh` script in Smorgasbord to symlink the `.bead
 | §3.2 State hook extensions (beads sync) | **Done** | Shoal core — `.shoal/hooks.toml` loaded at API startup; `[[hooks]]` entries bind shell commands to `LifecycleEvent` with optional `when_status` filter; smorgasbord example at `.shoal/hooks.toml` |
 | §2.1 Incident supervision (Robo + Beads) | **Done** | Shoal core — `shoal incident ingest/spawn/resolve/show`; smorgasbord wrappers at `scripts/incident/`; incident templates at `.shoal/templates/usm-incident-*.toml` |
 | §3.3 Persistent parent-level MCP injection | **Deferred** | Templates reference registered server names only. Inline `mcp_servers:` (command + args) in templates is not supported. Workaround: register servers in `~/.config/shoal/mcp-servers.toml`; the `usm-workspace` fin's `install` phase can automate this |
-| §3.1 Meta-repo / nested workspace routing | **Deferred** | Shoal routes `git worktree` commands against the repo containing the `.git` at the path given. When `shoal new -w backend/emailservice` is run from the smorgasbord root, the worktree is created inside smorgasbord, not the sub-repo. Requires a `.shoal-workspace` manifest reader and per-sub-repo git root detection |
+| §3.1 Meta-repo / nested workspace routing | **Done** | `.shoal/workspace.toml` manifest maps logical names to sub-repo paths; `--repo` flag for explicit targeting; auto-match by worktree hint or path prefix; wired in CLI + API |
 | §4.1 `workspace_override` / `context` YAML keys | **Deferred** | These were non-standard keys in the original YML files. Shoal's TOML template schema does not include them. Equivalent coverage: `post_worktree_create` handles context injection; `mcp` handles tool context |
 
-### Workaround for nested workspace routing (§3.1)
+### Nested workspace routing (§3.1)
 
-Until §3.1 is implemented, the recommended pattern is to cd into the sub-repo
-before running `shoal new`:
+Place a `.shoal/workspace.toml` in the meta-repo root:
 
-```bash
-# From smorgasbord root — creates worktree inside backend/emailservice, not root
-cd backend/emailservice
-shoal new -t usm-backend -w feat/my-feature -b
+```toml
+[workspace]
+name = "smorgasbord"
+
+[workspace.repos]
+emailservice = "backend/emailservice"
+user-service = "backend/user-service"
+web-app = "frontend/web-app"
 ```
 
-Or pass the sub-repo path explicitly via `--path` (incident ingest) or set
-`GIT_DIR` before running shoal.
+Then from the smorgasbord root:
+
+```bash
+# Explicit --repo flag
+shoal new -w feat/my-feature --repo emailservice -b
+
+# Auto-match: worktree hint matches a repo key
+shoal new -w emailservice -b
+
+# Auto-match: resolved path is inside a known sub-repo
+cd backend/emailservice && shoal new -w feat/my-feature -b
+```
+
+Matching priority: `--repo` > worktree hint key match > path prefix match > fall through to meta-repo.
 
 ### Wiring post_worktree_create for shoal-sync.sh
 
