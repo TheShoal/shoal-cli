@@ -30,6 +30,7 @@ class LifecycleEvent(StrEnum):
 
 class RuntimeKind(StrEnum):
     tmux = "tmux"
+    claw = "claw"
 
 
 class RuntimeCapability(StrEnum):
@@ -52,7 +53,14 @@ class TmuxRuntimeState(BaseModel):
     nvim_socket: str = ""
 
 
-RuntimeState = TmuxRuntimeState
+class ClawRuntimeState(BaseModel):
+    kind: Literal[RuntimeKind.claw] = RuntimeKind.claw
+    claw_id: str
+    endpoint: str = ""
+    employee_id: str = ""
+
+
+RuntimeState = TmuxRuntimeState | ClawRuntimeState
 
 
 class SessionState(BaseModel):

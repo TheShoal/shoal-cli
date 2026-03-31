@@ -1,0 +1,853 @@
+// =============================================================================
+// lobster_loop.proto
+// =============================================================================
+//
+// DEPRECATED: This file is kept for backward compatibility only.
+//
+// A2A-aligned types and services are now defined in:
+//   - a2a_core.proto: Canonical A2A data types (AgentCard, Task, Message, Part)
+//   - a2a_claw.proto: A2A AgentLoop service for Claw runtime
+//
+// Migration guidance:
+//   - TurnRequest/Response  -> Use SendMessageRequest/Response (A2A Task)
+//   - InterClaw            -> Use AgentToAgent (same semantics, A2A naming)
+//   - Subscribe + Event     -> Use SendStreamingMessage or SubscribeToTask
+//   - GetTask/List/Cancel   -> New A2A task management (see a2a_claw.proto)
+//
+// Internal note: 'InterClaw' remains the canonical internal name despite
+// the A2A 'AgentToAgent' alias. The proto service 'AgentLoop' uses
+// 'AgentToAgent' RPC name for A2A spec compliance.
+//
+// Lobster-Party gRPC Protocol Definition
+// --------------------------------------
+//
+// This file defines the communication contract between the Clawplexer (the
+// Kubernetes operator/coordinator that manages Claws) and the Claw runtime
+// (the per-user sandboxed execution environment).
+//
+// Architecture Overview
+// ======================
+//
+//   ┌─────────────────────────────────────────────────────────────────┐
+//   │                         Clawplexer                                │
+//   │  (Kubernetes Operator / Slack Multiplexer / Control Plane)       │
+//   │                                                                  │
+//   │  - Reconciles Claw custom resources                             │
+//   │  - Routes Slack webhook events to appropriate Claws             │
+//   │  - Manages Claw lifecycle (create, pause, resume, terminate)   │
+//   │  - Routes InterClaw communication with permission checking       │
+//   │  - Owns authoritative identity mapping (DynamoDB)              │
+//   └─────────────────────────────────────────────────────────────────┘
+//                               │
+//                               │ gRPC (this protocol)
+//                               ▼
+//   ┌─────────────────────────────────────────────────────────────────┐
+//   │                         Claw Runtime                             │
+//   │  (Per-user sandboxed execution environment, one per employee)     │
+//   │                                                                  │
+//   │  - Executes user workload (code interpreter, shell, etc.)        │
+//   │  - Persists conversation events to SQLite (claw.db, events.db)   │
+//   │  - Reports health and status to Clawplexer                       │
+//   │  - Subscribes to control events from Clawplexer                  │
+//   │  - Can initiate InterClaw requests to other Claws                │
+//   └─────────────────────────────────────────────────────────────────┘
+//
+// Identity Model
+// ==============
+//
+// Every Claw is bound to exactly one employee (1:1 mapping).
+//
+//   employee_id  ──►  claw_id
+//
+// - employee_id: Stable USMobile internal identifier (from HR/identity provider)
+// - claw_id:     System-generated opaque ID (format: claw_<base32_26>)
+//
+// The Clawplexer resolves Slack user → employee_id → claw_id and routes
+// incoming Slack events to the appropriate Claw runtime.
+//
+// Lifecycle States
+// ================
+//
+// Claws transition through a defined set of states. Only the Clawplexer
+// (via this protocol or K8s resource updates) can authorize transitions.
+//
+//   requested ──► provisioning ──► starting ──► ready
+//                                                │
+//                             ┌──────────────────┴──────────────────┐
+//                             │                                     │
+//                           active ◄────► idle                      │
+//                             │                                     │
+//                   ┌─────────┴─────────┐                           │
+//                   │                   │                           │
+//                paused              draining ──► suspended          │
+//               (user svc)                │                         │
+//                   │                     │                         │
+//                   └─────────┬───────────┘                         │
+//                             │                                     │
+//                             └──────────────► failed               │
+//                                                         │         │
+//                                                         └─────────┤
+//                                                                   ▼
+//                                                            terminating ──► terminated
+//
+// Key state distinctions:
+//   - requested/provisioning/starting: Claw is initializing, no workload accepted
+//   - ready/active/idle: Claw is healthy and accepting work
+//   - paused: User self-service pause (SSH retained, scheduler stopped)
+//   - suspended: Clawplexer-controlled stop (Pod absent, compute saved)
+//   - draining: Finishing in-flight work, no new admits
+//   - failed: Unhealthy, needs intervention or automatic retry
+//
+// Transport & Security
+// ====================
+//
+// - All communication is over gRPC with TLS (production requirement)
+// - The Clawplexer initiates connections to Claw Pods via ClusterIP Service DNS
+// - Claw does not initiate connections to Clawplexer (control plane pull model)
+// - Authentication: mTLS with certificates provisioned via Kubernetes CSR
+// - Authorization: Claw validates caller is the legitimate Clawplexer instance
+//
+// Inter-Claw Communication
+// =========================
+//
+// Claws can communicate with each other through the Clawplexer acting as a
+// proxy/relay. This enables use cases like:
+//
+//   - Collaboration: One user's Claw calls another's to share results
+//   - Data transfer: Claws can request artifacts or state from other Claws
+//   - Delegation: A user can delegate work to another user's Claw
+//
+// Communication Flow
+// ------------------
+//
+//   ┌──────────┐                      ┌─────────────┐                      ┌──────────┐
+//   │ Source   │                      │              │                      │ Target   │
+//   │ Claw     │──InterClawRequest──▶│  Clawplexer  │──InterClawRequest──▶│ Claw     │
+//   │          │                      │              │                      │          │
+//   │          │◀──InterClawResponse─│              │◀──InterClawResponse─│          │
+//   └──────────┘                      └─────────────┘                      └──────────┘
+//
+// Permission System
+// ------------------
+//
+// Before forwarding an InterClawRequest, the Clawplexer checks the ACL
+// (Access Control List) stored in DynamoDB.
+//
+// Permission Levels:
+//   - DENY:         Block the request. Return PERMISSION_DENIED to caller.
+//   - ALLOW:        Allow one time. Consumed after use; next request needs re-approval.
+//   - ALWAYS_ALLOW: Permanent allow. Any request from this source is permitted without prompting.
+//
+// If no ACL entry exists, the Clawplexer returns PERMISSION_REQUIRED. The user
+// must then approve/deny via the Clawplexer API or UI. This creates an ACL entry
+// with the chosen permission level.
+//
+// ACL Storage (DynamoDB table: lobster-party-claw-acl):
+//   PK: target_claw_id
+//   SK: source_claw_id
+//   permission_level: DENY | ALLOW | ALWAYS_ALLOW
+//   created_at: epoch ms
+//   expires_at: epoch ms (for ALLOW, to enforce one-time use)
+//
+// =============================================================================
+
+syntax = "proto3";
+
+// Package name follows Buf/gRPC convention: domain.version
+// This package is exported as github.com/usmobile/lobster-party/gen/go/v1
+package lobster.party.v1;
+
+// Go package directive for generated code
+option go_package = "github.com/usmobile/lobster-party/gen/go/v1;lobsterpartyv1";
+
+// Google Protobuf well-known import for Timestamps
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition: LobsterLoop
+// =============================================================================
+//
+// LobsterLoop is the primary gRPC service exposed by each Claw runtime.
+// The Clawplexer uses this service to:
+//
+//   1. Submit work turns (Turn RPC)
+//   2. Query Claw status (Status RPC)
+//   3. Check Claw health (Health RPC)
+//   4. Subscribe to state change events (Subscribe RPC - server streaming)
+//   5. Send InterClaw requests to other Claws (InterClaw RPC)
+//
+// Communication Pattern
+// --------------------
+//
+// The Clawplexer is the client; the Claw runtime is the server.
+// This allows Claws to run without egress network access (common in K8s).
+//
+// Claw Runtime Pod Network
+// ------------------------
+//
+// Claw Pods are addressed via their ClusterIP Service:
+//
+//   claw-<claw_id>.lobster-party-runtime.svc:50051
+//
+// The Clawplexer maintains an endpoint cache (from K8s EndpointSlices) and
+// routes gRPC calls to ready Pod endpoints only.
+//
+// Error Handling Convention
+// -------------------------
+//
+// All RPCs return gRPC status codes:
+//   - OK (0):              Success
+//   - INVALID_ARGUMENT:     Malformed request (e.g., bad event_id)
+//   - NOT_FOUND:           Claw does not exist or is not routable
+//   - FAILED_PRECONDITION: Claw is not in a state that accepts work (e.g., paused)
+//   - UNAVAILABLE:         Claw is temporarily unreachable or overloaded
+//   - INTERNAL:            Unexpected error in Claw runtime
+//   - PERMISSION_DENIED:   InterClaw request denied by ACL
+//   - RESOURCE_EXHAUSTED:  InterClaw request pending permission
+//
+service LobsterLoop {
+
+  // Turn
+  // -----
+  // Submit a unit of work to the Claw for processing.
+  //
+  // The request includes:
+  //   - claw_id:    Target Claw identifier (must match runtime's configured ID)
+  //   - employee_id: Originating employee for auth/audit
+  //   - payload:    Arbitrary bytes containing the turn prompt
+  //   - event_id:   Unique identifier for idempotency
+  //   - metadata:   Additional context (channel_id, thread_ts, etc.)
+  //
+  // Response is a stream of TurnStreamItem:
+  //   - TypingEvent items are emitted while processing to show typing indicator
+  //   - TurnResponse is emitted at the end with the final result
+  //
+  // Idempotency:
+  // The Claw MUST deduplicate turns with the same event_id within a 10-minute window.
+  // If a duplicate turn is detected, return the cached response without re-executing.
+  //
+  rpc Turn(TurnRequest) returns (stream TurnStreamItem);
+
+  // Status
+  // ------
+  // Query the current state and resource usage of a Claw.
+  // Used by the Clawplexer for routing decisions and monitoring.
+  //
+  // The Clawplexer SHOULD cache Status responses and refresh from the
+  // live RPC only when the cache is stale (>10s) or routing state is uncertain.
+  //
+  // Returns NOT_FOUND if the Claw does not exist.
+  //
+  rpc Status(StatusRequest) returns (StatusResponse);
+
+  // Health
+  // ------
+  // Lightweight liveness check for the Claw runtime process.
+  // This is distinct from K8s liveness probes (which check the container is running).
+  // Health RPC checks the application-level process is healthy and ready to accept work.
+  //
+  // Use cases:
+  //   - Clawplexer uses this to determine if a Claw endpoint is healthy
+  //   - Load balancer health checks (if implemented)
+  //   - Kubernetes readiness probes CAN call this RPC (though simpler HTTP probes are preferred)
+  //
+  // Returns UNKNOWN health state if the internal health check fails but process is alive.
+  //
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Subscribe
+  // ---------
+  // Subscribe to a stream of events from the Claw.
+  // This is a server-streaming RPC: the Claw pushes events to the Clawplexer.
+  //
+  // This enables:
+  //   - Async state change notifications (avoid polling Status RPC)
+  //   - Activity heartbeat events (Claw is actively processing)
+  //   - Turn completion events (for upstream Slack acknowledgment)
+  //   - InterClaw permission request notifications (user prompt)
+  //
+  // Event Types (filterable via event_types):
+  //   - STATE_CHANGED:                  Claw transitioned to a new lifecycle state
+  //   - HEALTH_CHANGED:                 Claw health status changed
+  //   - ACTIVITY:                       Periodic heartbeat with active session count
+  //   - TURN_COMPLETED:                 A submitted turn finished processing
+  //   - INTERCLAW_PERMISSION_REQUEST:   Incoming InterClaw request needs permission
+  //   - INTERCLAW_COMPLETED:            InterClaw request completed (success/failure)
+  //
+  // Stream Management:
+  //   - The Clawplexer MAY open multiple Subscribe streams to the same Claw
+  //   - The Claw MUST send heartbeats every 30s to keep the stream alive
+  //   - If the stream is dropped, the Clawplexer will re-establish it
+  //
+  // The Claw SHOULD buffer events if the subscriber is slow, but MUST cap
+  // the buffer to 1000 events to prevent memory exhaustion.
+  //
+  rpc Subscribe(SubscribeRequest) returns (stream Event);
+
+  // InterClaw
+  // ----------
+  // Send a request to another Claw via the Clawplexer relay.
+  //
+  // Flow:
+  //   1. Source Claw calls InterClaw to request work from Target Claw
+  //   2. Clawplexer checks ACL for (target_claw_id, source_claw_id)
+  //   3. If PERMISSION_DENIED: return PERMISSION_DENIED error
+  //   4. If no ACL entry or cache miss: return RESOURCE_EXHAUSTED (pending)
+  //      - Clawplexer stores pending request and emits EVENT_TYPE_INTERCLAW_PERMISSION_REQUEST
+  //      - Target user's Claw receives notification via Subscribe stream
+  //      - User approves/denies via SetInterClawPermission RPC
+  //   5. If PERMISSION_ALLOW: forward request to Target Claw
+  //   6. If PERMISSION_ALWAYS_ALLOW: forward request immediately, update cache
+  //   7. Target Claw processes request and returns response
+  //   8. Clawplexer proxies response back to Source Claw
+  //
+  // For PERMISSION_ALLOW (one-time):
+  //   - Clawplexer marks ACL entry as consumed (sets expires_at)
+  //   - Subsequent requests from same source require re-approval
+  //
+  // Error codes specific to InterClaw:
+  //   - PERMISSION_DENIED (7):   Target has explicitly denied this source
+  //   - RESOURCE_EXHAUSTED (8): Permission pending; user must approve
+  //   - FAILED_PRECONDITION:    Target is not in a routable state
+  //
+  rpc InterClaw(InterClawRequest) returns (InterClawResponse);
+}
+
+// =============================================================================
+// Enumerations: Claw Lifecycle States
+// =============================================================================
+
+// ClawState
+// ----------
+// The canonical lifecycle state of a Claw runtime.
+//
+// State Semantics:
+//   - REQUESTED:    Claw record exists but no Pod is scheduled yet
+//   - PROVISIONING: PVC is being created, identity is being bootstrapped
+//   - STARTING:     Pod is creating, init containers are running
+//   - READY:        Pod is Running and Ready, accepting work
+//   - ACTIVE:       Pod is ready and processing work
+//   - IDLE:         Pod is ready but has been idle for >idle_timeout
+//   - PAUSED:       User self-service pause (scheduler stopped, SSH available)
+//   - DRAINING:     No new work accepted; finishing in-flight requests
+//   - SUSPENDED:    Clawplexer stopped the Pod to save compute
+//   - FAILED:       Pod is unhealthy; restart needed or manual intervention
+//   - TERMINATING:  Kubernetes is deleting the Pod
+//   - TERMINATED:   Pod and resources are fully cleaned up
+//
+enum ClawState {
+  // Default unspecified value (proto3 requires this for enum fields)
+  CLAW_STATE_UNSPECIFIED = 0;
+
+  // Claw has been created but runtime not yet scheduled
+  CLAW_STATE_REQUESTED = 1;
+
+  // Infrastructure bootstrap in progress (PVC, identity, networking)
+  CLAW_STATE_PROVISIONING = 2;
+
+  // Pod scheduled, init/startup checks running
+  CLAW_STATE_STARTING = 3;
+
+  // Runtime healthy and accepting work
+  CLAW_STATE_READY = 4;
+
+  // Actively processing work (transient state during Turn processing)
+  CLAW_STATE_ACTIVE = 5;
+
+  // Ready but no active work within idle threshold
+  CLAW_STATE_IDLE = 6;
+
+  // User self-service pause: scheduler stopped, SSH retained for maintenance
+  // Claw will reject new work with FAILED_PRECONDITION while paused
+  CLAW_STATE_PAUSED = 7;
+
+  // No new sessions accepted; completing in-flight work before suspend/shutdown
+  CLAW_STATE_DRAINING = 8;
+
+  // Clawplexer-initiated suspend: Pod is absent, compute saved
+  // The Claw will NOT be routed any work while suspended
+  CLAW_STATE_SUSPENDED = 9;
+
+  // Runtime unhealthy: restart needed or manual intervention required
+  // The Clawplexer will automatically retry starting from this state
+  CLAW_STATE_FAILED = 10;
+
+  // Kubernetes is terminating the Pod; no new operations accepted
+  CLAW_STATE_TERMINATING = 11;
+
+  // Runtime fully removed; Claw record may be soft-deleted
+  CLAW_STATE_TERMINATED = 12;
+}
+
+// =============================================================================
+// Enumerations: Event Types
+// =============================================================================
+
+// EventType
+// ----------
+// Categories of events that the Claw can push to the Clawplexer via Subscribe.
+//
+// These are used for filtering: the Clawplexer specifies which event types
+// it wants to receive when opening a Subscribe stream.
+//
+enum EventType {
+  // Default unspecified value
+  EVENT_TYPE_UNSPECIFIED = 0;
+
+  // The Claw transitioned to a new lifecycle state
+  // Payload: StateChangedPayload
+  EVENT_TYPE_STATE_CHANGED = 1;
+
+  // The Claw's health status changed
+  // Payload: HealthChangedPayload
+  EVENT_TYPE_HEALTH_CHANGED = 2;
+
+  // Periodic heartbeat indicating activity level
+  // Payload: ActivityPayload
+  EVENT_TYPE_ACTIVITY = 3;
+
+  // A submitted turn completed processing
+  // Payload: TurnCompletedPayload
+  EVENT_TYPE_TURN_COMPLETED = 4;
+
+  // Inter-claw permission request received - target user's attention needed
+  // Payload: InterClawPermissionPayload
+  EVENT_TYPE_INTERCLAW_PERMISSION_REQUEST = 5;
+
+  // Inter-claw request completed (success or failure)
+  // Payload: InterClawCompletedPayload
+  EVENT_TYPE_INTERCLAW_COMPLETED = 6;
+}
+
+// =============================================================================
+// Enumerations: Inter-Claw Permissions
+// =============================================================================
+
+// PermissionLevel
+// ---------------
+// Controls whether a source Claw is allowed to send InterClawRequests
+// to a target Claw.
+//
+// The ACL entry is stored in DynamoDB keyed by (target_claw_id, source_claw_id).
+//
+enum PermissionLevel {
+  // Default unspecified value
+  PERMISSION_LEVEL_UNSPECIFIED = 0;
+
+  // Explicitly deny this source Claw. All requests will be rejected.
+  PERMISSION_LEVEL_DENY = 1;
+
+  // Allow this source Claw one time. The ACL entry is consumed after one
+  // successful InterClawRequest. The target user is prompted again for
+  // subsequent requests.
+  PERMISSION_LEVEL_ALLOW = 2;
+
+  // Permanently allow this source Claw. No further prompts for this source.
+  // The target user can revoke this at any time.
+  PERMISSION_LEVEL_ALWAYS_ALLOW = 3;
+}
+
+// InterClawPermissionDecision
+// -----------------------------
+// The user's decision on an InterClawRequest permission prompt.
+//
+enum InterClawPermissionDecision {
+  // Default unspecified value
+  INTERCLAW_PERMISSION_DECISION_UNSPECIFIED = 0;
+
+  // Grant PERMISSION_LEVEL_ALLOW (one-time)
+  INTERCLAW_PERMISSION_DECISION_ALLOW = 1;
+
+  // Grant PERMISSION_LEVEL_ALWAYS_ALLOW (permanent)
+  INTERCLAW_PERMISSION_DECISION_ALWAYS_ALLOW = 2;
+
+  // Deny this request (PERMISSION_LEVEL_DENY)
+  INTERCLAW_PERMISSION_DECISION_DENY = 3;
+
+  // Ignore/dismiss the prompt without changing ACL
+  INTERCLAW_PERMISSION_DECISION_IGNORE = 4;
+}
+
+// =============================================================================
+// Message Definitions: Core Requests & Responses
+// =============================================================================
+
+// TurnRequest
+// -----------
+// Submitted when the Clawplexer wants the Claw to process a unit of work.
+//
+// Fields:
+//   - claw_id:     Target Claw (required)
+//   - employee_id: Calling employee (required, for audit)
+//   - payload:     Work to execute (arbitrary bytes, e.g., JSON, code, shell cmd)
+//   - event_id:    Idempotency key from upstream (e.g., Slack event_ts)
+//     The Claw MUST deduplicate based on this field.
+//   - metadata:    Additional context (channel, thread, user agent, etc.)
+//
+message TurnRequest {
+  string                claw_id     = 1;  // Required: which Claw to route to
+  string               employee_id = 2;  // Required: calling employee (audit trail)
+  bytes                payload     = 3;  // Required: work payload
+  string               event_id    = 4;  // Required: idempotency key
+  map<string, string>  metadata   = 5;  // Optional: additional context
+}
+
+// TurnResponse
+// ------------
+// Result of processing a TurnRequest.
+//
+// Fields:
+//   - success:    true if the turn completed successfully
+//   - message:   Human-readable result or error description
+//   - result:    Response payload (arbitrary bytes, e.g., JSON response, stdout)
+//   - state:     Claw's state after processing (may have changed during turn)
+//   - error_code: Machine-readable error code if success=false
+//
+message TurnResponse {
+  bool      success    = 1;  // true if turn succeeded
+  string    message    = 2;  // Human-readable result or error
+  bytes     result     = 3;  // Response payload (arbitrary bytes)
+  ClawState state      = 4;  // Claw state after processing
+  string    error_code = 5;  // Machine-readable error code (if !success)
+}
+
+// TypingEvent
+// -----------
+// Emitted while the Claw is processing a turn to indicate the user
+// should see a typing indicator. Clawplexer sends this to the provider.
+//
+message TypingEvent {
+}
+
+// TurnStreamItem
+// --------------
+// A streaming response from Turn RPC - either a typing indicator
+// or the final response.
+//
+message TurnStreamItem {
+  oneof item {
+    TypingEvent typing = 1;
+    TurnResponse response = 2;
+  }
+}
+
+// StatusRequest
+// -------------
+// Query the current state and resource usage of a Claw.
+//
+// The Clawplexer uses this to:
+//   - Verify Claw is in a routable state before sending work
+//   - Populate monitoring dashboards
+//   - Detect stale routing cache entries
+//
+// Claws SHOULD cache their own status internally and return immediately
+// without heavy computation.
+//
+message StatusRequest {
+  string claw_id = 1;  // Required: which Claw to query
+}
+
+// StatusResponse
+// --------------
+// Current state and resource usage of a Claw.
+//
+// Fields:
+//   - claw_id:           Claw identifier (echoed from request)
+//   - state:             Current lifecycle state
+//   - runtime_class:     Resource profile ("standard" or "heavy")
+//   - started_at:        Unix timestamp (epoch ms) when Claw started
+//   - last_activity_at: Unix timestamp (epoch ms) of last work activity
+//   - usage:             Current resource consumption
+//
+message StatusResponse {
+  string        claw_id          = 1;  // Claw identifier
+  ClawState    state            = 2;  // Current lifecycle state
+  string       runtime_class    = 3;  // "standard" or "heavy"
+  int64        started_at       = 4;  // Epoch ms when Claw started
+  int64        last_activity_at = 5;  // Epoch ms of last activity
+  ResourceUsage usage           = 6;  // Current resource consumption
+}
+
+// ResourceUsage
+// -------------
+// Snapshot of a Claw's current resource consumption.
+//
+// These values are instantaneous and may fluctuate. The Clawplexer SHOULD
+// use these for monitoring/alerts, NOT for routing decisions.
+//
+// Fields:
+//   - cpu_usage_millicores:    Current CPU usage in milli-CPUs (e.g., 250m = 0.25 CPUs)
+//   - memory_usage_bytes:      Current RSS memory in bytes
+//   - ephemeral_storage_bytes:  Current ephemeral storage usage in bytes
+//
+message ResourceUsage {
+  double cpu_usage_millicores     = 1;  // e.g., 250m = 0.25 CPUs
+  int64  memory_usage_bytes      = 2;  // RSS memory in bytes
+  int64  ephemeral_storage_bytes = 3;  // Ephemeral storage in bytes
+}
+
+// HealthRequest
+// -------------
+// Lightweight health check for the Claw runtime application.
+//
+// This is distinct from K8s liveness probes (which check container process).
+// Health RPC validates the application-level runtime is functioning.
+//
+// The Claw SHOULD perform internal checks:
+//   - SQLite databases are accessible and not corrupted
+//   - Required directories are writable
+//   - Background workers are not deadlocked
+//
+message HealthRequest {
+  string claw_id = 1;  // Required: which Claw to check
+}
+
+// HealthResponse
+// --------------
+// Result of a health check.
+//
+// Fields:
+//   - healthy:  true if the Claw is healthy and can accept work
+//   - status:   Human-readable status string (e.g., "healthy", "degraded", "unhealthy")
+//   - issues:   List of specific issues if healthy=false (e.g., ["sqlite_corruption"])
+//   - state:    Claw's current state at time of health check
+//
+message HealthResponse {
+  bool          healthy = 1;  // true if operational
+  string        status  = 2;  // Human-readable status
+  repeated string issues = 3;  // Specific issues if unhealthy
+  ClawState    state   = 4;  // Claw state at check time
+}
+
+// SubscribeRequest
+// ----------------
+// Open a stream of events from the Claw to the Clawplexer.
+//
+// The Clawplexer calls this RPC once per Claw and keeps the stream open.
+// If the stream drops, the Clawplexer re-establishes it.
+//
+// Fields:
+//   - claw_id:      Which Claw to subscribe to
+//   - event_types:  Which event categories to receive (empty = all events)
+//
+// If event_types is empty, the Claw SHOULD send all event types.
+// If event_types contains values, the Claw SHOULD only send matching events.
+//
+message SubscribeRequest {
+  string            claw_id     = 1;  // Required: which Claw
+  repeated EventType event_types = 2;  // Optional: filter (empty = all)
+}
+
+// =============================================================================
+// Message Definitions: Inter-Claw Communication
+// =============================================================================
+
+// InterClawRequest
+// ----------------
+// Sent by a Claw when it wants to communicate with another Claw.
+// The Clawplexer acts as a relay, checking permissions before forwarding.
+//
+// This replaces direct Claw-to-Claw networking; all InterClaw traffic
+// flows through the Clawplexer for ACL enforcement and audit logging.
+//
+// Fields:
+//   - source_claw_id:  Which Claw is making the request (required)
+//   - target_claw_id:  Which Claw to contact (required)
+//   - action:          What to ask the target Claw to do (e.g., "execute", "read", "delegate")
+//   - payload:         Arbitrary bytes containing the request (e.g., serialized JSON)
+//   - event_id:        Idempotency key for this InterClaw request
+//   - metadata:        Additional context (purpose, notes, etc.)
+//
+message InterClawRequest {
+  string                source_claw_id = 1;  // Required: initiating Claw
+  string                target_claw_id = 2;  // Required: destination Claw
+  string                action         = 3;  // Required: what to do (e.g., "execute", "read_state")
+  bytes                 payload        = 4;  // Required: request payload
+  string                event_id       = 5;  // Required: idempotency key
+  map<string, string>   metadata      = 6;  // Optional: additional context
+}
+
+// InterClawResponse
+// ------------------
+// Result of an InterClaw request.
+//
+// Fields:
+//   - success:     true if the target Claw processed the request successfully
+//   - message:     Human-readable result or error description
+//   - result:      Response payload from target Claw (arbitrary bytes)
+//   - error_code:  Machine-readable error code if success=false
+//     Common codes: "PERMISSION_DENIED", "TARGET_NOT_FOUND",
+//     "TARGET_PAUSED", "TARGET_UNAVAILABLE"
+//
+message InterClawResponse {
+  bool    success    = 1;  // true if request succeeded
+  string  message   = 2;  // Human-readable result or error
+  bytes   result    = 3;  // Response payload from target Claw
+  string  error_code = 4;  // Machine-readable error code (if !success)
+}
+
+// InterClawPermissionPayload
+// --------------------------
+// Payload for EVENT_TYPE_INTERCLAW_PERMISSION_REQUEST events.
+//
+// Emitted to the target Claw's Subscribe stream when an InterClaw request
+// is received but no ACL entry exists. The user must decide whether to
+// allow or deny the request.
+//
+// The Claw SHOULD surface this to the user via its CLI/UI so they can
+// call SetInterClawPermission with their decision.
+//
+// Fields:
+//   - source_claw_id:   Claw that wants to communicate
+//   - target_claw_id:   This Claw (the user's Claw)
+//   - action:            What the source Claw wants to do
+//   - request_event_id: event_id from the original InterClawRequest
+//   - timestamp:         When the request was made
+//   - message:           Human-readable description of what the request entails
+//
+message InterClawPermissionPayload {
+  string source_claw_id   = 1;  // Who wants to talk to us
+  string target_claw_id   = 2;  // Our Claw (the target)
+  string action           = 3;  // What they want to do
+  string request_event_id = 4;  // Id of the InterClaw request
+  string message         = 5;  // Human-readable description
+}
+
+// InterClawCompletedPayload
+// -------------------------
+// Payload for EVENT_TYPE_INTERCLAW_COMPLETED events.
+//
+// Emitted to the source Claw's Subscribe stream when an InterClaw request
+// completes (success or failure). This allows the source Claw to:
+//   - Track if its delegation/work request succeeded
+//   - Handle errors from the target Claw
+//   - Clean up any local state for the request
+//
+// Fields:
+//   - source_claw_id:     Our Claw (the initiator)
+//   - target_claw_id:     The Claw we contacted
+//   - request_event_id:   event_id from our original InterClawRequest
+//   - success:             true if the request was processed successfully
+//   - error_code:          Machine-readable error if success=false
+//   - duration_ms:         How long the request took (wall clock ms)
+//
+message InterClawCompletedPayload {
+  string source_claw_id   = 1;  // Initiating Claw
+  string target_claw_id   = 2;  // Destination Claw
+  string request_event_id = 3;  // Matches event_id from InterClawRequest
+  bool   success         = 4;  // true if processed successfully
+  string error_code      = 5;  // Error code if !success
+  int64  duration_ms     = 6;  // Processing time in milliseconds
+}
+
+// =============================================================================
+// Message Definitions: Event Payloads (Server Streaming)
+// =============================================================================
+
+// Event
+// -----
+// A pushed event from the Claw to the Clawplexer via Subscribe stream.
+//
+// Fields:
+//   - event_id:   Unique identifier for this event (UUID)
+//   - claw_id:    Source Claw
+//   - type:       Event category (StateChanged, HealthChanged, etc.)
+//   - state:      Claw state at time of event
+//   - timestamp:  When the event occurred (server-side time)
+//   - payload:    Event-specific data (exactly one of the oneof fields)
+//
+// The Claw MUST set exactly one of the payload fields based on event type.
+// The Clawplexer MUST handle unknown event types gracefully (forward compat).
+//
+message Event {
+  string                  event_id   = 1;  // UUID for this event
+  string                  claw_id    = 2;  // Source Claw
+  EventType              type       = 3;  // Event category
+  ClawState              state      = 4;  // State at event time
+  google.protobuf.Timestamp timestamp = 5;  // When event occurred
+
+  // Exactly one of these is set based on event type
+  oneof payload {
+    StateChangedPayload        state_changed       = 10;  // type = STATE_CHANGED
+    HealthChangedPayload      health_changed     = 11;  // type = HEALTH_CHANGED
+    ActivityPayload           activity            = 12;  // type = ACTIVITY
+    TurnCompletedPayload      turn_completed     = 13;  // type = TURN_COMPLETED
+    InterClawPermissionPayload interclaw_permission = 14;  // type = INTERCLAW_PERMISSION_REQUEST
+    InterClawCompletedPayload  interclaw_completed  = 15;  // type = INTERCLAW_COMPLETED
+  }
+}
+
+// StateChangedPayload
+// ------------------
+// Payload for EVENT_TYPE_STATE_CHANGED events.
+//
+// Emitted whenever the Claw transitions to a new lifecycle state.
+// The Claw emits this after the transition is complete.
+//
+// Fields:
+//   - previous_state: State before the transition
+//   - new_state:      State after the transition
+//   - reason:         Why the transition occurred (e.g., "user_pause", "idle_timeout")
+//   - actor:          Who/what initiated the transition (e.g., "user", "clawplexer", "system")
+//
+message StateChangedPayload {
+  ClawState previous_state = 1;  // State before transition
+  ClawState new_state     = 2;  // State after transition
+  string    reason        = 3;  // Human-readable reason
+  string    actor         = 4;  // What triggered: "user", "clawplexer", "system"
+}
+
+// HealthChangedPayload
+// --------------------
+// Payload for EVENT_TYPE_HEALTH_CHANGED events.
+//
+// Emitted when the Claw's health status changes.
+//
+// Fields:
+//   - healthy:  New health status
+//   - status:   Human-readable health status string
+//   - issues:   List of specific issues (empty if healthy=true)
+//
+message HealthChangedPayload {
+  bool            healthy = 1;  // New health status
+  string          status  = 2;  // Human-readable status
+  repeated string issues = 3;  // Specific issues if unhealthy
+}
+
+// ActivityPayload
+// ---------------
+// Payload for EVENT_TYPE_ACTIVITY events (heartbeat).
+//
+// The Claw emits this periodically (every 30s) to report activity level.
+// This allows the Clawplexer to track idle time and active session counts
+// without polling via Status RPC.
+//
+// Fields:
+//   - active:          true if Claw has active work
+//   - active_sessions: Number of currently active sessions/work items
+//
+message ActivityPayload {
+  bool  active         = 1;  // true if processing work
+  int64 active_sessions = 2;  // Count of active sessions
+}
+
+// TurnCompletedPayload
+// --------------------
+// Payload for EVENT_TYPE_TURN_COMPLETED events.
+//
+// Emitted when a submitted turn finishes processing.
+// This allows the Clawplexer to:
+//   - Acknowledge Slack messages
+//   - Track per-turn latency
+//   - Monitor workload patterns
+//
+// Fields:
+//   - turn_event_id: event_id from the TurnRequest that completed
+//   - success:       true if the turn completed successfully
+//   - duration_ms:   How long the turn took to process (wall clock ms)
+//
+message TurnCompletedPayload {
+  string turn_event_id = 1;  // Matches event_id from TurnRequest
+  bool   success      = 2;  // true if turn succeeded
+  int64  duration_ms  = 3;  // Processing time in milliseconds
+}

@@ -137,3 +137,6 @@ link-mode = "copy"
 dev = [
     "basedpyright>=1.38.1",
 ]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"src/shoal/core/proto/*.py" = ["E501"]

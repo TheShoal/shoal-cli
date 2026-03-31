@@ -1,0 +1,568 @@
+// =============================================================================
+// a2a_claw.proto
+// =============================================================================
+//
+// A2A Protocol Service for Claw Runtime
+// ------------------------------------
+//
+// This file defines the AgentLoop gRPC service - the primary interface exposed
+// by each Claw runtime. Each Claw acts as an A2A Remote Agent.
+//
+// Spec: https://a2a-protocol.org/latest/specification/
+//
+// Architecture Overview
+// ====================
+//
+//   ┌─────────────────────────────────────────────────────────────────┐
+//   │                         Clawplexer                                │
+//   │  (A2A Client / Coordinator)                                      │
+//   │                                                                  │
+//   │  - Sends work via SendMessage/SendStreamingMessage               │
+//   │  - Queries Task state via GetTask/ListTasks                       │
+//   │  - Relays AgentToAgent (InterClaw) communication                 │
+//   │  - Manages Task lifecycle (cancel, etc.)                          │
+//   └─────────────────────────────────────────────────────────────────┘
+//                               │
+//                               │ AgentLoop gRPC service
+//                               ▼
+//   ┌─────────────────────────────────────────────────────────────────┐
+//   │                         Claw Runtime                             │
+//   │  (A2A Remote Agent)                                             │
+//   │                                                                  │
+//   │  - Processes Tasks via SendMessage                               │
+//   │  - Exposes capabilities via GetAgentCard                         │
+//   │  - Communicates with other Claws via AgentToAgent (InterClaw)   │
+//   │  - Pushes events via streaming RPCs                              │
+//   └─────────────────────────────────────────────────────────────────┘
+//
+// Service Overview
+// ===============
+//
+// The AgentLoop service combines A2A Protocol operations with legacy lobster-loop
+// operations for backward compatibility:
+//
+// A2A Core Operations:
+//   - SendMessage: Submit work (replaces Turn)
+//   - SendStreamingMessage: Streaming task submission
+//   - GetTask, ListTasks, CancelTask: Task management
+//   - SubscribeToTask: Task status subscription
+//   - GetAgentCard: Agent discovery
+//
+// AgentToAgent (InterClaw):
+//   - AgentToAgent: Send messages to other Claws
+//
+// Legacy lobster-loop Operations:
+//   - Turn: Submit work (legacy, use SendMessage instead)
+//   - Status, Health: Query Claw state
+//   - Subscribe: Event subscription (legacy, use SubscribeToTask instead)
+//
+// TODO(be-8l8l7t-3-a2a): Add HTTP+JSON binding for v2 interoperability
+//   - gRPC is primary transport for v1
+//   - HTTP+JSON would enable broader A2A client compatibility
+//
+// TODO(be-8l8l7t-3-a2a): Implement .well-known/agent.json HTTP endpoint
+//   - For HTTP-based agent discovery
+//   - Should return AgentCard as JSON at GET /.well-known/agent.json
+//
+// Naming Convention
+// ================
+//
+// Internal name: "InterClaw" - used throughout lobster-party codebase
+// A2A alias: "AgentToAgent" - aligned with A2A specification
+//
+// The proto RPC is named "AgentToAgent" for A2A spec compliance.
+// Internal documentation and code should use "InterClaw" as canonical.
+// TODO(be-8l8l7t-3-a2a): In future major version, consider renaming
+// InterClawRequest to AgentToAgentRequest throughout codebase.
+//
+// =============================================================================
+
+syntax = "proto3";
+
+package lobster.party.v1.a2a;
+
+option go_package = "github.com/usmobile/lobster-party/gen/go/v1/a2a;lobsterpartyv1a2a";
+
+import "google/protobuf/timestamp.proto";
+import "a2a_core.proto";
+
+// =============================================================================
+// AgentLoop Service
+// =============================================================================
+
+// AgentLoop
+// ---------
+// Primary gRPC service exposed by each Claw runtime.
+//
+// The Clawplexer acts as client; Claw runtime acts as server.
+// This allows Claws to run without egress network access (common in K8s).
+//
+//
+// Auth: All RPCs expect `authorization: Bearer <jwt>` metadata.
+//
+service AgentLoop {
+
+  // === A2A Core Operations ===
+
+  // SendMessage
+  // -----------
+  // Submit a Message to the Claw for processing.
+  //
+  // This is the primary A2A operation for sending work to a Claw.
+  // It replaces the legacy Turn RPC.
+  //
+  // Request: SendMessageRequest
+  //   - task_id: Optional task ID for idempotency (generated if not provided)
+  //   - message: The Message to process
+  //   - config: Optional configuration
+  //
+  // Response: SendMessageResponse
+  //   - Either a Task (for async processing) or direct Message (for sync)
+  //
+  // A2A spec: https://a2a-protocol.org/latest/specification/#send-message
+  //
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+
+  // SendStreamingMessage
+  // -------------------
+  // Submit a Message with real-time streaming of updates.
+  //
+  // The stream returns Messages as they are generated, allowing
+  // progressive output without waiting for completion.
+  //
+  // A2A spec: https://a2a-protocol.org/latest/specification/#send-streaming-message
+  //
+  rpc SendStreamingMessage(SendStreamingMessageRequest) returns (stream Message);
+
+  // GetTask
+  // -------
+  // Retrieve current state of a Task.
+  //
+  // A2A spec: https://a2a-protocol.org/latest/specification/#get-task
+  //
+  rpc GetTask(GetTaskRequest) returns (Task);
+
+  // ListTasks
+  // ---------
+  // List Tasks with optional filtering by context or status.
+  //
+  // A2A spec: https://a2a-protocol.org/latest/specification/#list-tasks
+  //
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+
+  // CancelTask
+  // ----------
+  // Cancel a running Task.
+  //
+  // A2A spec: https://a2a-protocol.org/latest/specification/#cancel-task
+  //
+  rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse);
+
+  // SubscribeToTask
+  // ---------------
+  // Subscribe to real-time Task status and artifact updates.
+  //
+  // Auth metadata expects: `authorization: Bearer <jwt>`
+  //
+  // The stream emits TaskEvent envelopes which can contain either:
+  //   - TaskStatusUpdateEvent: task state transitions (working, completed, etc.)
+  //   - TaskArtifactUpdateEvent: artifact chunks as they are produced
+  //
+  // A2A spec: https://a2a-protocol.org/latest/specification/#subscribe-to-task
+  //
+  rpc SubscribeToTask(SubscribeToTaskRequest) returns (stream TaskEvent);
+
+  // GetAgentCard
+  // ------------
+  // Get this Claw's AgentCard for agent discovery.
+  //
+  // Every Claw exposes its own AgentCard describing its capabilities.
+  // This is the primary A2A agent discovery mechanism.
+  //
+  // A2A spec: https://a2a-protocol.org/latest/specification/#agent-discovery
+  //
+  // TODO(be-8l8l7t-3-a2a): Also expose via .well-known/agent.json HTTP endpoint
+  //
+  rpc GetAgentCard(GetAgentCardRequest) returns (AgentCard);
+
+  // GetExtendedAgentCard
+  // -------------------
+  // Get AgentCard with authentication requirements.
+  //
+  // Used when the agent requires authentication to access certain capabilities.
+  //
+  rpc GetExtendedAgentCard(GetExtendedAgentCardRequest) returns (ExtendedAgentCard);
+
+  // === AgentToAgent (InterClaw) ===
+  //
+  // AgentToAgent is the A2A term for communication between agents.
+  // Internal lobster-party name: "InterClaw"
+  //
+  // Communication flow:
+  //   Source Claw --> Clawplexer (ACL check) --> Target Claw
+  //   Source Claw <-- Clawplexer (relay) <-- Target Claw
+  //
+  // TODO(be-8l8l7t-3-a2a): Consider renaming InterClawRequest to AgentToAgentRequest
+  // in future major version for A2A alignment. 'InterClaw' remains canonical internally.
+  //
+  rpc AgentToAgent(AgentToAgentRequest) returns (AgentToAgentResponse);
+
+  // === Legacy lobster-loop Operations ===
+  //
+  // These RPCs are kept for backward compatibility.
+  // New code should use the A2A-aligned equivalents above.
+  //
+  // Legacy mapping:
+  //   Turn        -> SendMessage
+  //   Subscribe   -> SubscribeToTask / SendStreamingMessage
+  //   InterClaw   -> AgentToAgent (same semantics, new name)
+  //
+
+  // Turn
+  // -----
+  // Submit a unit of work to the Claw (legacy, use SendMessage instead).
+  //
+  // Returns a stream of TurnStreamItem - typing indicators while processing,
+  // followed by the final TurnResponse.
+  //
+  // TODO(be-8l8l7t-3-a2a): Deprecate in favor of SendMessage
+  //
+  rpc Turn(TurnRequest) returns (stream TurnStreamItem);
+
+  // Status
+  // ------
+  // Query current state and resource usage of a Claw.
+  //
+  rpc Status(StatusRequest) returns (StatusResponse);
+
+  // Health
+  // ------
+  // Lightweight liveness check for the Claw runtime process.
+  //
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Subscribe
+  // ---------
+  // Subscribe to a stream of events from the Claw (legacy).
+  //
+  // Prefer SubscribeToTask for A2A-aligned task subscriptions.
+  // Use this for lower-level Claw lifecycle events.
+  //
+  rpc Subscribe(SubscribeRequest) returns (stream Event);
+}
+
+// =============================================================================
+// Extended Types
+// =============================================================================
+
+// ExtendedAgentCard
+// -----------------
+// AgentCard with authentication requirements for secure access.
+//
+message ExtendedAgentCard {
+  AgentCard agent_card = 1;
+  repeated SecurityScheme supported_auth = 2;
+  string endpoint = 3;
+}
+
+// SecurityScheme
+// --------------
+// Authentication scheme supported by this agent.
+//
+message SecurityScheme {
+  string type = 1;
+  string scheme = 2;
+}
+
+// =============================================================================
+// Legacy lobster-loop Types
+// =============================================================================
+//
+// These types are preserved for backward compatibility with existing
+// Clawplexer implementations. New code should use A2A types.
+//
+
+// TurnRequest
+// -----------
+// Submitted when the Clawplexer wants the Claw to process a unit of work.
+//
+message TurnRequest {
+  string claw_id = 1;
+  string employee_id = 2;
+  bytes payload = 3;
+  string event_id = 4;
+  map<string, string> metadata = 5;
+}
+
+// TurnResponse
+// ------------
+// Result of processing a TurnRequest.
+//
+message TurnResponse {
+  bool success = 1;
+  string message = 2;
+  bytes result = 3;
+  ClawState state = 4;
+  string error_code = 5;
+}
+
+// TypingEvent
+// -----------
+// Emitted while the Claw is processing a turn to indicate the user
+// should see a typing indicator. Clawplexer sends this to the provider.
+//
+message TypingEvent {
+}
+
+// TurnStreamItem
+// --------------
+// A streaming response from Turn RPC - either a typing indicator
+// or the final response.
+//
+message TurnStreamItem {
+  oneof item {
+    TypingEvent typing = 1;
+    TurnResponse response = 2;
+  }
+}
+
+// StatusRequest
+// -------------
+// Query current state and resource usage of a Claw.
+//
+//
+message StatusRequest {
+  string claw_id = 1;
+}
+
+// StatusResponse
+// --------------
+// Current state and resource usage of a Claw.
+//
+message StatusResponse {
+  string claw_id = 1;
+  ClawState state = 2;
+  string runtime_class = 3;
+  int64 started_at = 4;
+  int64 last_activity_at = 5;
+  ResourceUsage usage = 6;
+}
+
+// ResourceUsage
+// -------------
+// Snapshot of a Claw's current resource consumption.
+//
+message ResourceUsage {
+  double cpu_usage_millicores = 1;
+  int64 memory_usage_bytes = 2;
+  int64 ephemeral_storage_bytes = 3;
+}
+
+// HealthRequest
+// -------------
+// Lightweight health check for the Claw runtime application.
+//
+message HealthRequest {
+  string claw_id = 1;
+}
+
+// HealthResponse
+// --------------
+// Result of a health check.
+//
+message HealthResponse {
+  bool healthy = 1;
+  string status = 2;
+  repeated string issues = 3;
+  ClawState state = 4;
+}
+
+// SubscribeRequest
+// ----------------
+// Open a stream of events from the Claw to the Clawplexer.
+//
+message SubscribeRequest {
+  string claw_id = 1;
+  repeated EventType event_types = 2;
+}
+
+// =============================================================================
+// Legacy Event Types (for Subscribe stream)
+// =============================================================================
+
+// Event
+// -----
+// A pushed event from the Claw to the Clawplexer via Subscribe stream.
+//
+message Event {
+  string event_id = 1;
+  string claw_id = 2;
+  EventType type = 3;
+  ClawState state = 4;
+  google.protobuf.Timestamp timestamp = 5;
+
+  oneof payload {
+    StateChangedPayload state_changed = 10;
+    HealthChangedPayload health_changed = 11;
+    ActivityPayload activity = 12;
+    TurnCompletedPayload turn_completed = 13;
+    InterClawPermissionPayload interclaw_permission = 14;
+    InterClawCompletedPayload interclaw_completed = 15;
+  }
+}
+
+// ClawState
+// ----------
+// The canonical lifecycle state of a Claw runtime.
+//
+enum ClawState {
+  CLAW_STATE_UNSPECIFIED = 0;
+  CLAW_STATE_REQUESTED = 1;
+  CLAW_STATE_PROVISIONING = 2;
+  CLAW_STATE_STARTING = 3;
+  CLAW_STATE_READY = 4;
+  CLAW_STATE_ACTIVE = 5;
+  CLAW_STATE_IDLE = 6;
+  CLAW_STATE_PAUSED = 7;
+  CLAW_STATE_DRAINING = 8;
+  CLAW_STATE_SUSPENDED = 9;
+  CLAW_STATE_FAILED = 10;
+  CLAW_STATE_TERMINATING = 11;
+  CLAW_STATE_TERMINATED = 12;
+}
+
+// EventType
+// ----------
+// Categories of events that the Claw can push via Subscribe.
+//
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_STATE_CHANGED = 1;
+  EVENT_TYPE_HEALTH_CHANGED = 2;
+  EVENT_TYPE_ACTIVITY = 3;
+  EVENT_TYPE_TURN_COMPLETED = 4;
+  EVENT_TYPE_INTERCLAW_PERMISSION_REQUEST = 5;
+  EVENT_TYPE_INTERCLAW_COMPLETED = 6;
+}
+
+// StateChangedPayload
+// ------------------
+// Payload for EVENT_TYPE_STATE_CHANGED events.
+//
+message StateChangedPayload {
+  ClawState previous_state = 1;
+  ClawState new_state = 2;
+  string reason = 3;
+  string actor = 4;
+}
+
+// HealthChangedPayload
+// --------------------
+// Payload for EVENT_TYPE_HEALTH_CHANGED events.
+//
+message HealthChangedPayload {
+  bool healthy = 1;
+  string status = 2;
+  repeated string issues = 3;
+}
+
+// ActivityPayload
+// ---------------
+// Payload for EVENT_TYPE_ACTIVITY events (heartbeat).
+//
+message ActivityPayload {
+  bool active = 1;
+  int64 active_sessions = 2;
+}
+
+// TurnCompletedPayload
+// --------------------
+// Payload for EVENT_TYPE_TURN_COMPLETED events.
+//
+message TurnCompletedPayload {
+  string turn_event_id = 1;
+  bool success = 2;
+  int64 duration_ms = 3;
+}
+
+// InterClawPermissionPayload
+// --------------------------
+// Payload for InterClaw permission request events.
+//
+message InterClawPermissionPayload {
+  string source_claw_id = 1;
+  string target_claw_id = 2;
+  string action = 3;
+  string request_event_id = 4;
+  string message = 5;
+}
+
+// InterClawCompletedPayload
+// -------------------------
+// Payload for InterClaw completion events.
+//
+message InterClawCompletedPayload {
+  string source_claw_id = 1;
+  string target_claw_id = 2;
+  string request_event_id = 3;
+  bool success = 4;
+  string error_code = 5;
+  int64 duration_ms = 6;
+}
+
+// =============================================================================
+// AgentToAgent (InterClaw) Types
+// =============================================================================
+
+// AgentToAgentRequest
+// ------------------
+// Send a request to another Claw via the Clawplexer relay.
+//
+// A2A name: AgentToAgent (aliased from InterClaw)
+// Internal name: InterClawRequest
+//
+// Flow:
+//   1. Source Claw calls AgentToAgent to request work from Target Claw
+//   2. Clawplexer checks ACL for (target_claw_id, source_claw_id)
+//   3. If PERMISSION_DENIED: return error
+//   4. If no ACL entry: return PENDING (user must approve)
+//   5. If PERMISSION_ALLOW/ALWAYS_ALLOW: forward to Target Claw
+//   6. Target Claw processes and returns response
+//   7. Clawplexer proxies response back to Source Claw
+//
+message AgentToAgentRequest {
+  string source_claw_id = 1;
+  string target_claw_id = 2;
+  string action = 3;
+  bytes payload = 4;
+  string event_id = 5;
+  map<string, string> metadata = 6;
+}
+
+// AgentToAgentResponse
+// --------------------
+// Result of an AgentToAgent request.
+//
+message AgentToAgentResponse {
+  bool success = 1;
+  string message = 2;
+  bytes result = 3;
+  string error_code = 4;
+}
+
+// TaskEvent
+// ---------
+// Unified event envelope for SubscribeToTask streaming.
+//
+// This envelope carries either a TaskStatusUpdateEvent (state transitions)
+// or a TaskArtifactUpdateEvent (artifact chunks as they are produced).
+//
+// Auth metadata expects: `authorization: Bearer <jwt>`
+//
+message TaskEvent {
+  string task_id = 1;
+  oneof event {
+    TaskStatusUpdateEvent status = 2;
+    TaskArtifactUpdateEvent artifact = 3;
+  }
+}

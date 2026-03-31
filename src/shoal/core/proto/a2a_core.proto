@@ -1,0 +1,459 @@
+// =============================================================================
+// a2a_core.proto
+// =============================================================================
+//
+// A2A Protocol Canonical Data Types
+// --------------------------------
+//
+// This file defines the core data types for the Agent2Agent (A2A) Protocol.
+// These types are derived from the A2A specification:
+//   https://a2a-protocol.org/latest/specification/
+//
+// A2A is an open protocol enabling AI agents to communicate and collaborate
+// regardless of underlying framework. It complements MCP (Model Context Protocol)
+// which provides tools/context to agents.
+//
+// Architecture Overview
+// ====================
+//
+//   ┌─────────────────────────────────────────────────────────────────┐
+//   │                         Clawplexer                                │
+//   │  (A2A Client / Coordinator)                                      │
+//   │                                                                  │
+//   │  - Routes work to Claws via SendMessage                          │
+//   │  - Manages task lifecycle                                        │
+//   │  - Acts as relay for AgentToAgent (InterClaw) communication     │
+//   └─────────────────────────────────────────────────────────────────┘
+//                               │
+//                               │ A2A Protocol (gRPC)
+//                               ▼
+//   ┌─────────────────────────────────────────────────────────────────┐
+//   │                         Claw Runtime                             │
+//   │  (A2A Remote Agent / per-user sandbox)                          │
+//   │                                                                  │
+//   │  - Each Claw is an A2A Remote Agent                             │
+//   │  - Exposes AgentCard via GetAgentCard RPC                        │
+//   │  - Processes Tasks via SendMessage/SendStreamingMessage           │
+//   │  - Supports AgentToAgent communication with other Claws           │
+//   └─────────────────────────────────────────────────────────────────┘
+//
+// Key A2A Concepts in This File
+// =============================
+//
+// - AgentCard: Metadata document describing Claw capabilities (skills, endpoints)
+// - Task: Unit of work with lifecycle (working, completed, failed, etc.)
+// - Message: Communication with Parts (text, files, structured data)
+// - Artifact: Output produced by an agent
+// - Part: Smallest content unit (TextPart, FilePart, DataPart)
+//
+// Transport & Security
+// ====================
+//
+// - All communication is over gRPC with TLS (production requirement)
+// - Authentication: mTLS with certificates via Kubernetes CSR
+// - See a2a_claw.proto for service definitions
+//
+// TODO(be-8l8l7t-3-a2a): Add HTTP+JSON/REST binding for v2 interoperability
+//   - gRPC remains primary transport for v1
+//   - HTTP+JSON would enable broader A2A client compatibility
+//
+// =============================================================================
+
+syntax = "proto3";
+
+package lobster.party.v1.a2a;
+
+option go_package = "github.com/usmobile/lobster-party/gen/go/v1/a2a;lobsterpartyv1a2a";
+
+// =============================================================================
+// Agent Discovery Types
+// =============================================================================
+
+// AgentCard
+// ---------
+// Metadata document that describes a Claw runtime's capabilities and identity.
+// Each Claw exposes its own AgentCard via GetAgentCard RPC.
+//
+// The AgentCard allows other agents (via Clawplexer) to discover and understand
+// what this Claw can do before sending work.
+//
+// Example JSON representation:
+// {
+//   "name": "claw-abc123",
+//   "version": "1.0.0",
+//   "provider": {
+//     "organization": "us-mobile-lobster-party",
+//     "url": "https://usmobile.com"
+//   },
+//   "capabilities": {
+//     "streaming": true,
+//     "pushNotifications": false,
+//     "stateTransitionReports": true
+//   },
+//   "skills": [...],
+//   "endpoint": "grpc://claw-abc123.lobster-party-runtime.svc:50051"
+// }
+//
+message AgentCard {
+  string name = 1;
+  string version = 2;
+  AgentProvider provider = 3;
+  AgentCapabilities capabilities = 4;
+  repeated AgentSkill skills = 5;
+  string endpoint = 6;
+  string description = 7;
+  map<string, string> metadata = 8;
+}
+
+// AgentProvider
+// -------------
+// Information about the organization providing this agent.
+//
+message AgentProvider {
+  string organization = 1;
+  string url = 2;
+}
+
+// AgentCapabilities
+// ----------------
+// Describes what capabilities this agent supports.
+//
+message AgentCapabilities {
+  bool streaming = 1;
+  bool push_notifications = 2;
+  bool state_transition_reports = 3;
+}
+
+// AgentSkill
+// ----------
+// A skill that this agent can perform.
+//
+// TODO(be-8l8l7t-3-a2a): Stubbed in v1 - expand with input/output schemas later
+//
+message AgentSkill {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string tags = 4;
+}
+
+// =============================================================================
+// Task Types
+// =============================================================================
+
+// Task
+// ----
+// The central unit of work in A2A. A Task represents a unit of work submitted
+// to a Claw for processing.
+//
+// Tasks have a lifecycle (see TaskState) and can contain history of Messages
+// and produced Artifacts.
+//
+message Task {
+  string id = 1;
+  TaskStatus status = 2;
+  repeated Message history = 3;
+  repeated Artifact artifacts = 4;
+  string context_id = 5;
+  map<string, string> metadata = 6;
+}
+
+// TaskStatus
+// ----------
+// Current status of a Task.
+//
+message TaskStatus {
+  TaskState state = 1;
+  string message = 2;
+  int64 timestamp = 3;
+}
+
+// TaskState
+// ---------
+// Possible states for a Task lifecycle.
+//
+// State Transitions:
+//   working --> input-required (awaiting user input)
+//   working --> completed (success)
+//   working --> failed (error)
+//   working --> canceled (by client)
+//
+enum TaskState {
+  TASK_STATE_UNSPECIFIED = 0;
+  TASK_STATE_WORKING = 1;
+  TASK_STATE_INPUT_REQUIRED = 2;
+  TASK_STATE_COMPLETED = 3;
+  TASK_STATE_CANCELED = 4;
+  TASK_STATE_FAILED = 5;
+}
+
+// =============================================================================
+// Message Types
+// =============================================================================
+
+// Message
+// -------
+// A communication between client and agent, containing one or more Parts.
+//
+// Messages have a Role (user or agent) and represent a single turn in
+// the conversation/task.
+//
+message Message {
+  string id = 1;
+  Role role = 2;
+  repeated Part parts = 3;
+  int64 timestamp = 4;
+  map<string, string> metadata = 5;
+}
+
+// Role
+// ----
+// The sender of a Message.
+//
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_USER = 1;
+  ROLE_AGENT = 2;
+}
+
+// Part
+// ----
+// The smallest unit of content within a Message or Artifact.
+//
+// A Part is a oneof - exactly one content type is set.
+//
+message Part {
+  oneof content {
+    TextPart text = 1;
+    FilePart file = 2;
+    DataPart data = 3;
+  }
+}
+
+// TextPart
+// --------
+// Plain text content with optional MIME type.
+//
+message TextPart {
+  string text = 1;
+  string mime_type = 2;
+}
+
+// FilePart
+// --------
+// Reference to a file (URI) with metadata.
+//
+message FilePart {
+  string uri = 1;
+  string name = 2;
+  string mime_type = 3;
+  int64 size_bytes = 4;
+}
+
+// DataPart
+// --------
+// Structured data content (JSON-encoded).
+//
+message DataPart {
+  string data = 1;
+  string schema = 2;
+}
+
+// =============================================================================
+// Artifact Types
+// =============================================================================
+
+// Artifact
+// --------
+// An output produced by an agent as a result of processing a Task.
+//
+// Artifacts can be documents, images, structured data, etc. They are
+// composed of Parts and have a MIME type.
+//
+message Artifact {
+  string id = 1;
+  repeated Part parts = 2;
+  string mime_type = 3;
+  int64 index = 4;
+  bool append = 5;
+}
+
+// =============================================================================
+// Streaming Event Types
+// =============================================================================
+
+// TaskStatusUpdateEvent
+// ---------------------
+// Pushed status update for a Task during streaming processing.
+//
+message TaskStatusUpdateEvent {
+  string task_id = 1;
+  TaskStatus status = 2;
+  bool final = 3;
+}
+
+// TaskArtifactUpdateEvent
+// ----------------------
+// Pushed artifact update during streaming processing.
+//
+message TaskArtifactUpdateEvent {
+  string task_id = 1;
+  Artifact artifact = 2;
+  bool append = 3;
+}
+
+// =============================================================================
+// Push Notification Types
+// =============================================================================
+
+// PushNotificationConfig
+// ----------------------
+// Configuration for receiving push notifications when a Task changes state.
+//
+message PushNotificationConfig {
+  string webhook_url = 1;
+  AuthenticationInfo authentication = 2;
+}
+
+// AuthenticationInfo
+// ------------------
+// Authentication credentials for push notification webhook.
+//
+message AuthenticationInfo {
+  oneof auth_type {
+    APIKeyAuth api_key = 1;
+    BearerAuth bearer = 2;
+  }
+}
+
+// APIKeyAuth
+// ----------
+// API key authentication for webhooks.
+//
+message APIKeyAuth {
+  string api_key = 1;
+  string header_name = 2;
+}
+
+// BearerAuth
+// ----------
+// Bearer token authentication for webhooks.
+//
+message BearerAuth {
+  string token = 1;
+}
+
+// =============================================================================
+// Request/Response Types
+// =============================================================================
+
+// SendMessageRequest
+// ------------------
+// Submit a Message to a Claw for processing.
+//
+// This is the primary A2A operation for sending work to an agent.
+//
+message SendMessageRequest {
+  string task_id = 1;
+  Message message = 2;
+  SendMessageConfiguration config = 3;
+  map<string, string> metadata = 4;
+}
+
+// SendMessageConfiguration
+// ------------------------
+// Optional configuration for SendMessage.
+//
+message SendMessageConfiguration {
+  bool accept_truncation = 1;
+  int64 history_length = 2;
+}
+
+// SendMessageResponse
+// ------------------
+// Response to SendMessage - either a Task or direct Message.
+//
+message SendMessageResponse {
+  oneof response {
+    Task task = 1;
+    Message message = 2;
+  }
+}
+
+// SendStreamingMessageRequest
+// ---------------------------
+// Submit a Message with streaming response.
+//
+message SendStreamingMessageRequest {
+  string task_id = 1;
+  Message message = 2;
+  SendMessageConfiguration config = 3;
+  map<string, string> metadata = 4;
+}
+
+// GetTaskRequest
+// --------------
+// Retrieve current state of a Task.
+//
+message GetTaskRequest {
+  string task_id = 1;
+  int64 history_length = 2;
+}
+
+// ListTasksRequest
+// ----------------
+// List Tasks with optional filtering.
+//
+message ListTasksRequest {
+  string context_id = 1;
+  TaskState status = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+// ListTasksResponse
+// -----------------
+// Paginated list of Tasks.
+//
+message ListTasksResponse {
+  repeated Task tasks = 1;
+  string next_page_token = 2;
+}
+
+// CancelTaskRequest
+// -----------------
+// Cancel a running Task.
+//
+message CancelTaskRequest {
+  string task_id = 1;
+}
+
+// CancelTaskResponse
+// ------------------
+// Result of cancel operation.
+//
+message CancelTaskResponse {
+  bool canceled = 1;
+}
+
+// SubscribeToTaskRequest
+// ----------------------
+// Subscribe to Task status updates.
+//
+message SubscribeToTaskRequest {
+  string task_id = 1;
+}
+
+// GetAgentCardRequest
+// -------------------
+// Request to get this agent's AgentCard.
+//
+message GetAgentCardRequest {}
+
+// GetExtendedAgentCardRequest
+// ---------------------------
+// Request to get AgentCard with authentication requirements.
+//
+message GetExtendedAgentCardRequest {
+  map<string, string> credentials = 1;
+}

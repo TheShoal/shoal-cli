@@ -1,26 +1,18 @@
-"""Pydantic model for Claw runtime configuration."""
+"""Claw runtime configuration models."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, Field
 
 
 class ClawConfig(BaseModel):
-    """Configuration for Claw runtime integration.
-
-    This config is loaded from the [claw] section in config.toml.
-    grpcio is an optional dependency - all imports must be guarded.
+    """Configuration for Claw runtime provider.
 
     Attributes:
-        grpc_addr: Default gRPC address for Claw connections.
-        jwt_secret: Secret for minting JWTs for Claw authentication.
-        employee_id: Default employee ID for Claw operations.
-        tls: Whether to use TLS for gRPC connections.
-        known_claws: Dictionary mapping claw names to gRPC addresses.
+        known_claws: Dictionary mapping claw_id to endpoint URL for known Claws.
+            Example: {"claw_abc123": "grpc://claw-abc123.lobster-party-runtime.svc:50051"}
+        default_timeout: Default timeout in seconds for gRPC calls.
+        retry_attempts: Number of retry attempts for failed gRPC calls.
     """
 
-    model_config = ConfigDict(extra="forbid")
-
-    grpc_addr: str = "localhost:50051"
-    jwt_secret: str = ""
-    employee_id: str = ""
-    tls: bool = False
-    known_claws: dict[str, str] = {}  # name → grpc_addr
+    known_claws: dict[str, str] = Field(default_factory=dict)
+    default_timeout: float = 30.0
+    retry_attempts: int = 3

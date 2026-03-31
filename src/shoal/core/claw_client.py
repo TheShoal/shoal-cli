@@ -1,183 +1,308 @@
-"""Async gRPC client for Lobster Party Claw runtimes.
-
-This module wraps the generated protobuf stubs to provide a clean Python API.
-All imports from the generated module are guarded behind try/except since grpcio
-is an optional dependency.
-"""
+"""Async gRPC client wrapper for Claw runtime communication."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import asyncio
+import logging
+from typing import TYPE_CHECKING, Any
 
+logger = logging.getLogger("shoal.claw_client")
 
-@dataclass
-class ClawStatusResult:
-    """Result from a Claw status RPC."""
+# Optional gRPC imports - guarded since grpcio is an optional dependency
+if TYPE_CHECKING:
+    import grpc
+    from grpc.aio import Channel
 
-    state: str
-    employee_id: str = ""
-    event_id: str = ""
+    from shoal.core.proto import (
+        lobster_loop_pb2,
+        lobster_loop_pb2_grpc,
+    )
+    from shoal.models.config.claw import ClawConfig
 
+# Runtime imports - these will fail gracefully if grpcio is not installed
+try:
+    import grpc
+    from grpc.aio import insecure_channel, secure_channel
 
-@dataclass
-class ClawHealthResult:
-    """Result from a Claw health check RPC."""
+    from shoal.core.proto import lobster_loop_pb2, lobster_loop_pb2_grpc
 
-    healthy: bool
-    version: str = ""
+    GRPC_AVAILABLE = True
+except ImportError:
+    GRPC_AVAILABLE = False
+    logger.debug("grpcio not installed - Claw client disabled")
 
 
 class ClawClient:
-    """Async gRPC client for interacting with Lobster Party Claws.
+    """Async gRPC client for communicating with Claw runtimes.
 
-    All methods are async and use grpc.aio for non-blocking I/O.
-    The client must be closed when done via the close() method.
+    This client provides a high-level async interface to the Claw gRPC services,
+    handling connection management, retries, and error translation.
+
+    All gRPC imports are optional - the client gracefully degrades when grpcio
+    is not installed.
 
     Attributes:
-        grpc_addr: The gRPC address to connect to.
-        jwt_secret: Secret for minting JWTs for authentication.
-        tls: Whether to use TLS for the connection.
+        claw_id: The Claw identifier this client communicates with.
+        endpoint: The gRPC endpoint URL for the Claw.
+        employee_id: The employee ID for audit/auth purposes.
+        config: Optional configuration for timeouts and retries.
     """
 
     def __init__(
         self,
-        addr: str = "localhost:50051",
-        jwt_secret: str = "",
-        tls: bool = False,
-    ) -> None:
-        """Initialize the Claw client.
-
-        Args:
-            addr: gRPC address (e.g., "localhost:50051").
-            jwt_secret: Secret for minting JWTs. Empty string for no auth.
-            tls: Whether to use TLS. Defaults to False.
-        """
-        self.grpc_addr: str = addr
-        self.jwt_secret: str = jwt_secret
-        self.tls: bool = tls
-        self._channel: object | None = None
-        self._stub: object | None = None
-
-    async def turn(
-        self,
         claw_id: str,
-        employee_id: str,
-        payload: str,
-        event_id: str | None = None,
-    ) -> str:
-        """Send a turn to the Claw and get the response.
+        endpoint: str,
+        employee_id: str = "",
+        config: ClawConfig | None = None,
+    ) -> None:
+        """Initialize a Claw client.
 
         Args:
             claw_id: The Claw identifier.
-            employee_id: Employee/user identifier for the turn.
-            payload: The message/prompt to send.
-            event_id: Optional event ID for tracking.
-
-        Returns:
-            The Claw's response text.
+            endpoint: gRPC endpoint URL (e.g., "grpc://host:port").
+            employee_id: Employee ID for audit trail.
+            config: Optional configuration for timeouts and retries.
 
         Raises:
-            RuntimeError: If grpcio is not installed.
+            ImportError: If grpcio is not installed and client is instantiated.
         """
-        try:
-            import grpc.aio
-
-            from shoal.core.proto import (
-                a2a_claw_pb2,
-                a2a_claw_pb2_grpc,
+        if not GRPC_AVAILABLE:
+            raise ImportError(
+                "grpcio is required for Claw client. Install with: pip install grpcio grpcio-tools"
             )
-        except ImportError as e:
-            raise RuntimeError("grpcio not installed. Install with: pip install shoal[claw]") from e
 
-        if self._channel is None:
-            self._channel = grpc.aio.insecure_channel(self.grpc_addr)
-            self._stub = a2a_claw_pb2_grpc.ClawStub(self._channel)
+        self.claw_id = claw_id
+        self.endpoint = endpoint
+        self.employee_id = employee_id
+        self.config = config
 
-        request = a2a_claw_pb2.TurnRequest(
-            claw_id=claw_id,
-            employee_id=employee_id,
-            payload=payload,
-            event_id=event_id or "",
-        )
+        self._channel: Channel | None = None
+        self._stub: lobster_loop_pb2_grpc.LobsterLoopStub | None = None  # type: ignore[name-defined]
+        self._lock = asyncio.Lock()
 
-        response = await self._stub.Turn(request)
-        return response.response
+    async def _ensure_channel(self) -> None:
+        """Ensure gRPC channel is open."""
+        if self._channel is not None:
+            return
 
-    async def status(self, claw_id: str) -> ClawStatusResult:
-        """Get the current status of a Claw.
+        async with self._lock:
+            if self._channel is not None:
+                return
 
-        Args:
-            claw_id: The Claw identifier.
+            # Determine if we need secure or insecure channel
+            if self.endpoint.startswith("grpcs://"):
+                self._channel = secure_channel(  # type: ignore[assignment]
+                    self.endpoint[8:],
+                    credentials=grpc.ssl_channel_credentials(),  # type: ignore[attr-defined]
+                )
+            else:
+                # Strip grpc:// prefix if present
+                target = self.endpoint[7:] if self.endpoint.startswith("grpc://") else self.endpoint
+                self._channel = insecure_channel(target)  # type: ignore[assignment]
 
-        Returns:
-            ClawStatusResult with state and metadata.
-
-        Raises:
-            RuntimeError: If grpcio is not installed.
-        """
-        try:
-            import grpc.aio
-
-            from shoal.core.proto import (
-                a2a_claw_pb2,
-                a2a_claw_pb2_grpc,
-            )
-        except ImportError as e:
-            raise RuntimeError("grpcio not installed. Install with: pip install shoal[claw]") from e
-
-        if self._channel is None:
-            self._channel = grpc.aio.insecure_channel(self.grpc_addr)
-            self._stub = a2a_claw_pb2_grpc.ClawStub(self._channel)
-
-        request = a2a_claw_pb2.StatusRequest(claw_id=claw_id)
-        response = await self._stub.Status(request)
-
-        return ClawStatusResult(
-            state=response.state,
-            employee_id=response.employee_id,
-            event_id=response.event_id,
-        )
-
-    async def health(self, claw_id: str) -> ClawHealthResult:
-        """Check the health of a Claw.
-
-        Args:
-            claw_id: The Claw identifier.
-
-        Returns:
-            ClawHealthResult with healthy flag and version.
-
-        Raises:
-            RuntimeError: If grpcio is not installed.
-        """
-        try:
-            import grpc.aio
-
-            from shoal.core.proto import (
-                a2a_core_pb2,
-                a2a_core_pb2_grpc,
-            )
-        except ImportError as e:
-            raise RuntimeError("grpcio not installed. Install with: pip install shoal[claw]") from e
-
-        if self._channel is None:
-            self._channel = grpc.aio.insecure_channel(self.grpc_addr)
-            self._stub = a2a_core_pb2_grpc.HealthStub(self._channel)
-
-        request = a2a_core_pb2.HealthCheckRequest(service=claw_id)
-        response = await self._stub.Check(request)
-
-        return ClawHealthResult(
-            healthy=response.status == a2a_core_pb2.HealthCheckResponse.SERVING,
-            version=getattr(response, "version", ""),
-        )
+            self._stub = lobster_loop_pb2_grpc.LobsterLoopStub(self._channel)  # type: ignore[name-defined]
 
     async def close(self) -> None:
-        """Close the gRPC channel.
-
-        Should be called when the client is no longer needed.
-        """
-        if self._channel is not None:
+        """Close the gRPC channel."""
+        if self._channel:
             await self._channel.close()
             self._channel = None
             self._stub = None
+
+    async def __aenter__(self) -> ClawClient:
+        """Async context manager entry."""
+        await self._ensure_channel()
+        return self
+
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        """Async context manager exit."""
+        await self.close()
+
+    async def status(self) -> dict[str, Any]:
+        """Get Claw status.
+
+        Returns:
+            Dictionary with Claw state and resource usage.
+
+        Raises:
+            RuntimeError: If gRPC call fails.
+        """
+        await self._ensure_channel()
+        assert self._stub is not None
+
+        try:
+            request = lobster_loop_pb2.StatusRequest(claw_id=self.claw_id)  # type: ignore[attr-defined]
+            response = await self._stub.Status(request)
+
+            return {
+                "claw_id": response.claw_id,
+                "state": response.state,
+                "runtime_class": response.runtime_class,
+                "started_at": response.started_at,
+                "last_activity_at": response.last_activity_at,
+                "usage": {
+                    "cpu_usage_millicores": response.usage.cpu_usage_millicores,
+                    "memory_usage_bytes": response.usage.memory_usage_bytes,
+                    "ephemeral_storage_bytes": response.usage.ephemeral_storage_bytes,
+                }
+                if response.usage
+                else {},
+            }
+        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+            logger.error("Claw %s status RPC failed: %s", self.claw_id, exc)
+            raise RuntimeError(f"Claw status failed: {exc.details()}") from exc
+
+    async def health(self) -> dict[str, Any]:
+        """Get Claw health status.
+
+        Returns:
+            Dictionary with health status and any issues.
+
+        Raises:
+            RuntimeError: If gRPC call fails.
+        """
+        await self._ensure_channel()
+        assert self._stub is not None
+
+        try:
+            request = lobster_loop_pb2.HealthRequest(claw_id=self.claw_id)  # type: ignore[attr-defined]
+            response = await self._stub.Health(request)
+
+            return {
+                "healthy": response.healthy,
+                "status": response.status,
+                "issues": list(response.issues),
+                "state": response.state,
+            }
+        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+            logger.error("Claw %s health RPC failed: %s", self.claw_id, exc)
+            raise RuntimeError(f"Claw health failed: {exc.details()}") from exc
+
+    async def execute(
+        self,
+        payload: bytes,
+        event_id: str,
+        metadata: dict[str, str] | None = None,
+    ) -> tuple[bool, str, bytes]:
+        """Execute a turn on the Claw.
+
+        Args:
+            payload: The work payload to execute.
+            event_id: Idempotency key for the turn.
+            metadata: Optional additional context.
+
+        Returns:
+            Tuple of (success, message, result_bytes).
+
+        Raises:
+            RuntimeError: If gRPC call fails.
+        """
+        await self._ensure_channel()
+        assert self._stub is not None
+
+        try:
+            request = lobster_loop_pb2.TurnRequest(  # type: ignore[attr-defined]
+                claw_id=self.claw_id,
+                employee_id=self.employee_id,
+                payload=payload,
+                event_id=event_id,
+                metadata=metadata or {},
+            )
+
+            # Stream response - collect typing events and final response
+            success = False
+            message = ""
+            result = b""
+
+            async for item in self._stub.Turn(request):
+                if item.HasField("typing"):
+                    # Typing indicator - just log it
+                    logger.debug("Claw %s sending typing indicator", self.claw_id)
+                elif item.HasField("response"):
+                    success = item.response.success
+                    message = item.response.message
+                    result = item.response.result
+
+            return success, message, result
+        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+            logger.error("Claw %s turn RPC failed: %s", self.claw_id, exc)
+            raise RuntimeError(f"Claw turn failed: {exc.details()}") from exc
+
+    async def subscribe(
+        self,
+        event_types: list[str] | None = None,
+    ) -> Any:
+        """Subscribe to Claw events.
+
+        Args:
+            event_types: Optional list of event types to filter.
+
+        Yields:
+            Event dictionaries as they arrive.
+
+        Raises:
+            RuntimeError: If gRPC call fails.
+        """
+        await self._ensure_channel()
+        assert self._stub is not None
+
+        try:
+            request = lobster_loop_pb2.SubscribeRequest(  # type: ignore[attr-defined]
+                claw_id=self.claw_id,
+                event_types=event_types or [],
+            )
+
+            # This is a streaming RPC - caller should iterate
+            async for event in self._stub.Subscribe(request):
+                yield {
+                    "event_id": event.event_id,
+                    "claw_id": event.claw_id,
+                    "type": event.type,
+                    "state": event.state,
+                    "timestamp": event.timestamp,
+                }
+        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+            logger.error("Claw %s subscribe RPC failed: %s", self.claw_id, exc)
+            raise RuntimeError(f"Claw subscribe failed: {exc.details()}") from exc
+
+    async def inter_claw(
+        self,
+        target_claw_id: str,
+        action: str,
+        payload: bytes,
+        event_id: str,
+        metadata: dict[str, str] | None = None,
+    ) -> tuple[bool, str, bytes]:
+        """Send an InterClaw request to another Claw.
+
+        Args:
+            target_claw_id: The target Claw identifier.
+            action: What action to request.
+            payload: The request payload.
+            event_id: Idempotency key for the request.
+            metadata: Optional additional context.
+
+        Returns:
+            Tuple of (success, message, result_bytes).
+
+        Raises:
+            RuntimeError: If gRPC call fails.
+        """
+        await self._ensure_channel()
+        assert self._stub is not None
+
+        try:
+            request = lobster_loop_pb2.InterClawRequest(  # type: ignore[attr-defined]
+                source_claw_id=self.claw_id,
+                target_claw_id=target_claw_id,
+                action=action,
+                payload=payload,
+                event_id=event_id,
+                metadata=metadata or {},
+            )
+
+            response = await self._stub.InterClaw(request)
+            return response.success, response.message, response.result
+        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+            logger.error("InterClaw RPC failed: %s", exc)
+            raise RuntimeError(f"InterClaw failed: {exc.details()}") from exc

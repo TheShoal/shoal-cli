@@ -55,9 +55,13 @@ class RuntimeProvider(Protocol):
 
 
 def _providers() -> dict[RuntimeKind, RuntimeProvider]:
+    from shoal.services.runtime_providers.claw import ClawRuntimeProvider
     from shoal.services.runtime_providers.tmux import TmuxRuntimeProvider
 
-    return {RuntimeKind.tmux: TmuxRuntimeProvider()}
+    return {
+        RuntimeKind.tmux: TmuxRuntimeProvider(),
+        RuntimeKind.claw: ClawRuntimeProvider(),
+    }
 
 
 def provider_for_runtime(runtime: RuntimeState) -> RuntimeProvider:
