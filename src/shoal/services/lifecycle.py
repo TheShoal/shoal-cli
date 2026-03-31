@@ -805,13 +805,14 @@ async def create_session_lifecycle(
         if provisioned:
             logger.info("[%s] create: MCP provisioned: %s", session.id, provisioned)
 
-    # 5. Set pane title
-    await tmux.async_set_pane_title(tmux_session, f"shoal:{session.id}")
+    # 5. Set pane title on the agent pane (first pane), not the active pane
+    agent_pane = await tmux.async_first_pane(tmux_session)
+    await tmux.async_set_pane_title(agent_pane, f"shoal:{session.id}")
 
     # 6. Capture PID + tmux coordinates + nvim socket
     updates: dict[str, object] = {"status": SessionStatus.running}
 
-    pane_target = await tmux.async_preferred_pane(tmux_session, f"shoal:{session.id}")
+    pane_target = agent_pane
     pid = await tmux.async_pane_pid(pane_target)
     if pid:
         updates["pid"] = pid
@@ -969,13 +970,14 @@ async def fork_session_lifecycle(
         if provisioned:
             logger.info("[%s] fork: MCP provisioned: %s", session.id, provisioned)
 
-    # 5. Set pane title
-    await tmux.async_set_pane_title(tmux_session, f"shoal:{session.id}")
+    # 5. Set pane title on the agent pane (first pane)
+    fork_agent_pane = await tmux.async_first_pane(tmux_session)
+    await tmux.async_set_pane_title(fork_agent_pane, f"shoal:{session.id}")
 
     # 6. Capture coordinates
     updates: dict[str, object] = {"status": SessionStatus.running}
 
-    pane_target = await tmux.async_preferred_pane(tmux_session, f"shoal:{session.id}")
+    pane_target = fork_agent_pane
     pid = await tmux.async_pane_pid(pane_target)
     if pid:
         updates["pid"] = pid
