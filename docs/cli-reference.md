@@ -16,6 +16,9 @@ subcommand groups.
 | `shoal popup` | Open the fzf dashboard (`ctrl-y` approve, `ctrl-g` fork, `ctrl-w` filter waiting, `ctrl-r` reload) |
 | `shoal history` | Show status transition history |
 | `shoal journal` | Read or append to a session journal |
+| `shoal handoff` | Generate a structured handoff summary for a session (`--json`, `--save`) |
+| `shoal handoff-ls` | List saved handoff artifacts |
+| `shoal done` | Mark a session as completed |
 | `shoal diag` | Check component health |
 | `shoal init` | Scaffold config and state directories (`--refresh-tools` to re-copy bundled profiles) |
 | `shoal check` | Re-run dependency and environment checks |
@@ -84,6 +87,24 @@ For patterns and safety rules, read [Robo Supervisor](ROBO_GUIDE.md).
 | `shoal remote sessions` | List sessions on a remote host |
 | `shoal remote send` | Send keys to a remote session |
 | `shoal remote attach` | Attach to a remote session |
+
+## Operating modes
+
+| Command | Purpose |
+| ------- | ------- |
+| `shoal mode ls` | List available operating modes with templates, prefixes, and auto-tags |
+
+Modes are single-session presets for `shoal new --mode <name>`. See [Handoffs & Modes](handoffs-and-modes.md) for details.
+
+## Incidents
+
+| Command | Purpose |
+| ------- | ------- |
+| `shoal incident ingest` | Ingest an alert JSON payload and create an incident record |
+| `shoal incident ls` | List incidents |
+| `shoal incident show` | Show incident details |
+| `shoal incident spawn` | Spawn a worker lane for an incident |
+| `shoal incident resolve` | Resolve an incident |
 
 ## Templates, tags, and config
 

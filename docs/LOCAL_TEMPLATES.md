@@ -218,7 +218,37 @@ The local version shadows the global one — no other files need changing.
 
 ---
 
+## Workspace Manifest (Meta-Repos)
+
+For meta-repos containing multiple sub-repositories (like Smorgasbord), add a `.shoal/workspace.toml` to map logical names to sub-repo paths:
+
+```toml
+# .shoal/workspace.toml
+[workspace]
+name = "smorgasbord"
+
+[workspace.repos]
+emailservice = "backend/emailservice"
+order = "backend/order"
+web-app = "frontend/web-app"
+```
+
+Then from the meta-repo root:
+
+```bash
+# Route worktree to the emailservice sub-repo
+shoal new --repo emailservice -w feat/my-feature -b
+
+# Auto-match by path when already inside a sub-repo
+cd backend/emailservice && shoal new -w feat/my-feature -b
+```
+
+See [Handoffs & Modes](handoffs-and-modes.md) for the full workspace routing reference.
+
+---
+
 ## Further Reading
 
 - [Template Inheritance](architecture.md#template-inheritance-and-composition) — Merge semantics for `extends` and `mixins`
+- [Handoffs & Modes](handoffs-and-modes.md) — Handoff packets, operating modes, template tags
 - [Shoal Overview](index.md) — Overview of Shoal
