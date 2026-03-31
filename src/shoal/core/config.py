@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from shoal.models.config import ProjectHookEntry, SkillConfig, WorkspaceConfig
+    from shoal.models.config import (
+        ProjectConfig,
+        ProjectHookEntry,
+        SkillConfig,
+        WorkspaceConfig,
+    )
 
 from shoal.core.status_provider import default_status_provider_for_tool
 from shoal.models.config import (
@@ -567,6 +572,31 @@ def refresh_tools() -> list[str]:
         logger.debug("Refreshed tool profile: %s", src_file.name)
 
     return refreshed
+
+
+def load_project_config(git_root: str) -> ProjectConfig | None:
+    """Load project-level config from ``<git_root>/.shoal.toml``.
+
+    Returns ``None`` if the file does not exist.
+    """
+    from pydantic import ValidationError
+
+    from shoal.models.config import ProjectConfig
+
+    path = Path(git_root) / ".shoal.toml"
+    if not path.exists():
+        return None
+
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigLoadError(path, f"TOML parse error: {exc}") from exc
+
+    try:
+        return ProjectConfig.model_validate(data)
+    except ValidationError as exc:
+        raise ConfigLoadError(path, f"validation error: {exc}") from exc
 
 
 def discover_skills(git_root: str | None = None) -> list[SkillConfig]:

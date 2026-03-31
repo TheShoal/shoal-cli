@@ -292,6 +292,21 @@ class TemplateMixinConfig(BaseModel):
         return v
 
 
+class ProjectConfig(BaseModel):
+    """Project-level config from ``.shoal.toml`` at git root.
+
+    Provides project defaults for env and setup commands.
+    Precedence: ``.shoal.toml`` < template < CLI flags.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    env: dict[str, str] = Field(default_factory=dict)
+    setup_commands: list[str] = Field(default_factory=list)
+    default_tool: str = ""
+    default_template: str = ""
+
+
 class SkillConfig(BaseModel):
     """Parsed skill metadata from a SKILL.md YAML frontmatter block."""
 

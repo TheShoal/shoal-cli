@@ -768,10 +768,18 @@ async def create_session_lifecycle(
             operation="create",
         ) from exc
 
-    # 3. Set environment variables
+    # 3. Set environment variables (precedence: project < template < extra/CLI)
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
     session_env: dict[str, str] = {}
+    try:
+        from shoal.core.config import load_project_config
+
+        project_cfg = load_project_config(git_root)
+        if project_cfg and project_cfg.env:
+            session_env.update(project_cfg.env)
+    except Exception:
+        logger.debug("Failed to load project config", exc_info=True)
     if template_cfg:
         session_env.update(template_cfg.env)
     if extra_env:
