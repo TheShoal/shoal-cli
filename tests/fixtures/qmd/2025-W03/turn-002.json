@@ -1,0 +1,19 @@
+{
+  "id": "turn-002",
+  "timestamp": "2025-01-16T14:45:00Z",
+  "claw_id": "claw-beta",
+  "event_id": "evt-67890",
+  "prompt": "Explain quantum entanglement in simple terms.",
+  "response": "Quantum entanglement is a phenomenon where two particles become connected in such a way that the state of one particle instantly influences the state of the other, no matter how far apart they are. Einstein famously called this 'spooky action at a distance'. It's like having two magic coins that always land on opposite sides when flipped, even if they're on opposite sides of the universe.",
+  "thinking": "User wants a simple explanation of a complex physics concept. Use analogy.",
+  "prompt_summary": "Explain quantum entanglement simply.",
+  "response_summary": "Quantum entanglement connects particles so their states are correlated instantly across any distance.",
+  "model": "claude-sonnet-4-20250514",
+  "prompt_tokens": 12,
+  "response_tokens": 85,
+  "cost_usd": 0.0006,
+  "metadata": {
+    "source": "lobster-party",
+    "conversation_id": "conv-test-002"
+  }
+}

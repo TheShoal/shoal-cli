@@ -539,12 +539,9 @@ def generate_handoff(
                     f" `shoal attach {session.name}` then merge or request changes."
                 )
             case UrgencyTier.running:
-                suggested_next = "Session is actively running.  No immediate action needed."
+                pass  # Session is running
             case UrgencyTier.stale:
-                suggested_next = (
-                    f"Session has been idle for {time_in_status}.  "
-                    "Verify it is still needed or kill it with `shoal kill`."
-                )
+                pass  # Session is stale
             case UrgencyTier.idle:
                 suggested_next = "Session is idle.  Resume work when ready."
             case UrgencyTier.stopped:
@@ -602,3 +599,61 @@ def generate_handoff(
         git_diff_summary=git_diff_summary,
         commit_count=commit_count,
     )
+
+
+async def import_claw_turns(
+    session_name: str,
+    conversations_dir: Path,
+    since: datetime | None = None,
+) -> int:
+    """Import QMD turns into session journal. Returns count of imported turns.
+
+    Args:
+        session_name: Name of the session to import turns into.
+        conversations_dir: Path to QMD conversations directory.
+        since: Optional cutoff - only import turns after this timestamp.
+
+    Returns:
+        Number of turns imported.
+    """
+    from shoal.core.claw_conversations import read_qmd_turns, turns_to_journal_entries
+    from shoal.core.state import find_by_name
+
+    # Resolve session
+    session_rec = await find_by_name(session_name)
+    if not session_rec:
+        logger.warning("Session not found for journal import: %s", session_name)
+        return 0
+
+    # Read turns from QMD
+    turns = read_qmd_turns(conversations_dir, since=since)
+    if not turns:
+        logger.debug("No turns to import from %s", conversations_dir)
+        return 0
+
+    # Convert to journal entries and append
+    entries_md = turns_to_journal_entries(turns)
+    append_entry(session_rec, entries_md, source="claw-sync")
+
+    logger.info("Imported %d turns into session %s", len(turns), session_name)
+    return len(turns)
+
+
+def export_journal_to_qmd(
+    journal_path: Path,
+    output_dir: Path,
+    session_name: str,
+) -> int:
+    """Write journal entries as QMD-compatible markdown+JSON pairs. Returns count.
+
+    Args:
+        journal_path: Path to the Shoal journal file.
+        output_dir: Root directory for QMD conversations output.
+        session_name: Session name to use in claw_id field.
+
+    Returns:
+        Number of turns exported.
+    """
+    from shoal.core.claw_conversations import export_journal_to_qmd as _export
+
+    return _export(journal_path, output_dir, session_name)

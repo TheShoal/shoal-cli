@@ -1,0 +1,19 @@
+{
+  "id": "turn-001",
+  "timestamp": "2025-01-15T10:30:00Z",
+  "claw_id": "claw-alpha",
+  "event_id": "evt-12345",
+  "prompt": "What is the capital of France?",
+  "response": "The capital of France is Paris. Paris is the largest city in France and serves as the country's political, cultural, and economic center.",
+  "thinking": "User is asking a simple geography question. Provide direct answer with context.",
+  "prompt_summary": "What is the capital of France?",
+  "response_summary": "The capital of France is Paris.",
+  "model": "claude-sonnet-4-20250514",
+  "prompt_tokens": 15,
+  "response_tokens": 42,
+  "cost_usd": 0.0003,
+  "metadata": {
+    "source": "lobster-party",
+    "conversation_id": "conv-test-001"
+  }
+}

@@ -872,6 +872,229 @@ async def list_worktree_files_tool(
 
 
 # ---------------------------------------------------------------------------
+# Claw MCP tools (optional — require grpcio)
+# ---------------------------------------------------------------------------
+
+
+_CLAW_TOOLS_AVAILABLE: bool = False
+try:
+    from shoal.core.claw_client import ClawClient
+
+    _CLAW_TOOLS_AVAILABLE = True
+except ImportError:
+    pass  # grpcio not installed
+
+
+# ---------------------------------------------------------------------------
+# Tool: list_claws
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="list_claws",
+    description="List all configured Claws from ClawConfig.",
+    annotations={"readOnlyHint": True},
+)
+async def list_claws_tool() -> list[dict[str, str]]:
+    """List all configured Claw runtimes from config."""
+    from shoal.core.config import load_config
+
+    if not _CLAW_TOOLS_AVAILABLE:
+        raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
+
+    cfg = load_config()
+    known_claws = cfg.claw.known_claws if hasattr(cfg, "claw") else {}
+    return [{"name": name, "grpc_addr": addr} for name, addr in known_claws.items()]
+
+
+# ---------------------------------------------------------------------------
+# Tool: claw_status
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="claw_status",
+    description="Get status for one or more Claw runtimes.",
+    annotations={"readOnlyHint": True},
+)
+async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
+    """Get status for one or more Claws."""
+    from shoal.core.config import load_config
+
+    if not _CLAW_TOOLS_AVAILABLE:
+        raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
+
+    cfg = load_config()
+    known_claws = cfg.claw.known_claws if hasattr(cfg, "claw") else {}
+
+    if isinstance(claw_id, list):
+        results: dict[str, object] = {}
+        for cid in claw_id:
+            grpc_addr = known_claws.get(cid, cfg.claw.grpc_addr)
+            try:
+                client = ClawClient(grpc_addr)
+                status = await client.status(cid)
+                results[cid] = {"state": status.state, "grpc_addr": grpc_addr}
+                await client.close()
+            except Exception as e:
+                results[cid] = {"error": str(e)}
+        return {"results": results}
+
+    grpc_addr = known_claws.get(claw_id, cfg.claw.grpc_addr)
+    client = ClawClient(grpc_addr)
+    try:
+        status = await client.status(claw_id)
+        return {"state": status.state, "grpc_addr": grpc_addr}
+    finally:
+        await client.close()
+
+
+# ---------------------------------------------------------------------------
+# Tool: claw_health
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="claw_health",
+    description="Check health of a Claw runtime.",
+    annotations={"readOnlyHint": True},
+)
+async def claw_health_tool(claw_id: str) -> dict[str, object]:
+    """Check health of a Claw. Returns {healthy: bool, issues: list[str]}."""
+    from shoal.core.config import load_config
+
+    if not _CLAW_TOOLS_AVAILABLE:
+        raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
+
+    cfg = load_config()
+    grpc_addr = cfg.claw.known_claws.get(claw_id, cfg.claw.grpc_addr)
+    client = ClawClient(grpc_addr)
+    try:
+        health = await client.health(claw_id)
+        issues: list[str] = []
+        if not health.healthy:
+            issues.append("Claw reported unhealthy")
+        return {"healthy": health.healthy, "issues": issues}
+    except Exception as e:
+        return {"healthy": False, "issues": [str(e)]}
+    finally:
+        await client.close()
+
+
+# ---------------------------------------------------------------------------
+# Tool: send_to_claw
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="send_to_claw",
+    description="Send a message to a Claw runtime and get response.",
+    annotations={"destructiveHint": True},
+)
+async def send_to_claw_tool(claw_id: str, message: str, employee_id: str = "") -> dict[str, object]:
+    """Send a message to a Claw via Turn RPC."""
+    from shoal.core.config import load_config
+
+    if not _CLAW_TOOLS_AVAILABLE:
+        raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
+
+    cfg = load_config()
+    grpc_addr = cfg.claw.known_claws.get(claw_id, cfg.claw.grpc_addr)
+    resolved_employee_id = employee_id or cfg.claw.employee_id
+
+    client = ClawClient(grpc_addr, jwt_secret=cfg.claw.jwt_secret)
+    try:
+        response = await client.turn(claw_id, resolved_employee_id, message)
+        # Get state after turn
+        status = await client.status(claw_id)
+        return {"response": response, "state": status.state}
+    finally:
+        await client.close()
+
+
+# ---------------------------------------------------------------------------
+# Tool: sync_claw_conversations
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="sync_claw_conversations",
+    description=(
+        "Sync conversations between Shoal journal and Lobster Party QMD format. "
+        "Imports QMD turns into session journal or exports journal entries to QMD."
+    ),
+    annotations={"destructiveHint": True},
+)
+async def sync_claw_conversations_tool(
+    session: str,
+    direction: str = "import",
+    since: str | None = None,
+    conversations_dir: str | None = None,
+) -> dict[str, object]:
+    """Sync conversations between Shoal journal and QMD format.
+
+    Args:
+        session: Session name or ID.
+        direction: Sync direction - "import", "export", or "both".
+        since: ISO timestamp - only import turns after this time.
+        conversations_dir: Path to QMD conversations directory.
+
+    Returns:
+        Dict with imported and exported counts.
+    """
+    from datetime import UTC, datetime
+
+    from shoal.core.claw_conversations import export_journal_to_qmd
+    from shoal.core.journal import import_claw_turns, journal_path
+    from shoal.core.state import find_by_name, get_session
+
+    # Resolve session
+    session_id = await find_by_name(session)
+    if session_id is None:
+        raise ToolError(f"Session not found: {session}")
+
+    s = await get_session(session_id)
+    if s is None:
+        raise ToolError(f"Session not found: {session}")
+
+    # Parse since timestamp if provided
+    since_dt: datetime | None = None
+    if since:
+        try:
+            since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            if since_dt.tzinfo is None:
+                since_dt = since_dt.replace(tzinfo=UTC)
+        except ValueError as e:
+            raise ToolError(f"Invalid timestamp format: {e}") from e
+
+    # Resolve conversations directory
+    if conversations_dir is None:
+        import os
+
+        home = os.path.expanduser("~")
+        conversations_dir = str(Path(home) / "conversations")
+
+    conv_dir = Path(conversations_dir)
+
+    imported = 0
+    exported = 0
+
+    if direction in ("import", "both"):
+        imported = await import_claw_turns(s.name, conv_dir, since=since_dt)
+
+    if direction in ("export", "both"):
+        jpath = journal_path(s.id)
+        export_dir = conv_dir / "shoal-exports" / s.name
+        exported = export_journal_to_qmd(jpath, export_dir, s.name)
+
+    return {
+        "session": s.name,
+        "imported": imported,
+        "exported": exported,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
