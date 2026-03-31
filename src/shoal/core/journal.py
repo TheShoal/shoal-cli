@@ -392,6 +392,9 @@ class HandoffArtifact:
     recent_entries: list[JournalEntry]
     transition_summary: list[str]
     suggested_next: str
+    worktree: str = ""
+    git_diff_summary: str = ""
+    commit_count: int = 0
 
     def to_markdown(self) -> str:
         """Render as a markdown handoff document."""
@@ -406,7 +409,17 @@ class HandoffArtifact:
         lines.append(f"- **Status**: {self.urgency_label}")
         lines.append(f"- **Time in status**: {self.time_in_status}")
         lines.append(f"- **Last active**: {self.last_active}")
+        if self.worktree:
+            lines.append(f"- **Worktree**: `{self.worktree}`")
         lines.append("")
+        if self.git_diff_summary or self.commit_count:
+            lines.append("## Git context")
+            lines.append("")
+            if self.commit_count:
+                lines.append(f"- **Commits**: {self.commit_count}")
+            if self.git_diff_summary:
+                lines.append(f"- **Changes**: {self.git_diff_summary}")
+            lines.append("")
         if self.transition_summary:
             lines.append("## Recent transitions")
             lines.append("")
@@ -427,6 +440,31 @@ class HandoffArtifact:
         lines.append(self.suggested_next)
         lines.append("")
         return "\n".join(lines)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a JSON-compatible dict."""
+        return {
+            "session_name": self.session_name,
+            "tool": self.tool,
+            "branch": self.branch,
+            "status": self.status,
+            "urgency_label": self.urgency_label,
+            "time_in_status": self.time_in_status,
+            "last_active": self.last_active,
+            "worktree": self.worktree,
+            "git_diff_summary": self.git_diff_summary,
+            "commit_count": self.commit_count,
+            "transition_summary": self.transition_summary,
+            "suggested_next": self.suggested_next,
+            "recent_entries": [
+                {
+                    "timestamp": e.timestamp.isoformat(),
+                    "source": e.source,
+                    "content": e.content,
+                }
+                for e in self.recent_entries
+            ],
+        }
 
 
 def generate_handoff(
@@ -536,6 +574,19 @@ def generate_handoff(
     # Recent journal entries.
     recent = entries[-recent_entry_count:] if entries else []
 
+    # Git context — best-effort, only when worktree is available.
+    wt = getattr(session, "worktree", "") or ""
+    git_diff_summary = ""
+    commit_count = 0
+    if wt:
+        try:
+            from shoal.core.git import commit_count_since_main, diff_stat
+
+            git_diff_summary = diff_stat(wt)
+            commit_count = commit_count_since_main(wt)
+        except Exception:
+            logger.debug("git context unavailable for handoff", exc_info=True)
+
     return HandoffArtifact(
         session_name=getattr(session, "name", ""),
         tool=getattr(session, "tool", ""),
@@ -547,4 +598,7 @@ def generate_handoff(
         recent_entries=recent,
         transition_summary=transition_summary,
         suggested_next=suggested_next,
+        worktree=wt,
+        git_diff_summary=git_diff_summary,
+        commit_count=commit_count,
     )

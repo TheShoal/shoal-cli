@@ -1035,6 +1035,7 @@ async def kill_session_lifecycle(
         "worktree_removed": False,
         "branch_deleted": False,
         "db_deleted": False,
+        "handoff_generated": False,
         "journal_archived": False,
         "mcp_stopped": False,
         "auto_committed": False,
@@ -1108,12 +1109,34 @@ async def kill_session_lifecycle(
     if session:
         await emit(LifecycleEvent.session_killed, session=session)
 
-    # 3. Delete DB row
+    # 3. Generate handoff artifact (before DB deletion — needs transitions)
+    if session:
+        try:
+            from shoal.core.db import get_db
+            from shoal.core.journal import (
+                generate_handoff,
+                read_journal,
+                write_handoff_artifact,
+            )
+
+            entries = await asyncio.to_thread(read_journal, session_id)
+            handoff_db = await get_db()
+            transitions = await handoff_db.get_status_transitions(session_id, limit=5)
+            artifact = await asyncio.to_thread(
+                generate_handoff, session, entries, transitions
+            )
+            await asyncio.to_thread(write_handoff_artifact, session_id, artifact)
+            summary["handoff_generated"] = True
+            logger.info("[%s] kill: handoff artifact generated", session_id)
+        except Exception:
+            logger.warning("[%s] kill: failed to generate handoff", session_id, exc_info=True)
+
+    # 4. Delete DB row
     await delete_session(session_id)
     summary["db_deleted"] = True
     logger.info("[%s] kill: DB row deleted", session_id)
 
-    # 3.5. Archive journal (best-effort)
+    # 4.5. Archive journal (best-effort)
     try:
         from shoal.core.journal import archive_journal
 
