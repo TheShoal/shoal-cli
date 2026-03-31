@@ -25,6 +25,7 @@ from shoal.cli.session import attach, detach, popup, prune, rename, send, sessio
 from shoal.cli.session_create import add, fork, kill
 from shoal.cli.session_view import info, logs, ls, status
 from shoal.cli.setup import app as setup_app
+from shoal.cli.skill import app as skill_app
 from shoal.cli.tag import app as tag_app
 from shoal.cli.template import app as template_app
 from shoal.cli.watcher import app as watcher_app
@@ -118,6 +119,7 @@ app.add_typer(config_app, name="config", help="Configuration inspection.")
 app.add_typer(incident_app, name="incident", help="Incident supervision workflow.")
 app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
 app.add_typer(mode_app, name="mode", help="Operating modes.")
+app.add_typer(skill_app, name="skill", help="Cross-agent skills.")
 
 
 @app.command()

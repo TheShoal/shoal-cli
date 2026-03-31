@@ -292,6 +292,17 @@ class TemplateMixinConfig(BaseModel):
         return v
 
 
+class SkillConfig(BaseModel):
+    """Parsed skill metadata from a SKILL.md YAML frontmatter block."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str
+    description: str = ""
+    allowed_tools: list[str] = Field(default_factory=list)
+    path: str = ""
+
+
 class WorkspaceConfig(BaseModel):
     """Meta-repo workspace manifest — maps to ``.shoal/workspace.toml``.
 

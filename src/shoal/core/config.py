@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from shoal.models.config import ProjectHookEntry, WorkspaceConfig
+    from shoal.models.config import ProjectHookEntry, SkillConfig, WorkspaceConfig
 
 from shoal.core.status_provider import default_status_provider_for_tool
 from shoal.models.config import (
@@ -567,6 +567,60 @@ def refresh_tools() -> list[str]:
         logger.debug("Refreshed tool profile: %s", src_file.name)
 
     return refreshed
+
+
+def discover_skills(git_root: str | None = None) -> list[SkillConfig]:
+    """Discover skills from project-local and global paths.
+
+    Search order:
+    1. ``<git_root>/.shoal/skills/*/SKILL.md`` (project-local)
+    2. ``~/.config/shoal/skills/*/SKILL.md`` (global)
+
+    Returns parsed ``SkillConfig`` for each valid skill found.
+    Duplicates (same name) resolved by local-wins.
+    """
+    import re
+
+    from shoal.models.config import SkillConfig
+
+    _FM_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+
+    seen: dict[str, SkillConfig] = {}
+
+    search_paths: list[Path] = []
+    if git_root:
+        local = Path(git_root) / ".shoal" / "skills"
+        if local.is_dir():
+            search_paths.append(local)
+    global_skills = config_dir() / "skills"
+    if global_skills.is_dir():
+        search_paths.append(global_skills)
+
+    for skills_dir in search_paths:
+        for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
+            text = skill_md.read_text()
+            m = _FM_RE.match(text)
+            if not m:
+                logger.debug("Skipping skill without frontmatter: %s", skill_md)
+                continue
+            fm: dict[str, str] = {}
+            for line in m.group(1).splitlines():
+                if ":" in line:
+                    key, _, val = line.partition(":")
+                    fm[key.strip()] = val.strip()
+            name = fm.get("name", skill_md.parent.name)
+            description = fm.get("description", "")
+            raw_tools = fm.get("allowed-tools", fm.get("allowed_tools", ""))
+            tools = [s.strip() for s in raw_tools.split(",") if s.strip()] if raw_tools else []
+            if name not in seen:
+                seen[name] = SkillConfig(
+                    name=name,
+                    description=description,
+                    allowed_tools=tools,
+                    path=str(skill_md),
+                )
+
+    return list(seen.values())
 
 
 def load_workspace_config(git_root: str) -> WorkspaceConfig | None:

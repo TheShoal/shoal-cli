@@ -110,6 +110,37 @@ class SessionNotFoundError(LifecycleError):
 
 
 # ---------------------------------------------------------------------------
+# Skill sync — transpile .shoal/skills/ into tool-native format
+# ---------------------------------------------------------------------------
+
+
+def _sync_skills_to_worktree(git_root: str, wt_path: str, tool: str) -> None:
+    """Symlink .shoal/skills/ into the worktree's tool-native skill path.
+
+    Currently supports Claude Code (.claude/skills/).  Other tools get skills
+    via the cross-agent skill sync script (post_worktree_create hook).
+    """
+    skills_src = Path(git_root) / ".shoal" / "skills"
+    if not skills_src.is_dir():
+        return
+
+    wt = Path(wt_path)
+
+    # Claude Code: symlink each skill directory
+    if tool in ("claude", "claude-yolo"):
+        dest = wt / ".claude" / "skills"
+        dest.mkdir(parents=True, exist_ok=True)
+        for skill_dir in skills_src.iterdir():
+            if skill_dir.is_dir() and (skill_dir / "SKILL.md").exists():
+                link = dest / skill_dir.name
+                if not link.exists():
+                    try:
+                        link.symlink_to(skill_dir)
+                    except OSError:
+                        logger.debug("Failed to symlink skill %s", skill_dir.name)
+
+
+# ---------------------------------------------------------------------------
 # Post-worktree hook
 # ---------------------------------------------------------------------------
 
@@ -804,6 +835,10 @@ async def create_session_lifecycle(
         provisioned = await _provision_mcp_servers(mcp_servers, session.id, tool, work_dir)
         if provisioned:
             logger.info("[%s] create: MCP provisioned: %s", session.id, provisioned)
+
+    # 4.6. Sync skills into worktree (best-effort)
+    if wt_path:
+        await asyncio.to_thread(_sync_skills_to_worktree, git_root, wt_path, tool)
 
     # 5. Set pane title on the agent pane (first pane), not the active pane
     agent_pane = await tmux.async_first_pane(tmux_session)
