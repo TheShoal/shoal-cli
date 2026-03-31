@@ -53,3 +53,48 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  pyapp:
+    name: Build PyApp binary (${{ matrix.target }})
+    needs: publish
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: shoal-darwin-arm64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            asset: shoal-darwin-x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: shoal-linux-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build self-contained binary
+        env:
+          PYAPP_PROJECT_NAME: shoal-cli
+          PYAPP_PROJECT_VERSION: ${{ steps.version.outputs.version }}
+          PYAPP_PYTHON_VERSION: "3.12"
+          PYAPP_EXEC_MODULE: shoal.cli
+          PYAPP_PIP_EXTRA_ARGS: "--extra mcp"
+        run: |
+          cargo install pyapp --force --root output
+          cp output/bin/pyapp "${{ matrix.asset }}"
+          chmod +x "${{ matrix.asset }}"
+
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" "${{ matrix.asset }}" --repo "$GITHUB_REPOSITORY"

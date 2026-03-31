@@ -135,7 +135,13 @@ Optional:
 
 ### Install
 
-#### From PyPI (recommended)
+#### Via Homebrew (macOS)
+
+```bash
+brew install TheShoal/tap/shoal-cli
+```
+
+#### From PyPI
 
 ```bash
 pipx install shoal-cli
@@ -146,6 +152,18 @@ uv tool install shoal-cli
 # With MCP support (enables shoal-orchestrator MCP server)
 uv tool install "shoal-cli[mcp]"
 ```
+
+#### Direct binary download
+
+Download a self-contained binary from the [latest release](https://github.com/TheShoal/shoal-cli/releases/latest):
+
+```bash
+# macOS Apple Silicon
+curl -Lo shoal https://github.com/TheShoal/shoal-cli/releases/latest/download/shoal-darwin-arm64
+chmod +x shoal && sudo mv shoal /usr/local/bin/
+```
+
+See [getting-started](docs/getting-started.md) for all platform options.
 
 #### From source
 
