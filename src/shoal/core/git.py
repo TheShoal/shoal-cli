@@ -178,6 +178,35 @@ async def async_commit(path: str, message: str) -> None:
     await asyncio.to_thread(commit, path, message)
 
 
+def diff_stat(path: str) -> str:
+    """Return a short ``--stat`` summary of uncommitted changes, or ``""``."""
+    result = _run(["diff", "--stat", "HEAD"], cwd=path, check=False)
+    if result.returncode != 0:
+        return ""
+    lines = result.stdout.strip().splitlines()
+    return lines[-1].strip() if lines else ""
+
+
+def commit_count_since_main(path: str) -> int:
+    """Count commits on current branch since diverging from main/master."""
+    main = main_branch(path)
+    result = _run(["rev-list", "--count", f"{main}..HEAD"], cwd=path, check=False)
+    if result.returncode != 0:
+        return 0
+    try:
+        return int(result.stdout.strip())
+    except ValueError:
+        return 0
+
+
+async def async_diff_stat(path: str) -> str:
+    return await asyncio.to_thread(diff_stat, path)
+
+
+async def async_commit_count_since_main(path: str) -> int:
+    return await asyncio.to_thread(commit_count_since_main, path)
+
+
 # ---------------------------------------------------------------------------
 # Branch naming utilities
 # ---------------------------------------------------------------------------
@@ -190,6 +219,10 @@ ALLOWED_BRANCH_CATEGORIES: tuple[str, ...] = (
     "docs",
     "refactor",
     "test",
+    "plan",
+    "impl",
+    "review",
+    "batch",
 )
 
 

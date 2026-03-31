@@ -385,6 +385,8 @@ def _parse_template_data(
             extends=template_section.get("extends"),
             mixins=template_section.get("mixins", []),
             tool=template_section.get("tool", "pi"),
+            mode=template_section.get("mode", ""),
+            tags=template_section.get("tags", []),
             worktree=TemplateWorktreeConfig.model_validate(worktree_section),
             env=env_section,
             mcp=mcp_section,
@@ -422,12 +424,17 @@ def _merge_templates(
         child.setup_commands if "setup_commands" in child_tmpl else parent.setup_commands
     )
 
+    mode = child.mode if "mode" in child_tmpl else parent.mode
+    merged_tags = sorted(set(parent.tags) | set(child.tags))
+
     return SessionTemplateConfig(
         name=child.name,
         description=description,
         extends=None,
         mixins=child.mixins,
         tool=tool,
+        mode=mode,
+        tags=merged_tags,
         worktree=worktree,
         env=merged_env,
         mcp=merged_mcp,

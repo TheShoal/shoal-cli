@@ -12,10 +12,12 @@ from shoal.cli.config_cmd import app as config_app
 from shoal.cli.demo import app as demo_app
 from shoal.cli.diag import diag
 from shoal.cli.fin import app as fin_app
+from shoal.cli.handoff import handoff_ls, handoff_show
 from shoal.cli.history import history
 from shoal.cli.incident import app as incident_app
 from shoal.cli.journal import journal_view
 from shoal.cli.mcp import app as mcp_app
+from shoal.cli.mode_cmd import app as mode_app
 from shoal.cli.nvim import app as nvim_app
 from shoal.cli.remote import app as remote_app
 from shoal.cli.robo import app as robo_app
@@ -86,6 +88,8 @@ app.command("popup")(popup)
 app.command("diag")(diag)
 app.command("history")(history)
 app.command("journal")(journal_view)
+app.command("handoff")(handoff_show)
+app.command("handoff-ls", hidden=True)(handoff_ls)
 app.command("done")(session_done)
 
 # Aliases (hidden)
@@ -113,6 +117,7 @@ app.add_typer(template_app, name="template", help="Session templates.")
 app.add_typer(config_app, name="config", help="Configuration inspection.")
 app.add_typer(incident_app, name="incident", help="Incident supervision workflow.")
 app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
+app.add_typer(mode_app, name="mode", help="Operating modes.")
 
 
 @app.command()

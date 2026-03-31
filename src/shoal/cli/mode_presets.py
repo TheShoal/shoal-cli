@@ -3,15 +3,73 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from shoal.core.config import available_templates
 
-MODE_NAMES: tuple[str, ...] = (
-    "feature-lane",
-    "author-review",
-    "remote-batch",
-)
+
+@dataclass(frozen=True)
+class ModeSpec:
+    """Specification for a named operating mode."""
+
+    name: str
+    description: str
+    preferred_template: str
+    fallback_tool: str
+    worktree_prefix: str
+    auto_tags: list[str] = field(default_factory=list)
+
+
+MODE_REGISTRY: dict[str, ModeSpec] = {
+    "feature-lane": ModeSpec(
+        name="feature-lane",
+        description="Default feature development with isolated worktree",
+        preferred_template="codex-dev",
+        fallback_tool="codex",
+        worktree_prefix="feat",
+    ),
+    "author-review": ModeSpec(
+        name="author-review",
+        description="Author-review cycle with review tagging",
+        preferred_template="claude-review",
+        fallback_tool="claude",
+        worktree_prefix="review",
+        auto_tags=["review-ready"],
+    ),
+    "remote-batch": ModeSpec(
+        name="remote-batch",
+        description="Batch operations on remote hosts",
+        preferred_template="claude-dev",
+        fallback_tool="claude",
+        worktree_prefix="batch",
+    ),
+    "planner": ModeSpec(
+        name="planner",
+        description="Scope and plan work before implementation",
+        preferred_template="pi-dev",
+        fallback_tool="pi",
+        worktree_prefix="plan",
+        auto_tags=["planner"],
+    ),
+    "implementer": ModeSpec(
+        name="implementer",
+        description="Execute implementation from a plan",
+        preferred_template="pi-dev",
+        fallback_tool="pi",
+        worktree_prefix="impl",
+        auto_tags=["implementer"],
+    ),
+    "reviewer": ModeSpec(
+        name="reviewer",
+        description="Review changes before merge",
+        preferred_template="claude-review",
+        fallback_tool="claude",
+        worktree_prefix="review",
+        auto_tags=["reviewer", "review-ready"],
+    ),
+}
+
+MODE_NAMES: tuple[str, ...] = tuple(MODE_REGISTRY)
 
 
 @dataclass(frozen=True)
@@ -23,6 +81,7 @@ class ModeDefaults:
     tool: str | None
     worktree: str
     branch: bool
+    auto_tags: list[str] = field(default_factory=list)
 
 
 def resolve_mode_defaults(
@@ -39,37 +98,21 @@ def resolve_mode_defaults(
 
     Explicit CLI values always win. Modes only fill in values the caller did not set.
     """
-
-    if mode not in MODE_NAMES:
+    spec = MODE_REGISTRY.get(mode)
+    if spec is None:
         choices = ", ".join(MODE_NAMES)
         raise ValueError(f"Unknown mode '{mode}'. Choose one of: {choices}")
 
-    preferred_template: str | None = None
-    fallback_tool: str | None = None
-    worktree_prefix = "feat"
-
-    if mode == "feature-lane":
-        preferred_template = "codex-dev"
-        fallback_tool = "codex"
-        worktree_prefix = "feat"
-    elif mode == "author-review":
-        preferred_template = "claude-review"
-        fallback_tool = "claude"
-        worktree_prefix = "review"
-    elif mode == "remote-batch":
-        preferred_template = "claude-dev"
-        fallback_tool = "claude"
-        worktree_prefix = "batch"
-
     resolved_template = template
-    if resolved_template is None and tool is None and preferred_template in available_templates():
-        resolved_template = preferred_template
+    available = available_templates()
+    if resolved_template is None and tool is None and spec.preferred_template in available:
+        resolved_template = spec.preferred_template
 
     resolved_tool = tool
     if resolved_tool is None and resolved_template is None:
-        resolved_tool = fallback_tool
+        resolved_tool = spec.fallback_tool
 
-    resolved_worktree = worktree or f"{worktree_prefix}/{_worktree_slug(name, project_name)}"
+    resolved_worktree = worktree or f"{spec.worktree_prefix}/{_worktree_slug(name, project_name)}"
 
     return ModeDefaults(
         mode=mode,
@@ -77,6 +120,7 @@ def resolve_mode_defaults(
         tool=resolved_tool,
         worktree=resolved_worktree,
         branch=branch or True,
+        auto_tags=list(spec.auto_tags),
     )
 
 

@@ -250,6 +250,8 @@ class SessionTemplateConfig(BaseModel):
     extends: str | None = None
     mixins: list[str] = Field(default_factory=list)
     tool: str = "pi"
+    mode: str = ""
+    tags: list[str] = Field(default_factory=list)
     worktree: TemplateWorktreeConfig = Field(default_factory=TemplateWorktreeConfig)
     env: dict[str, str] = Field(default_factory=dict)
     mcp: list[str] = Field(default_factory=list)

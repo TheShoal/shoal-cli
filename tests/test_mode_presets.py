@@ -82,3 +82,67 @@ class TestNewModeDryRun:
         assert "Tool: codex" in result.output
         assert "Branch: feat/repo" in result.output
         assert "Worktree dir name: feat-repo" in result.output
+
+
+class TestModeRegistry:
+    def test_all_original_modes_present(self) -> None:
+        from shoal.cli.mode_presets import MODE_REGISTRY
+
+        assert "feature-lane" in MODE_REGISTRY
+        assert "author-review" in MODE_REGISTRY
+        assert "remote-batch" in MODE_REGISTRY
+
+    def test_new_modes_present(self) -> None:
+        from shoal.cli.mode_presets import MODE_REGISTRY
+
+        assert "planner" in MODE_REGISTRY
+        assert "implementer" in MODE_REGISTRY
+        assert "reviewer" in MODE_REGISTRY
+
+    def test_reviewer_has_review_ready_tag(self) -> None:
+        from shoal.cli.mode_presets import MODE_REGISTRY
+
+        assert "review-ready" in MODE_REGISTRY["reviewer"].auto_tags
+
+    def test_planner_has_planner_tag(self) -> None:
+        from shoal.cli.mode_presets import MODE_REGISTRY
+
+        assert "planner" in MODE_REGISTRY["planner"].auto_tags
+
+    def test_resolve_returns_auto_tags(self) -> None:
+        with patch("shoal.cli.mode_presets.available_templates", return_value=[]):
+            resolved = resolve_mode_defaults(
+                "reviewer",
+                name="code-review",
+                template=None,
+                tool=None,
+                worktree=None,
+                branch=False,
+                project_name="myproj",
+            )
+        assert "reviewer" in resolved.auto_tags
+        assert "review-ready" in resolved.auto_tags
+        assert resolved.worktree == "review/code-review"
+
+    def test_unknown_mode_raises(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Unknown mode"):
+            resolve_mode_defaults(
+                "nonexistent",
+                name=None,
+                template=None,
+                tool=None,
+                worktree=None,
+                branch=False,
+                project_name="p",
+            )
+
+
+class TestModeListCli:
+    def test_mode_ls(self) -> None:
+        result = runner.invoke(app, ["mode", "ls"])
+        assert result.exit_code == 0
+        assert "feature-lane" in result.output
+        assert "planner" in result.output
+        assert "reviewer" in result.output

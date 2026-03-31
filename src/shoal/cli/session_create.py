@@ -348,6 +348,15 @@ async def _add_impl(
             branch_name = git.current_branch(wt_path)
         await asyncio.to_thread(_run_post_worktree_hook, template_cfg, wt_path, root)
 
+    # Collect auto-tags from mode + template
+    auto_tags: list[str] = []
+    if template_cfg and template_cfg.tags:
+        auto_tags.extend(template_cfg.tags)
+    if mode:
+        auto_tags.extend(mode_defaults.auto_tags)
+    # Dedupe preserving order
+    auto_tags = list(dict.fromkeys(auto_tags))
+
     # Delegate to lifecycle service
     try:
         session = await create_session_lifecycle(
@@ -362,6 +371,7 @@ async def _add_impl(
             template_cfg=template_cfg,
             worktree_name=worktree or "",
             mcp_servers=mcp_servers or None,
+            tags=auto_tags or None,
         )
     except SessionExistsError as e:
         console.print(f"[red]Error: {e}[/red]")
