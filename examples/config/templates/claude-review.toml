@@ -1,0 +1,14 @@
+# Shoal — Claude Code review template
+# Review-oriented Claude session with review-ready tagging.
+# Usage: shoal new --mode reviewer --template claude-review
+
+[template]
+name = "claude-review"
+description = "Claude agent for code review"
+extends = "base-dev"
+tool = "claude"
+mode = "reviewer"
+tags = ["reviewer", "review-ready"]
+
+[template.env]
+CLAUDE_MODEL = "opus"

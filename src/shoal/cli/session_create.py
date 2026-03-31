@@ -118,6 +118,12 @@ async def _add_impl(
     resolved_mode: str | None = None
     resolved_path = Path(path).resolve() if path else Path.cwd().resolve()
 
+    if not resolved_path.is_dir():
+        console.print(f"[red]Error: Directory does not exist: {resolved_path}[/red]")
+        if path and not path.startswith("-"):
+            console.print(f"[dim]Did you mean: shoal new --name {path}[/dim]")
+        raise typer.Exit(1)
+
     # Validate git repo before applying mode defaults that may synthesize worktrees.
     if not git.is_git_repo(str(resolved_path)):
         console.print("[red]Error: Not a git repository[/red]")
