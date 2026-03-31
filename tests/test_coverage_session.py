@@ -127,7 +127,7 @@ class TestLsFormatting:
         mock_provider = MagicMock()
         mock_provider.exists.return_value = True
         with (
-            patch("shoal.cli.session_view.console", test_console),
+            patch("shoal.cli.session_view.get_console", return_value=test_console),
             patch("shoal.cli.session_view.list_sessions", return_value=sessions),
             patch("shoal.cli.session_view.provider_for_session", return_value=mock_provider),
             patch(

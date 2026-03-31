@@ -12,9 +12,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import typer
-from rich.rule import Rule
 
-from shoal.cli.demo import console, create_demo_project, tutorial_dir
+from shoal.cli._console import get_console
+from shoal.cli.demo import create_demo_project, tutorial_dir
 from shoal.core import git, tmux
 from shoal.core.db import with_db
 from shoal.core.state import create_session, delete_session, list_sessions
@@ -50,6 +50,8 @@ def demo_tutorial(
 
 
 async def _demo_tutorial_impl(*, cleanup: bool = False, start_step: int = 0) -> None:
+    from rich.rule import Rule
+
     tut_dir = tutorial_dir()
 
     if cleanup:
@@ -58,22 +60,22 @@ async def _demo_tutorial_impl(*, cleanup: bool = False, start_step: int = 0) -> 
 
     # Check prerequisites
     if not shutil.which("tmux"):
-        console.print("[red]Error: tmux is required for the tutorial.[/red]")
-        console.print("[dim]Install tmux and try again.[/dim]")
+        get_console().print("[red]Error: tmux is required for the tutorial.[/red]")
+        get_console().print("[dim]Install tmux and try again.[/dim]")
         raise typer.Exit(1)
 
     # Check for stale tutorial
     marker = tut_dir / MARKER_FILE
     if marker.exists():
-        console.print("[yellow]A previous tutorial session was found.[/yellow]")
-        console.print("Run 'shoal demo tutorial --cleanup' to remove it first.")
+        get_console().print("[yellow]A previous tutorial session was found.[/yellow]")
+        get_console().print("Run 'shoal demo tutorial --cleanup' to remove it first.")
         raise typer.Exit(1)
 
-    console.print()
-    console.print(Rule("[bold cyan]SHOAL INTERACTIVE TUTORIAL[/bold cyan]", style="cyan"))
-    console.print("[dim]Hands-on walkthrough using real Shoal commands.[/dim]")
-    console.print(f"[dim]Working directory: {tut_dir}[/dim]")
-    console.print()
+    get_console().print()
+    get_console().print(Rule("[bold cyan]SHOAL INTERACTIVE TUTORIAL[/bold cyan]", style="cyan"))
+    get_console().print("[dim]Hands-on walkthrough using real Shoal commands.[/dim]")
+    get_console().print(f"[dim]Working directory: {tut_dir}[/dim]")
+    get_console().print()
 
     ctx = TutorialContext(tutorial_path=tut_dir)
 
@@ -81,8 +83,10 @@ async def _demo_tutorial_impl(*, cleanup: bool = False, start_step: int = 0) -> 
         # Create tutorial project
         create_demo_project(tut_dir)
         marker.write_text("")
-        console.print(f"  [green]{Symbols.CHECK}[/green] Created tutorial project at {tut_dir}")
-        console.print()
+        get_console().print(
+            f"  [green]{Symbols.CHECK}[/green] Created tutorial project at {tut_dir}"
+        )
+        get_console().print()
 
         steps = [
             _step_create_session,
@@ -102,17 +106,17 @@ async def _demo_tutorial_impl(*, cleanup: bool = False, start_step: int = 0) -> 
             if i < len(steps):
                 await step_fn(ctx)
                 if not typer.confirm(f"\nContinue to step {i + 1}/{TOTAL_STEPS}?", default=True):
-                    console.print("\n[dim]Tutorial paused. Resume with --step flag.[/dim]")
+                    get_console().print("\n[dim]Tutorial paused. Resume with --step flag.[/dim]")
                     _write_marker(ctx)
                     return
-                console.print()
+                get_console().print()
             else:
                 # Last step (cleanup) — no confirm needed
                 await step_fn(ctx)
 
     except (KeyboardInterrupt, typer.Abort):
-        console.print("\n[yellow]Tutorial interrupted.[/yellow]")
-        console.print("[dim]Run 'shoal demo tutorial --cleanup' to remove resources.[/dim]")
+        get_console().print("\n[yellow]Tutorial interrupted.[/yellow]")
+        get_console().print("[dim]Run 'shoal demo tutorial --cleanup' to remove resources.[/dim]")
         _write_marker(ctx)
         return
 
@@ -131,12 +135,14 @@ def _write_marker(ctx: TutorialContext) -> None:
 
 async def _step_create_session(ctx: TutorialContext) -> None:
     """Step 1: Create a session."""
-    console.print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Create a Session[/bold]"))
-    console.print("[dim]Sessions are the core unit — an AI agent in a tmux window.[/dim]")
-    console.print()
-    console.print("[bold yellow]Equivalent CLI:[/bold yellow]")
-    console.print("  [cyan]shoal new tutorial-main[/cyan]")
-    console.print()
+    from rich.rule import Rule
+
+    get_console().print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Create a Session[/bold]"))
+    get_console().print("[dim]Sessions are the core unit — an AI agent in a tmux window.[/dim]")
+    get_console().print()
+    get_console().print("[bold yellow]Equivalent CLI:[/bold yellow]")
+    get_console().print("  [cyan]shoal new tutorial-main[/cyan]")
+    get_console().print()
 
     s = await create_session(
         name="tutorial-main",
@@ -147,20 +153,22 @@ async def _step_create_session(ctx: TutorialContext) -> None:
     ctx.session_ids.append(s.id)
     ctx.session_names.append(s.name)
 
-    console.print(f"  [green]{Symbols.CHECK}[/green] Created session: [bold]{s.name}[/bold]")
-    console.print(f"     ID: {s.id}")
-    console.print(f"     Tool: {s.tool}")
-    console.print(f"     Branch: {s.branch}")
+    get_console().print(f"  [green]{Symbols.CHECK}[/green] Created session: [bold]{s.name}[/bold]")
+    get_console().print(f"     ID: {s.id}")
+    get_console().print(f"     Tool: {s.tool}")
+    get_console().print(f"     Branch: {s.branch}")
 
 
 async def _step_check_status(ctx: TutorialContext) -> None:
     """Step 2: Check status."""
-    console.print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Check Status[/bold]"))
-    console.print("[dim]Shoal monitors each session's tmux pane for status patterns.[/dim]")
-    console.print()
-    console.print("[bold yellow]Equivalent CLI:[/bold yellow]")
-    console.print("  [cyan]shoal ls[/cyan]")
-    console.print()
+    from rich.rule import Rule
+
+    get_console().print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Check Status[/bold]"))
+    get_console().print("[dim]Shoal monitors each session's tmux pane for status patterns.[/dim]")
+    get_console().print()
+    get_console().print("[bold yellow]Equivalent CLI:[/bold yellow]")
+    get_console().print("  [cyan]shoal ls[/cyan]")
+    get_console().print()
 
     sessions = await list_sessions()
     if sessions:
@@ -174,19 +182,21 @@ async def _step_check_status(ctx: TutorialContext) -> None:
             icon = get_status_icon(s.status.value)
             status_text = f"[{style}]{icon} {s.status.value}[/{style}]"
             table.add_row(s.name, s.tool, status_text, s.branch or "main")
-        console.print(table)
-    console.print()
-    console.print(f"  [green]{Symbols.CHECK}[/green] {len(sessions)} session(s) found")
+        get_console().print(table)
+    get_console().print()
+    get_console().print(f"  [green]{Symbols.CHECK}[/green] {len(sessions)} session(s) found")
 
 
 async def _step_fork_session(ctx: TutorialContext) -> None:
     """Step 3: Fork a session with worktree."""
-    console.print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Fork a Session[/bold]"))
-    console.print("[dim]Forking creates an isolated git worktree for parallel work.[/dim]")
-    console.print()
-    console.print("[bold yellow]Equivalent CLI:[/bold yellow]")
-    console.print("  [cyan]shoal fork tutorial-main --name tutorial-fork[/cyan]")
-    console.print()
+    from rich.rule import Rule
+
+    get_console().print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Fork a Session[/bold]"))
+    get_console().print("[dim]Forking creates an isolated git worktree for parallel work.[/dim]")
+    get_console().print()
+    get_console().print("[bold yellow]Equivalent CLI:[/bold yellow]")
+    get_console().print("  [cyan]shoal fork tutorial-main --name tutorial-fork[/cyan]")
+    get_console().print()
 
     wt_path = ctx.tutorial_path / ".worktrees" / "tutorial-fork"
     (ctx.tutorial_path / ".worktrees").mkdir(parents=True, exist_ok=True)
@@ -202,26 +212,28 @@ async def _step_fork_session(ctx: TutorialContext) -> None:
     ctx.session_ids.append(s.id)
     ctx.session_names.append(s.name)
 
-    console.print(f"  [green]{Symbols.CHECK}[/green] Forked: [bold]{s.name}[/bold]")
-    console.print(f"     Worktree: {wt_path}")
-    console.print(f"     Branch: {s.branch}")
-    console.print("     [dim]Files here are isolated from the main session.[/dim]")
+    get_console().print(f"  [green]{Symbols.CHECK}[/green] Forked: [bold]{s.name}[/bold]")
+    get_console().print(f"     Worktree: {wt_path}")
+    get_console().print(f"     Branch: {s.branch}")
+    get_console().print("     [dim]Files here are isolated from the main session.[/dim]")
 
 
 async def _step_write_journal(ctx: TutorialContext) -> None:
     """Step 4: Write a journal entry."""
+    from rich.rule import Rule
+
     from shoal.core.journal import (
         JournalMetadata,
         append_entry,
         read_journal,
     )
 
-    console.print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Write a Journal[/bold]"))
-    console.print("[dim]Journals are append-only markdown logs per session.[/dim]")
-    console.print()
-    console.print("[bold yellow]Equivalent CLI:[/bold yellow]")
-    console.print('  [cyan]shoal journal tutorial-main --append "Session notes here"[/cyan]')
-    console.print()
+    get_console().print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Write a Journal[/bold]"))
+    get_console().print("[dim]Journals are append-only markdown logs per session.[/dim]")
+    get_console().print()
+    get_console().print("[bold yellow]Equivalent CLI:[/bold yellow]")
+    get_console().print('  [cyan]shoal journal tutorial-main --append "Session notes here"[/cyan]')
+    get_console().print()
 
     sid = ctx.session_ids[0]
     meta = JournalMetadata(
@@ -235,26 +247,28 @@ async def _step_write_journal(ctx: TutorialContext) -> None:
         source="tutorial",
         metadata=meta,
     )
-    console.print(f"  [green]{Symbols.CHECK}[/green] Wrote journal entry for tutorial-main")
+    get_console().print(f"  [green]{Symbols.CHECK}[/green] Wrote journal entry for tutorial-main")
 
     entries = read_journal(sid)
     if entries:
         e = entries[-1]
-        console.print(f"     Timestamp: {e.timestamp.isoformat()}")
-        console.print(f"     Source: {e.source}")
-        console.print(f'     Content: "{e.content[:60]}"')
+        get_console().print(f"     Timestamp: {e.timestamp.isoformat()}")
+        get_console().print(f"     Source: {e.source}")
+        get_console().print(f'     Content: "{e.content[:60]}"')
 
 
 async def _step_run_diagnostics(ctx: TutorialContext) -> None:
     """Step 5: Run diagnostics."""
+    from rich.rule import Rule
+
     from shoal.core.config import config_dir, data_dir
 
-    console.print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Run Diagnostics[/bold]"))
-    console.print("[dim]Health checks for all Shoal components.[/dim]")
-    console.print()
-    console.print("[bold yellow]Equivalent CLI:[/bold yellow]")
-    console.print("  [cyan]shoal diag[/cyan]")
-    console.print()
+    get_console().print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Run Diagnostics[/bold]"))
+    get_console().print("[dim]Health checks for all Shoal components.[/dim]")
+    get_console().print()
+    get_console().print("[bold yellow]Equivalent CLI:[/bold yellow]")
+    get_console().print("  [cyan]shoal diag[/cyan]")
+    get_console().print()
 
     checks: list[tuple[str, bool, str]] = []
 
@@ -274,19 +288,21 @@ async def _step_run_diagnostics(ctx: TutorialContext) -> None:
     for name, healthy, detail in checks:
         mark = Symbols.CHECK if healthy else Symbols.CROSS
         color = "green" if healthy else "red"
-        console.print(f"  [{color}]{mark}[/{color}] {name:16} {detail}")
+        get_console().print(f"  [{color}]{mark}[/{color}] {name:16} {detail}")
 
 
 async def _step_explore_templates(ctx: TutorialContext) -> None:
     """Step 6: Explore templates."""
+    from rich.rule import Rule
+
     from shoal.core.config import templates_dir
 
-    console.print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Explore Templates[/bold]"))
-    console.print("[dim]Templates define reusable session layouts with inheritance.[/dim]")
-    console.print()
-    console.print("[bold yellow]Equivalent CLI:[/bold yellow]")
-    console.print("  [cyan]shoal template ls[/cyan]")
-    console.print()
+    get_console().print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Explore Templates[/bold]"))
+    get_console().print("[dim]Templates define reusable session layouts with inheritance.[/dim]")
+    get_console().print()
+    get_console().print("[bold yellow]Equivalent CLI:[/bold yellow]")
+    get_console().print("  [cyan]shoal template ls[/cyan]")
+    get_console().print()
 
     tpl_dir = templates_dir()
     if tpl_dir.exists():
@@ -298,27 +314,31 @@ async def _step_explore_templates(ctx: TutorialContext) -> None:
 
                     t = resolve_template(tf.stem)
                     extends = f" extends {t.extends}" if t.extends else ""
-                    console.print(
+                    get_console().print(
                         f"  [green]{Symbols.CHECK}[/green] {t.name:20} "
                         f"tool={t.tool or 'default'}{extends}"
                     )
                 except Exception as e:
-                    console.print(f"  [red]{Symbols.CROSS}[/red] {tf.stem}: {e}")
+                    get_console().print(f"  [red]{Symbols.CROSS}[/red] {tf.stem}: {e}")
         else:
-            console.print("  [dim]No templates found. Run 'shoal init' to scaffold defaults.[/dim]")
+            get_console().print(
+                "  [dim]No templates found. Run 'shoal init' to scaffold defaults.[/dim]"
+            )
     else:
-        console.print("  [dim]Templates dir doesn't exist. Run 'shoal init' first.[/dim]")
+        get_console().print("  [dim]Templates dir doesn't exist. Run 'shoal init' first.[/dim]")
 
 
 async def _step_cleanup(ctx: TutorialContext) -> None:
     """Step 7: Clean up."""
-    console.print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Clean Up[/bold]"))
-    console.print()
+    from rich.rule import Rule
+
+    get_console().print(Rule(f"[bold]Step {ctx.step}/{TOTAL_STEPS}: Clean Up[/bold]"))
+    get_console().print()
 
     await _cleanup(ctx.tutorial_path)
 
-    console.print()
-    console.print(
+    get_console().print()
+    get_console().print(
         create_panel(
             """[bold green]Tutorial complete![/bold green]
 
@@ -359,7 +379,7 @@ async def _cleanup(tut_dir: Path) -> None:
             if tmux.has_session(s.runtime.session_name):
                 tmux.kill_session(s.runtime.session_name)
             await delete_session(s.id)
-            console.print(f"  [green]{Symbols.CHECK}[/green] Removed session: {s.name}")
+            get_console().print(f"  [green]{Symbols.CHECK}[/green] Removed session: {s.name}")
             cleaned += 1
 
     # Also try marker file session IDs (crash recovery)
@@ -374,7 +394,9 @@ async def _cleanup(tut_dir: Path) -> None:
                 if tmux.has_session(stale.runtime.session_name):
                     tmux.kill_session(stale.runtime.session_name)
                 await delete_session(stale.id)
-                console.print(f"  [green]{Symbols.CHECK}[/green] Removed session: {stale.name}")
+                get_console().print(
+                    f"  [green]{Symbols.CHECK}[/green] Removed session: {stale.name}"
+                )
                 cleaned += 1
 
     # Clean up journal files for tutorial sessions
@@ -387,10 +409,10 @@ async def _cleanup(tut_dir: Path) -> None:
     # Remove tutorial directory
     if tut_dir.exists():
         shutil.rmtree(tut_dir)
-        console.print(f"  [green]{Symbols.CHECK}[/green] Removed tutorial directory")
+        get_console().print(f"  [green]{Symbols.CHECK}[/green] Removed tutorial directory")
         cleaned += 1
 
     if cleaned:
-        console.print(f"\n[bold green]Cleaned up {cleaned} resource(s).[/bold green]")
+        get_console().print(f"\n[bold green]Cleaned up {cleaned} resource(s).[/bold green]")
     else:
-        console.print("[dim]Nothing to clean up.[/dim]")
+        get_console().print("[dim]Nothing to clean up.[/dim]")

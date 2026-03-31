@@ -6,12 +6,10 @@ import asyncio
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core.db import with_db
 from shoal.core.state import add_tag, get_session, remove_tag, resolve_session
-
-console = Console()
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -28,10 +26,10 @@ def tag_add(
 async def _tag_add_impl(session: str, tag: str) -> None:
     sid = await resolve_session(session)
     if not sid:
-        console.print(f"[red]Session not found: {session}[/red]")
+        get_console().print(f"[red]Session not found: {session}[/red]")
         raise typer.Exit(1)
     await add_tag(sid, tag)
-    console.print(f"Tag '{tag}' added to session '{session}'")
+    get_console().print(f"Tag '{tag}' added to session '{session}'")
 
 
 @app.command("remove")
@@ -46,10 +44,10 @@ def tag_remove(
 async def _tag_remove_impl(session: str, tag: str) -> None:
     sid = await resolve_session(session)
     if not sid:
-        console.print(f"[red]Session not found: {session}[/red]")
+        get_console().print(f"[red]Session not found: {session}[/red]")
         raise typer.Exit(1)
     await remove_tag(sid, tag)
-    console.print(f"Tag '{tag}' removed from session '{session}'")
+    get_console().print(f"Tag '{tag}' removed from session '{session}'")
 
 
 @app.command("ls")
@@ -63,14 +61,14 @@ def tag_ls(
 async def _tag_ls_impl(session: str) -> None:
     sid = await resolve_session(session)
     if not sid:
-        console.print(f"[red]Session not found: {session}[/red]")
+        get_console().print(f"[red]Session not found: {session}[/red]")
         raise typer.Exit(1)
     s = await get_session(sid)
     if not s:
-        console.print(f"[red]Session not found: {session}[/red]")
+        get_console().print(f"[red]Session not found: {session}[/red]")
         raise typer.Exit(1)
     if s.tags:
         for tag in s.tags:
-            console.print(tag)
+            get_console().print(tag)
     else:
-        console.print("[dim]No tags[/dim]")
+        get_console().print("[dim]No tags[/dim]")

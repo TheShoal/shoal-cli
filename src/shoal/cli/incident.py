@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Annotated, cast
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core.db import with_db
 from shoal.core.theme import Icons, Symbols, create_panel, create_table
 from shoal.models.incident import (
@@ -32,7 +32,6 @@ from shoal.services.incident import (
 )
 from shoal.services.incident_hooks import record_claude_hook_event, scaffold_claude_hook_files
 
-console = Console()
 app = typer.Typer(
     name="incident",
     help="Incident supervision workflow.",
@@ -79,7 +78,7 @@ def incident_ingest(
     try:
         alert = load_alert_payload(payload)
     except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        get_console().print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from None
 
     request = IncidentIngestRequest(
@@ -108,7 +107,7 @@ def incident_ingest(
     if incident.supervisor_session_id:
         table.add_row("Supervisor", incident.supervisor_session_id)
 
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.STATUS} Incident ingested[/bold blue]",
@@ -130,12 +129,12 @@ def incident_ls(
     try:
         parsed_status = IncidentStatus(status) if status else None
     except ValueError:
-        console.print("[red]Error:[/red] Invalid incident status")
+        get_console().print("[red]Error:[/red] Invalid incident status")
         raise typer.Exit(1) from None
 
     incidents = asyncio.run(with_db(list_incident_records(status=parsed_status)))
     if not incidents:
-        console.print("[yellow]No incidents found[/yellow]")
+        get_console().print("[yellow]No incidents found[/yellow]")
         return
 
     table = create_table(padding=(0, 1))
@@ -159,7 +158,7 @@ def incident_ls(
             incident.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
         )
 
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.STATUS} Active incidents[/bold blue]",
@@ -217,7 +216,7 @@ def incident_spawn(
             )
         )
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        get_console().print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from None
 
     table = create_table(padding=(0, 1))
@@ -231,7 +230,7 @@ def incident_spawn(
     if session.worktree:
         table.add_row("Worktree", session.worktree)
 
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.SESSION} Incident lane created[/bold blue]",
@@ -249,7 +248,7 @@ def incident_show(
     """Show detailed incident state."""
     record = asyncio.run(with_db(get_incident_record(incident)))
     if record is None:
-        console.print(f"[red]Incident not found:[/red] {incident}")
+        get_console().print(f"[red]Incident not found:[/red] {incident}")
         raise typer.Exit(1)
 
     summary = create_table(padding=(0, 1))
@@ -272,7 +271,7 @@ def incident_show(
     if record.supervisor_session_id:
         summary.add_row("Supervisor", record.supervisor_session_id)
 
-    console.print(
+    get_console().print(
         create_panel(
             summary,
             title=f"[bold blue]{Icons.STATUS} Incident detail[/bold blue]",
@@ -297,7 +296,7 @@ def incident_show(
             )
     else:
         lanes.add_row("[dim]-[/dim]", "[dim]No worker lanes yet[/dim]", "-", "-")
-    console.print(create_panel(lanes, title="[bold]Worker lanes[/bold]", title_align="left"))
+    get_console().print(create_panel(lanes, title="[bold]Worker lanes[/bold]", title_align="left"))
 
     events = create_table(padding=(0, 1))
     events.add_column("AT", width=20)
@@ -314,12 +313,14 @@ def incident_show(
             )
     else:
         events.add_row("-", "-", "-", "No timeline events")
-    console.print(create_panel(events, title="[bold]Recent timeline[/bold]", title_align="left"))
+    get_console().print(
+        create_panel(events, title="[bold]Recent timeline[/bold]", title_align="left")
+    )
 
     if record.alert.metadata:
-        console.print(f"[bold]{Symbols.BULLET_FILLED} Metadata[/bold]")
+        get_console().print(f"[bold]{Symbols.BULLET_FILLED} Metadata[/bold]")
         for key, value in sorted(record.alert.metadata.items()):
-            console.print(f"  [cyan]{key}[/cyan]: {value}")
+            get_console().print(f"  [cyan]{key}[/cyan]: {value}")
 
 
 @app.command("resolve")
@@ -334,7 +335,7 @@ def incident_resolve(
     try:
         record = asyncio.run(with_db(resolve_incident(incident, note=note)))
     except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        get_console().print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from None
 
     table = create_table(padding=(0, 1))
@@ -345,7 +346,7 @@ def incident_resolve(
     if note.strip():
         table.add_row("Note", note.strip())
 
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.STATUS} Incident resolved[/bold blue]",
@@ -375,7 +376,7 @@ def incident_hook_scaffold(
     try:
         paths = scaffold_claude_hook_files(resolved_dir, force=force)
     except FileExistsError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        get_console().print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from None
 
     table = create_table(padding=(0, 1))
@@ -384,7 +385,7 @@ def incident_hook_scaffold(
     table.add_row("Script", str(paths["script"]))
     table.add_row("Settings", str(paths["settings"]))
 
-    console.print(
+    get_console().print(
         create_panel(
             table,
             title=f"[bold blue]{Icons.STATUS} Claude hook scaffold[/bold blue]",
@@ -393,7 +394,7 @@ def incident_hook_scaffold(
             padding=(0, 1),
         )
     )
-    console.print(
+    get_console().print(
         "[dim]Manual opt-in:[/dim] copy the generated hooks stanza into .claude/settings.json "
         + "or .claude/settings.local.json yourself."
     )

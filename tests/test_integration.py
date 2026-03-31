@@ -67,7 +67,7 @@ async def test_fork_workflow_integration(mock_dirs):
         patch("shoal.core.tmux.pane_coordinates", return_value=None),
         patch("shoal.core.git.worktree_add"),
         patch("shoal.core.git.current_branch", return_value="feat/fork"),
-        patch("shoal.cli.session_create.console.print"),
+        patch("shoal.cli.session_create.get_console"),
     ):
         # We use _fork_impl to test the application logic
         await _fork_impl("source", "forked", no_worktree=True)

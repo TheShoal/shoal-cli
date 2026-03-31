@@ -166,13 +166,14 @@ class TestHandoffArtifacts:
             patch("shoal.core.journal.data_dir", return_value=tmp_path),
             patch("shoal.cli.journal.read_journal", return_value=[_entry("Fixed auth")]),
             patch("shoal.core.db.get_db", new=AsyncMock(return_value=mock_db)),
-            patch("shoal.cli.journal.console.print") as mock_print,
+            patch("shoal.cli.journal.get_console") as mock_get_console,
         ):
             _render_handoff("abc", session)
 
         artifact_path = tmp_path / "journals" / "handoffs" / "abc.md"
         assert artifact_path.exists()
         assert "Fixed auth" in artifact_path.read_text()
+        mock_print = mock_get_console.return_value.print
         assert any(
             "Saved handoff artifact:" in str(call.args[0])
             and str(artifact_path) in str(call.args[0])

@@ -84,7 +84,7 @@ async def test_demo_start_happy_path(tmp_path, mock_dirs):
             "shoal.cli.demo.start_stop.git.worktree_add", side_effect=mock_wt_add
         ) as mock_worktree_add,
         patch("shoal.cli.demo.start_stop.git.current_branch", return_value="main"),
-        patch("shoal.cli.demo.start_stop.console.print"),
+        patch("shoal.cli.demo.start_stop.get_console"),
         patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
     ):
         # Mock tool availability
@@ -212,7 +212,7 @@ async def test_demo_start_marker_exists(tmp_path, mock_dirs):
 
     with (
         patch("shoal.cli.demo.start_stop.shutil.which", return_value="/usr/bin/tmux"),
-        patch("shoal.cli.demo.start_stop.console.print") as mock_print,
+        patch("shoal.cli.demo.start_stop.get_console") as mock_print,
         patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
         patch("shoal.cli.demo.start_stop.create_demo_project") as mock_create,
     ):
@@ -223,7 +223,8 @@ async def test_demo_start_marker_exists(tmp_path, mock_dirs):
 
         assert exc.value.exit_code == 1
         mock_create.assert_not_called()
-        error_calls = [str(c) for c in mock_print.call_args_list]
+        mock_con = mock_print()
+        error_calls = [str(c) for c in mock_con.print.call_args_list]
         assert any("demo already running" in str(c).lower() for c in error_calls)
 
 
@@ -234,7 +235,7 @@ async def test_demo_start_missing_tmux(tmp_path, mock_dirs):
 
     with (
         patch("shoal.cli.demo.start_stop.shutil.which", return_value=None),
-        patch("shoal.cli.demo.start_stop.console.print") as mock_print,
+        patch("shoal.cli.demo.start_stop.get_console") as mock_print,
         patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
         patch("shoal.cli.demo.start_stop.create_demo_project") as mock_create,
     ):
@@ -245,7 +246,8 @@ async def test_demo_start_missing_tmux(tmp_path, mock_dirs):
 
         assert exc.value.exit_code == 1
         mock_create.assert_not_called()
-        error_calls = [str(c) for c in mock_print.call_args_list]
+        mock_con = mock_print()
+        error_calls = [str(c) for c in mock_con.print.call_args_list]
         assert any("tmux not found" in str(c).lower() for c in error_calls)
 
 
@@ -256,7 +258,7 @@ async def test_demo_start_missing_git(tmp_path, mock_dirs):
 
     with (
         patch("shoal.cli.demo.start_stop.shutil.which", side_effect=["/usr/bin/tmux", None]),
-        patch("shoal.cli.demo.start_stop.console.print") as mock_print,
+        patch("shoal.cli.demo.start_stop.get_console") as mock_print,
         patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
         patch("shoal.cli.demo.start_stop.create_demo_project") as mock_create,
     ):
@@ -267,7 +269,8 @@ async def test_demo_start_missing_git(tmp_path, mock_dirs):
 
         assert exc.value.exit_code == 1
         mock_create.assert_not_called()
-        error_calls = [str(c) for c in mock_print.call_args_list]
+        mock_con = mock_print()
+        error_calls = [str(c) for c in mock_con.print.call_args_list]
         assert any("git not found" in str(c).lower() for c in error_calls)
 
 
@@ -277,7 +280,7 @@ async def test_demo_stop_no_marker(tmp_path, mock_dirs):
     demo_dir = tmp_path / "demo-test"
 
     with (
-        patch("shoal.cli.demo.start_stop.console.print") as mock_print,
+        patch("shoal.cli.demo.start_stop.get_console") as mock_print,
         patch("shoal.cli.demo.start_stop.demo_dir", return_value=demo_dir),
     ):
         # Should raise exit
@@ -289,7 +292,8 @@ async def test_demo_stop_no_marker(tmp_path, mock_dirs):
         assert exc.value.exit_code == 0
 
         # Should print error about no demo running
-        error_calls = [str(c) for c in mock_print.call_args_list]
+        mock_con = mock_print()
+        error_calls = [str(c) for c in mock_con.print.call_args_list]
         assert any(
             "no demo found" in str(c).lower() or "nothing to clean up" in str(c).lower()
             for c in error_calls
@@ -316,7 +320,7 @@ async def test_demo_stop_partial_cleanup(tmp_path, mock_dirs):
         patch("shoal.cli.demo.start_stop.tmux.has_session") as mock_has_session,
         patch("shoal.cli.demo.start_stop.tmux.kill_session") as mock_kill_session,
         patch("shoal.cli.demo.start_stop.shutil.rmtree") as mock_rmtree,
-        patch("shoal.cli.demo.start_stop.console.print"),
+        patch("shoal.cli.demo.start_stop.get_console"),
     ):
         mock_has_session.return_value = True
 
@@ -364,10 +368,11 @@ async def test_demo_stop_without_tmux_sessions(tmp_path, mock_dirs):
 @pytest.mark.asyncio
 async def test_demo_tour_all_pass(mock_dirs):
     """Test demo tour runs and all feature checks pass."""
-    with patch("shoal.cli.demo.tour.console.print") as mock_print:
+    with patch("shoal.cli.demo.tour.get_console") as mock_get:
         await _demo_tour_impl()
 
-    all_output = " ".join(str(c) for c in mock_print.call_args_list)
+    mock_con = mock_get()
+    all_output = " ".join(str(c) for c in mock_con.print.call_args_list)
     # All 7 pass when fastmcp is installed; 6 pass + 1 skipped otherwise
     assert (
         "All 7 feature areas passed" in all_output
@@ -413,10 +418,11 @@ async def test_demo_tour_with_sessions(mock_dirs):
     with patch("shoal.cli.demo.start_stop.tmux.has_session", return_value=False):
         await create_session("test-session", "claude", "/tmp/test")
 
-    with patch("shoal.cli.demo.tour.console.print") as mock_print:
+    with patch("shoal.cli.demo.tour.get_console") as mock_get:
         await _demo_tour_impl()
 
-    all_output = " ".join(str(c) for c in mock_print.call_args_list)
+    mock_con = mock_get()
+    all_output = " ".join(str(c) for c in mock_con.print.call_args_list)
     assert (
         "All 7 feature areas passed" in all_output
         or "6 feature areas passed, 1 skipped" in all_output
@@ -428,10 +434,11 @@ async def test_demo_tour_with_sessions(mock_dirs):
 @pytest.mark.asyncio
 async def test_demo_tour_no_failures(mock_dirs):
     """Test that no tour checks produce failures."""
-    with patch("shoal.cli.demo.tour.console.print") as mock_print:
+    with patch("shoal.cli.demo.tour.get_console") as mock_get:
         await _demo_tour_impl()
 
-    all_output = " ".join(str(c) for c in mock_print.call_args_list)
+    mock_con = mock_get()
+    all_output = " ".join(str(c) for c in mock_con.print.call_args_list)
     assert (
         "All 7 feature areas passed" in all_output
         or "6 feature areas passed, 1 skipped" in all_output

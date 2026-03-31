@@ -6,8 +6,8 @@ from typing import Annotated
 
 import typer
 from pydantic import ValidationError
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core.config import (
     ConfigLoadError,
     _load_template_raw,
@@ -20,8 +20,6 @@ from shoal.core.config import (
     templates_dir,
 )
 from shoal.core.theme import create_table
-
-console = Console()
 
 app = typer.Typer(no_args_is_help=False, invoke_without_command=True)
 
@@ -38,8 +36,8 @@ def template_ls() -> None:
     """List available global session templates."""
     names = available_templates()
     if not names:
-        console.print("[yellow]No templates found[/yellow]")
-        console.print(f"[dim]Directory: {templates_dir()}[/dim]")
+        get_console().print("[yellow]No templates found[/yellow]")
+        get_console().print(f"[dim]Directory: {templates_dir()}[/dim]")
         return
 
     table = create_table(padding=(0, 1))
@@ -88,8 +86,8 @@ def template_ls() -> None:
             template.description or "[dim]-[/dim]",
         )
 
-    console.print()
-    console.print(table)
+    get_console().print()
+    get_console().print(table)
 
 
 @app.command("show")
@@ -107,20 +105,20 @@ def template_show(
         else:
             template = load_template(name)
     except FileNotFoundError:
-        console.print(f"[red]Template not found: {name}[/red]")
+        get_console().print(f"[red]Template not found: {name}[/red]")
         available = available_templates()
         if available:
-            console.print(f"[yellow]Available:[/yellow] {', '.join(available)}")
+            get_console().print(f"[yellow]Available:[/yellow] {', '.join(available)}")
         raise typer.Exit(1) from None
     except ConfigLoadError as e:
-        console.print(f"[red]{e}[/red]")
+        get_console().print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
     except (ValidationError, ValueError, TypeError) as exc:
-        console.print(f"[red]Invalid template: {name}[/red]")
-        console.print(f"[dim]{exc}[/dim]")
+        get_console().print(f"[red]Invalid template: {name}[/red]")
+        get_console().print(f"[dim]{exc}[/dim]")
         raise typer.Exit(1) from None
 
-    console.print_json(template.model_dump_json(indent=2))
+    get_console().print_json(template.model_dump_json(indent=2))
 
 
 @app.command("validate")
@@ -130,8 +128,8 @@ def template_validate(
     """Validate one template or all templates."""
     names = [name] if name else available_templates()
     if not names:
-        console.print("[yellow]No templates found[/yellow]")
-        console.print(f"[dim]Directory: {templates_dir()}[/dim]")
+        get_console().print("[yellow]No templates found[/yellow]")
+        get_console().print(f"[dim]Directory: {templates_dir()}[/dim]")
         return
 
     errors = 0
@@ -146,17 +144,17 @@ def template_validate(
                     extends_info = f" [dim](extends {extends_name})[/dim]"
             except FileNotFoundError:
                 pass
-            console.print(f"[green]OK[/green] {template_name}{extends_info}")
+            get_console().print(f"[green]OK[/green] {template_name}{extends_info}")
         except FileNotFoundError:
-            console.print(f"[red]MISSING[/red] {template_name}")
+            get_console().print(f"[red]MISSING[/red] {template_name}")
             errors += 1
         except ConfigLoadError as e:
-            console.print(f"[red]INVALID[/red] {template_name}")
-            console.print(f"[dim]{e}[/dim]")
+            get_console().print(f"[red]INVALID[/red] {template_name}")
+            get_console().print(f"[dim]{e}[/dim]")
             errors += 1
         except (ValidationError, ValueError, TypeError) as exc:
-            console.print(f"[red]INVALID[/red] {template_name}")
-            console.print(f"[dim]{exc}[/dim]")
+            get_console().print(f"[red]INVALID[/red] {template_name}")
+            get_console().print(f"[dim]{exc}[/dim]")
             errors += 1
 
     if errors:
@@ -168,8 +166,8 @@ def template_mixins_cmd() -> None:
     """List available template mixins."""
     names = available_mixins()
     if not names:
-        console.print("[yellow]No mixins found[/yellow]")
-        console.print(f"[dim]Directory: {mixins_dir()}[/dim]")
+        get_console().print("[yellow]No mixins found[/yellow]")
+        get_console().print(f"[dim]Directory: {mixins_dir()}[/dim]")
         return
 
     table = create_table(padding=(0, 2))
@@ -192,5 +190,5 @@ def template_mixins_cmd() -> None:
             m.description or "[dim]-[/dim]",
         )
 
-    console.print()
-    console.print(table)
+    get_console().print()
+    get_console().print(table)

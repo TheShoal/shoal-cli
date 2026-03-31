@@ -7,9 +7,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
-from rich.table import Table
 
+from shoal.cli._console import get_console
 from shoal.core.config import ensure_dirs, load_config, load_tool_config
 from shoal.core.db import with_db
 from shoal.core.state import _get_tool_icon, get_session, list_sessions
@@ -25,8 +24,6 @@ from shoal.core.theme import (
 )
 from shoal.models.state import SessionState
 from shoal.services.runtime_provider import provider_for_session, runtime_summary
-
-console = Console()
 
 
 def ls(
@@ -61,11 +58,11 @@ async def _ls_impl(format: str | None, *, tag: str | None = None, tree: bool = F
 
     if format == "plain":
         for session in sessions:
-            console.print(session.name)
+            get_console().print(session.name)
         return
 
     if not sessions:
-        console.print("No sessions")
+        get_console().print("No sessions")
         return
 
     if tree:
@@ -141,13 +138,13 @@ async def _ls_impl(format: str | None, *, tag: str | None = None, tree: bool = F
             table.add_row(*row)
 
         if index:
-            console.print()
-        console.rule(
+            get_console().print()
+        get_console().rule(
             f"[bold blue]{session_icon} {display_project}[/bold blue]",
             style=Colors.PANEL_BORDER_PRIMARY,
             align="left",
         )
-        console.print(table)
+        get_console().print(table)
 
 
 def _render_fork_tree(sessions: list[SessionState]) -> None:
@@ -176,7 +173,7 @@ def _render_fork_tree(sessions: list[SessionState]) -> None:
 
     def _print_node(s: SessionState, prefix: str, is_last: bool) -> None:
         connector = "└── " if is_last else "├── "
-        console.print(
+        get_console().print(
             f"{prefix}{connector}[bold]{s.name}[/bold] "
             f"[dim]({s.id})[/dim] {s.status.value}{_fmt_tags(s.tags)}"
         )
@@ -185,9 +182,9 @@ def _render_fork_tree(sessions: list[SessionState]) -> None:
         for i, child in enumerate(kids):
             _print_node(child, child_prefix, i == len(kids) - 1)
 
-    console.print()
+    get_console().print()
     for _i, root in enumerate(roots):
-        console.print(
+        get_console().print(
             f"[bold]{root.name}[/bold] "
             f"[dim]({root.id})[/dim] {root.status.value}{_fmt_tags(root.tags)}"
         )
@@ -220,8 +217,8 @@ async def _status_impl(format: str | None) -> None:
     if not sessions:
         if format == "plain":
             return
-        console.print("[yellow]No active sessions[/yellow]")
-        console.print("Create one with: [bold]shoal new[/bold]")
+        get_console().print("[yellow]No active sessions[/yellow]")
+        get_console().print("Create one with: [bold]shoal new[/bold]")
         return
 
     cfg = load_config()
@@ -247,7 +244,7 @@ async def _status_impl(format: str | None) -> None:
 
         tier_counts: Counter[str] = Counter(label for _, _, label in annotated)
         parts = [f"{n} {lbl}" for lbl, n in tier_counts.most_common()]
-        console.print(f"Total: {len(sessions)} | {', '.join(parts)}")
+        get_console().print(f"Total: {len(sessions)} | {', '.join(parts)}")
         return
 
     # Group into attention / active / ready / background.
@@ -265,44 +262,46 @@ async def _status_impl(format: str | None) -> None:
     ]
 
     arrow = Symbols.ARROW
-    console.print()
+    get_console().print()
 
     if attention:
-        console.print(f"[bold red]Needs attention ({len(attention)})[/bold red]")
+        get_console().print(f"[bold red]Needs attention ({len(attention)})[/bold red]")
         for s, lbl in attention:
             icon = _get_tool_icon(s.tool)
             tier_style = "red" if s.status.value == "error" else "yellow"
-            console.print(
+            get_console().print(
                 f"  {icon} [bold]{s.name}[/bold]  "
                 f"[{tier_style}]{lbl}[/{tier_style}]  "
                 f"[dim]{arrow} shoal attach {s.name}[/dim]"
             )
-        console.print()
+        get_console().print()
 
     if review:
-        console.print(f"[bold cyan]Ready for review ({len(review)})[/bold cyan]")
+        get_console().print(f"[bold cyan]Ready for review ({len(review)})[/bold cyan]")
         for s, lbl in review:
             icon = _get_tool_icon(s.tool)
-            console.print(
+            get_console().print(
                 f"  {icon} [bold]{s.name}[/bold]  [cyan]{lbl}[/cyan]  "
                 f"[dim]{arrow} shoal attach {s.name}[/dim]"
             )
-        console.print()
+        get_console().print()
 
     if active:
-        console.print(f"[bold green]Active ({len(active)})[/bold green]")
+        get_console().print(f"[bold green]Active ({len(active)})[/bold green]")
         for s, lbl in active:
             icon = _get_tool_icon(s.tool)
-            console.print(f"  {icon} [bold]{s.name}[/bold]  [green]{lbl}[/green]")
-        console.print()
+            get_console().print(f"  {icon} [bold]{s.name}[/bold]  [green]{lbl}[/green]")
+        get_console().print()
 
     if background:
-        console.print(f"[dim]Background ({len(background)})[/dim]")
+        get_console().print(f"[dim]Background ({len(background)})[/dim]")
         for s, lbl in background:
             icon = _get_tool_icon(s.tool)
             tier_style = "yellow" if "stale" in lbl else "dim"
-            console.print(f"  {icon} [bold]{s.name}[/bold]  [{tier_style}]{lbl}[/{tier_style}]")
-        console.print()
+            get_console().print(
+                f"  {icon} [bold]{s.name}[/bold]  [{tier_style}]{lbl}[/{tier_style}]"
+            )
+        get_console().print()
 
     total = len(sessions)
     n_attention = len(attention)
@@ -311,8 +310,8 @@ async def _status_impl(format: str | None) -> None:
         summary_parts.append(f"[red]{n_attention} need attention[/red]")
     if review:
         summary_parts.append(f"[cyan]{len(review)} review-ready[/cyan]")
-    console.print("[dim]" + "  ·  ".join(summary_parts) + "[/dim]")
-    console.print("[dim]shoal ls for full list  ·  shoal popup for dashboard[/dim]")
+    get_console().print("[dim]" + "  ·  ".join(summary_parts) + "[/dim]")
+    get_console().print("[dim]shoal ls for full list  ·  shoal popup for dashboard[/dim]")
 
 
 def info(
@@ -356,6 +355,8 @@ async def _info_impl(session_name_or_id: str | None, color_setting: str) -> None
         tool_cfg = None
 
     from rich.columns import Columns
+    from rich.console import Console
+    from rich.table import Table
 
     status_style = get_status_style(s.status.value)
 
@@ -408,7 +409,7 @@ async def _info_impl(session_name_or_id: str | None, color_setting: str) -> None
     elif color_setting == "never":
         info_console = Console(no_color=True)
     else:
-        info_console = console
+        info_console = get_console()
 
     info_console.print()
     info_console.print(
@@ -485,15 +486,19 @@ async def _logs_impl(
 
     provider = provider_for_session(s)
     if not provider.exists(s):
-        console.print(f"[red]Runtime session not found: {s.runtime.session_name}[/red]")
+        get_console().print(f"[red]Runtime session not found: {s.runtime.session_name}[/red]")
         raise typer.Exit(1)
 
     if color_setting == "always":
+        from rich.console import Console
+
         logs_console = Console(force_terminal=True, color_system="truecolor")
     elif color_setting == "never":
+        from rich.console import Console
+
         logs_console = Console(no_color=True)
     else:
-        logs_console = console
+        logs_console = get_console()
 
     include_ansi = color_setting == "always"
 

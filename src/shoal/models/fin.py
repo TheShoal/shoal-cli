@@ -10,7 +10,6 @@ import zipfile
 from pathlib import Path
 from typing import Literal
 
-import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -96,6 +95,8 @@ def _download_fin(url: str) -> Path:
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
+
+    import httpx
 
     try:
         response = httpx.get(url, follow_redirects=True, timeout=30)

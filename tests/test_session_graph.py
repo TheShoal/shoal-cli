@@ -252,7 +252,7 @@ class TestLsTree:
         output = StringIO()
         test_console = Console(file=output, width=120)
 
-        with patch("shoal.cli.session_view.console", test_console):
+        with patch("shoal.cli.session_view.get_console", return_value=test_console):
             _render_fork_tree([parent, child, orphan])
 
         rendered = output.getvalue()
@@ -275,7 +275,7 @@ class TestLsTree:
         output = StringIO()
         test_console = Console(file=output, width=120)
 
-        with patch("shoal.cli.session_view.console", test_console):
+        with patch("shoal.cli.session_view.get_console", return_value=test_console):
             _render_fork_tree([s1, s2])
 
         rendered = output.getvalue()

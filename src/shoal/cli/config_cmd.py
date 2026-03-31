@@ -6,11 +6,9 @@ import json
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core.config import ConfigLoadError, config_dir, data_dir, load_config, state_dir
-
-console = Console()
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -25,16 +23,16 @@ def config_show(
     try:
         cfg = load_config()
     except ConfigLoadError as e:
-        console.print(f"[red]{e}[/red]")
+        get_console().print(f"[red]{e}[/red]")
         raise typer.Exit(1) from None
 
     if fmt == "json":
-        console.print_json(cfg.model_dump_json(indent=2))
+        get_console().print_json(cfg.model_dump_json(indent=2))
     elif fmt == "toml":
         _print_toml_like(cfg.model_dump())
     else:
-        console.print(f"[red]Unknown format: {fmt}[/red]")
-        console.print("[dim]Use --format toml or --format json[/dim]")
+        get_console().print(f"[red]Unknown format: {fmt}[/red]")
+        get_console().print("[dim]Use --format toml or --format json[/dim]")
         raise typer.Exit(1)
 
 
@@ -43,16 +41,16 @@ def _print_toml_like(data: dict[str, object], prefix: str = "") -> None:
     for key, value in data.items():
         full_key = f"{prefix}.{key}" if prefix else key
         if isinstance(value, dict):
-            console.print(f"\n[bold cyan]\\[{full_key}][/bold cyan]")
+            get_console().print(f"\n[bold cyan]\\[{full_key}][/bold cyan]")
             _print_toml_like(value, full_key)
         elif isinstance(value, list):
-            console.print(f"[green]{key}[/green] = {json.dumps(value)}")
+            get_console().print(f"[green]{key}[/green] = {json.dumps(value)}")
         elif isinstance(value, bool):
-            console.print(f"[green]{key}[/green] = {'true' if value else 'false'}")
+            get_console().print(f"[green]{key}[/green] = {'true' if value else 'false'}")
         elif isinstance(value, str):
-            console.print(f'[green]{key}[/green] = "{value}"')
+            get_console().print(f'[green]{key}[/green] = "{value}"')
         else:
-            console.print(f"[green]{key}[/green] = {value}")
+            get_console().print(f"[green]{key}[/green] = {value}")
 
 
 @app.command("paths")
@@ -75,4 +73,4 @@ def config_paths() -> None:
         exists = "[green]exists[/green]" if path.exists() else "[yellow]not created[/yellow]"
         table.add_row(label, str(path), f"({exists}) [{env_var}]")
 
-    console.print(table)
+    get_console().print(table)

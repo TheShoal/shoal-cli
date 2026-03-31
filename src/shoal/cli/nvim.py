@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.core.config import ensure_dirs
 from shoal.core.db import with_db
 from shoal.core.state import (
@@ -19,8 +19,6 @@ from shoal.core.state import (
     get_session,
     resolve_nvim_socket,
 )
-
-console = Console()
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -43,16 +41,16 @@ async def _nvim_send_impl(session: str, command: str) -> None:
 
     socket = await resolve_nvim_socket(s)
     if not socket:
-        console.print(f"[red]No nvim socket for session '{s.name}'[/red]")
+        get_console().print(f"[red]No nvim socket for session '{s.name}'[/red]")
         raise typer.Exit(1)
 
     if not await asyncio.to_thread(lambda: Path(socket).exists()):
-        console.print(f"[red]Nvim socket not found: {socket}[/red]")
-        console.print(f"Is nvim running in session '{s.name}'?")
+        get_console().print(f"[red]Nvim socket not found: {socket}[/red]")
+        get_console().print(f"Is nvim running in session '{s.name}'?")
         raise typer.Exit(1)
 
     if not shutil.which("nvr"):
-        console.print("[red]nvr not found — install with: pip install neovim-remote[/red]")
+        get_console().print("[red]nvr not found — install with: pip install neovim-remote[/red]")
         raise typer.Exit(1)
 
     await asyncio.to_thread(
@@ -60,7 +58,7 @@ async def _nvim_send_impl(session: str, command: str) -> None:
         ["nvr", "--servername", socket, "--remote-send", f"<C-\\><C-n>:{command}<CR>"],
         check=False,
     )
-    console.print(f"Sent to {s.name} nvim: :{command}")
+    get_console().print(f"Sent to {s.name} nvim: :{command}")
 
 
 @app.command("diagnostics")
@@ -92,16 +90,16 @@ async def _nvim_diagnostics_impl(session: str) -> None:
 
     socket = await resolve_nvim_socket(s)
     if not socket:
-        console.print(f"[red]No nvim socket for session '{s.name}'[/red]")
+        get_console().print(f"[red]No nvim socket for session '{s.name}'[/red]")
         raise typer.Exit(1)
 
     if not await asyncio.to_thread(lambda: Path(socket).exists()):
-        console.print(f"[red]Nvim socket not found: {socket}[/red]")
-        console.print(f"Is nvim running in session '{s.name}'?")
+        get_console().print(f"[red]Nvim socket not found: {socket}[/red]")
+        get_console().print(f"Is nvim running in session '{s.name}'?")
         raise typer.Exit(1)
 
     if not shutil.which("nvr"):
-        console.print("[red]nvr not found — install with: pip install neovim-remote[/red]")
+        get_console().print("[red]nvr not found — install with: pip install neovim-remote[/red]")
         raise typer.Exit(1)
 
     # Write Lua to a temp file to avoid shell quoting issues with luaeval()
@@ -129,7 +127,7 @@ async def _nvim_diagnostics_impl(session: str) -> None:
         await asyncio.to_thread(lambda: lua_file.unlink(missing_ok=True))
 
     if not result.stdout.strip():
-        console.print(f"No diagnostics for session '{s.name}'")
+        get_console().print(f"No diagnostics for session '{s.name}'")
     else:
-        console.print(f"Diagnostics for session '{s.name}':")
-        console.print(result.stdout)
+        get_console().print(f"Diagnostics for session '{s.name}':")
+        get_console().print(result.stdout)

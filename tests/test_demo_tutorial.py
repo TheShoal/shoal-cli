@@ -21,7 +21,7 @@ async def test_tutorial_missing_tmux(mock_dirs):
 
     with (
         patch("shoal.cli.demo.tutorial.shutil.which", return_value=None),
-        patch("shoal.cli.demo.tutorial.console.print"),
+        patch("shoal.cli.demo.tutorial.get_console"),
     ):
         with pytest.raises(Exit) as exc:
             await _demo_tutorial_impl()
@@ -37,7 +37,7 @@ async def test_tutorial_stale_marker(tmp_path, mock_dirs):
     with (
         patch("shoal.cli.demo.tutorial.shutil.which", return_value="/usr/bin/tmux"),
         patch("shoal.cli.demo.tutorial.tutorial_dir", return_value=tmp_path),
-        patch("shoal.cli.demo.tutorial.console.print"),
+        patch("shoal.cli.demo.tutorial.get_console"),
     ):
         # Create stale marker
         (tmp_path / ".shoal-tutorial").write_text("")
@@ -77,9 +77,10 @@ async def test_step_check_status(tmp_path, mock_dirs):
     s = await create_session("tutorial-main", "claude", str(tmp_path))
     ctx = TutorialContext(tutorial_path=tmp_path, session_ids=[s.id], step=2)
 
-    with patch("shoal.cli.demo.tutorial.console.print") as mock_print:
+    with patch("shoal.cli.demo.tutorial.get_console") as mock_get_console:
         await _step_check_status(ctx)
 
+    mock_print = mock_get_console.return_value.print
     assert any(isinstance(call.args[0], Table) for call in mock_print.call_args_list if call.args)
     rendered = "\n".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
     assert "1 session(s) found" in rendered
@@ -99,7 +100,7 @@ async def test_step_write_journal(tmp_path, mock_dirs):
         step=4,
     )
 
-    with patch("shoal.cli.demo.tutorial.console.print"):
+    with patch("shoal.cli.demo.tutorial.get_console"):
         await _step_write_journal(ctx)
 
     entries = read_journal(s.id)
@@ -112,10 +113,10 @@ async def test_step_write_journal(tmp_path, mock_dirs):
 async def test_cleanup_idempotent(tmp_path, mock_dirs):
     """Test cleanup works when no resources exist."""
     missing = tmp_path / "missing-tutorial"
-    with patch("shoal.cli.demo.tutorial.console.print") as mock_print:
+    with patch("shoal.cli.demo.tutorial.get_console") as mock_get_console:
         await _cleanup(missing)
 
-    mock_print.assert_called_once_with("[dim]Nothing to clean up.[/dim]")
+    mock_get_console.return_value.print.assert_called_once_with("[dim]Nothing to clean up.[/dim]")
     assert not missing.exists()
 
 
@@ -130,7 +131,7 @@ async def test_cleanup_kills_sessions(tmp_path, mock_dirs):
 
     with (
         patch("shoal.cli.demo.tutorial.tmux.has_session", return_value=False),
-        patch("shoal.cli.demo.tutorial.console.print"),
+        patch("shoal.cli.demo.tutorial.get_console"),
     ):
         await _cleanup(tmp_path)
 

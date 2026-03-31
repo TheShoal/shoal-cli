@@ -7,14 +7,11 @@ from datetime import datetime
 from typing import Annotated
 
 import typer
-from rich.console import Console
-from rich.table import Table
 
+from shoal.cli._console import get_console
 from shoal.core.db import get_db, with_db
 from shoal.core.state import resolve_session
 from shoal.core.theme import STATUS_STYLES, Symbols, create_panel
-
-console = Console()
 
 
 def history(
@@ -28,18 +25,20 @@ def history(
 async def _history_impl(session: str, limit: int) -> None:
     sid = await resolve_session(session)
     if not sid:
-        console.print(f"[red]Session not found: {session}[/red]")
+        get_console().print(f"[red]Session not found: {session}[/red]")
         raise typer.Exit(1)
 
     db = await get_db()
     transitions = await db.get_status_transitions(sid, limit=limit)
 
     if not transitions:
-        console.print(f"[yellow]No status transitions recorded for '{session}'[/yellow]")
+        get_console().print(f"[yellow]No status transitions recorded for '{session}'[/yellow]")
         return
 
     # Transitions are ordered desc — reverse for chronological display
     transitions.reverse()
+
+    from rich.table import Table
 
     table = Table(show_header=True, header_style="bold cyan", padding=(0, 1))
     table.add_column("Timestamp", style="dim")
@@ -61,10 +60,10 @@ async def _history_impl(session: str, limit: int) -> None:
 
         table.add_row(ts, from_styled, Symbols.ARROW, to_styled, duration)
 
-    console.print(
+    get_console().print(
         create_panel(table, title=f"[bold]Status History: {session}[/bold]", title_align="left")
     )
-    console.print(f"[dim]{len(transitions)} transition(s)[/dim]")
+    get_console().print(f"[dim]{len(transitions)} transition(s)[/dim]")
 
 
 def _format_timestamp(iso: str) -> str:

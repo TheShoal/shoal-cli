@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
+from shoal.cli._console import get_console
 from shoal.cli.mode_presets import resolve_mode_defaults
 from shoal.core import git
 from shoal.core.config import (
@@ -42,8 +42,6 @@ from shoal.services.lifecycle import (
     fork_session_lifecycle,
     kill_session_lifecycle,
 )
-
-console = Console()
 
 
 def _branch_name_for_worktree(worktree_name: str) -> str:
@@ -117,20 +115,20 @@ async def _add_impl(
     resolved_path = Path(path).resolve() if path else Path.cwd().resolve()
 
     if not resolved_path.is_dir():
-        console.print(f"[red]Error: Directory does not exist: {resolved_path}[/red]")
+        get_console().print(f"[red]Error: Directory does not exist: {resolved_path}[/red]")
         if path and not path.startswith("-"):
-            console.print(f"[dim]Did you mean: shoal new --name {path}[/dim]")
+            get_console().print(f"[dim]Did you mean: shoal new --name {path}[/dim]")
         raise typer.Exit(1)
 
     # Validate git repo before applying mode defaults that may synthesize worktrees.
     if not git.is_git_repo(str(resolved_path)):
-        console.print("[red]Error: Not a git repository[/red]")
-        console.print(f"[dim]Path: {resolved_path}[/dim]")
-        console.print()
-        console.print("[yellow]Shoal requires a git repository to track sessions.[/yellow]")
-        console.print("Run one of the following:")
-        console.print(f"  cd {resolved_path} && git init")
-        console.print("  shoal new <path-to-git-repo>")
+        get_console().print("[red]Error: Not a git repository[/red]")
+        get_console().print(f"[dim]Path: {resolved_path}[/dim]")
+        get_console().print()
+        get_console().print("[yellow]Shoal requires a git repository to track sessions.[/yellow]")
+        get_console().print("Run one of the following:")
+        get_console().print(f"  cd {resolved_path} && git init")
+        get_console().print("  shoal new <path-to-git-repo>")
         raise typer.Exit(1)
 
     root = git.git_root(str(resolved_path))
@@ -138,8 +136,10 @@ async def _add_impl(
     # --- Workspace routing: re-target to a sub-repo if inside a meta-repo ---
     ws_cfg = load_workspace_config(root)
     if repo and not ws_cfg:
-        console.print("[red]Error: --repo requires .shoal/workspace.toml[/red]")
-        console.print(f"[dim]No workspace manifest found at {root}/.shoal/workspace.toml[/dim]")
+        get_console().print("[red]Error: --repo requires .shoal/workspace.toml[/red]")
+        get_console().print(
+            f"[dim]No workspace manifest found at {root}/.shoal/workspace.toml[/dim]"
+        )
         raise typer.Exit(1)
     if ws_cfg and ws_cfg.repos:
         try:
@@ -149,12 +149,12 @@ async def _add_impl(
             )
             resolved_path = Path(resolved_path_str)
             if root != old_root:
-                console.print(f"[dim]Workspace routing: {old_root} → {root}[/dim]")
+                get_console().print(f"[dim]Workspace routing: {old_root} → {root}[/dim]")
         except ValueError as e:
-            console.print(f"[red]Error: {e}[/red]")
+            get_console().print(f"[red]Error: {e}[/red]")
             raise typer.Exit(1) from None
         except ConfigLoadError as e:
-            console.print(f"[red]{e}[/red]")
+            get_console().print(f"[red]{e}[/red]")
             raise typer.Exit(1) from None
 
     if mode:
@@ -169,7 +169,7 @@ async def _add_impl(
                 project_name=Path(root).name,
             )
         except ValueError as e:
-            console.print(f"[red]Error: {e}[/red]")
+            get_console().print(f"[red]Error: {e}[/red]")
             raise typer.Exit(1) from None
 
         resolved_mode = mode_defaults.mode
@@ -184,15 +184,15 @@ async def _add_impl(
         except FileNotFoundError:
             template_path = templates_dir() / f"{template}.toml"
             source = template_source(template)
-            console.print(f"[red]Error: Template '{template}' not found[/red]")
-            console.print(f"[dim]Expected config at: {template_path} ({source})[/dim]")
+            get_console().print(f"[red]Error: Template '{template}' not found[/red]")
+            get_console().print(f"[dim]Expected config at: {template_path} ({source})[/dim]")
             raise typer.Exit(1) from None
         except ConfigLoadError as e:
-            console.print(f"[red]{e}[/red]")
+            get_console().print(f"[red]{e}[/red]")
             raise typer.Exit(1) from None
         except ValueError as e:
-            console.print(f"[red]Error: Invalid template '{template}'[/red]")
-            console.print(f"[dim]{e}[/dim]")
+            get_console().print(f"[red]Error: Invalid template '{template}'[/red]")
+            get_console().print(f"[dim]{e}[/dim]")
             raise typer.Exit(1) from None
 
         if not tool and template_cfg.tool:
@@ -202,8 +202,10 @@ async def _add_impl(
             try:
                 worktree = template_cfg.worktree.name.format(template_name=template_cfg.name)
             except KeyError as e:
-                console.print(f"[red]Error: Template worktree has unsupported variable {e}[/red]")
-                console.print(
+                get_console().print(
+                    f"[red]Error: Template worktree has unsupported variable {e}[/red]"
+                )
+                get_console().print(
                     "[dim]Use --worktree for dynamic names or only"
                     " {template_name} in template.worktree.name[/dim]"
                 )
@@ -221,24 +223,24 @@ async def _add_impl(
         tool = cfg.general.default_tool
     tool_config_path = config_dir() / "tools" / f"{tool}.toml"
     if not tool_config_path.exists():
-        console.print(f"[red]Error: Unknown tool '{tool}'[/red]")
-        console.print(f"[dim]Expected config at: {tool_config_path}[/dim]")
-        console.print()
-        console.print("[yellow]Available tools:[/yellow]")
+        get_console().print(f"[red]Error: Unknown tool '{tool}'[/red]")
+        get_console().print(f"[dim]Expected config at: {tool_config_path}[/dim]")
+        get_console().print()
+        get_console().print("[yellow]Available tools:[/yellow]")
         tools_dir = config_dir() / "tools"
         if tools_dir.exists():
             for f in sorted(tools_dir.glob("*.toml")):
-                console.print(f"  • {f.stem}")
+                get_console().print(f"  • {f.stem}")
         else:
-            console.print("  [dim](none configured)[/dim]")
-        console.print()
-        console.print("[yellow]To create a tool config:[/yellow]")
-        console.print(f"  mkdir -p {tools_dir}")
-        console.print(f"  cat > {tool_config_path} <<EOF")
-        console.print("  [tool]")
-        console.print(f'  name = "{tool}"')
-        console.print(f'  command = "{tool}"  # or full path')
-        console.print("  EOF")
+            get_console().print("  [dim](none configured)[/dim]")
+        get_console().print()
+        get_console().print("[yellow]To create a tool config:[/yellow]")
+        get_console().print(f"  mkdir -p {tools_dir}")
+        get_console().print(f"  cat > {tool_config_path} <<EOF")
+        get_console().print("  [tool]")
+        get_console().print(f'  name = "{tool}"')
+        get_console().print(f'  command = "{tool}"  # or full path')
+        get_console().print("  EOF")
         raise typer.Exit(1)
 
     work_dir = str(resolved_path)
@@ -250,20 +252,20 @@ async def _add_impl(
         wt_path = str(Path(root) / ".worktrees" / wt_dir_name)
 
         if Path(wt_path).exists():
-            console.print("[red]Error: Worktree already exists[/red]")
-            console.print(f"[dim]Path: {wt_path}[/dim]")
-            console.print()
-            console.print("[yellow]Options:[/yellow]")
-            console.print("  • Attach to existing worktree: shoal attach")
-            console.print(f"  • Use a different worktree name: shoal new -w {worktree}-v2")
-            console.print(f"  • Remove existing worktree: rm -rf {wt_path}")
+            get_console().print("[red]Error: Worktree already exists[/red]")
+            get_console().print(f"[dim]Path: {wt_path}[/dim]")
+            get_console().print()
+            get_console().print("[yellow]Options:[/yellow]")
+            get_console().print("  • Attach to existing worktree: shoal attach")
+            get_console().print(f"  • Use a different worktree name: shoal new -w {worktree}-v2")
+            get_console().print(f"  • Remove existing worktree: rm -rf {wt_path}")
             raise typer.Exit(1)
 
         if branch:
             try:
                 branch_name = _branch_name_for_worktree(worktree)
             except ValueError as e:
-                console.print(f"[red]Error: {e}[/red]")
+                get_console().print(f"[red]Error: {e}[/red]")
                 raise typer.Exit(1) from None
         else:
             branch_name = git.current_branch(str(resolved_path))
@@ -284,32 +286,32 @@ async def _add_impl(
 
     # Check name collision
     if await find_by_name(session_name):
-        console.print(f"[red]Error: Session '{session_name}' already exists[/red]")
-        console.print()
-        console.print("[yellow]Actionable suggestions:[/yellow]")
-        console.print(f"  • Attach to existing: [bold]shoal attach {session_name}[/bold]")
-        console.print(f"  • Use unique name:    [bold]shoal new -n {session_name}-v2[/bold]")
-        console.print(f"  • Kill existing:      [bold]shoal kill {session_name}[/bold]")
+        get_console().print(f"[red]Error: Session '{session_name}' already exists[/red]")
+        get_console().print()
+        get_console().print("[yellow]Actionable suggestions:[/yellow]")
+        get_console().print(f"  • Attach to existing: [bold]shoal attach {session_name}[/bold]")
+        get_console().print(f"  • Use unique name:    [bold]shoal new -n {session_name}-v2[/bold]")
+        get_console().print(f"  • Kill existing:      [bold]shoal kill {session_name}[/bold]")
         raise typer.Exit(1)
 
     tool_cfg = load_tool_config(tool)
     tmux_session = build_tmux_session_name(session_name)
 
     if dry_run:
-        console.print("[bold cyan]Dry run: no changes applied[/bold cyan]")
-        console.print(f"  Session: {session_name}")
-        console.print(f"  Tool: {tool}")
-        console.print(f"  Branch: {branch_name}")
+        get_console().print("[bold cyan]Dry run: no changes applied[/bold cyan]")
+        get_console().print(f"  Session: {session_name}")
+        get_console().print(f"  Tool: {tool}")
+        get_console().print(f"  Branch: {branch_name}")
         if worktree:
-            console.print(f"  Worktree: {work_dir}")
-            console.print(f"  Worktree dir name: {worktree.replace('/', '-')}")
+            get_console().print(f"  Worktree: {work_dir}")
+            get_console().print(f"  Worktree dir name: {worktree.replace('/', '-')}")
         else:
-            console.print(f"  Directory: {work_dir}")
-        console.print(f"  Tmux: {tmux_session}")
+            get_console().print(f"  Directory: {work_dir}")
+        get_console().print(f"  Tmux: {tmux_session}")
         if resolved_mode:
-            console.print(f"  Mode: {resolved_mode}")
+            get_console().print(f"  Mode: {resolved_mode}")
         if template_cfg:
-            console.print(f"  Template: {template_cfg.name}")
+            get_console().print(f"  Template: {template_cfg.name}")
         try:
             if template_cfg and template_cfg.windows:
                 startup_preview = _preview_template_startup(
@@ -331,16 +333,16 @@ async def _add_impl(
                     tmux_session=tmux_session,
                 )
         except ValueError as e:
-            console.print(f"[red]Error: {e}[/red]")
+            get_console().print(f"[red]Error: {e}[/red]")
             raise typer.Exit(1) from None
 
-        console.print()
-        console.print("[bold]Planned tmux actions:[/bold]")
+        get_console().print()
+        get_console().print("[bold]Planned tmux actions:[/bold]")
         if startup_preview:
             for cmd in startup_preview:
-                console.print(f"  - tmux {cmd}")
+                get_console().print(f"  - tmux {cmd}")
         else:
-            console.print("  - [dim](none)[/dim]")
+            get_console().print("  - [dim](none)[/dim]")
         return
 
     if worktree:
@@ -378,39 +380,39 @@ async def _add_impl(
             tags=auto_tags or None,
         )
     except SessionExistsError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
     except TmuxSetupError as e:
-        console.print("[red]Error: Failed to create tmux session[/red]")
-        console.print(f"[dim]{e}[/dim]")
-        console.print()
-        console.print("[yellow]Troubleshooting:[/yellow]")
-        console.print("  • Check if tmux is installed: which tmux")
-        console.print("  • Check if tmux server is responsive: tmux ls")
-        console.print(f"  • Verify working directory exists: ls {work_dir}")
+        get_console().print("[red]Error: Failed to create tmux session[/red]")
+        get_console().print(f"[dim]{e}[/dim]")
+        get_console().print()
+        get_console().print("[yellow]Troubleshooting:[/yellow]")
+        get_console().print("  • Check if tmux is installed: which tmux")
+        get_console().print("  • Check if tmux server is responsive: tmux ls")
+        get_console().print(f"  • Verify working directory exists: ls {work_dir}")
         raise typer.Exit(1) from None
     except StartupCommandError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
     except ValueError as e:
-        console.print(f"[red]Invalid session name: {e}[/red]")
+        get_console().print(f"[red]Invalid session name: {e}[/red]")
         raise typer.Exit(1) from None
 
-    console.print(
+    get_console().print(
         f"{tool_cfg.icon} Session '{session_name}' created (id: {session.id}, tool: {tool})"
     )
     if worktree:
-        console.print(f"  Worktree: {work_dir}")
-        console.print(f"  Branch: {branch_name}")
+        get_console().print(f"  Worktree: {work_dir}")
+        get_console().print(f"  Branch: {branch_name}")
     if resolved_mode:
-        console.print(f"  Mode: {resolved_mode}")
+        get_console().print(f"  Mode: {resolved_mode}")
     if template_cfg:
-        console.print(f"  Template: {template_cfg.name}")
+        get_console().print(f"  Template: {template_cfg.name}")
     if session.mcp_servers:
-        console.print(f"  MCP: {', '.join(session.mcp_servers)}")
-    console.print(f"  Runtime: {session.runtime.kind.value} ({session.runtime.session_name})")
-    console.print()
-    console.print(f"Attach with: shoal attach {session_name}")
+        get_console().print(f"  MCP: {', '.join(session.mcp_servers)}")
+    get_console().print(f"  Runtime: {session.runtime.kind.value} ({session.runtime.session_name})")
+    get_console().print()
+    get_console().print(f"Attach with: shoal attach {session_name}")
 
 
 def fork(
@@ -442,7 +444,7 @@ async def _fork_impl(
     new_name = name or f"{source.name}-fork"
 
     if await find_by_name(new_name):
-        console.print(f"[red]Session with name '{new_name}' already exists[/red]")
+        get_console().print(f"[red]Session with name '{new_name}' already exists[/red]")
         raise typer.Exit(1)
 
     tool_cfg = load_tool_config(source.tool)
@@ -460,14 +462,14 @@ async def _fork_impl(
         try:
             new_branch = _branch_name_for_worktree(new_name)
         except ValueError as e:
-            console.print(f"[red]Error: {e}[/red]")
+            get_console().print(f"[red]Error: {e}[/red]")
             raise typer.Exit(1) from None
 
         Path(source.path, ".worktrees").mkdir(parents=True, exist_ok=True)
         try:
             git.worktree_add(source.path, wt_path, branch=new_branch, start_point=source.branch)
         except Exception:
-            console.print("[red]Failed to create worktree for fork[/red]")
+            get_console().print("[red]Failed to create worktree for fork[/red]")
             raise typer.Exit(1) from None
         work_dir = wt_path
 
@@ -487,27 +489,29 @@ async def _fork_impl(
             parent_id=source.id,
         )
     except SessionExistsError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
     except TmuxSetupError as e:
-        console.print("[red]Error: Failed to create tmux session[/red]")
-        console.print(f"[dim]{e}[/dim]")
+        get_console().print("[red]Error: Failed to create tmux session[/red]")
+        get_console().print(f"[dim]{e}[/dim]")
         raise typer.Exit(1) from None
     except StartupCommandError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        get_console().print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
     except ValueError as e:
-        console.print(f"[red]Invalid session name: {e}[/red]")
+        get_console().print(f"[red]Invalid session name: {e}[/red]")
         raise typer.Exit(1) from None
 
-    console.print(f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})")
+    get_console().print(
+        f"{tool_cfg.icon} Forked '{source.name}' → '{new_name}' (id: {new_session.id})"
+    )
     if wt_path:
-        console.print(f"  Worktree: {wt_path}")
-        console.print(f"  Branch: {new_branch} (from {source.branch})")
+        get_console().print(f"  Worktree: {wt_path}")
+        get_console().print(f"  Branch: {new_branch} (from {source.branch})")
     else:
-        console.print(f"  Directory: {work_dir}")
-    console.print()
-    console.print(f"Attach with: shoal attach {new_name}")
+        get_console().print(f"  Directory: {work_dir}")
+    get_console().print()
+    get_console().print(f"Attach with: shoal attach {new_name}")
 
 
 def kill(
@@ -545,19 +549,19 @@ async def _kill_impl(session: str | None, worktree: bool, force: bool) -> None:
             force=force,
         )
     except DirtyWorktreeError as exc:
-        console.print(f"[red]Worktree has uncommitted changes:[/red] {s.worktree}")
+        get_console().print(f"[red]Worktree has uncommitted changes:[/red] {s.worktree}")
         if exc.dirty_files:
             for line in exc.dirty_files.splitlines()[:10]:
-                console.print(f"  {line}")
-        console.print("\n[yellow]Use --force to remove anyway[/yellow]")
+                get_console().print(f"  {line}")
+        get_console().print("\n[yellow]Use --force to remove anyway[/yellow]")
         raise typer.Exit(1) from None
 
     if summary["tmux_killed"]:
-        console.print(f"{icon} Killed runtime session: {s.runtime.session_name}")
+        get_console().print(f"{icon} Killed runtime session: {s.runtime.session_name}")
     if summary["worktree_removed"]:
-        console.print(f"  Removed worktree: {s.worktree}")
+        get_console().print(f"  Removed worktree: {s.worktree}")
     if summary["branch_deleted"]:
-        console.print(f"  Deleted branch: {s.branch}")
+        get_console().print(f"  Deleted branch: {s.branch}")
     if summary["journal_archived"]:
-        console.print(f"  Archived journal: {s.id}.md")
-    console.print(f"Session '{s.name}' ({sid}) removed")
+        get_console().print(f"  Archived journal: {s.id}.md")
+    get_console().print(f"Session '{s.name}' ({sid}) removed")
