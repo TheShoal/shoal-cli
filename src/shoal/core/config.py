@@ -11,17 +11,20 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from shoal.models.config import ProjectHookEntry, WorkspaceConfig
+    from shoal.models.config.hooks import ProjectHookEntry
+    from shoal.models.config.workspace import WorkspaceConfig
 
 from shoal.core.status_provider import default_status_provider_for_tool
-from shoal.models.config import (
-    DetectionPatterns,
-    MCPToolConfig,
-    RoboProfileConfig,
+from shoal.models.config.general import ShoalConfig
+from shoal.models.config.robo import RoboProfileConfig
+from shoal.models.config.templates import (
     SessionTemplateConfig,
-    ShoalConfig,
     TemplateMixinConfig,
     TemplateWorktreeConfig,
+)
+from shoal.models.config.tools import (
+    DetectionPatterns,
+    MCPToolConfig,
     ToolConfig,
 )
 

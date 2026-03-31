@@ -1,0 +1,104 @@
+"""Session template models (templates/<name>.toml)."""
+
+from __future__ import annotations
+
+import re
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+class TemplateWorktreeConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = ""
+    create_branch: bool = False
+    post_worktree_create: str = ""
+
+
+class TemplatePaneConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    split: Literal["root", "right", "down"] = "root"
+    size: str = ""
+    title: str = ""
+    command: str
+
+    @field_validator("size")
+    @classmethod
+    def validate_size(cls, v: str) -> str:
+        if not v:
+            return v
+        stripped = v.strip().rstrip("%")
+        if not stripped.isdigit() or not (1 <= int(stripped) <= 99):
+            raise ValueError(f"Pane size must be 1-99% (got '{v}')")
+        return v
+
+
+class TemplateWindowConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    cwd: str = ""
+    layout: str = ""
+    focus: bool = False
+    panes: list[TemplatePaneConfig] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_first_pane_is_root(self) -> TemplateWindowConfig:
+        if self.panes and self.panes[0].split != "root":
+            raise ValueError(
+                f"Window '{self.name}': first pane must have split='root', "
+                f"got '{self.panes[0].split}'"
+            )
+        return self
+
+
+class SessionTemplateConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    description: str = ""
+    extends: str | None = None
+    mixins: list[str] = Field(default_factory=list)
+    tool: str = "pi"
+    mode: str = ""
+    tags: list[str] = Field(default_factory=list)
+    worktree: TemplateWorktreeConfig = Field(default_factory=TemplateWorktreeConfig)
+    env: dict[str, str] = Field(default_factory=dict)
+    mcp: list[str] = Field(default_factory=list)
+    windows: list[TemplateWindowConfig] = Field(default_factory=list)
+    setup_commands: list[str] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v or not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$", v):
+            raise ValueError(f"Template name '{v}' must be alphanumeric with dashes/underscores")
+        return v
+
+    @model_validator(mode="after")
+    def validate_has_windows(self) -> SessionTemplateConfig:
+        if not self.windows and not self.extends:
+            raise ValueError("Template must define at least one window or use 'extends'")
+        return self
+
+
+class TemplateMixinConfig(BaseModel):
+    """A mixin template fragment: additive env, mcp, and windows."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    description: str = ""
+    env: dict[str, str] = Field(default_factory=dict)
+    mcp: list[str] = Field(default_factory=list)
+    windows: list[TemplateWindowConfig] = Field(default_factory=list)
+    setup_commands: list[str] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v or not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$", v):
+            raise ValueError(f"Mixin name '{v}' must be alphanumeric with dashes/underscores")
+        return v
