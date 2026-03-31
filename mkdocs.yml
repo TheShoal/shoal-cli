@@ -80,6 +80,7 @@ nav:
       - Remote Sessions: REMOTE_GUIDE.md
       - Fish Integration: FISH_INTEGRATION.md
       - Local Templates: LOCAL_TEMPLATES.md
+      - Handoffs & Modes: handoffs-and-modes.md
       - Journals: JOURNALS.md
       - HTTP Transport: HTTP_TRANSPORT.md
       - Troubleshooting: TROUBLESHOOTING.md

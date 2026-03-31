@@ -19,7 +19,12 @@ For the first session in a lane, `shoal new --mode ...` can prefill one-session 
 shoal new --mode feature-lane
 shoal new --mode author-review --name auth-review
 shoal new --mode remote-batch --name cache-pass
+shoal new --mode planner -w plan/auth-redesign -b
+shoal new --mode implementer -w impl/auth-tokens -b
+shoal new --mode reviewer -w review/auth-pr -b
 ```
+
+Run `shoal mode ls` to see all available modes with their templates, prefixes, and auto-tags.
 
 These are single-session defaults only. They do not create the whole multi-session topology for you.
 

@@ -45,7 +45,7 @@ The `[source]` tag identifies where the entry came from: `cli`, `mcp`, `robo`, o
 | Path | Purpose |
 |------|---------|
 | `~/.local/share/shoal/journals/<session_id>.md` | Active journal |
-| `~/.local/share/shoal/journals/handoffs/<session_id>.md` | Saved handoff artifact from `shoal journal <session> --handoff` |
+| `~/.local/share/shoal/journals/handoffs/<session_id>.md` | Handoff artifact (auto-generated on kill, or via `shoal handoff <session>`) |
 | `~/.local/share/shoal/journals/archive/<session_id>.md` | Archived journal (after `shoal kill`) |
 
 ### YAML Frontmatter

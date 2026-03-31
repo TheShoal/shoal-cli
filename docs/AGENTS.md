@@ -65,6 +65,25 @@ claude --dangerously-skip-permissions
 claude --allow-dangerously-skip-permissions
 ```
 
+### AWS Bedrock
+
+Set `CLAUDE_CODE_USE_BEDROCK=1` to route Claude Code requests through AWS Bedrock instead of the Anthropic API. Useful for organizations with Bedrock access or for cost-controlled Haiku sessions:
+
+```toml
+# Template for unattended Haiku workers via Bedrock
+[template]
+name = "haiku-bedrock"
+extends = "base-dev"
+tool = "claude"
+tags = ["haiku", "bedrock"]
+
+[template.env]
+CLAUDE_MODEL = "haiku"
+CLAUDE_CODE_USE_BEDROCK = "1"
+```
+
+Pair with `--dangerously-skip-permissions` in the tool command for fully unattended operation. Requires valid AWS credentials (`AWS_PROFILE`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, or IAM role).
+
 ### Delivering an initial prompt
 
 The positional argument is the only supported mechanism for passing a startup prompt in TUI mode. There is **no `--prompt-file` or stdin prompt** for interactive sessions.

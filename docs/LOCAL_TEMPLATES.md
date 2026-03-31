@@ -116,6 +116,31 @@ Resolution order remains: `extends` chain first, then `mixins`, then CLI flags.
 
 ---
 
+## Tags & Mode Fields
+
+Templates can declare `tags` and `mode` to auto-configure sessions:
+
+```toml
+[template]
+name = "haiku-reviewer"
+extends = "base-dev"
+tool = "claude"
+mode = "reviewer"
+tags = ["dogfood", "haiku", "reviewer"]
+
+[template.env]
+CLAUDE_MODEL = "haiku"
+```
+
+- **`tags`**: Applied to the session at creation. Union-merged with parent during inheritance.
+- **`mode`**: Declares which operating mode this template serves. Child wins if set.
+
+Tags affect urgency tiers: sessions tagged `review-ready` are promoted to the **review** urgency tier in `shoal status` output.
+
+See [Handoffs & Modes](handoffs-and-modes.md) for the full operating modes reference.
+
+---
+
 ## Directory Layout
 
 A typical project using local templates:
