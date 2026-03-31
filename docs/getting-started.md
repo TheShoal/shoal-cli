@@ -67,6 +67,32 @@ uv tool install shoal-cli
 uv tool install "shoal-cli[mcp]"
 ```
 
+### Via Homebrew (macOS)
+
+```bash
+brew install TheShoal/tap/shoal-cli
+```
+
+This installs a self-contained binary — no Python environment required.
+
+### Direct binary download
+
+Download a self-contained binary from the
+[latest release](https://github.com/TheShoal/shoal-cli/releases/latest):
+
+| Platform | Asset |
+| -------- | ----- |
+| macOS arm64 (Apple Silicon) | `shoal-darwin-arm64` |
+| macOS x86_64 (Intel) | `shoal-darwin-x86_64` |
+| Linux x86_64 | `shoal-linux-x86_64` |
+
+```bash
+# Example: macOS Apple Silicon
+curl -Lo shoal https://github.com/TheShoal/shoal-cli/releases/latest/download/shoal-darwin-arm64
+chmod +x shoal
+sudo mv shoal /usr/local/bin/
+```
+
 ### From source for development
 
 ```bash
