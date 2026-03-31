@@ -750,6 +750,128 @@ async def merge_branch_tool(
 
 
 # ---------------------------------------------------------------------------
+# Tool: mark_complete
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="mark_complete",
+    description=(
+        "Mark a session as complete. Sets completed_at, appends a journal entry, "
+        "and emits session_completed lifecycle event. Use this when an agent finishes "
+        "its task and wants to signal completion to supervisors."
+    ),
+    annotations={"destructiveHint": True},
+)
+async def mark_complete_tool(
+    session: str,
+    summary: str = "",
+) -> dict[str, object]:
+    """Mark a session as complete with an optional summary."""
+    from shoal.services.lifecycle import SessionNotFoundError, complete_session
+
+    try:
+        state = await complete_session(name=session, summary=summary)
+    except SessionNotFoundError:
+        raise ToolError(f"Session not found: {session}") from None
+    return {"message": f"Session '{session}' marked as complete", "session_id": state.id}
+
+
+# ---------------------------------------------------------------------------
+# Tool: read_worktree_file
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="read_worktree_file",
+    description=(
+        "Read a file from a session's worktree. Use this to inspect worker outputs "
+        "without attaching to the session. Path is relative to the worktree root."
+    ),
+)
+async def read_worktree_file_tool(
+    session: str,
+    path: str,
+    max_lines: int = 200,
+) -> dict[str, object]:
+    """Read a file from a session's worktree."""
+    import asyncio
+
+    from shoal.core.state import find_by_name, get_session
+
+    session_id = await find_by_name(session)
+    if session_id is None:
+        raise ToolError(f"Session not found: {session}")
+
+    state = await get_session(session_id)
+    if state is None:
+        raise ToolError(f"Session not found: {session}")
+
+    work_dir = state.worktree or state.path
+    file_path = Path(work_dir) / path
+
+    try:
+        file_path.resolve().relative_to(Path(work_dir).resolve())
+    except ValueError:
+        raise ToolError(f"Path traversal denied: {path}") from None
+
+    if not file_path.exists():
+        raise ToolError(f"File not found: {path} (in {work_dir})")
+
+    def _read() -> str:
+        lines = file_path.read_text().splitlines()
+        if len(lines) > max_lines:
+            return "\n".join(lines[:max_lines]) + f"\n... ({len(lines) - max_lines} more lines)"
+        return "\n".join(lines)
+
+    content = await asyncio.to_thread(_read)
+    return {"path": str(file_path), "content": content}
+
+
+# ---------------------------------------------------------------------------
+# Tool: list_worktree_files
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="list_worktree_files",
+    description=(
+        "List files in a session's worktree (git-tracked + untracked). "
+        "Use this to see what a worker produced."
+    ),
+)
+async def list_worktree_files_tool(
+    session: str,
+    glob_pattern: str = "*",
+) -> dict[str, object]:
+    """List files in a session's worktree."""
+    import asyncio
+
+    from shoal.core.state import find_by_name, get_session
+
+    session_id = await find_by_name(session)
+    if session_id is None:
+        raise ToolError(f"Session not found: {session}")
+
+    state = await get_session(session_id)
+    if state is None:
+        raise ToolError(f"Session not found: {session}")
+
+    work_dir = state.worktree or state.path
+
+    def _list() -> list[str]:
+        root = Path(work_dir)
+        return [
+            str(f.relative_to(root))
+            for f in sorted(root.rglob(glob_pattern))
+            if f.is_file() and ".git" not in f.parts and f.is_relative_to(root)
+        ][:500]
+
+    file_list = await asyncio.to_thread(_list)
+    return {"worktree": work_dir, "files": file_list, "count": len(file_list)}
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
