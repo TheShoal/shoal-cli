@@ -92,14 +92,21 @@ Run the full CI pipeline or targeted checks from within Claude Code.
 
 ## Cross-Agent Compatibility
 
-Shoal keeps Claude-specific automation in `.claude/`, while shared orchestration lives in
+Shoal keeps tool-specific automation in dedicated directories, while shared orchestration lives in
 Shoal tool profiles/templates:
 
-- Tool profiles: `examples/config/tools/` (`claude`, `codex`, `gemini`, `opencode`, `pi`)
+| Tool | Config Directory | Setup Guide |
+|------|-----------------|-------------|
+| Claude Code | `.claude/` | `docs/CLAUDE_CODE_SETUP.md` (this file) |
+| OpenCode | `.opencode/` | `docs/OPENCODE_SETUP.md` |
+| OMP (oh-my-pi) | `.omp/` | `docs/OMP_SETUP.md` |
+
+- Tool profiles: `examples/config/tools/` (`claude`, `codex`, `gemini`, `opencode`, `omp`, `pi`)
 - Session templates: `examples/config/templates/` (`base-dev` + tool-specific overlays)
 
-This separation lets Claude Code be your primary daily driver without locking the project to a
-single vendor runtime.
+All three tools have equivalent setups: project context, agents/commands, skills, rules, and setup
+documentation. See [Cross-Agent Skills](cross-agent-skills.md) for the shared skill transpilation
+system.
 
 ---
 

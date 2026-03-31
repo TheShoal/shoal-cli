@@ -87,6 +87,8 @@ nav:
       - Cross-Agent Skills: cross-agent-skills.md
       - Agent Reference: AGENTS.md
       - Claude Code Setup: CLAUDE_CODE_SETUP.md
+      - OpenCode Setup: OPENCODE_SETUP.md
+      - OMP Setup: OMP_SETUP.md
   - Design the Loop:
       - Terminal Interaction Design: terminal-interaction-design.md
       - Architecture: architecture.md

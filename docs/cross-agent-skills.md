@@ -8,13 +8,13 @@ Shoal supports sharing skill definitions across different AI coding tools (Claud
 
 Each coding agent has its own skill/command registration format:
 
-| Tool | Skill Path | Format | Discovery |
-|------|-----------|--------|-----------|
-| Claude Code | `.claude/skills/<name>/SKILL.md` | Markdown + YAML frontmatter | Auto (directory scan) |
-| OpenCode | `~/.config/opencode/skills/` | Plugin-based | User global only |
-| omp | — | No formal skill system | Prompt injection via `@file` |
+| Tool | Skill Path | Format | Discovery | Setup Guide |
+|------|-----------|--------|-----------|-------------|
+| Claude Code | `.claude/skills/<name>/SKILL.md` | Markdown + YAML frontmatter | Auto (directory scan) | `docs/CLAUDE_CODE_SETUP.md` |
+| OpenCode | `.opencode/agents/<name>.md` | Markdown agents | Auto (directory scan) | `docs/OPENCODE_SETUP.md` |
+| omp | `.omp/skills/<name>/SKILL.md` + `.omp/commands/<name>.md` | Markdown + YAML frontmatter | Auto (directory scan) | `docs/OMP_SETUP.md` |
 
-If you write a skill for Claude Code, it doesn't exist when you switch to an OpenCode or omp session. Each agent gets a different experience.
+All three tools now have native skill equivalents in this repo (verify, handoff, scaffold, roadmap). The `.shoal/skills/` transpilation layer is for projects that want a single source of truth.
 
 ## The Solution: `.shoal/skills/`
 
