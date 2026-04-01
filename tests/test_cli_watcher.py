@@ -52,16 +52,17 @@ def test_watcher_start_background(mock_dirs):
 def test_watcher_start_already_running(mock_dirs):
     """Test starting watcher when already running."""
     import os
+
     def mock_os_open(path, flags, *args):
         if flags & os.O_EXCL:
-            raise FileExistsError()
+            raise FileExistsError
         return 5
-        
+
     with (
         patch("os.open", side_effect=mock_os_open),
         patch("os.close"),
         patch("fcntl.flock", side_effect=BlockingIOError),
-        patch("shoal.cli.watcher._read_pid", return_value=1234)
+        patch("shoal.cli.watcher._read_pid", return_value=1234),
     ):
         result = runner.invoke(app, ["start"])
         assert result.exit_code == 1
@@ -87,7 +88,11 @@ def test_watcher_stop_success(mock_dirs):
 
 def test_watcher_status_running(mock_dirs):
     """Test watcher status when running."""
-    with patch("os.open", side_effect=FileExistsError), patch("fcntl.flock", side_effect=BlockingIOError), patch("shoal.cli.watcher._read_pid", return_value=1234):
+    with (
+        patch("os.open", side_effect=FileExistsError),
+        patch("fcntl.flock", side_effect=BlockingIOError),
+        patch("shoal.cli.watcher._read_pid", return_value=1234),
+    ):
         result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
         assert "running (pid: 1234)" in result.stdout

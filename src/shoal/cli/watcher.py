@@ -45,6 +45,7 @@ def watcher_start(
 
     import fcntl
     import os
+
     try:
         # Use O_CREAT | O_EXCL to atomically check and create
         lock_fd = os.open(_pid_file(), os.O_WRONLY | os.O_CREAT | os.O_EXCL)
@@ -63,7 +64,7 @@ def watcher_start(
             get_console().print("[yellow]Actionable suggestions:[/yellow]")
             get_console().print("  • Check status: [bold]shoal watcher status[/bold]")
             get_console().print("  • Stop watcher: [bold]shoal watcher stop[/bold]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
     if foreground:
         import asyncio
@@ -95,7 +96,7 @@ def watcher_stop() -> None:
         get_console().print()
         get_console().print("[yellow]Actionable suggestions:[/yellow]")
         get_console().print("  • Start watcher: [bold]shoal watcher start[/bold]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     os.kill(pid, signal.SIGTERM)
     _pid_file().unlink(missing_ok=True)
