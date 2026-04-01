@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.4] - 2026-04-01
+
+### Fixed
+- Fix broken mermaid markup on docs homepage
+
+
 ## [0.30.0] - 2026-04-01
 
 ### Added
