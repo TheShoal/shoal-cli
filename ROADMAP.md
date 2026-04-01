@@ -154,6 +154,44 @@ Released 2026-03-31
 - **Branch categories**: `plan`, `impl`, `review`, `batch` added
 - **Docs**: New "Handoffs & Modes" mkdocs page, Bedrock section in AGENTS.md
 
+
+## v0.28.0
+
+Released 2026-03-31
+
+- **Flagship fleet demo**: `shoal demo fleet` runs a 6-step scripted showcase — planner → implementer → reviewer → supervisor escalation → overnight progress → morning fleet summary
+- **Shoal-native skills**: `SkillConfig` model, `discover_skills()` searches `.shoal/skills/` and `~/.config/shoal/skills/`, `shoal skill ls` command, auto-symlink into `.claude/skills/`
+- **Project-level `.shoal.toml`**: Committed config at git root with `[env]`, `setup_commands`, `default_tool`, `default_template`. Precedence: project < template < CLI flags
+- **Cross-agent skill setup**: OpenCode agents (`.opencode/agents/`), omp skills (`.omp/skills/`), and rules for both tools
+- **`claude-review` template**: Review-oriented Claude session for reviewer mode
+- **Docs**: CLI reference updated with incident, handoff, mode, and skill commands
+
+## v0.29.0
+
+Released 2026-03-31
+
+- **MCP tools for robo workflows**: `mark_complete`, `read_worktree_file`, `list_worktree_files` — MCP server now exposes 18 tools
+- **PyApp binary distribution**: Self-contained `shoal` binary via PyApp packaging. Homebrew formula at `TheShoal/tap/shoal-cli`
+- **omp as default tool**: Replaced `pi` with `omp` (oh-my-pi) as the default tool across config, robo profiles, mode presets, and templates
+- **Deferred CLI imports**: All subcommand modules now use lazy imports via thin wrappers in `cli/__init__.py`, improving `shoal --help` startup latency
+- **Config model split**: Monolithic `models/config.py` refactored into focused submodules (`general.py`, `tools.py`, `templates.py`, `hooks.py`, `workspace.py`, `robo.py`)
+
+## v0.30.0
+
+Released 2026-04-01
+
+- **Claw runtime provider**: Shoal now manages lobster-party Claw sessions via gRPC. `RuntimeKind.claw` with full `ClawRuntimeProvider` implementing all 13 Protocol methods
+- **MCP ↔ A2A bridge**: 5 new `shoal-orchestrator` MCP tools for cross-system agent collaboration: `send_to_claw`, `claw_status`, `list_claws`, `claw_health`, `sync_claw_conversations`
+- **Conversation/journal sync**: `core/claw_conversations.py` reads lobster-party QMD files. `import_claw_turns()` and `export_journal_to_qmd()` enable bidirectional sync. `shoal sync <session>` CLI command
+- **Lobster Party proto stubs**: Generated protobuf/gRPC stubs in `src/shoal/core/proto/`. Regenerate with `just gen-protos`
+- **Integration spec**: `INTEGRATION.md` documents the full Shoal × Lobster Party × Smorgasbord integration architecture
+
+## v0.31.4
+
+Released 2026-04-01
+
+- **Fixed**: Broken mermaid markup on docs homepage
+
 ## Backlog
 
 ### Done (kept for reference)
@@ -171,6 +209,7 @@ Released 2026-03-31
 - ~~**Robo merge MCP tools**~~ — v0.24.0 (`merge_branch`, `branch_status`)
 - ~~**Worker completion signals**~~ — v0.24.0 (`shoal done`) + v0.29.0 (`mark_complete`, `read_worktree_file`)
 - ~~**Linux notifications**~~ — solved by fish event hooks
+- ~~**Claw runtime + A2A bridge**~~ — v0.30.0 (gRPC runtime provider, 5 new MCP tools, journal↔QMD sync)
 
 ### Remaining
 

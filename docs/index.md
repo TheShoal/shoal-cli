@@ -17,7 +17,6 @@ hide:
       and shared MCP infrastructure — so you can supervise a parallel agent fleet from one CLI
       without losing visibility, authority, or flow. Parallel AI coding that feels like a
       controlled workflow, not a pile of threads.
-      not a pile of threads.
     </p>
     <div class="shoal-actions">
       <a class="md-button md-button--primary" href="getting-started/">Get Started</a>

@@ -251,11 +251,11 @@ class ShoalCli < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/TheShoal/shoal-cli/releases/download/v0.27.0/shoal-aarch64-apple-darwin"
+      url "https://github.com/TheShoal/shoal-cli/releases/download/v0.32.0/shoal-aarch64-apple-darwin"
       sha256 "..."
     end
     on_intel do
-      url "https://github.com/TheShoal/shoal-cli/releases/download/v0.27.0/shoal-x86_64-apple-darwin"
+      url "https://github.com/TheShoal/shoal-cli/releases/download/v0.32.0/shoal-x86_64-apple-darwin"
       sha256 "..."
     end
   end
