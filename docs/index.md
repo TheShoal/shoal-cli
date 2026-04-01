@@ -42,6 +42,32 @@ flowchart LR
     State --> Shoal
     Shoal --> Surface["shoal status / popup / attach"]
 ```
+## Core Isolation: Panes & Worktrees
+
+Shoal gives every session structural isolation. They don't block you, and they don't corrupt each other.
+
+```text
++-------------------------+      +-------------------------+
+|   OPERATOR TERMINAL     |      |       FILESYSTEM        |
+|                         |      |                         |
+|  +-------------------+  |      |   /project              |
+|  | tmux pane 0       |  | ===> |     (main branch)       |
+|  | (you, the human)  |  |      |                         |
+|  +-------------------+  |      |   /project/.shoal       |
+|                         |      |    |--/status.db        |
+|  +-------------------+  |      |                         |
+|  | tmux pane 1       |  | ===> |   /project/.worktrees/  |
+|  | (agent `auth`)    |  |      |    |--/auth/            |
+|  +-------------------+  |      |                         |
+|                         |      |                         |
+|  +-------------------+  |      |   /project/.worktrees/  |
+|  | tmux pane 2       |  | ===> |    |--/api-refactor/    |
+|  | (agent `api`)     |  |      |                         |
+|  +-------------------+  |      |                         |
++-------------------------+      +-------------------------+
+```
+
+Each agent works in its own terminal pane bounded to a unique git worktree. If an agent ruins its files, your main check-out is unaffected. If you close your laptop, the tmux sessions stay alive and the agents keep running.
 
 ## Why Shoal exists
 

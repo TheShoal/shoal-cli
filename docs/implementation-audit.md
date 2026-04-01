@@ -69,3 +69,13 @@ now reflect that distinction more clearly:
 
 - Core orchestration works without fish.
 - The intended shell ergonomics and flow-state UX assume fish.
+
+
+## Security and Integrity Audit Findings
+
+Upcoming development will resolve the following identified gaps based on `SHOAL_CODE_REVIEW_PLAN.md`:
+
+1. Fixes for command injections in `remote.fish`.
+2. Patching path traversal in `mcp_pool.py`.
+3. Resolving DB `INSERT OR REPLACE` collisions based on slugs.
+4. Fixing list append race conditions.

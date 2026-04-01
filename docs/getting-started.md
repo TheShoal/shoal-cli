@@ -8,8 +8,18 @@
 
 # Getting Started
 
-This path is optimized for a developer who wants Shoal working quickly and wants the next
-documentation branch points to be obvious.
+This path is optimized for a developer who wants Shoal working quickly. It defines the core terms you need to know, guides you through installation, and gets your first sessions running.
+
+## Core Concepts
+
+Before you start, understand the pieces Shoal connects:
+
+- **Worktree**: A Git worktree. Shoal gives each agent its own isolated branch and filesystem so they can work in parallel without overwriting your current checked-out state.
+- **Pane/Session**: A tmux construct. Shoal uses tmux to persist agent shells. You can attach, detach, and survive network drops.
+- **MCP (Model Context Protocol)**: The standard that lets Shoal expose context and tools to agents. The `shoal-orchestrator` MCP server lets one agent inspect or control others.
+- **Claw**: The orchestration service component within Shoal architecture that handles agent topologies, routing, and concurrent lifecycles (distinct from the CLI frontend).
+- **Template**: A declarative configuration for a session (which shell to use, which tools to attach, what to run on startup).
+- **Fin**: A lightweight protocol for passing initialization data or contracts to an agent when it starts.
 
 <div class="shoal-step-grid">
   <div class="shoal-step" data-icon="stack">
@@ -159,24 +169,16 @@ flowchart LR
 ## Common next steps
 
 <div class="shoal-card-grid">
-  <a class="shoal-card shoal-icon-card" href="FISH_INTEGRATION/" data-icon="bolt">
+  <a class="shoal-card shoal-icon-card" href="cli-reference/" data-icon="map">
+    <strong>CLI Reference</strong>
+    <span>See the top-level commands, subcommands, and the workflows they support.</span>
+  </a>
+  <a class="shoal-card shoal-icon-card" href="architecture/" data-icon="system">
+    <strong>System Architecture</strong>
+    <span>Understand the core services, isolation models, and atomic rollbacks.</span>
+  </a>
+  <a class="shoal-card shoal-icon-card" href="flow-state-workflows/" data-icon="bolt">
     <strong>Better shell ergonomics</strong>
-    <span>Set up completions, bindings, and helper functions that match the intended operator flow.</span>
-  </a>
-  <a class="shoal-card shoal-icon-card" href="LOCAL_TEMPLATES/" data-icon="stack">
-    <strong>Reusable session layouts</strong>
-    <span>Define stable templates and composition patterns instead of rebuilding pane topology by hand.</span>
-  </a>
-  <a class="shoal-card shoal-icon-card" href="ROBO_GUIDE/" data-icon="control">
-    <strong>Agent supervision</strong>
-    <span>Configure robo to shrink approval latency without turning automation into a black box.</span>
-  </a>
-  <a class="shoal-card shoal-icon-card" href="REMOTE_GUIDE/" data-icon="remote">
-    <strong>Remote machines</strong>
-    <span>Keep the same operating model while pushing work to another box over the remote transport.</span>
-  </a>
-  <a class="shoal-card shoal-icon-card" href="TROUBLESHOOTING/" data-icon="shield">
-    <strong>Troubleshooting first</strong>
-    <span>Jump straight to setup recovery and environment fixes if the fast path does not land cleanly.</span>
+    <span>Learn patterns for agent momentum and flow-state workflows.</span>
   </a>
 </div>

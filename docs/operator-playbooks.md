@@ -74,44 +74,61 @@ flowchart TD
 Use this when a bug report lands and you need answers before architecture.
 
 ```bash
-shoal new -t codex -w triage/login-timeout -b
-shoal new -t claude -w review/login-timeout -b
-shoal status
+# 1. Spawn a dedicated repro session
+shoal new --mode implementer --name triage-repro
+shoal attach triage-repro
+# Operator tells agent: "Use the attached script to reproduce the login timeout on staging. Find the bottleneck."
+
+# 2. Spawn a separate session to check regression surface
+shoal new --mode reviewer --name triage-review
+shoal attach triage-review
+# Operator tells agent: "Read recent commits affecting the auth module. Is there any obvious rate limiting or connection pool change that would cause timeouts?"
+
+# 3. Monitor both via dashboard
 shoal popup
 ```
 
-Operator rules:
-
-- keep one session focused on reproduction,
-- keep one session focused on critique and likely regression surface,
-- decide quickly whether this is a patch, rollback, or deeper incident.
-
 ## 2. Feature lane with built-in review
 
-Use this when the work is meaningful enough that you already know review will matter.
+Use this when the work is meaningful enough that you already know review will matter, and you want to separate authoring from critique.
 
 ```bash
-shoal new -t codex -w feat/payment-retry -b --template codex-dev
-shoal new -t claude -w review/payment-retry -b --template claude-review
-shoal journal feat/payment-retry --append "Goal: stabilize retry semantics without widening API surface."
-shoal journal review/payment-retry --append "Focus: idempotency, migrations, API drift."
-```
+# 1. Start the feature author session
+shoal new --mode feature-lane --name feat-payment-retry
+shoal journal feat-payment-retry --append "Goal: stabilize retry semantics without widening API surface."
+shoal attach feat-payment-retry
+# Operator tells agent: "Read the journal and implement. Start with idempotency keys."
 
-Best effect comes from naming symmetry. The reviewer session should obviously belong to the author
-session.
+# 2. Spin up the reviewer in a parallel worktree when necessary
+shoal new --mode author-review --name review-payment-retry
+shoal attach review-payment-retry
+# Operator tells agent: "Review feat-payment-retry. Focus on idempotency limits and migration safety."
+
+# 3. Quickly check both lanes without attaching
+shoal status
+```
 
 ## 3. Planner, implementer, closer
 
-Use this when sequencing, scope control, or release orchestration is the real bottleneck.
+Use this when sequencing, scope control, or release orchestration is the real bottleneck. Separate the agent planning high-level context from the agent writing individual steps.
 
 ```bash
-shoal new -t pi -w plan/release-cut -b
-shoal new -t codex -w feat/release-automation -b --template codex-dev
-shoal new -t gemini -w docs/release-notes -b
-```
+# 1. The Planner: works out sequence, merges status, updates the issue
+shoal new --mode planner --name plan-release-cut
+shoal attach plan-release-cut
+# Operator tells agent: "Break down the release cut epic into 3 implementer tasks."
 
-Keep the planner session human-facing. It should hold the task list, sequencing decisions, and
-merge criteria.
+# 2. The Implementer: receives the exact slice, executes code
+shoal new --mode implementer --name impl-release-script
+shoal journal impl-release-script --append "Task 1 from planner."
+shoal attach impl-release-script
+# Operator tells agent: "Execute the task passed in your journal."
+
+# 3. The Reviewer/Closer: ensures it fits before merging
+shoal new --mode reviewer --name review-release-cut
+shoal attach review-release-cut
+# Operator tells agent: "Review impl-release-script against plan-release-cut acceptance criteria."
+```
 
 ## 4. Remote execution without workflow drift
 
@@ -119,10 +136,18 @@ Use this when the work is heavy enough for another machine but you do not want a
 model.
 
 ```bash
+# 1. Start SSH tunnel
 shoal remote connect devbox
-shoal new -t codex -w feat/index-rebuild -b --template codex-dev
-shoal remote send devbox feat/index-rebuild "run the focused benchmark set"
+
+# 2. Local session tracks it, remote does the heavy lifting
+shoal new --mode remote-batch --name batch-reindex
+shoal remote send devbox batch-reindex "run the full exhaustive benchmark suite"
+
+# 3. List what's out there
 shoal remote sessions devbox
+
+# 4. Hop in if you need to debug test failures
+shoal remote attach devbox batch-reindex
 ```
 
 Rules:
@@ -130,16 +155,23 @@ Rules:
 - keep the same session names locally and remotely,
 - reuse the same templates,
 - keep escalation routed back to the local operator surface.
-
 ## 5. Overnight batch
 
 Use this when you want throughput while you are away, but not silent chaos.
 
 ```bash
-shoal new -t codex -w feat/cache-pass -b --template codex-dev
-shoal new -t claude -w feat/test-pass -b --template claude-dev
-shoal robo setup overnight-batch --tool pi
-shoal robo watch overnight-batch --daemon
+# 1. Setup the workers: one author, one reviewer
+shoal new --mode feature-lane --name overnight-impl
+shoal new --mode author-review --name overnight-review
+
+# 2. Tell them what to do
+shoal journal overnight-impl --append "Goal: migrate all integer IDs to UUIDv4. Stop if tests fail."
+shoal journal overnight-review --append "Goal: ensure no integer casts are missed. Check SQL migrations."
+
+# 3. Put a supervisor in charge and go to sleep
+shoal new --template robo-orchestrator --name overnight-robo
+shoal robo setup overnight-robo --tool pi
+shoal robo watch overnight-robo --daemon
 ```
 
 Before you step away:
@@ -160,10 +192,22 @@ Before you step away:
 Use this when several moving pieces need a human-owned merge and release decision.
 
 ```bash
-shoal new -t pi -w plan/release-cut -b
-shoal new -t codex -w feat/release-notes -b
-shoal new -t claude -w review/release-risk -b
-shoal status
+# 1. The Room: the human-owned planner session tracking checklist
+shoal new --mode planner --name release-control
+shoal attach release-control
+# Operator tells agent: "We need release notes, bump versions, and a final risk assessment."
+
+# 2. Worker 1: generate release notes
+shoal new --mode implementer --name rel-notes
+shoal journal rel-notes --append "Draft release notes from commits since v1.2."
+shoal attach rel-notes
+
+# 3. Worker 2: perform final QA or risk assessment
+shoal new --mode reviewer --name rel-qa
+shoal attach rel-qa
+# Operator tells agent: "Look at the differences since v1.2. Any missing migrations?"
+
+# 4. Bring up the dashboard to see what's done
 shoal popup
 ```
 
