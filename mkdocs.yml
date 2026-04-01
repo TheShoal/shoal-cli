@@ -85,10 +85,13 @@ nav:
       - HTTP Transport: HTTP_TRANSPORT.md
       - Troubleshooting: TROUBLESHOOTING.md
       - Cross-Agent Skills: cross-agent-skills.md
+  - Integrations:
       - Agent Reference: AGENTS.md
       - Claude Code Setup: CLAUDE_CODE_SETUP.md
       - OpenCode Setup: OPENCODE_SETUP.md
       - OMP Setup: OMP_SETUP.md
+      - Lobster Party Integration: lobster-integration.md
+      - Quick Reference: lobster-quickref.md
   - Design the Loop:
       - Terminal Interaction Design: terminal-interaction-design.md
       - Architecture: architecture.md

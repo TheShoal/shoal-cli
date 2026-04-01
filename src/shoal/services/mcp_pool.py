@@ -87,6 +87,7 @@ def mcp_log_dir() -> Path:
 
 def mcp_log_file(name: str) -> Path:
     """Return the log file path for a named MCP server."""
+    validate_mcp_name(name)
     return mcp_log_dir() / f"{name}.log"
 
 
@@ -107,15 +108,18 @@ def _truncate_log(path: Path, max_bytes: int = 10 * 1024 * 1024) -> None:
 
 
 def mcp_socket(name: str) -> Path:
+    validate_mcp_name(name)
     return data_dir() / "mcp-pool" / "sockets" / f"{name}.sock"
 
 
 def mcp_pid_file(name: str) -> Path:
+    validate_mcp_name(name)
     return data_dir() / "mcp-pool" / "pids" / f"{name}.pid"
 
 
 def mcp_port_file(name: str) -> Path:
     """Return the port file path for a named HTTP-mode MCP server."""
+    validate_mcp_name(name)
     return data_dir() / "mcp-pool" / "ports" / f"{name}.port"
 
 

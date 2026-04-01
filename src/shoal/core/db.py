@@ -359,7 +359,7 @@ class ShoalDB:
         t0 = time.monotonic()
         async with self._connection() as conn:
             await conn.execute(
-                "INSERT OR REPLACE INTO incidents"
+                "INSERT INTO incidents"
                 " (id, slug, status, git_root, created_at, updated_at, data)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
@@ -436,7 +436,21 @@ class ShoalDB:
 
             fields.setdefault("updated_at", datetime.now(UTC))
             updated = incident.model_copy(update=fields)
-            await self.save_incident(updated)
+            async with self._connection() as conn:
+                await conn.execute(
+                    "UPDATE incidents SET slug = ?, status = ?, git_root = ?, created_at = ?, "
+                    "updated_at = ?, data = ? WHERE id = ?",
+                    (
+                        updated.slug,
+                        updated.status.value,
+                        updated.git_root,
+                        updated.created_at.isoformat(),
+                        updated.updated_at.isoformat(),
+                        updated.model_dump_json(),
+                        updated.id,
+                    ),
+                )
+                await conn.commit()
             logger.debug(
                 "update_incident: %s fields=%s (%.1fms)",
                 incident_id,

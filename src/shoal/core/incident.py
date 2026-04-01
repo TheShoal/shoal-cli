@@ -35,26 +35,33 @@ async def create_incident(alert: AlertPayload, *, git_root: str = "") -> Inciden
     """Persist a new incident record from an alert payload."""
     db = await get_db()
     incident_id = f"inc-{generate_id()}"
-    slug = await _unique_slug(slugify_title(alert.title))
+    base_slug = slugify_title(alert.title)
+    slug = await _unique_slug(base_slug)
     created_at = _utcnow()
-    incident = IncidentRecord(
-        id=incident_id,
-        slug=slug,
-        git_root=git_root,
-        alert=alert,
-        events=[
-            IncidentEvent(
-                kind="incident.ingested",
-                source=alert.source,
-                message=f"{alert.severity.value.upper()} alert ingested: {alert.title}",
-                data={"source": alert.source},
-            )
-        ],
-        created_at=created_at,
-        updated_at=created_at,
-    )
-    await db.save_incident(incident)
-    return incident
+    while True:
+        incident = IncidentRecord(
+            id=incident_id,
+            slug=slug,
+            git_root=git_root,
+            alert=alert,
+            events=[
+                IncidentEvent(
+                    kind="incident.ingested",
+                    source=alert.source,
+                    message=f"{alert.severity.value.upper()} alert ingested: {alert.title}",
+                    data={"source": alert.source},
+                )
+            ],
+            created_at=created_at,
+            updated_at=created_at,
+        )
+        import sqlite3
+
+        try:
+            await db.save_incident(incident)
+            return incident
+        except sqlite3.IntegrityError:
+            slug = await _unique_slug(base_slug)
 
 
 async def get_incident(incident_id_or_slug: str) -> IncidentRecord | None:

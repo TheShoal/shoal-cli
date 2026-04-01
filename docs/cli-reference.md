@@ -11,6 +11,8 @@ subcommand groups.
 | `shoal ls` | List sessions, with filters like `--tree` and `--tag` |
 | `shoal info` | Show detailed metadata for one session |
 | `shoal attach` | Jump into a session |
+| `shoal detach` | Detach from the current session |
+| `shoal rename` | Rename an existing session |
 | `shoal logs` | Read recent terminal output |
 | `shoal status` | Show a quick fleet summary |
 | `shoal popup` | Open the fzf dashboard (`ctrl-y` approve, `ctrl-g` fork, `ctrl-w` filter waiting, `ctrl-r` reload) |
@@ -105,6 +107,7 @@ Modes are single-session presets for `shoal new --mode <name>`. See [Handoffs & 
 | `shoal incident show` | Show incident details |
 | `shoal incident spawn` | Spawn a worker lane for an incident |
 | `shoal incident resolve` | Resolve an incident |
+| `shoal incident hook-scaffold` | Scaffold example Claude hook files to a directory |
 
 ## Skills
 
@@ -144,6 +147,12 @@ Skills in `.shoal/skills/<name>/SKILL.md` are auto-symlinked into `.claude/skill
 | `shoal watcher stop` | Stop watcher |
 | `shoal watcher status` | Check watcher status |
 | `shoal demo ...` | Launch or step through the guided demo |
+
+## Setup
+
+| Command | Purpose |
+| ------- | ------- |
+| `shoal setup fish` | Install fish shell integration |
 
 ## Recommended operator flow
 
