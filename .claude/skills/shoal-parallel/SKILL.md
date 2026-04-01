@@ -54,6 +54,7 @@ For each workstream in the plan:
    - path: /srv/dev/.shoal
    - worktree: feat/<feature>-<part>
    - branch: true
+   - tool: omp
    ```
 
 2. Send initial instructions to each session via `mcp__shoal-orchestrator__send_keys`:

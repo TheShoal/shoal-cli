@@ -8,7 +8,7 @@ from typing import Literal, Protocol
 from shoal.models.config import ToolConfig
 from shoal.models.state import SessionStatus
 
-ProviderName = Literal["regex", "pi", "opencode_compat"]
+ProviderName = Literal["regex", "pi", "omp_compat", "opencode_compat"]
 
 logger = logging.getLogger("shoal.status_provider")
 
@@ -18,6 +18,8 @@ def default_status_provider_for_tool(tool_name: str) -> ProviderName:
     lowered = tool_name.strip().lower()
     if lowered == "pi":
         return "pi"
+    if lowered == "omp":
+        return "omp_compat"
     if lowered == "opencode":
         return "opencode_compat"
     return "regex"
@@ -77,6 +79,7 @@ _PROVIDERS: dict[ProviderName, StatusProvider] = {
     "regex": RegexStatusProvider(),
     "pi": PiStatusProvider(),
     "opencode_compat": OpenCodeCompatStatusProvider(),
+    "omp_compat": OpenCodeCompatStatusProvider(),
 }
 
 

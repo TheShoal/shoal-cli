@@ -410,7 +410,7 @@ async def create_session_tool(
     Args:
         name: Session name (required).
         path: Project directory (defaults to current directory).
-        tool: AI tool to use (opencode, claude, codex, gemini, pi). Defaults to config.
+        tool: AI tool to use (omp, claude, codex, gemini, pi). Defaults to config.
         worktree: Create a git worktree with this name.
         branch: Create a new branch for the worktree.
         template: Session template name to apply.

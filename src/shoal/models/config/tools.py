@@ -56,7 +56,7 @@ class ToolConfig(BaseModel):
     name: str
     command: str
     icon: str = "●"
-    status_provider: Literal["regex", "pi", "opencode_compat"] | None = None
+    status_provider: Literal["regex", "pi", "omp_compat", "opencode_compat"] | None = None
     send_keys_delay: float = 0.0
     # Prompt delivery mode for initial session prompts:
     #   "keys"  — send_keys after launch (default, works with any tool)
