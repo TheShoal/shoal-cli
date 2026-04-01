@@ -92,6 +92,7 @@ class SessionState(BaseModel):
         return self.runtime
 
     pid: int | None = None
+    dreamer_pane_id: str = ""
     mcp_servers: list[str] = Field(default_factory=list)
     parent_id: str = ""
     tags: list[str] = Field(default_factory=list)

@@ -140,3 +140,101 @@ class TestNoConfig:
         """Unknown tool returns None."""
         result = configure_mcp_for_tool("nonexistent-tool", "memory", "/tmp/work")
         assert result is None
+
+
+class TestConfigureHttpForTool:
+    def test_http_config_with_file_success(self, mock_dirs, tmp_path):
+        from shoal.services.mcp_configure import _configure_http_for_tool
+
+        class MockMcpCfg:
+            config_file = "test_config.json"
+
+        work_dir = tmp_path
+
+        result = _configure_http_for_tool(
+            "tool_name", "http_mcp", str(work_dir), 8080, MockMcpCfg()
+        )
+
+        config_path = work_dir / "test_config.json"
+
+        assert result == f"Configured HTTP URL in {config_path}"
+        assert config_path.exists()
+
+        with open(config_path) as f:
+            data = json.load(f)
+
+        assert data == {"mcpServers": {"http_mcp": {"url": "http://localhost:8080/mcp/"}}}
+
+    def test_http_config_with_existing_file(self, mock_dirs, tmp_path):
+        from shoal.services.mcp_configure import _configure_http_for_tool
+
+        class MockMcpCfg:
+            config_file = "test_config.json"
+
+        work_dir = tmp_path
+        config_path = work_dir / "test_config.json"
+
+        with open(config_path, "w") as f:
+            json.dump({"existing": "value", "mcpServers": {"other": {"url": "http://other"}}}, f)
+
+        result = _configure_http_for_tool(
+            "tool_name", "http_mcp", str(work_dir), 8080, MockMcpCfg()
+        )
+
+        with open(config_path) as f:
+            data = json.load(f)
+
+        assert data["existing"] == "value"
+        assert data["mcpServers"]["other"]["url"] == "http://other"
+        assert data["mcpServers"]["http_mcp"]["url"] == "http://localhost:8080/mcp/"
+
+    def test_http_config_no_file(self, mock_dirs, tmp_path):
+        from shoal.services.mcp_configure import _configure_http_for_tool
+
+        class MockMcpCfg:
+            config_file = None
+
+        work_dir = tmp_path
+
+        result = _configure_http_for_tool(
+            "tool_name", "http_mcp", str(work_dir), 8080, MockMcpCfg()
+        )
+
+        assert result == "HTTP server at http://localhost:8080/mcp/"
+
+    def test_http_config_invalid_json_file(self, mock_dirs, tmp_path):
+        from shoal.services.mcp_configure import _configure_http_for_tool, McpConfigureError
+
+        class MockMcpCfg:
+            config_file = "test_config.json"
+
+        work_dir = tmp_path
+        config_path = work_dir / "test_config.json"
+        config_path.write_text("invalid json")
+
+        with pytest.raises(McpConfigureError, match="Failed to parse config file"):
+            _configure_http_for_tool("tool_name", "http_mcp", str(work_dir), 8080, MockMcpCfg())
+
+
+class TestHttpTransportIntegration:
+    def test_http_transport_routing(self, mock_dirs, tmp_path):
+        from shoal.services.mcp_configure import configure_mcp_for_tool
+
+        with (
+            patch("shoal.core.config.load_tool_config") as mock_tool,
+            patch("shoal.services.mcp_pool.get_transport") as mock_transport,
+            patch("shoal.services.mcp_pool.read_port") as mock_port,
+        ):
+            from shoal.models.config import MCPToolConfig, ToolConfig
+
+            mock_tool.return_value = ToolConfig(
+                name="opencode",
+                command="opencode",
+                mcp=MCPToolConfig(config_file=".opencode.json"),
+            )
+            mock_transport.return_value = "http"
+            mock_port.return_value = 8080
+
+            result = configure_mcp_for_tool("opencode", "memory", str(tmp_path))
+
+            assert "HTTP URL in" in result

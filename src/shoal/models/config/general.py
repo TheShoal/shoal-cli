@@ -75,6 +75,17 @@ class OperatorConfig(BaseModel):
     stale_after_minutes: int = 30
 
 
+class DreamerConfig(BaseModel):
+    """Dreamer pane configuration — maps to [dreamer] in config.toml."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    model: str = "gpt-oss-20b"
+    log_lines: int = 50
+    summary_interval_seconds: int = 300
+
+
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
 
@@ -87,4 +98,5 @@ class ShoalConfig(BaseModel):
     robo: RoboGlobalConfig = Field(default_factory=RoboGlobalConfig)
     remote: dict[str, RemoteHostConfig] = Field(default_factory=dict)
     operator: OperatorConfig = Field(default_factory=OperatorConfig)
+    dreamer: DreamerConfig = Field(default_factory=DreamerConfig)
     claw: ClawConfig = Field(default_factory=ClawConfig)

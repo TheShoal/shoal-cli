@@ -378,6 +378,7 @@ async def _add_impl(
             worktree_name=worktree or "",
             mcp_servers=mcp_servers or None,
             tags=auto_tags or None,
+            dreamer_config=cfg.dreamer,
         )
     except SessionExistsError as e:
         get_console().print(f"[red]Error: {e}[/red]")

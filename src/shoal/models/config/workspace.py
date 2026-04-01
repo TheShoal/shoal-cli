@@ -5,6 +5,23 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class CoordinatorConfig(BaseModel):
+    """Agent coordinator configuration for multi-agent orchestration.
+
+    Controls polling intervals, squash-merge behavior, and context injection
+    for coordinated agent sessions.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    poll_interval_seconds: int = 30
+    squash_merge: bool = True
+    """Squash commits from agent sessions before merging to parent branch."""
+    context_injection: dict[str, str] = Field(default_factory=dict)
+    """Key-value pairs to inject as environment variables into agent sessions."""
+
+
 class ProjectConfig(BaseModel):
     """Project-level config from ``.shoal.toml`` at git root.
 

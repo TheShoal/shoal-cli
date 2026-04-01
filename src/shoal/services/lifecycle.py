@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from shoal.models.config import ProjectHookEntry
+    from shoal.models.config import DreamerConfig, ProjectHookEntry
 
 from shoal.core import git, tmux
 from shoal.core.config import load_config
@@ -30,7 +30,12 @@ from shoal.core.state import (
     list_sessions,
     update_session,
 )
-from shoal.models.config import SessionTemplateConfig
+from shoal.models.config import (
+    CoordinatorConfig,
+    DreamerConfig,
+    ProjectHookEntry,
+    SessionTemplateConfig,
+)
 from shoal.models.state import LifecycleEvent, SessionState, SessionStatus, TmuxRuntimeState
 from shoal.services.runtime_provider import provider_for_session
 
@@ -713,6 +718,8 @@ async def create_session_lifecycle(
     mcp_servers: list[str] | None = None,
     extra_env: dict[str, str] | None = None,
     tags: list[str] | None = None,
+    dreamer_config: DreamerConfig | None = None,
+    coordinator_config: CoordinatorConfig | None = None,
 ) -> SessionState:
     """Create a session with full rollback on failure.
 
@@ -784,6 +791,8 @@ async def create_session_lifecycle(
         session_env.update(template_cfg.env)
     if extra_env:
         session_env.update(extra_env)
+    if coordinator_config and coordinator_config.context_injection:
+        session_env.update(coordinator_config.context_injection)
 
     if session_env:
         for key, value in session_env.items():
@@ -852,7 +861,33 @@ async def create_session_lifecycle(
     agent_pane = await tmux.async_first_pane(tmux_session)
     await tmux.async_set_pane_title(agent_pane, f"shoal:{session.id}")
 
+    # 5.5. Spawn dreamer pane if enabled
+    dreamer_pane_id = ""
+    if dreamer_config and dreamer_config.enabled:
+        try:
+            # Split horizontally, detached, named 'dreamer'
+            dreamer_cmd = (
+                f"split-window -t {tmux_session} -h -d -n dreamer -c {shlex.quote(work_dir)}"
+            )
+            await tmux.async_run_command(dreamer_cmd)
+            # Get the new dreamer pane ID
+            panes = await tmux.async_list_panes(tmux_session)
+            for pane in panes:
+                if pane.get("title") == "dreamer":
+                    dreamer_pane_id = pane.get("id", "")
+                    break
+            if dreamer_pane_id:
+                await tmux.async_set_pane_title(
+                    f"{tmux_session}:{dreamer_pane_id}", f"dreamer:{session.id}"
+                )
+                logger.info(
+                    "[%s] create: dreamer pane spawned (id=%s)", session.id, dreamer_pane_id
+                )
+        except Exception as exc:
+            logger.warning("[%s] create: failed to spawn dreamer pane: %s", session.id, exc)
+
     # 6. Capture PID + tmux coordinates + nvim socket
+
     updates: dict[str, object] = {"status": SessionStatus.running}
 
     pane_target = agent_pane
@@ -872,6 +907,9 @@ async def create_session_lifecycle(
         )
     if updated_runtime != session.runtime:
         updates["runtime"] = updated_runtime
+
+    if dreamer_pane_id:
+        updates["dreamer_pane_id"] = dreamer_pane_id
 
     await update_session(session.id, **updates)
 

@@ -503,3 +503,9 @@ MIT License. See `LICENSE` for details.
 <p align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0:94e2d5,30:45475a,70:1e1e2e,100:11111b&height=120&section=footer" alt="footer" width="100%">
 </p>
+
+### Version 0.32.0: Agent Teams & Journal Dreaming (April 2026)
+
+* **Subagent Coordination**: Safely orchestrates massive scale tasks across overlapping repositories dynamically by mapping `$SHOAL_PANE_ID`, enforcing isolation with `git worktree add`, disabling direct inter-agent polling to prevent loops! Handles merging and automatically drops squashed branches via `shoal.services.coordinator`.
+* **Dreamer Observer Pane**: Actively condenses large memory streams, episodic DB traces from SQLite WAL, and fast-flowing Tmux chunks down to structured `'/Users/ricardoroche/.omp/agent/memories/--Users-ricardoroche-sanctum-opus-proprium-the-shoal-shoal-cli--/memory_summary.md'` and `context.md` files passively. Allows multi-agent runs on Smorgasbord to remain efficient utilizing `gpt-oss-20b` fallback endpoints. This is wired securely through `shoal.services.dreamer`.
+
