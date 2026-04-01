@@ -539,9 +539,12 @@ def generate_handoff(
                     f" `shoal attach {session.name}` then merge or request changes."
                 )
             case UrgencyTier.running:
-                pass  # Session is running
+                suggested_next = "No immediate action needed.  Session is actively running."
             case UrgencyTier.stale:
-                pass  # Session is stale
+                suggested_next = (
+                    f"Verify the session is still making progress.  "
+                    f"Run `shoal attach {session.name}` to inspect."
+                )
             case UrgencyTier.idle:
                 suggested_next = "Session is idle.  Resume work when ready."
             case UrgencyTier.stopped:

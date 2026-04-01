@@ -387,8 +387,11 @@ async def step_mcp_orchestration() -> TourResult:
             "batch_execute",
             "branch_status",
             "capture_pane",
+            "claw_health",
+            "claw_status",
             "create_session",
             "kill_session",
+            "list_claws",
             "list_sessions",
             "list_worktree_files",
             "mark_complete",
@@ -397,9 +400,11 @@ async def step_mcp_orchestration() -> TourResult:
             "read_journal",
             "read_worktree_file",
             "send_keys",
+            "send_to_claw",
             "session_info",
             "session_snapshot",
             "session_status",
+            "sync_claw_conversations",
             "wait_for_completion",
         ]
         ok = tool_names == expected_tools
