@@ -1,3 +1,4 @@
+# ruff: noqa: PERF401
 """Status provider abstraction for backend-specific status detection."""
 
 from __future__ import annotations
