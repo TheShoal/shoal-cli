@@ -131,6 +131,13 @@ def remote_connect(
         int | None,
         typer.Option("--port", "-p", help="Override local port (default: auto)"),
     ] = None,
+    nspawn: Annotated[
+        bool,
+        typer.Option(
+            "--nspawn",
+            help="Drop securely into systemd-nspawn container on remote host",
+        ),
+    ] = False,
 ) -> None:
     """Connect to a remote host via SSH tunnel."""
     try:
@@ -162,6 +169,26 @@ def remote_connect(
         f"[green]{Symbols.CHECK}[/green] Connected to [bold]{host}[/bold] "
         f"(localhost:{local_port} → {host_cfg['host']}:{host_cfg['api_port']})"
     )
+
+    # Drop into systemd-nspawn if requested
+    if nspawn:
+        get_console().print(f"[dim]Dropping into systemd-nspawn on {host}...[/dim]")
+
+        # Build SSH command to enter nspawn container
+        cmd: list[str] = ["ssh", "-t"]
+        if host_cfg["port"] != 22:
+            cmd.extend(["-p", str(host_cfg["port"])])
+        if host_cfg["identity_file"]:
+            cmd.extend(["-i", os.path.expanduser(host_cfg["identity_file"])])
+
+        target = f"{host_cfg['user']}@{host_cfg['host']}" if host_cfg["user"] else host_cfg["host"]
+        cmd.append(target)
+        # Use systemd-nspawn to drop into container
+        cmd.append("systemd-nspawn -M shoal-session --boot /bin/bash")
+
+        with contextlib.suppress(KeyboardInterrupt):
+            subprocess.run(cmd, check=False)
+        return
 
 
 @app.command("disconnect")

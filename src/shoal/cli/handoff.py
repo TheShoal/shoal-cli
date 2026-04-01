@@ -22,6 +22,14 @@ def handoff_show(
     session: Annotated[str, typer.Argument(help="Session name or ID")],
     as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
     save: Annotated[bool, typer.Option("--save", help="Save artifact to disk")] = False,
+    remote: Annotated[
+        str | None,
+        typer.Option(
+            "--remote",
+            "-r",
+            help="Fetch checkpoint from remote Gitea instance (host name from config)",
+        ),
+    ] = None,
 ) -> None:
     """Generate and display a handoff summary for a session."""
     import asyncio
@@ -41,6 +49,24 @@ def handoff_show(
         if not session_state:
             get_console().print(f"[red]Session '{session}' not found in DB[/red]")
             raise typer.Exit(1)
+
+        # Fetch remote checkpoint if requested
+        if remote:
+            from shoal.core.remote import RemoteConnectionError, remote_api_get, resolve_host
+
+            try:
+                _ = resolve_host(remote)
+            except KeyError:
+                get_console().print(f"[red]Error: Remote host '{remote}' not found[/red]")
+                raise typer.Exit(1) from None
+
+            try:
+                # Fetch checkpoint from Gitea via remote API
+                _ = remote_api_get(remote, f"/checkpoints/{session_id}")
+                get_console().print(f"[green]✓[/green] Fetched checkpoint from {remote}")
+            except RemoteConnectionError as e:
+                get_console().print(f"[red]Error fetching checkpoint: {e}[/red]")
+                raise typer.Exit(1) from None
 
         entries = read_journal(session_id)
         db = await get_db()
