@@ -43,14 +43,27 @@ def watcher_start(
     """Start the background status watcher."""
     ensure_dirs()
 
-    existing = _read_pid()
-    if existing:
-        get_console().print(f"[red]Error: Watcher already running (pid: {existing})[/red]")
-        get_console().print()
-        get_console().print("[yellow]Actionable suggestions:[/yellow]")
-        get_console().print("  • Check status: [bold]shoal watcher status[/bold]")
-        get_console().print("  • Stop watcher: [bold]shoal watcher stop[/bold]")
-        raise typer.Exit(1)
+    import fcntl
+    import os
+    try:
+        # Use O_CREAT | O_EXCL to atomically check and create
+        lock_fd = os.open(_pid_file(), os.O_WRONLY | os.O_CREAT | os.O_EXCL)
+        os.close(lock_fd)
+    except FileExistsError:
+        # File exists, maybe stale, so we can try flock.
+        try:
+            lock_fd = os.open(_pid_file(), os.O_RDWR)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            # We got the lock, meaning the pidfile is stale.
+            os.close(lock_fd)
+        except (BlockingIOError, FileNotFoundError):
+            existing = _read_pid()
+            get_console().print(f"[red]Error: Watcher already running (pid: {existing})[/red]")
+            get_console().print()
+            get_console().print("[yellow]Actionable suggestions:[/yellow]")
+            get_console().print("  • Check status: [bold]shoal watcher status[/bold]")
+            get_console().print("  • Stop watcher: [bold]shoal watcher stop[/bold]")
+            raise typer.Exit(1)
 
     if foreground:
         import asyncio
