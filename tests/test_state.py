@@ -1,5 +1,7 @@
 """Tests for core/state.py — session CRUD (Async)."""
 
+from unittest.mock import patch
+
 import pytest
 
 from shoal.core.state import (
@@ -105,6 +107,7 @@ class TestValidateSessionName:
 
 @pytest.mark.asyncio
 class TestSessionCRUD:
+    @patch("shoal.core.tmux.has_session", return_value=False)
     async def test_create_and_get(self, mock_dirs):
         session = await create_session("test", "claude", "/tmp/repo", "/tmp/wt", "feat/test")
         assert session.name == "test"
@@ -125,6 +128,7 @@ class TestSessionCRUD:
     async def test_get_missing(self, mock_dirs):
         assert await get_session("nonexistent") is None
 
+    @patch("shoal.core.tmux.has_session", return_value=False)
     async def test_update(self, mock_dirs):
         session = await create_session("test", "claude", "/tmp/repo")
         updated = await update_session(session.id, status=SessionStatus.running, pid=1234)
@@ -137,6 +141,7 @@ class TestSessionCRUD:
         assert loaded is not None
         assert loaded.status == SessionStatus.running
 
+    @patch("shoal.core.tmux.has_session", return_value=False)
     async def test_update_with_invalid_name(self, mock_dirs):
         """Test that update_session validates the name field."""
         session = await create_session("test", "claude", "/tmp/repo")
@@ -146,6 +151,7 @@ class TestSessionCRUD:
     async def test_update_missing(self, mock_dirs):
         assert await update_session("nonexistent", status="running") is None
 
+    @patch("shoal.core.tmux.has_session", return_value=False)
     async def test_delete(self, mock_dirs):
         session = await create_session("test", "claude", "/tmp/repo")
         assert await delete_session(session.id) is True
@@ -165,6 +171,7 @@ class TestSessionCRUD:
         assert await find_by_name("unique-name") == session.id
         assert await find_by_name("nonexistent") is None
 
+    @patch("shoal.core.tmux.has_session", return_value=False)
     async def test_touch(self, mock_dirs):
         session = await create_session("test", "claude", "/tmp")
         original_time = session.last_activity
@@ -176,6 +183,7 @@ class TestSessionCRUD:
 
 @pytest.mark.asyncio
 class TestMCPTracking:
+    @patch("shoal.core.tmux.has_session", return_value=False)
     async def test_add_and_remove(self, mock_dirs):
         session = await create_session("test", "claude", "/tmp")
         await add_mcp_to_session(session.id, "memory")
@@ -202,6 +210,7 @@ class TestMCPTracking:
 
 @pytest.mark.asyncio
 class TestResolveSession:
+    @patch("shoal.core.tmux.has_session", return_value=False)
     async def test_resolve_by_id(self, mock_dirs):
         session = await create_session("test", "claude", "/tmp")
         assert await resolve_session(session.id) == session.id

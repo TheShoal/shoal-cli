@@ -289,9 +289,9 @@ class TestMcpNameValidation:
         for name in ["memory", "filesystem", "my-server", "test_123", "a"]:
             assert validate_mcp_name(name) is None
 
-    def test_empty_name(self):
+    def test_none_name(self):
         with pytest.raises(ValueError, match="cannot be empty"):
-            validate_mcp_name("")
+            validate_mcp_name(None)
 
     def test_special_characters(self):
         with pytest.raises(ValueError, match="Invalid MCP name"):
