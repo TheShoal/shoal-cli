@@ -51,7 +51,9 @@ _DEFAULT_SERVERS: dict[str, str] = {
     "filesystem": "npx -y @modelcontextprotocol/server-filesystem",
     "github": "npx -y @modelcontextprotocol/server-github",
     "fetch": "npx -y @modelcontextprotocol/server-fetch",
-    "shoal-orchestrator": "shoal-mcp-server",
+    # Use module invocation to ensure the current Python environment is used.
+    # This prevents version mismatches between global and venv installations.
+    "shoal-orchestrator": "python -m shoal.services.mcp_shoal_server",
 }
 
 # Public alias kept for backward compatibility in tests / direct imports.
