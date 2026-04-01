@@ -47,6 +47,8 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
 
+hooks:
+  - docs/_scripts/set_version.py
 plugins:
   - gen-files:
       scripts:
