@@ -46,25 +46,22 @@ flowchart LR
 
 Shoal gives every session structural isolation. They don't block you, and they don't corrupt each other.
 
-```text
-+-------------------------+      +-------------------------+
-|   OPERATOR TERMINAL     |      |       FILESYSTEM        |
-|                         |      |                         |
-|  +-------------------+  |      |   /project              |
-|  | tmux pane 0       |  | ===> |     (main branch)       |
-|  | (you, the human)  |  |      |                         |
-|  +-------------------+  |      |   /project/.shoal       |
-|                         |      |    |--/status.db        |
-|  +-------------------+  |      |                         |
-|  | tmux pane 1       |  | ===> |   /project/.worktrees/  |
-|  | (agent `auth`)    |  |      |    |--/auth/            |
-|  +-------------------+  |      |                         |
-|                         |      |                         |
-|  +-------------------+  |      |   /project/.worktrees/  |
-|  | tmux pane 2       |  | ===> |    |--/api-refactor/    |
-|  | (agent `api`)     |  |      |                         |
-|  +-------------------+  |      |                         |
-+-------------------------+      +-------------------------+
+```mermaid
+flowchart LR
+    subgraph Operator Terminal
+      A[tmux pane 0<br>you, the human]
+      B[tmux pane 1<br>agent 'auth']
+      C[tmux pane 2<br>agent 'api']
+    end
+    subgraph Filesystem
+      D[/project<br>main branch]
+      E[/project/.shoal/<br>status.db]
+      F[/project/.worktrees/auth/]
+      G[/project/.worktrees/api-refactor/]
+    end
+    A --> D
+    B --> F
+    C --> G
 ```
 
 Each agent works in its own terminal pane bounded to a unique git worktree. If an agent ruins its files, your main check-out is unaffected. If you close your laptop, the tmux sessions stay alive and the agents keep running.
