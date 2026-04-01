@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
-import tarfile
 import tempfile
-import zipfile
 from pathlib import Path
 
 from shoal.models.fin import FinSource
@@ -67,15 +65,15 @@ def download_fin(url: str) -> Path:
         )
 
     dest = downloads_dir / stem
-    if dest.exists():
-        shutil.rmtree(dest)
-    dest.mkdir(parents=True)
-
     import httpx
 
     try:
-        response = httpx.get(url, follow_redirects=True, timeout=30)
-        response.raise_for_status()
+        with httpx.stream("GET", url, follow_redirects=True, timeout=30) as response:
+            response.raise_for_status()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=filename) as tmp:
+                for chunk in response.iter_bytes():
+                    tmp.write(chunk)
+                tmp_path = Path(tmp.name)
     except httpx.HTTPStatusError as exc:
         raise ValueError(
             f"Failed to download fin: HTTP {exc.response.status_code} from {url}"
@@ -83,19 +81,20 @@ def download_fin(url: str) -> Path:
     except httpx.HTTPError as exc:
         raise ValueError(f"Failed to download fin: {exc}") from exc
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=filename) as tmp:
-        tmp.write(response.content)
-        tmp_path = Path(tmp.name)
+    extract_dir = dest.parent / f"{dest.name}.tmp"
+    if extract_dir.exists():
+        shutil.rmtree(extract_dir)
+    extract_dir.mkdir(parents=True)
 
     try:
-        if filename.endswith(".tar.gz"):
-            with tarfile.open(tmp_path, "r:gz") as tf:
-                tf.extractall(dest)  # noqa: S202  # nosec B202 — trusted fin registry source
-        else:
-            with zipfile.ZipFile(tmp_path) as zf:
-                zf.extractall(dest)  # noqa: S202  # nosec B202 — trusted fin registry source
+        shutil.unpack_archive(tmp_path, extract_dir)
+        if dest.exists():
+            shutil.rmtree(dest)
+        extract_dir.rename(dest)
     finally:
         tmp_path.unlink(missing_ok=True)
+        if extract_dir.exists():
+            shutil.rmtree(extract_dir)
 
     return dest
 
