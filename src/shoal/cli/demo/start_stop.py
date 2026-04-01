@@ -118,7 +118,13 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         branch=git.current_branch(str(_demo_dir)),
     )
     s1.runtime = s1.runtime.model_copy(
-        update={"session_name": await _pin_demo_tmux_name(s1.name, s1.id, s1.runtime.session_name)}
+        update={
+            "session_name": await _pin_demo_tmux_name(
+                s1.name,
+                s1.id,
+                s1.tmux_runtime.session_name,
+            )
+        }
     )
     session_ids.append(s1.id)
 
@@ -128,11 +134,11 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         tool=default_tool,
         branch="main",
         project_path=display_path,
-        tmux_session_name=s1.runtime.session_name,
+        tmux_session_name=s1.tmux_runtime.session_name,
         feature="sessions",
     )
     _start_demo_tmux_session(
-        s1.runtime.session_name,
+        s1.tmux_runtime.session_name,
         _demo_dir,
         tool_command=tool_command,
         info_command=pane_command,
@@ -152,7 +158,13 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         branch="feat/api-endpoint",
     )
     s2.runtime = s2.runtime.model_copy(
-        update={"session_name": await _pin_demo_tmux_name(s2.name, s2.id, s2.runtime.session_name)}
+        update={
+            "session_name": await _pin_demo_tmux_name(
+                s2.name,
+                s2.id,
+                s2.tmux_runtime.session_name,
+            )
+        }
     )
     session_ids.append(s2.id)
 
@@ -163,12 +175,12 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         tool=default_tool,
         branch="feat/api-endpoint",
         project_path=wt_display,
-        tmux_session_name=s2.runtime.session_name,
+        tmux_session_name=s2.tmux_runtime.session_name,
         worktree_note=True,
         feature="worktrees",
     )
     _start_demo_tmux_session(
-        s2.runtime.session_name,
+        s2.tmux_runtime.session_name,
         worktree_path,
         tool_command=tool_command,
         info_command=pane_command,
@@ -187,7 +199,13 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         branch="fix/login-bug",
     )
     s3.runtime = s3.runtime.model_copy(
-        update={"session_name": await _pin_demo_tmux_name(s3.name, s3.id, s3.runtime.session_name)}
+        update={
+            "session_name": await _pin_demo_tmux_name(
+                s3.name,
+                s3.id,
+                s3.tmux_runtime.session_name,
+            )
+        }
     )
     session_ids.append(s3.id)
 
@@ -198,12 +216,12 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         tool=default_tool,
         branch="fix/login-bug",
         project_path=bugfix_display,
-        tmux_session_name=s3.runtime.session_name,
+        tmux_session_name=s3.tmux_runtime.session_name,
         worktree_note=True,
         feature="detection",
     )
     _start_demo_tmux_session(
-        s3.runtime.session_name,
+        s3.tmux_runtime.session_name,
         bugfix_path,
         tool_command=tool_command,
         info_command=pane_command,
@@ -218,7 +236,13 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         branch=git.current_branch(str(_demo_dir)),
     )
     s4.runtime = s4.runtime.model_copy(
-        update={"session_name": await _pin_demo_tmux_name(s4.name, s4.id, s4.runtime.session_name)}
+        update={
+            "session_name": await _pin_demo_tmux_name(
+                s4.name,
+                s4.id,
+                s4.tmux_runtime.session_name,
+            )
+        }
     )
     session_ids.append(s4.id)
 
@@ -228,11 +252,11 @@ async def _demo_start_impl(custom_dir: str | None) -> None:
         tool=default_tool,
         branch="main",
         project_path=display_path,
-        tmux_session_name=s4.runtime.session_name,
+        tmux_session_name=s4.tmux_runtime.session_name,
         is_robo=True,
     )
     _start_demo_tmux_session(
-        s4.runtime.session_name,
+        s4.tmux_runtime.session_name,
         _demo_dir,
         tool_command=tool_command,
         info_command=pane_command,
@@ -323,8 +347,8 @@ async def _demo_stop_impl(custom_dir: str | Path | None) -> None:
 
         s = await get_session(sid)
         if s:
-            if tmux.has_session(s.runtime.session_name):
-                tmux.kill_session(s.runtime.session_name)
+            if tmux.has_session(s.tmux_runtime.session_name):
+                tmux.kill_session(s.tmux_runtime.session_name)
                 get_console().print(f"  \u2713 Killed tmux session: {s.name}")
             await delete_session(sid)
             get_console().print(f"  \u2713 Deleted session: {s.name}")

@@ -486,7 +486,7 @@ async def _logs_impl(
 
     provider = provider_for_session(s)
     if not provider.exists(s):
-        get_console().print(f"[red]Runtime session not found: {s.runtime.session_name}[/red]")
+        get_console().print(f"[red]Runtime session not found: {s.tmux_runtime.session_name}[/red]")
         raise typer.Exit(1)
 
     if color_setting == "always":

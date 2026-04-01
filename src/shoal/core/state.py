@@ -41,7 +41,7 @@ async def resolve_nvim_socket(session: SessionState) -> str | None:
     """Resolve and persist a session's Neovim socket from current tmux IDs."""
     from shoal.core import tmux
 
-    runtime = session.runtime
+    runtime = session.tmux_runtime
     if not tmux.has_session(runtime.session_name):
         return None
 

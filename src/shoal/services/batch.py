@@ -365,7 +365,7 @@ async def _dispatch(op: BatchOperation, cache: SessionCache) -> BatchPayload:
             try:
                 summary = await kill_session_lifecycle(
                     session_id=session_state.id,
-                    tmux_session=session_state.runtime.session_name,
+                    tmux_session=session_state.tmux_runtime.session_name,
                     worktree=session_state.worktree,
                     git_root=session_state.path,
                     branch=session_state.branch,

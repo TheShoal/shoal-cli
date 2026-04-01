@@ -40,7 +40,7 @@ async def _build_entries() -> tuple[list[str], dict[str, str]]:
 
     for session in sessions:
         icon = _get_tool_icon(session.tool)
-        lookup[session.id] = session.runtime.session_name
+        lookup[session.id] = session.tmux_runtime.session_name
 
         branch = session.branch or "-"
         last = session.last_activity.strftime("%H:%M") if session.last_activity else "-"

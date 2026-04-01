@@ -410,7 +410,9 @@ async def _add_impl(
         get_console().print(f"  Template: {template_cfg.name}")
     if session.mcp_servers:
         get_console().print(f"  MCP: {', '.join(session.mcp_servers)}")
-    get_console().print(f"  Runtime: {session.runtime.kind.value} ({session.runtime.session_name})")
+    rt_kind = session.runtime.kind.value
+    rt_name = session.tmux_runtime.session_name if rt_kind == "tmux" else ""
+    get_console().print(f"  Runtime: {rt_kind} ({rt_name})")
     get_console().print()
     get_console().print(f"Attach with: shoal attach {session_name}")
 
@@ -541,7 +543,7 @@ async def _kill_impl(session: str | None, worktree: bool, force: bool) -> None:
     try:
         summary = await kill_session_lifecycle(
             session_id=s.id,
-            tmux_session=s.runtime.session_name,
+            tmux_session=s.tmux_runtime.session_name,
             worktree=s.worktree,
             git_root=s.path,
             branch=s.branch,
@@ -557,7 +559,7 @@ async def _kill_impl(session: str | None, worktree: bool, force: bool) -> None:
         raise typer.Exit(1) from None
 
     if summary["tmux_killed"]:
-        get_console().print(f"{icon} Killed runtime session: {s.runtime.session_name}")
+        get_console().print(f"{icon} Killed runtime session: {s.tmux_runtime.session_name}")
     if summary["worktree_removed"]:
         get_console().print(f"  Removed worktree: {s.worktree}")
     if summary["branch_deleted"]:

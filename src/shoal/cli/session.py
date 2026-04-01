@@ -49,7 +49,7 @@ async def _attach_impl(session_name_or_id: str | None) -> None:
     if not provider.exists(s):
         get_console().print(
             "[red]Runtime session "
-            f"'{s.runtime.session_name}' not found (session may have died)[/red]"
+            f"'{s.tmux_runtime.session_name}' not found (session may have died)[/red]"
         )
         await update_session(sid, status=SessionStatus.stopped)
         raise typer.Exit(1)
@@ -161,7 +161,7 @@ async def _send_impl(session_name_or_id: str, keys: str) -> None:
     s = await get_session(sid)
     if not s:
         raise typer.Exit(1)
-    pane_target = tmux.preferred_pane(s.runtime.session_name, title=f"shoal:{s.id}")
+    pane_target = tmux.preferred_pane(s.tmux_runtime.session_name, title=f"shoal:{s.id}")
     tmux.send_keys(pane_target, keys)
 
 

@@ -19,7 +19,7 @@ def _build_nvim_socket_path(session_id: str, window_id: str) -> str:
 
 
 def _runtime(session: SessionState) -> TmuxRuntimeState:
-    return session.runtime
+    return session.tmux_runtime
 
 
 def _tool_executable(tool_command: str) -> str:

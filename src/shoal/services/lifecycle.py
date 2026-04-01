@@ -749,7 +749,7 @@ async def create_session_lifecycle(
 
     set_session_id(session.id)
 
-    tmux_session = session.runtime.session_name
+    tmux_session = session.tmux_runtime.session_name
     logger.info("[%s] create: DB row created (id=%s)", session_name, session.id)
 
     # 2. Create tmux session
@@ -1039,7 +1039,7 @@ async def fork_session_lifecycle(
 
     set_session_id(session.id)
 
-    tmux_session = session.runtime.session_name
+    tmux_session = session.tmux_runtime.session_name
     logger.info("[%s] fork: DB row created (id=%s)", session_name, session.id)
 
     # 2. Create tmux session

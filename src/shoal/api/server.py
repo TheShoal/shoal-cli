@@ -542,7 +542,7 @@ async def delete_session_api(
     try:
         await kill_session_lifecycle(
             session_id=s.id,
-            tmux_session=s.runtime.session_name,
+            tmux_session=s.tmux_runtime.session_name,
             worktree=s.worktree,
             git_root=s.path,
             branch=s.branch,
@@ -600,7 +600,7 @@ async def attach_session_api(session_id: str) -> dict[str, str]:
     if not provider.exists(s):
         raise HTTPException(status_code=400, detail="Runtime session not found")
     provider.attach(s)
-    return {"message": f"Attached to {s.runtime.session_name}"}
+    return {"message": f"Attached to {s.tmux_runtime.session_name}"}
 
 
 @app.post("/sessions/{session_id}/send")

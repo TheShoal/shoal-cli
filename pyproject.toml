@@ -59,6 +59,11 @@ claw = [
 mcp = [
     "fastmcp>=3.0.0",
 ]
+claw = [
+    "grpcio>=1.60.0",
+    "grpcio-tools>=1.60.0",
+    "protobuf>=4.25.0",
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
@@ -100,10 +105,19 @@ python_version = "3.12"
 strict = true
 warn_return_any = true
 
-# Claw client uses optional grpcio dependency - type errors expected until proto stubs generated
 [[tool.mypy.overrides]]
-module = "shoal.core.claw_client"
-disable_error_code = ["import-not-found", "import-untyped", "attr-defined", "union-attr", "no-any-return"]
+module = ["shoal.core.proto.*"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["shoal.core.claw_client", "grpc", "grpc.*"]
+disallow_untyped_calls = false
+warn_unused_ignores = false
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["shoal.services.runtime_providers.claw"]
+warn_return_any = false
 
 [[tool.mypy.overrides]]
 module = "shoal.core.claw_conversations"

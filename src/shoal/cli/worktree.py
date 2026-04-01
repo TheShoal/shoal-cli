@@ -113,8 +113,8 @@ async def _wt_finish_impl(session: str | None, pr: bool, no_merge: bool) -> None
     get_console().print()
 
     # Kill tmux session
-    if tmux.has_session(s.runtime.session_name):
-        tmux.kill_session(s.runtime.session_name)
+    if tmux.has_session(s.tmux_runtime.session_name):
+        tmux.kill_session(s.tmux_runtime.session_name)
         get_console().print("  Killed runtime session")
 
     # Handle merge/PR
@@ -183,7 +183,7 @@ async def _wt_cleanup_impl() -> None:
             tracked.add(s.worktree)
 
         # Find stale sessions (tmux session gone but not marked stopped)
-        if s.status.value != "stopped" and not tmux.has_session(s.runtime.session_name):
+        if s.status.value != "stopped" and not tmux.has_session(s.tmux_runtime.session_name):
             stale.append(s.id)
 
     # Report stale sessions

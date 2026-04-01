@@ -277,7 +277,7 @@ class ClawRuntimeProvider:
         self,
         session: SessionState,
         new_name: str,
-    ) -> RuntimeState:
+    ) -> ClawRuntimeState:
         """Rename a Claw session.
 
         Note:
@@ -292,6 +292,7 @@ class ClawRuntimeProvider:
             The unchanged runtime state.
         """
         logger.warning("async_rename() is not supported for Claw runtimes")
+        assert isinstance(session.runtime, ClawRuntimeState)
         return session.runtime
 
     async def async_kill(self, session: SessionState) -> bool:

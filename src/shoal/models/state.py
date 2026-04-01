@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Discriminator, Field, Tag, field_validator, model_validator
 
 
 class SessionStatus(StrEnum):
@@ -60,7 +60,15 @@ class ClawRuntimeState(BaseModel):
     employee_id: str = ""
 
 
-RuntimeState = TmuxRuntimeState | ClawRuntimeState
+# Default type alias — used by code that only handles tmux sessions.
+# Claw-aware code should use the discriminated union directly.
+RuntimeState = TmuxRuntimeState
+
+# Discriminated union for Pydantic (de)serialization — handles both runtime kinds.
+AnyRuntimeState = Annotated[
+    Annotated[TmuxRuntimeState, Tag("tmux")] | Annotated[ClawRuntimeState, Tag("claw")],
+    Discriminator("kind"),
+]
 
 
 class SessionState(BaseModel):
@@ -72,8 +80,17 @@ class SessionState(BaseModel):
     path: str  # git root
     worktree: str = ""
     branch: str = ""
-    runtime: RuntimeState
+    runtime: AnyRuntimeState
     status: SessionStatus = SessionStatus.idle
+
+    @property
+    def tmux_runtime(self) -> TmuxRuntimeState:
+        """Narrow runtime to TmuxRuntimeState. Raises TypeError for non-tmux sessions."""
+        if not isinstance(self.runtime, TmuxRuntimeState):
+            msg = f"Expected tmux runtime, got {self.runtime.kind}"
+            raise TypeError(msg)
+        return self.runtime
+
     pid: int | None = None
     mcp_servers: list[str] = Field(default_factory=list)
     parent_id: str = ""

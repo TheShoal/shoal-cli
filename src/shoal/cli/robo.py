@@ -331,10 +331,10 @@ async def _robo_send_impl(session_name_or_id: str, keys: str) -> None:
     if not s:
         raise typer.Exit(1)
 
-    if not tmux.has_session(s.runtime.session_name):
-        get_console().print(f"[red]Tmux session '{s.runtime.session_name}' not found[/red]")
+    if not tmux.has_session(s.tmux_runtime.session_name):
+        get_console().print(f"[red]Tmux session '{s.tmux_runtime.session_name}' not found[/red]")
         raise typer.Exit(1)
-    pane_target = tmux.preferred_pane(s.runtime.session_name, title=f"shoal:{s.id}")
+    pane_target = tmux.preferred_pane(s.tmux_runtime.session_name, title=f"shoal:{s.id}")
     tmux.send_keys(pane_target, keys)
     get_console().print(f"Sent keys to '{s.name}'")
 

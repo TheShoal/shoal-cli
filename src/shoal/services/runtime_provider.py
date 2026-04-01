@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import Protocol
 
 from shoal.models.config import ToolConfig
-from shoal.models.state import RuntimeKind, RuntimeState, SessionState
+from shoal.models.state import (
+    AnyRuntimeState,
+    RuntimeKind,
+    SessionState,
+)
 from shoal.services.runtime_models import RuntimeObservation
 
 
@@ -14,9 +18,9 @@ class RuntimeProvider(Protocol):
 
     kind: RuntimeKind
 
-    def payload(self, runtime: RuntimeState) -> dict[str, object]: ...
+    def payload(self, runtime: AnyRuntimeState) -> dict[str, object]: ...
 
-    def summary(self, runtime: RuntimeState) -> dict[str, str]: ...
+    def summary(self, runtime: AnyRuntimeState) -> dict[str, str]: ...
 
     def exists(self, session: SessionState) -> bool: ...
 
@@ -45,7 +49,7 @@ class RuntimeProvider(Protocol):
         self, session: SessionState, tool_config: ToolConfig, *, ready_timeout: float
     ) -> None: ...
 
-    async def async_rename(self, session: SessionState, new_name: str) -> RuntimeState: ...
+    async def async_rename(self, session: SessionState, new_name: str) -> AnyRuntimeState: ...
 
     async def async_kill(self, session: SessionState) -> bool: ...
 
@@ -55,16 +59,20 @@ class RuntimeProvider(Protocol):
 
 
 def _providers() -> dict[RuntimeKind, RuntimeProvider]:
-    from shoal.services.runtime_providers.claw import ClawRuntimeProvider
     from shoal.services.runtime_providers.tmux import TmuxRuntimeProvider
 
-    return {
-        RuntimeKind.tmux: TmuxRuntimeProvider(),
-        RuntimeKind.claw: ClawRuntimeProvider(),
-    }
+    providers: dict[RuntimeKind, RuntimeProvider] = {}
+    providers[RuntimeKind.tmux] = TmuxRuntimeProvider()  # type: ignore[assignment]
+    try:
+        from shoal.services.runtime_providers.claw import ClawRuntimeProvider
+
+        providers[RuntimeKind.claw] = ClawRuntimeProvider()  # type: ignore[assignment]
+    except ImportError:
+        pass  # grpcio not installed
+    return providers
 
 
-def provider_for_runtime(runtime: RuntimeState) -> RuntimeProvider:
+def provider_for_runtime(runtime: AnyRuntimeState) -> RuntimeProvider:
     return _providers()[runtime.kind]
 
 
@@ -72,9 +80,9 @@ def provider_for_session(session: SessionState) -> RuntimeProvider:
     return provider_for_runtime(session.runtime)
 
 
-def runtime_payload(runtime: RuntimeState) -> dict[str, object]:
+def runtime_payload(runtime: AnyRuntimeState) -> dict[str, object]:
     return provider_for_runtime(runtime).payload(runtime)
 
 
-def runtime_summary(runtime: RuntimeState) -> dict[str, str]:
+def runtime_summary(runtime: AnyRuntimeState) -> dict[str, str]:
     return provider_for_runtime(runtime).summary(runtime)

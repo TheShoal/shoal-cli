@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from shoal.models.state import RuntimeState
+from shoal.models.state import AnyRuntimeState
 
 
 class RuntimeObservation(BaseModel):
@@ -13,4 +13,4 @@ class RuntimeObservation(BaseModel):
     alive: bool
     output: str = ""
     pid: int | None = None
-    runtime: RuntimeState
+    runtime: AnyRuntimeState
