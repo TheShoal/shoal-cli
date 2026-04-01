@@ -12,43 +12,43 @@ from shoal.services.runtime_providers.claw import ClawRuntimeProvider
 claw_client_mock = MagicMock()
 claw_client_mock.ClawClient = MagicMock()
 
+
 @pytest.fixture
 def provider():
     return ClawRuntimeProvider()
 
+
 @pytest.fixture
 def session():
     runtime = ClawRuntimeState(
-        claw_id="test_claw",
-        endpoint="grpc://localhost:50051",
-        employee_id="emp_1"
+        claw_id="test_claw", endpoint="grpc://localhost:50051", employee_id="emp_1"
     )
     return SessionState(
-        id="test_session",
-        name="test_session",
-        tool="test_tool",
-        path="/tmp/test",
-        runtime=runtime
+        id="test_session", name="test_session", tool="test_tool", path="/tmp/test", runtime=runtime
     )
+
 
 @pytest.fixture
 def tool_config():
     return ToolConfig(name="test_tool", command="echo hello")
 
+
 class TestClawRuntimeProviderCoverage:
     def test_get_client_raises_if_not_claw_runtime(self, provider):
         # We manually construct a SessionState as a dict to bypass pydantic validation logic
         # and trigger the check in the provider
-        session_data = {
+        {
             "id": "t",
             "name": "t",
             "tool": "t",
             "path": "/",
-            "runtime": TmuxRuntimeState(session_name="t")
+            "runtime": TmuxRuntimeState(session_name="t"),
         }
         # This is a bit tricky, let's just make a session with tmux state if possible
         # Or just use an object that fakes it
-        session = SessionState(id="t", name="t", tool="t", path="/", runtime=TmuxRuntimeState(session_name="t"))
+        session = SessionState(
+            id="t", name="t", tool="t", path="/", runtime=TmuxRuntimeState(session_name="t")
+        )
         with pytest.raises(ValueError, match="Expected ClawRuntimeState"):
             provider._get_client(session)
 
@@ -77,7 +77,7 @@ class TestClawRuntimeProviderCoverage:
         context_mock = AsyncMock()
         context_mock.health.return_value = {"healthy": True}
         mock_client.__aenter__.return_value = context_mock
-        
+
         with patch.object(provider, "_get_client", return_value=mock_client):
             assert await provider.async_exists(session) is True
 
@@ -98,11 +98,12 @@ class TestClawRuntimeProviderCoverage:
     @pytest.mark.asyncio
     async def test_async_wait_for_ready_timeout(self, provider, session, tool_config):
         # mock sleep and loop time
-        with patch("asyncio.sleep", return_value=None), \
-             patch("asyncio.get_event_loop") as mock_loop:
-            
+        with (
+            patch("asyncio.sleep", return_value=None),
+            patch("asyncio.get_event_loop") as mock_loop,
+        ):
             mock_loop.return_value.time.side_effect = [0, 10, 20]
-            
+
             with patch.object(provider, "_get_client", side_effect=Exception("not ready")):
                 with pytest.raises(TimeoutError):
                     await provider.async_wait_for_ready(session, tool_config, ready_timeout=5.0)
@@ -113,7 +114,7 @@ class TestClawRuntimeProviderCoverage:
         context_mock = AsyncMock()
         context_mock.health.return_value = {"healthy": True}
         mock_client.__aenter__.return_value = context_mock
-        
+
         with patch.object(provider, "_get_client", return_value=mock_client):
             await provider.async_wait_for_ready(session, tool_config, ready_timeout=5.0)
 

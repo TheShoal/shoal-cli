@@ -177,9 +177,7 @@ class TestConfigureHttpForTool:
         with open(config_path, "w") as f:
             json.dump({"existing": "value", "mcpServers": {"other": {"url": "http://other"}}}, f)
 
-        result = _configure_http_for_tool(
-            "tool_name", "http_mcp", str(work_dir), 8080, MockMcpCfg()
-        )
+        _configure_http_for_tool("tool_name", "http_mcp", str(work_dir), 8080, MockMcpCfg())
 
         with open(config_path) as f:
             data = json.load(f)
@@ -203,7 +201,7 @@ class TestConfigureHttpForTool:
         assert result == "HTTP server at http://localhost:8080/mcp/"
 
     def test_http_config_invalid_json_file(self, mock_dirs, tmp_path):
-        from shoal.services.mcp_configure import _configure_http_for_tool, McpConfigureError
+        from shoal.services.mcp_configure import McpConfigureError, _configure_http_for_tool
 
         class MockMcpCfg:
             config_file = "test_config.json"

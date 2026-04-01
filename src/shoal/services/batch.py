@@ -35,10 +35,10 @@ logger = logging.getLogger(__name__)
 AUTO_ENTER_TOOLS: frozenset[str] = frozenset({"claude", "codex", "gemini", "pi"})
 
 
-type BatchPayload = object
+BatchPayload = object
 
 
-type SessionScopedBatchOp = BatchOperation
+SessionScopedBatchOp = BatchOperation
 
 
 @dataclass(slots=True)

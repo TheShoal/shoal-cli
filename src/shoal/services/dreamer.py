@@ -197,7 +197,7 @@ class DreamerService:
 
         try:
             # Attempt to use the internal AI SDK if available
-            from shoal.services.ai_client import call_llm  # type: ignore[import-not-found]
+            from shoal.services.ai_client import call_llm  # type: ignore[import-untyped]
 
             response = await call_llm(
                 model=self.config.model,
@@ -205,7 +205,7 @@ class DreamerService:
                 max_tokens=500,
                 temperature=0.3,
             )
-            return response.strip()
+            return str(response)
         except ImportError:
             logger.debug("AI client not available, using fallback summarization")
             return self._fallback_summarize(session_name, logs)

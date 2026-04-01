@@ -8,7 +8,7 @@ from shoal.services.coordinator import CoordinatorService, CoordinatorSession
 
 
 @pytest.fixture
-def config():
+def config() -> CoordinatorConfig:
     return CoordinatorConfig(
         poll_interval_seconds=1,
         squash_merge=True,
@@ -16,12 +16,12 @@ def config():
 
 
 @pytest.fixture
-def service(config):
+def service(config: CoordinatorConfig) -> CoordinatorService:
     return CoordinatorService(config)
 
 
 @pytest.mark.asyncio
-async def test_start_stop(service):
+async def test_start_stop(service: CoordinatorService) -> None:
     await service.start()
     assert service._running is True
     assert service._task is not None
@@ -34,7 +34,7 @@ async def test_start_stop(service):
 
 
 @pytest.mark.asyncio
-async def test_register_unregister(service):
+async def test_register_unregister(service: CoordinatorService) -> None:
     await service.register_session(
         session_id="1",
         session_name="test-session",
@@ -55,7 +55,7 @@ async def test_register_unregister(service):
 
 
 @pytest.mark.asyncio
-async def test_poll_loop_error_handling(service):
+async def test_poll_loop_error_handling(service: CoordinatorService) -> None:
     service._running = True
 
     with patch.object(service, "_poll_sessions", side_effect=Exception("Test error")) as mock_poll:
@@ -69,7 +69,7 @@ async def test_poll_loop_error_handling(service):
 
 
 @pytest.mark.asyncio
-async def test_check_session_status(service, config):
+async def test_check_session_status(service: CoordinatorService, config: CoordinatorConfig) -> None:
     coord_session = CoordinatorSession(
         session_id="1",
         session_name="test",
@@ -87,7 +87,7 @@ async def test_check_session_status(service, config):
 
     # Found but not terminal
     mock_session = MagicMock(spec=SessionState)
-    mock_session.status = SessionStatus.working
+    mock_session.status = SessionStatus.running
     with patch("shoal.services.coordinator.get_session", return_value=mock_session):
         await service._check_session_status(coord_session)
         # It shouldn't change
@@ -99,13 +99,13 @@ async def test_check_session_status(service, config):
     with patch("shoal.services.coordinator.get_session", return_value=mock_session):
         with patch.object(service, "_perform_squash_merge", new_callable=AsyncMock) as mock_merge:
             await service._check_session_status(coord_session)
-            assert coord_session.last_status == SessionStatus.error
+            assert coord_session.last_status.value == "error"
             assert coord_session.squash_pending is True
             mock_merge.assert_called_once_with(coord_session)
 
 
 @pytest.mark.asyncio
-async def test_poll_sessions(service, config):
+async def test_poll_sessions(service: CoordinatorService, config: CoordinatorConfig) -> None:
     coord_session = CoordinatorSession(
         session_id="1",
         session_name="test",
@@ -127,7 +127,9 @@ async def test_poll_sessions(service, config):
 
 @pytest.mark.asyncio
 @patch("shoal.services.coordinator.git._run")
-async def test_perform_squash_merge_success(mock_run, service, config):
+async def test_perform_squash_merge_success(
+    mock_run: MagicMock, service: CoordinatorService, config: CoordinatorConfig
+) -> None:
     coord_session = CoordinatorSession(
         session_id="1",
         session_name="test",
@@ -137,7 +139,7 @@ async def test_perform_squash_merge_success(mock_run, service, config):
         config=config,
     )
 
-    def side_effect(args, cwd):
+    def side_effect(args: list[str], cwd: str) -> MagicMock:
         mock_result = MagicMock()
         if args[0] == "rev-list":
             mock_result.stdout = "2\n"
@@ -152,7 +154,9 @@ async def test_perform_squash_merge_success(mock_run, service, config):
 
 @pytest.mark.asyncio
 @patch("shoal.services.coordinator.git._run")
-async def test_perform_squash_merge_no_commits(mock_run, service, config):
+async def test_perform_squash_merge_no_commits(
+    mock_run: MagicMock, service: CoordinatorService, config: CoordinatorConfig
+) -> None:
     coord_session = CoordinatorSession(
         session_id="1",
         session_name="test",
@@ -162,7 +166,7 @@ async def test_perform_squash_merge_no_commits(mock_run, service, config):
         config=config,
     )
 
-    def side_effect(args, cwd):
+    def side_effect(args: list[str], cwd: str) -> MagicMock:
         mock_result = MagicMock()
         if args[0] == "rev-list":
             mock_result.stdout = "0\n"
@@ -178,7 +182,9 @@ async def test_perform_squash_merge_no_commits(mock_run, service, config):
 
 @pytest.mark.asyncio
 @patch("shoal.services.coordinator.git._run")
-async def test_perform_squash_merge_error(mock_run, service, config):
+async def test_perform_squash_merge_error(
+    mock_run: MagicMock, service: CoordinatorService, config: CoordinatorConfig
+) -> None:
     coord_session = CoordinatorSession(
         session_id="1",
         session_name="test",

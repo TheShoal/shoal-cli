@@ -492,8 +492,7 @@ class TestRemoteAttach:
         config_file = config_dir / "config.toml"
         existing = config_file.read_text()
         config_file.write_text(
-            existing
-            + '\n[remote.devbox]\nhost = "devbox.local"\napi_port = 8080\nport = 2222\n'
+            existing + '\n[remote.devbox]\nhost = "devbox.local"\napi_port = 8080\nport = 2222\n'
         )
         from shoal.core.config import load_config
 
@@ -584,15 +583,15 @@ class TestRemoteIncidentsErrors:
         assert result.exit_code == 1
         assert "Cannot fetch incident" in result.stdout
 
-    def test_incident_ingest_not_connected(self, mock_dirs: tuple[Path, Path], tmp_path: Path) -> None:
+    def test_incident_ingest_not_connected(
+        self, mock_dirs: tuple[Path, Path], tmp_path: Path
+    ) -> None:
         """Test incident ingest when not connected."""
         payload_path = tmp_path / "alert.json"
         payload_path.write_text('{"severity":"critical","title":"Test"}')
 
         with patch("shoal.cli.remote.is_tunnel_active", return_value=False):
-            result = runner.invoke(
-                app, ["incident", "ingest", "devbox", str(payload_path)]
-            )
+            result = runner.invoke(app, ["incident", "ingest", "devbox", str(payload_path)])
         assert result.exit_code == 1
         assert "Not connected" in result.stdout
 
@@ -615,9 +614,7 @@ class TestRemoteIncidentsErrors:
                 side_effect=RemoteConnectionError("Ingest failed"),
             ),
         ):
-            result = runner.invoke(
-                app, ["incident", "ingest", "devbox", str(payload_path)]
-            )
+            result = runner.invoke(app, ["incident", "ingest", "devbox", str(payload_path)])
         assert result.exit_code == 1
         assert "Ingest failed" in result.stdout
 
@@ -626,9 +623,7 @@ class TestRemoteIncidentsErrors:
         with (
             patch("shoal.cli.remote.is_tunnel_active", return_value=True),
         ):
-            result = runner.invoke(
-                app, ["incident", "ingest", "devbox", "not valid json"]
-            )
+            result = runner.invoke(app, ["incident", "ingest", "devbox", "not valid json"])
         assert result.exit_code == 1
 
     def test_incident_spawn_not_connected(self, mock_dirs: tuple[Path, Path]) -> None:
@@ -672,7 +667,6 @@ class TestRemoteIncidentsErrors:
             )
         assert result.exit_code == 1
         assert "Spawn failed" in result.stdout
-
 
     def test_incident_ls_empty(self, mock_dirs: tuple[Path, Path]) -> None:
         """Test incident ls when there are no incidents (lines 358-359)."""
@@ -764,4 +758,3 @@ class TestRemoteIncidentsErrors:
             result = runner.invoke(app, ["send", "devbox", "my-session", "y"])
         assert result.exit_code == 1
         assert "Cannot fetch sessions" in result.stdout
-

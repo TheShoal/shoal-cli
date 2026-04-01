@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-04-01
+
+### Added
+- **Agent Teams**: Create sessions that spawn nested parallel agent sub-sessions for wide tasks using `shoal create --team`. Supported by a new `CoordinatorSession` abstraction.
+- **Journal Dreaming**: Agent sessions now compress past findings into the main session loop.
+## [Unreleased]
+
 ## [0.31.4] - 2026-04-01
 
 ### Fixed

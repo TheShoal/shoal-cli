@@ -94,7 +94,7 @@ class AppendJournalBatchOp(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
 
-type BatchOperation = Annotated[
+BatchOperation = Annotated[
     (
         SessionInfoBatchOp
         | SessionStatusBatchOp
@@ -127,7 +127,7 @@ class BatchExecutionResponse(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
 
-type SnapshotField = Literal[
+SnapshotField = Literal[
     "status",
     "pane_tail",
     "mcp_servers",
