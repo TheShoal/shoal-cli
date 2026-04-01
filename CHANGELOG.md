@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-04-01
+
+### Added
+- **Claw runtime provider**: Shoal now manages lobster-party Claw sessions via gRPC.
+  `RuntimeKind.claw` with full `ClawRuntimeProvider` implementing all 13 Protocol methods.
+  `ClawRuntimeState` (claw_id, endpoint, employee_id) joins `TmuxRuntimeState` in the
+  `AnyRuntimeState` discriminated union with `SessionState.tmux_runtime` for type narrowing.
+  `ClawConfig` model for `[claw]` config.toml section. `create_claw_session_lifecycle()` for
+  Claw session creation without tmux/worktree. New `claw` optional dep group:
+  `grpcio>=1.60`, `grpcio-tools>=1.60`, `protobuf>=4.25`.
+- **MCP ↔ A2A bridge**: 5 new `shoal-orchestrator` MCP tools for cross-system agent
+  collaboration: `send_to_claw` (gRPC Turn with streaming), `claw_status` (single or batch),
+  `list_claws` (enumerate known Claws from config), `claw_health` (liveness check),
+  `sync_claw_conversations` (import/export/both QMD↔journal). MCP server now exposes 23 tools.
+- **Conversation/journal sync**: `core/claw_conversations.py` reads lobster-party QMD files
+  (YAML frontmatter + JSON turns). `import_claw_turns()` appends new turns to session journals;
+  `export_journal_to_qmd()` writes Shoal journals to QMD format. `shoal sync <session>` CLI
+  command with `--direction` flag (import/export/both).
+- **Lobster Party proto stubs**: Generated protobuf/gRPC stubs committed to
+  `src/shoal/core/proto/` (lobster_loop, a2a_core, a2a_claw, delegation). Regenerate with
+  `just gen-protos` when protos change.
+- **Integration spec**: `INTEGRATION.md` documents the full Shoal × Lobster Party ×
+  Smorgasbord integration architecture and data flow.
+
 ## [0.29.0] - 2026-03-31
 
 ### Added
