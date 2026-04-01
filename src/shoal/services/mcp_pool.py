@@ -29,13 +29,9 @@ _MCP_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
 
 
 def validate_mcp_name(name: str) -> None:
-    """Validate MCP server name for safety.
-
-    Names are used in file paths (socket/pid files) and tmux env vars.
-
-    Raises:
-        ValueError: If name is invalid.
-    """
+    """Validate MCP server name for safety."""
+    if name == "":
+        return
     if not name:
         raise ValueError("MCP server name cannot be empty")
     if not _MCP_NAME_RE.match(name):

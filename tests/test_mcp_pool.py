@@ -244,9 +244,9 @@ def test_pool_timeout_constants():
 # --- validate_mcp_name ---
 
 
-def test_validate_mcp_name_empty():
+def test_validate_mcp_name_none():
     with pytest.raises(ValueError, match="cannot be empty"):
-        mcp_pool.validate_mcp_name("")
+        mcp_pool.validate_mcp_name(None)
 
 
 def test_validate_mcp_name_invalid():
