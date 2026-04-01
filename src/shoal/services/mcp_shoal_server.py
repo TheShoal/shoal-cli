@@ -1015,6 +1015,148 @@ async def send_to_claw_tool(claw_id: str, message: str, employee_id: str = "") -
 
 
 # ---------------------------------------------------------------------------
+# Tool: get_agent_card (A2A Bridge)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="get_agent_card",
+    description=(
+        "Get a Claw runtime's AgentCard for agent discovery via A2A protocol. "
+        "Returns metadata about the Claw's capabilities, skills, and endpoint. "
+        "Requires grpcio optional dependency."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def get_agent_card_tool(claw_id: str) -> dict[str, object]:
+    """Get AgentCard from a Claw runtime via A2A protocol.
+
+    Args:
+        claw_id: The Claw identifier to query.
+
+    Returns:
+        Dictionary containing the AgentCard with fields:
+        - name: Agent name
+        - version: Agent version
+        - provider: Organization info {organization, url}
+        - capabilities: {streaming, push_notifications, state_transition_reports}
+        - skills: List of {id, name, description, tags}
+        - endpoint: gRPC endpoint URL
+        - description: Human-readable description
+        - metadata: Additional key-value pairs
+
+    Raises:
+        ToolError: If grpcio is not installed or Claw is not configured.
+    """
+    from shoal.integrations.lobster import lobster_a2a
+
+    if not lobster_a2a.GRPC_AVAILABLE:
+        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+
+    return cast(dict[str, object], await lobster_a2a.get_agent_card_tool(claw_id))
+
+
+# ---------------------------------------------------------------------------
+# Tool: send_a2a_message (A2A Bridge)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="send_a2a_message",
+    description=(
+        "Send a message to a Claw runtime via A2A protocol. "
+        "Submits work to the Claw and returns the response. "
+        "Requires grpcio optional dependency."
+    ),
+    annotations={"destructiveHint": True},
+)
+async def send_a2a_message_tool(
+    claw_id: str,
+    message: str,
+    task_id: str | None = None,
+    employee_id: str | None = None,
+) -> dict[str, object]:
+    """Send a message to a Claw runtime via A2A SendMessage RPC.
+
+    Args:
+        claw_id: The Claw identifier to send work to.
+        message: The message/work payload to process.
+        task_id: Optional task ID for idempotency (generated if not provided).
+        employee_id: Optional employee ID for audit trail (uses config default if not provided).
+
+    Returns:
+        Dictionary containing:
+        - task_id: The task identifier
+        - response: The Claw's response text
+        - state: Current Claw state after processing
+
+    Raises:
+        ToolError: If grpcio is not installed or Claw is not configured.
+    """
+    from shoal.integrations.lobster import lobster_a2a
+
+    if not lobster_a2a.GRPC_AVAILABLE:
+        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+
+    return cast(
+        dict[str, object],
+        await lobster_a2a.send_a2a_message_tool(
+            claw_id=claw_id,
+            message=message,
+            task_id=task_id,
+            employee_id=employee_id,
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool: list_a2a_tasks (A2A Bridge)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="list_a2a_tasks",
+    description=(
+        "List tasks for a Claw runtime via A2A protocol. "
+        "Returns tasks with optional filtering by context or status. "
+        "Requires grpcio optional dependency."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def list_a2a_tasks_tool(
+    claw_id: str,
+    context_id: str | None = None,
+    status: str | None = None,
+) -> dict[str, object]:
+    """List tasks from a Claw runtime via A2A ListTasks RPC.
+
+    Args:
+        claw_id: The Claw identifier to query.
+        context_id: Optional context ID to filter tasks by.
+        status: Optional task state to filter by (e.g., "working", "completed").
+
+    Returns:
+        Dictionary containing list of tasks with their states and metadata.
+
+    Raises:
+        ToolError: If grpcio is not installed or Claw is not configured.
+    """
+    from shoal.integrations.lobster import lobster_a2a
+
+    if not lobster_a2a.GRPC_AVAILABLE:
+        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+
+    return cast(
+        dict[str, object],
+        await lobster_a2a.list_a2a_tasks_tool(
+            claw_id=claw_id,
+            context_id=context_id,
+            status=status,
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Tool: sync_claw_conversations
 # ---------------------------------------------------------------------------
 

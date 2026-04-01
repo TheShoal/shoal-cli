@@ -94,6 +94,8 @@ ignore = ["ASYNC240", "RUF001", "S101", "S603", "S607", "S108"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "SIM117", "E501"]
+# Delegation wrapper uses blocking subprocess by design (proxy pattern)
+"src/shoal/integrations/lobster/delegation_wrapper.py" = ["ASYNC221", "ASYNC109"]
 
 [tool.mypy]
 python_version = "3.12"

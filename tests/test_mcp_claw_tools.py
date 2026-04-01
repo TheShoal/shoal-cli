@@ -270,3 +270,180 @@ async def test_send_to_claw_not_available() -> None:
     with patch("shoal.services.mcp_shoal_server._CLAW_TOOLS_AVAILABLE", False):
         with pytest.raises(ToolError, match="Claw tools require grpcio"):
             await send_to_claw_tool(claw_id="claw-1", message="Test")
+
+
+# ---------------------------------------------------------------------------
+# get_agent_card tests
+# ---------------------------------------------------------------------------
+
+
+async def test_get_agent_card_success(
+    mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
+) -> None:
+    """get_agent_card returns AgentCard for a Claw."""
+    # Import module first so it can be patched
+    import shoal.integrations.lobster.lobster_a2a as lobster_a2a
+    from shoal.services.mcp_shoal_server import get_agent_card_tool
+
+    # Mock will use the lobster_a2a module which has its own ClawClient
+    with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
+        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+            client_instance = AsyncMock()
+            mock_a2a_client.return_value = client_instance
+
+            result = await get_agent_card_tool(claw_id="claw-1")
+
+    assert "name" in result
+    assert "version" in result
+    assert "provider" in result
+    assert "capabilities" in result
+    assert "endpoint" in result
+    assert result["name"] == "claw-1"
+
+
+async def test_get_agent_card_not_available() -> None:
+    """get_agent_card raises error when grpcio not installed."""
+    from shoal.services.mcp_shoal_server import get_agent_card_tool
+
+    with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", False):
+        with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
+            await get_agent_card_tool(claw_id="claw-1")
+
+
+async def test_get_agent_card_not_found() -> None:
+    """get_agent_card raises error when Claw not in known_claws."""
+    from shoal.services.mcp_shoal_server import get_agent_card_tool
+
+    mock_cfg = MagicMock()
+    mock_cfg.claw.known_claws = {}
+    with patch("shoal.core.config.load_config", return_value=mock_cfg):
+        with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
+            with pytest.raises(ToolError, match="not found in known_claws"):
+                await get_agent_card_tool(claw_id="unknown-claw")
+
+
+# ---------------------------------------------------------------------------
+# send_a2a_message tests
+# ---------------------------------------------------------------------------
+
+
+async def test_send_a2a_message_success(
+    mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
+) -> None:
+    """send_a2a_message returns response and state."""
+    from shoal.services.mcp_shoal_server import send_a2a_message_tool
+
+    with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
+        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+            client_instance = AsyncMock()
+            client_instance.execute = AsyncMock(return_value=(True, "Response text", b""))
+            client_instance.status = AsyncMock(return_value={"state": "ACTIVE"})
+            client_instance.close = AsyncMock()
+            mock_a2a_client.return_value = client_instance
+
+            result = await send_a2a_message_tool(
+                claw_id="claw-1", message="Test message", task_id="task-123"
+            )
+
+    assert result["response"] == "Response text"
+    assert result["state"] == "ACTIVE"
+    assert result["task_id"] == "task-123"
+
+
+async def test_send_a2a_message_with_employee_id(
+    mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
+) -> None:
+    """send_a2a_message uses provided employee_id."""
+    from shoal.services.mcp_shoal_server import send_a2a_message_tool
+
+    with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
+        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+            client_instance = AsyncMock()
+            client_instance.execute = AsyncMock(return_value=(True, "Response", b""))
+            client_instance.status = AsyncMock(return_value={"state": "READY"})
+            client_instance.close = AsyncMock()
+            mock_a2a_client.return_value = client_instance
+
+            result = await send_a2a_message_tool(
+                claw_id="claw-1", message="Hello", employee_id="custom-emp"
+            )
+
+    assert result["response"] == "Response"
+
+
+async def test_send_a2a_message_failure(
+    mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
+) -> None:
+    """send_a2a_message handles execution failure."""
+    from shoal.services.mcp_shoal_server import send_a2a_message_tool
+
+    with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
+        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+            client_instance = AsyncMock()
+            client_instance.execute = AsyncMock(return_value=(False, "Execution failed", b""))
+            client_instance.close = AsyncMock()
+            mock_a2a_client.return_value = client_instance
+
+            with pytest.raises(ToolError, match="Failed to send message"):
+                await send_a2a_message_tool(claw_id="claw-1", message="Test")
+
+
+async def test_send_a2a_message_not_available() -> None:
+    """send_a2a_message raises error when grpcio not installed."""
+    from shoal.services.mcp_shoal_server import send_a2a_message_tool
+
+    with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", False):
+        with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
+            await send_a2a_message_tool(claw_id="claw-1", message="Test")
+
+
+# ---------------------------------------------------------------------------
+# list_a2a_tasks tests
+# ---------------------------------------------------------------------------
+
+
+async def test_list_a2a_tasks_success(
+    mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
+) -> None:
+    """list_a2a_tasks returns tasks list."""
+    from shoal.services.mcp_shoal_server import list_a2a_tasks_tool
+
+    with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
+        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+            client_instance = AsyncMock()
+            client_instance.close = AsyncMock()
+            mock_a2a_client.return_value = client_instance
+
+            result = await list_a2a_tasks_tool(claw_id="claw-1")
+
+    assert "tasks" in result
+    assert "claw_id" in result
+    assert result["claw_id"] == "claw-1"
+
+
+async def test_list_a2a_tasks_with_filters(
+    mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
+) -> None:
+    """list_a2a_tasks accepts context_id and status filters."""
+    from shoal.services.mcp_shoal_server import list_a2a_tasks_tool
+
+    with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
+        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+            client_instance = AsyncMock()
+            client_instance.close = AsyncMock()
+            mock_a2a_client.return_value = client_instance
+
+            result = await list_a2a_tasks_tool(
+                claw_id="claw-1", context_id="ctx-123", status="completed"
+            )
+
+    assert "tasks" in result
+
+
+async def test_list_a2a_tasks_not_available() -> None:
+    """list_a2a_tasks raises error when grpcio not installed."""
+    from shoal.services.mcp_shoal_server import list_a2a_tasks_tool
+
+    with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", False):
+        with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
+            await list_a2a_tasks_tool(claw_id="claw-1")

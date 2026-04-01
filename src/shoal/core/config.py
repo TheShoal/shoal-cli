@@ -94,7 +94,15 @@ def ensure_dirs() -> None:
         (cfg / subdir).mkdir(parents=True, exist_ok=True)
 
     base = data_dir()
-    for subdir in ("sessions", "journals", "mcp-pool/pids", "mcp-pool/sockets", "robo", "remote"):
+    for subdir in (
+        "sessions",
+        "journals",
+        "mcp-pool/pids",
+        "mcp-pool/sockets",
+        "delegation/sockets",
+        "robo",
+        "remote",
+    ):
         (base / subdir).mkdir(parents=True, exist_ok=True)
     rt = state_dir()
     for subdir in ("logs",):

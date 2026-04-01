@@ -778,22 +778,65 @@ async def create_session_lifecycle(
     # 3. Set environment variables (precedence: project < template < extra/CLI)
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_ID", session.id)
     await tmux.async_set_environment(tmux_session, "SHOAL_SESSION_NAME", session_name)
+
+    # Extract secure environment variables (API keys, tokens, secrets) for delegation proxy
+    secure_env: dict[str, str] = {}
     session_env: dict[str, str] = {}
+
+    # Helper to identify secure env vars
+    def _is_secure_key(key: str) -> bool:
+        return any(
+            key.endswith(suffix)
+            for suffix in ("_KEY", "_TOKEN", "_SECRET", "_PASSWORD", "_CREDENTIAL")
+        )
+
     try:
         from shoal.core.config import load_project_config
 
         project_cfg = load_project_config(git_root)
         if project_cfg and project_cfg.env:
-            session_env.update(project_cfg.env)
+            for k, v in project_cfg.env.items():
+                if _is_secure_key(k):
+                    secure_env[k] = v
+                else:
+                    session_env[k] = v
     except Exception:
         logger.debug("Failed to load project config", exc_info=True)
+
     if template_cfg:
-        session_env.update(template_cfg.env)
+        for k, v in template_cfg.env.items():
+            if _is_secure_key(k):
+                secure_env[k] = v
+            else:
+                session_env[k] = v
+
     if extra_env:
-        session_env.update(extra_env)
+        for k, v in extra_env.items():
+            if _is_secure_key(k):
+                secure_env[k] = v
+            else:
+                session_env[k] = v
+
     if coordinator_config and coordinator_config.context_injection:
         session_env.update(coordinator_config.context_injection)
 
+    # Start delegation proxy if we have secure env vars
+    delegation_socket = ""
+    if secure_env:
+        from shoal.integrations.lobster.delegation_wrapper import (
+            delegation_socket_path,
+            start_delegation_proxy,
+        )
+
+        start_delegation_proxy(session.id, secure_env)
+        delegation_socket = str(delegation_socket_path(session.id))
+        # Set socket path as environment variable for the agent to use
+        session_env["SHOAL_DELEGATION_SOCKET"] = delegation_socket
+        logger.info(
+            "[%s] Started delegation proxy with %d secure env vars",
+            session.id,
+            len(secure_env),
+        )
     if session_env:
         for key, value in session_env.items():
             await tmux.async_set_environment(tmux_session, key, value)
