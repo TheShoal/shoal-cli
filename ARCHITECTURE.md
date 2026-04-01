@@ -205,7 +205,7 @@ async with get_db() as db:
 **Current trade-off**: tmux is still the only runtime provider shipped today, so the provider seam improves architecture first and backend diversity second.
 
 **Runtime Contract**:
-- Session pane identity: `shoal:<session_id>` (tmux pane title)
+- Session identity: `shoal:<session_id>` (via RuntimeProvider label)
 - Neovim socket identity: `/tmp/nvim-<session_id>-<window_id>.sock`
 - Socket ownership: interactive `nvim --listen` in the active tool pane
 - Tmux cleanup role: stale socket cleanup only (no headless Neovim ownership)
@@ -365,7 +365,7 @@ resolved = resolve_template("claude-dev")
 
 - **Platform**: macOS only (tmux + Unix sockets required)
 - **Concurrency**: Single machine only (SQLite limitation)
-- **Status Detection**: Requires consistent tmux pane output patterns
+- **Status Detection**: Requires consistent runtime provider signals and output patterns
 
 ### Roadmap to v1.0
 

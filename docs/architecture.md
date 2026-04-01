@@ -4,7 +4,7 @@ Shoal is a local control plane for AI coding agents. It combines tmux for proces
 SQLite for durable state, FastAPI for local HTTP access, and an MCP pool for tool sharing.
 
 Read the system in two passes:
-- **Write path**: operator commands flow into the lifecycle layer, which creates worktrees, tmux sessions, and MCP attachments.
+- **Write path**: operator commands flow into the lifecycle layer, which creates worktrees, isolated runtime sessions, and MCP attachments.
 - **Read path**: the watcher records runtime state in SQLite, and every surface reads from that shared truth instead of scraping tmux independently.
 
 !!! info "Two passes"
@@ -19,7 +19,7 @@ flowchart LR
     MCP["MCP: shoal-orchestrator"] --> Lifecycle
 
     Lifecycle --> Worktrees["git worktrees"]
-    Lifecycle --> Tmux["tmux sessions"]
+    Lifecycle --> Runtime["runtime sessions"]
     Lifecycle --> Pool["MCP pool / proxy"]
     Lifecycle --> DB["SQLite state"]
 
@@ -57,7 +57,7 @@ status like `thinking`, `waiting`, `error`, or `idle`.
 
 ```mermaid
 flowchart LR
-    Pane["tmux pane output"] --> Watcher["status watcher"]
+    Pane["runtime provider signals"] --> Watcher["status watcher"]
     Watcher -->|"pattern match"| Status["thinking / waiting / error / idle"]
     Status --> DB["SQLite state"]
     DB --> Surfaces["shoal status / popup / MCP"]
