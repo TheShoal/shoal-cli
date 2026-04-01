@@ -44,18 +44,23 @@ class RegexStatusProvider:
             return SessionStatus.idle
 
         patterns = tool_config.detection
+        matches: list[tuple[int, SessionStatus]] = []
 
         for pattern in patterns._compiled_error:
-            if pattern.search(pane_content):
-                return SessionStatus.error
+            for m in pattern.finditer(pane_content):
+                matches.append((m.end(), SessionStatus.error))
 
         for pattern in patterns._compiled_waiting:
-            if pattern.search(pane_content):
-                return SessionStatus.waiting
+            for m in pattern.finditer(pane_content):
+                matches.append((m.end(), SessionStatus.waiting))
 
         for pattern in patterns._compiled_busy:
-            if pattern.search(pane_content):
-                return SessionStatus.running
+            for m in pattern.finditer(pane_content):
+                matches.append((m.end(), SessionStatus.running))
+
+        if matches:
+            matches.sort(key=lambda x: x[0])
+            return matches[-1][1]
 
         return SessionStatus.idle
 

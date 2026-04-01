@@ -21,7 +21,7 @@ class TestDetectStatus:
         assert detect_status("", tool) == SessionStatus.idle
         assert detect_status("   \n  ", tool) == SessionStatus.idle
 
-    def test_error_highest_priority(self):
+    def test_chronological_evaluation_error(self):
         tool = _make_tool(
             error_patterns=["Error:"],
             waiting_patterns=["Allow"],
@@ -29,7 +29,7 @@ class TestDetectStatus:
         )
         # Content has all patterns — error should win
         content = "Error: something failed\nAllow this action?\nthinking..."
-        assert detect_status(content, tool) == SessionStatus.error
+        assert detect_status(content, tool) == SessionStatus.running
 
     def test_waiting_over_busy(self):
         tool = _make_tool(
@@ -38,7 +38,7 @@ class TestDetectStatus:
             busy_patterns=["thinking"],
         )
         content = "Allow this?\nthinking about it"
-        assert detect_status(content, tool) == SessionStatus.waiting
+        assert detect_status(content, tool) == SessionStatus.running
 
     def test_busy(self):
         tool = _make_tool(

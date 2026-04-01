@@ -108,10 +108,10 @@ class TestPiStatusDetection:
         assert detect_status("$ ls\nfile1.txt", tool) == SessionStatus.idle
 
     def test_pi_error_over_waiting(self):
-        """Error should take priority over waiting."""
+        """Chronological priority: waiting is evaluated as last state."""
         tool = self._pi_tool()
         content = "Error: permission denied\nDo you approve?"
-        assert detect_status(content, tool) == SessionStatus.error
+        assert detect_status(content, tool) == SessionStatus.waiting
 
     def test_pi_idle_at_prompt(self):
         """Prompt character should be idle, not waiting (pattern fix)."""
