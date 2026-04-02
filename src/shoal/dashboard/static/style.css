@@ -1,9 +1,48 @@
 /* Shoal Mission Control — Design System */
 
 /* ----------------------------------------
+   Fonts (align with docs.shoal-cli.dev — Space Grotesk + IBM Plex Mono)
+---------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ----------------------------------------
    CSS Variables
 ---------------------------------------- */
+/* Shoal brand tokens (shared vocabulary with mkdocs stylesheets/extra.css) */
 :root {
+    --shoal-ink: #10222e;
+    --shoal-deep: #0e5f64;
+    --shoal-coral: #c45a2d;
+    --shoal-foam: #f4efe7;
+    --shoal-sand: #f8f4ec;
+    --shoal-mint: #dff3ee;
+
+    --color-bg: #0f1117;
+    --color-surface: #1a1d27;
+    --color-surface-2: #232635;
+    --color-border: #2e3149;
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-text-dim: #64748b;
+
+    /* Urgency tier colors */
+    --tier-error: #ef4444;
+    --tier-blocked: #f97316;
+    --tier-waiting: #eab308;
+    --tier-review: #8b5cf6;
+    --tier-running: #22c55e;
+    --tier-stale: #6b7280;
+    --tier-idle: #94a3b8;
+    --tier-stopped: #475569;
+    --tier-unknown: #334155;
+
+    --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+
+    --radius: 6px;
+    --radius-sm: 4px;
+    --nav-height: 48px;
+}
     --color-bg: #0f1117;
     --color-surface: #1a1d27;
     --color-surface-2: #232635;
@@ -71,7 +110,7 @@ code, pre { font-family: var(--font-mono); }
     gap: 6px;
 }
 
-.nav-brand-icon { color: var(--tier-running); font-size: 18px; }
+.nav-brand-icon { color: var(--shoal-deep); font-size: 18px; }
 
 .nav-spacer { flex: 1; }
 

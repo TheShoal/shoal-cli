@@ -2,6 +2,10 @@
 
 {% block title %}Fleet{% endblock %}
 
+{% block nav_extra %}
+  <a class="nav-link" href="/ui/flow">Flow</a>
+{% endblock %}
+
 {% block content %}
 <div hx-ext="ws" ws-connect="/ui/ws">
 

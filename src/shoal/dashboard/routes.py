@@ -14,6 +14,7 @@ from shoal.core.state import get_session, list_sessions
 from shoal.core.tmux import async_capture_pane
 from shoal.dashboard.context import (
     fleet_context,
+    flow_context,
     journal_entry_context,
     session_detail_context,
 )
@@ -59,6 +60,27 @@ async def fleet_board(request: Request) -> HTMLResponse:
     return _get_templates().TemplateResponse(
         request,
         "fleet.html",
+        {**ctx, "request": request},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Flow / team architecture
+# ---------------------------------------------------------------------------
+
+
+@router.get("/flow", response_class=HTMLResponse)
+async def flow_architecture(request: Request) -> HTMLResponse:
+    """Render the agent team flow / architecture graph.
+
+    Shows the parent-child relationships between sessions as a navigable
+    tree, making supervisor-worker topologies visible.
+    """
+    sessions = await list_sessions()
+    ctx = flow_context(sessions)
+    return _get_templates().TemplateResponse(
+        request,
+        "flow.html",
         {**ctx, "request": request},
     )
 

@@ -292,3 +292,63 @@ def journal_entry_context(
         "content_html": _basic_md_to_html(content),
         "content_raw": content,
     }
+
+
+# ---------------------------------------------------------------------------
+# Flow architecture context
+# ---------------------------------------------------------------------------
+
+
+def flow_node_context(session: SessionState) -> dict[str, object]:
+    """Build template context for a single session node in the flow view."""
+    tier, _ = derive_urgency(session)
+    return {
+        "id": session.id,
+        "name": session.name,
+        "tool": session.tool,
+        "tool_icon": _TOOL_ICONS.get(session.tool.lower(), "◇"),
+        "status": session.status.value,
+        "tier_css": _TIER_CSS.get(tier, "tier-unknown"),
+        "parent_id": session.parent_id or "",
+        "children": [],
+    }
+
+
+def flow_context(sessions: list[SessionState]) -> dict[str, object]:
+    """Build template context for the agent team flow / architecture view.
+
+    Builds a parent-child adjacency map from all sessions and returns
+    root nodes (sessions with no parent) and the full node list.
+
+    Args:
+        sessions: All sessions from the database.
+
+    Returns:
+        A dict with ``roots`` (root session nodes) and ``nodes`` (all nodes).
+    """
+    by_id: dict[str, dict[str, object]] = {}
+    for s in sessions:
+        by_id[s.id] = flow_node_context(s)
+
+    roots: list[dict[str, object]] = []
+    for s in sessions:
+        if not s.parent_id:
+            roots.append(by_id[s.id])
+        else:
+            parent = by_id.get(s.parent_id)
+            if parent is not None:
+                existing = parent.get("children")
+                if isinstance(existing, list):
+                    existing.append(by_id[s.id])
+                else:
+                    parent["children"] = [by_id[s.id]]
+
+    # Attach children list (empty list for leaf nodes)
+    for node in by_id.values():
+        if "children" not in node:
+            node["children"] = []
+
+    return {
+        "roots": roots,
+        "nodes": list(by_id.values()),
+    }
