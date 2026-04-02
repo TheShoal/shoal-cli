@@ -1,5 +1,8 @@
 """Tests for services/status_bar.py."""
 
+import json
+import urllib.error
+
 import pytest
 
 from shoal.models.state import SessionStatus
@@ -126,3 +129,174 @@ class TestGenerateStatus:
         assert result["running"] == 1
         assert result["inactive"] == 1
         assert result["idle"] == 0
+
+
+class TestGenerateRemoteStatus:
+    """Unit tests for generate_remote_status() — no network calls."""
+
+    def _make_response(self, payload: dict) -> object:
+        """Build a fake urllib response context manager."""
+        from unittest.mock import MagicMock
+
+        body = json.dumps(payload).encode()
+        resp = MagicMock()
+        resp.read.return_value = body
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = MagicMock(return_value=False)
+        return resp
+
+    def test_success_maps_fields(self) -> None:
+        """Successful response maps all StatusResponse fields correctly."""
+        from unittest.mock import patch
+
+        from shoal.services.status_bar import generate_remote_status
+
+        payload = {
+            "total": 5,
+            "running": 2,
+            "idle": 1,
+            "waiting": 1,
+            "error": 0,
+            "stopped": 1,
+            "unknown": 0,
+            "version": "0.34.0",
+        }
+        with patch("urllib.request.urlopen", return_value=self._make_response(payload)):
+            result = generate_remote_status("remote-host", 8080)
+
+        assert result == {"running": 2, "idle": 1, "waiting": 1, "error": 0, "inactive": 1}
+
+    def test_stopped_and_unknown_both_go_to_inactive(self) -> None:
+        """Both stopped and unknown counts are summed into inactive."""
+        from unittest.mock import patch
+
+        from shoal.services.status_bar import generate_remote_status
+
+        payload = {
+            "total": 4,
+            "running": 1,
+            "idle": 0,
+            "waiting": 0,
+            "error": 0,
+            "stopped": 2,
+            "unknown": 1,
+            "version": "0.34.0",
+        }
+        with patch("urllib.request.urlopen", return_value=self._make_response(payload)):
+            result = generate_remote_status("host", 8080)
+
+        assert result["inactive"] == 3
+        assert result["running"] == 1
+
+    def test_connection_error_returns_zeros(self) -> None:
+        """URLError during request returns all-zero counts instead of raising."""
+        from unittest.mock import patch
+
+        from shoal.services.status_bar import generate_remote_status
+
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.URLError("connection refused"),
+        ):
+            result = generate_remote_status("dead-host", 9999)
+
+        assert result == {"running": 0, "idle": 0, "waiting": 0, "error": 0, "inactive": 0}
+
+    def test_unexpected_error_returns_zeros(self) -> None:
+        """Any non-URL exception also returns zero counts safely."""
+        from unittest.mock import patch
+
+        from shoal.services.status_bar import generate_remote_status
+
+        with patch("urllib.request.urlopen", side_effect=OSError("timeout")):
+            result = generate_remote_status("host", 8080)
+
+        assert result == {"running": 0, "idle": 0, "waiting": 0, "error": 0, "inactive": 0}
+
+    def test_correct_url_constructed(self) -> None:
+        """The HTTP request targets the correct /status endpoint URL."""
+        from unittest.mock import call, patch
+
+        from shoal.services.status_bar import generate_remote_status
+
+        payload = {"running": 0, "idle": 0, "waiting": 0, "error": 0, "stopped": 0, "unknown": 0}
+        with patch(
+            "urllib.request.urlopen", return_value=self._make_response(payload)
+        ) as mock_open:
+            generate_remote_status("10.0.0.1", 9000)
+
+        assert mock_open.call_args == call("http://10.0.0.1:9000/status", timeout=5)
+
+
+class TestMain:
+    """Unit tests for the main() entry point argument parsing."""
+
+    def test_no_args_uses_local_db(self) -> None:
+        """Calling main() with no args prints local DB counts as JSON."""
+        from unittest.mock import patch
+
+        from shoal.services.status_bar import main
+
+        counts = {"running": 3, "idle": 0, "waiting": 0, "error": 0, "inactive": 0}
+        with (
+            patch("sys.argv", ["shoal-status"]),
+            patch("shoal.services.status_bar.asyncio") as mock_asyncio,
+            patch("builtins.print") as mock_print,
+        ):
+            mock_asyncio.run.return_value = counts
+            main()
+            mock_print.assert_called_once_with(json.dumps(counts))
+
+    def test_remote_flag_calls_generate_remote_status(self) -> None:
+        """--remote <name> resolves the host from config and calls generate_remote_status."""
+        from unittest.mock import MagicMock, patch
+
+        from shoal.services.status_bar import main
+
+        fake_cfg = MagicMock()
+        fake_cfg.remote = {
+            "prod": MagicMock(host="prod.example.com", api_port=8080),
+        }
+        expected = {"running": 1, "idle": 0, "waiting": 0, "error": 0, "inactive": 0}
+        with (
+            patch("sys.argv", ["shoal-status", "--remote", "prod"]),
+            patch("shoal.core.config.load_config", return_value=fake_cfg),
+            patch(
+                "shoal.services.status_bar.generate_remote_status", return_value=expected
+            ) as mock_remote,
+            patch("builtins.print") as mock_print,
+        ):
+            main()
+            mock_remote.assert_called_once_with("prod.example.com", 8080)
+            mock_print.assert_called_once_with(json.dumps(expected))
+
+    def test_remote_flag_unknown_name_exits_1(self) -> None:
+        """--remote with an unknown host name prints an error JSON and exits 1."""
+        from unittest.mock import MagicMock, patch
+
+        from shoal.services.status_bar import main
+
+        fake_cfg = MagicMock()
+        fake_cfg.remote = {}
+        with (
+            patch("sys.argv", ["shoal-status", "--remote", "nope"]),
+            patch("shoal.core.config.load_config", return_value=fake_cfg),
+            patch("builtins.print"),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+            assert exc_info.value.code == 1
+
+    def test_remote_flag_missing_name_exits_1(self) -> None:
+        """--remote with no following argument prints an error JSON and exits 1."""
+        from unittest.mock import patch
+
+        from shoal.services.status_bar import main
+
+        with (
+            patch("sys.argv", ["shoal-status", "--remote"]),
+            patch("builtins.print"),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+            assert exc_info.value.code == 1
