@@ -25,7 +25,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.3.2
         with:
           generate_release_notes: true
           draft: false
@@ -46,7 +46,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v6
 
       - name: Build package
         run: uv build
@@ -63,7 +63,7 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             asset: shoal-darwin-arm64
-          - os: macos-13
+          - os: macos-15
             target: x86_64-apple-darwin
             asset: shoal-darwin-x86_64
           - os: ubuntu-latest
