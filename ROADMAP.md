@@ -225,31 +225,31 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-04-02 — Lobster integration recovery + A2A fixes
+### Session: 2026-04-02 — Lobster integration recovery + WS1/WS3 implementation
 
 **What we did:**
 
-- Recovered from 3 failed sessions (2026-04-01): `shoal-lobster-qmd` had merged cleanly; `shoal-lobster-a2a` committed `41624f4` but left WIP stashed; `shoal-lobster-delegation` errored with no output
-- Dropped `stash@{0}`: a bad pass that deleted MCP pool infrastructure (`mcp.py`, `mcp_pool.py`, `mcp_configure.py`, `mcp_proxy.py`, `incident_hooks.py`). The delegation wrapper and MCP pool serve orthogonal purposes; the removal was incorrect.
-- Rescued `stash@{1}`: added `step_agent_teams()` and `step_journal_dreaming()` to `cli/demo/tour.py`; tour now has 9 steps
-- Restored missing `src/shoal/models/config/agent_card.py` (AgentCard, AgentProvider, AgentCapabilities, AgentSkill Pydantic models — source was deleted, .pyc survived)
-- Fixed `step_mcp_orchestration` expected tool list: 23 → 26 tools (added `get_agent_card`, `list_a2a_tasks`, `send_a2a_message`)
-- Fixed 3 tour test assertions: `All 7` → `All 9`, `6 pass/1 skip` → `8 pass/1 skip`
-- 7 commits ahead of origin/main; 1477 passed, 2 skipped — CI green
+- Recovered from 3 failed sessions (2026-04-01): rescued tour steps, dropped bad MCP-pool removal stash
+- Restored missing `src/shoal/models/config/agent_card.py` (Pydantic models: AgentCard, AgentProvider, AgentCapabilities, AgentSkill)
+- Fixed `step_mcp_orchestration` tool list (23→26) and 3 tour test assertions (7→9 steps)
+- Implemented `src/shoal/integrations/lobster/a2a_bridge.py` (WS1): monkey-patches `ClawClient` with `get_agent_card()`, `send_message()`, `list_tasks()` using `AgentLoopStub` from `a2a_claw_pb2_grpc`; provides `proto_to_agent_card()` translation
+- Implemented `src/shoal/integrations/lobster/clawplexer_sync.py` (WS3): `ClawplexerSync` class + `sync_for_handoff()` using `qmd.sync_journal_with_qmd()`
+- Removed the 3 TODOs from `lobster_a2a.py` — tools now call real client methods
+- Added `tests/test_a2a_bridge.py` (7 tests) and `tests/test_clawplexer_sync.py` (8 tests)
+- CI green: 1492 passed, 2 skipped
+- Cut v0.33.0 and pushed all commits + tag to origin
 
 **Current state:**
 
-- Branch: `main`, 7 commits unpushed (NOT on origin/main)
-- Last pushed tag: `v0.32.0`
-- Two stub files still empty: `src/shoal/integrations/lobster/a2a_bridge.py` and `src/shoal/integrations/lobster/clawplexer_sync.py` (per `LOBSTER_PARTY_INTEGRATION.md` Workstreams 1 and 3)
+- Branch: `main`, all commits pushed; last tag: `v0.33.0`
+- WS2 (Delegation Wrapper) is already merged (`delegation_wrapper.py` exists)
+- All 3 Lobster Party workstreams have implementations; `a2a_bridge.py` and `clawplexer_sync.py` use real logic (not stubs)
 
 **What to do next:**
 
-- Push local `main` to origin (7 commits, all green)
-- Implement `a2a_bridge.py` (Workstream 1): wire `ClawClient.get_agent_card()` RPC into the bridge; currently `get_agent_card_tool` returns a stub response
-- Implement `clawplexer_sync.py` (Workstream 3): QMD sync loop using `claw_conversations.py` + `ClawTurn`
-- Cut v0.33.0 once both stubs are complete: lobster integration (AgentCard + A2A bridge + delegation wrapper + QMD sync)
-
+- Review `a2a_bridge.py` with a live Claw endpoint (needs `pip install shoal[claw]` for grpcio)
+- Consider exposing `sync_for_handoff` in `handoff.py` CLI (`--sync-claw` flag to import Claw turns before generating handoff)
+- Cut v0.34.0 milestone: lobster integration dogfood against real Claw runtime
 
 ### Session: 2026-03-07 — Dashboard fzf actions
 
