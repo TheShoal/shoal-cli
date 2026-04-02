@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -28,6 +29,14 @@ def handoff_show(
             "--remote",
             "-r",
             help="Fetch checkpoint from remote Gitea instance (host name from config)",
+        ),
+    ] = None,
+    sync_claw: Annotated[
+        Path | None,
+        typer.Option(
+            "--sync-claw",
+            help="Import Claw QMD turns from PATH before generating the handoff.",
+            show_default=False,
         ),
     ] = None,
 ) -> None:
@@ -67,6 +76,12 @@ def handoff_show(
             except RemoteConnectionError as e:
                 get_console().print(f"[red]Error fetching checkpoint: {e}[/red]")
                 raise typer.Exit(1) from None
+
+        if sync_claw is not None:
+            from shoal.integrations.lobster.clawplexer_sync import sync_for_handoff
+
+            imported = await asyncio.to_thread(sync_for_handoff, session_id, sync_claw)
+            get_console().print(f"[dim]Synced {imported} Claw turn(s) into journal.[/dim]")
 
         entries = read_journal(session_id)
         db = await get_db()

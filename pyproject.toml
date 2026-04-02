@@ -34,6 +34,7 @@ dependencies = [
     "uvicorn>=0.27.0",
     "aiosqlite>=0.20.0",
     "httpx>=0.28.0",
+    "jinja2>=3.1.0",
 ]
 
 [project.scripts]
@@ -154,4 +155,4 @@ dev = [
 ]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"src/shoal/core/proto/*.py" = ["E501"]
+"src/shoal/core/proto/*.py" = ["E501", "E402", "I001"]  # generated files

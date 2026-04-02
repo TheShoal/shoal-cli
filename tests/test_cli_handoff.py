@@ -176,3 +176,46 @@ def test_handoff_ls_with_files(mock_journals_dir, mock_console):
 
     mock_console.print.assert_called()
     assert mock_console.print.call_args[0][0].__class__.__name__ == "Table"
+
+
+def test_handoff_show_with_sync_claw(
+    mock_resolve_session,
+    mock_get_session,
+    mock_read_journal,
+    mock_db,
+    mock_generate_handoff,
+    mock_console,
+    tmp_path,
+):
+    """--sync-claw imports Claw turns before generating the handoff."""
+    mock_resolve_session.return_value = "sid"
+    mock_get_session.return_value = MagicMock(spec=SessionState)
+
+    with patch(
+        "shoal.integrations.lobster.clawplexer_sync.sync_for_handoff",
+        return_value=3,
+    ) as mock_sync:
+        handoff_show("sid", sync_claw=tmp_path)
+
+    mock_sync.assert_called_once_with("sid", tmp_path)
+    mock_console.print.assert_any_call("[dim]Synced 3 Claw turn(s) into journal.[/dim]")
+
+
+def test_handoff_show_without_sync_claw(
+    mock_resolve_session,
+    mock_get_session,
+    mock_read_journal,
+    mock_db,
+    mock_generate_handoff,
+    mock_console,
+):
+    """Without --sync-claw, sync_for_handoff is never called."""
+    mock_resolve_session.return_value = "sid"
+    mock_get_session.return_value = MagicMock(spec=SessionState)
+
+    with patch(
+        "shoal.integrations.lobster.clawplexer_sync.sync_for_handoff",
+    ) as mock_sync:
+        handoff_show("sid")
+
+    mock_sync.assert_not_called()

@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 
 import grpc
-import lobster_loop_pb2 as lobster__loop__pb2
+from shoal.core.proto import lobster_loop_pb2 as lobster__loop__pb2
 
 GRPC_GENERATED_VERSION = "1.80.0"
 GRPC_VERSION = grpc.__version__

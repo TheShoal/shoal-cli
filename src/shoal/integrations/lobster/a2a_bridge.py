@@ -23,18 +23,20 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 try:
-    import grpc as _grpc
+    import grpc as _grpc  # noqa: I001 — load order preserved for descriptor pool
 
     from shoal.core.claw_client import ClawClient as _ClawClient
-    from shoal.core.proto import (
-        a2a_claw_pb2_grpc as _a2a_claw_grpc,
-    )
+
+    # Load a2a_core_pb2 first — a2a_claw_pb2 depends on a2a_core.proto
     from shoal.core.proto import (
         a2a_core_pb2 as _a2a_core_pb2,
     )
+    from shoal.core.proto import (
+        a2a_claw_pb2_grpc as _a2a_claw_grpc,
+    )
 
     GRPC_AVAILABLE = True
-except ImportError:
+except (ImportError, TypeError):
     GRPC_AVAILABLE = False
     _ClawClient = None  # type: ignore
 
