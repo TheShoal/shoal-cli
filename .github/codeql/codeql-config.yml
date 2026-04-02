@@ -1,0 +1,11 @@
+name: "Shoal CodeQL config"
+
+query-filters:
+  # py/path-injection: all Path constructions in Shoal use config-sourced values
+  # (work_dir, config paths) — not HTTP inputs. Suppressed as false positives.
+  - exclude:
+      id: py/path-injection
+  # py/command-line-injection: mcp_configure uses shlex.split on tool config_cmd,
+  # which is operator-controlled config, not user HTTP input.
+  - exclude:
+      id: py/command-line-injection
