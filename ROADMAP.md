@@ -214,7 +214,7 @@ Released 2026-04-01
 ### Remaining
 
 - ~~**Fins polish**~~: `SUPPORTED_CONTRACT_VERSIONS` constant formalizes v1-only policy; `FinSource.resolve()` and private `_registry_url`/`_download_fin` removed from `models/fin.py`; `install_fin` now delegates to `fin_repo.resolve_fin()`. Shipped this session.
-- **Per-session git practices**: `[template.git]` section for commit conventions, hook profiles, branch naming rules, and per-session identity (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Template env gap (prerequisite) fixed in v0.18.0.
+- ~~**Per-session git practices**~~: `[template.git]` section shipped — `TemplateGitConfig` with `user_name`, `user_email`, `commit_template`, `branch_prefix`; `git config --local` applied at session creation; `GIT_AUTHOR_*`/`GIT_COMMITTER_*` exported as env vars; inherits/merges through `extends` and `mixins`; `git-identity` mixin example added. Shipped this session.
 - ~~**Remote status bar**~~: `shoal-status --remote <name>` now fetches `GET /status` from a remote Shoal API host configured under `[remote.<name>]`. Shipped this session.
 - ~~**--sync-claw default from config**~~: `shoal handoff --sync-claw` now falls back to `config.claw.conversations_dir`; shipped previous session.
 - **Live Claw gRPC validation**: End-to-end smoke test against a real Claw endpoint — `get_agent_card()` then `send_message()`. `shoal[claw]` extra and proto stubs are in place (v0.30.0); this is pure integration validation. Unblocked.
@@ -226,6 +226,31 @@ Released 2026-04-01
 ## Handoff
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
+
+### Session: 2026-04-02 — [template.git] per-session git practices
+
+**What we did:**
+
+- Added `TemplateGitConfig` model (`user_name`, `user_email`, `commit_template`, `branch_prefix`) to `models/config/templates.py`; exported from `models.config`
+- `_parse_template_data` and `load_mixin` now extract `[template.git]` / `[mixin.git]` subsections
+- `_merge_templates`: git inherits from parent; child `[template.git]` replaces whole (same as `worktree`)
+- `_apply_mixin`: field-level merge — non-empty mixin fields win without blanking unset template fields
+- New `_apply_template_git_config_async` helper: emits `git config --local` commands + `GIT_AUTHOR_*`/`GIT_COMMITTER_*` env vars; called from both `create_session_lifecycle` and `fork_session_lifecycle` (step 3.4)
+- `examples/config/templates/base-dev.toml`: added commented `[template.git]` reference block
+- New `examples/config/templates/mixins/git-identity.toml` showing standalone mixin usage
+- 13 new tests in `tests/test_template_git_config.py`; CI: 1441+ passed, 4 skipped
+
+**Current state:**
+
+- Branch: `main`, commit `b5b7dbb` pushed
+- `[template.git]` is fully optional; no-op when all fields empty
+- `branch_prefix` is a convention hint only — not yet enforced during `shoal new` branch naming (future work)
+
+**What to do next:**
+
+- **Live Claw gRPC validation**: Connect to production Claw endpoint, run `get_agent_card()` / `send_message()` smoke test (unblocked, `shoal[claw]` extra in place)
+- **`branch_prefix` enforcement in `shoal new`**: Use `template.git.branch_prefix` as default prefix when auto-naming branches during `shoal new --template`
+- **Pre-commit hook profile** (low priority): `[template.git]` extension — specify a `.pre-commit-config.yaml` path to symlink into the worktree
 
 ### Session: 2026-04-02 — Fins polish, MCP server restart
 
