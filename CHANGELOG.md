@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.34.0] - 2026-04-02
+
+### Added
+- **Web dashboard**: HTMX-powered operator board mounted at `/ui` on the Shoal API server.
+  Fleet overview page with live status bar, filter pills, and real-time session card updates
+  via WebSocket OOB swaps. Session detail page with identity/runtime/MCP left panel and
+  Journal/Terminal/History tab strip. Vendored HTMX 2.0.4 + htmx-ext-ws 2.0.2 — no CDN
+  dependency. Dark design system with urgency-tier color coding (error → waiting → running
+  → idle → completed). Keyboard shortcut `/` focuses search. `GET /ui/ws` for live push.
+- **`shoal handoff --sync-claw PATH`**: Imports Lobster Party QMD conversation turns into
+  the session journal before generating the handoff artifact, enabling cross-system context
+  hand-off from Claw agents.
+
+### Fixed
+- **Proto pb2 compat for protobuf 6.x / grpcio 1.80**: Pre-import `google.protobuf.timestamp_pb2`
+  in `lobster_loop_pb2`, `a2a_claw_pb2`, `a2a_core_pb2` to resolve descriptor pool collision.
+  Fixed `*_grpc.py` stubs to use `from shoal.core.proto import …` instead of bare relative
+  imports so they resolve correctly inside the package.
+
 ## [0.32.0] - 2026-04-01
 
 ### Added
