@@ -8,6 +8,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.36.0] - 2026-04-02
+
+### Added
+- **Proactive agent assistance** (`services/proactive_supervisor.py`, `services/fs_watcher.py`,
+  `services/ai_client.py`, `core/message_bus.py`): Full KAIROS proactive monitoring stack.
+  - **Dreamer LLM** (`ai_client.py`): Thin async LLM wrapper supporting AWS Bedrock, HTTP gateway,
+    and a no-op stub fallback. Dreamer now persists session summaries to the journal.
+  - **FsWatcher** (`fs_watcher.py`): `watchfiles`-backed async watcher that emits `file_changed`
+    lifecycle events per session worktree. Start/status exposed via `shoal proactive fs-watch`.
+  - **Agent Bus** (`message_bus.py`): Session-to-session SQLite messaging. Adds `messages` and
+    `failure_contexts` tables; `send_session_message`, `receive_session_messages`,
+    `mark_session_message_consumed` MCP tools; `shoal proactive message send/list` CLI commands.
+  - **KAIROS Supervisor** (`proactive_supervisor.py`): Subscribes to `command_failed` events,
+    stores failure context packets, and serves them via `get_failure_context` MCP tool. Configured
+    via `ProactiveSupervisorConfig` in robo profile (`auto_enqueue`, `failure_ttl_seconds`,
+    `trigger_topics`).
+  - New lifecycle events: `file_changed`, `command_failed`.
+  - New MCP tools: `session_summary`, `send_session_message`, `receive_session_messages`,
+    `mark_session_message_consumed`, `get_failure_context`.
+  - New CLI commands: `shoal proactive fs-watch start/status`, `shoal proactive message send/list`.
+- **`shoal session` subcommand group** (`cli/session_cmd.py`): Ergonomic aliases for session
+  management — `shoal session list`, `ls`, `info`, `logs`, `status`, `attach`, `detach`, `kill`,
+  `prune`.
+- **`branch_prefix` in MCP `create_session`**: MCP server `create_session_tool` now passes
+  `template_cfg.git.branch_prefix` to `infer_branch_name`, matching CLI behaviour since v0.27.0.
+- **`--extended` flag for `shoal-status`**: Emits a `dreamer_summaries` dict alongside standard
+  status output.
+- **`watchfiles` promoted to core dependency**: Dropped the `proactive` extra — at 200 KB it's
+  not worth the install friction.
+
+### Fixed
+- **MCP socket env injection** (`lifecycle.py`): Three bugs fixed in
+  `_inject_mcp_socket_env_async` — wrong pane-dict key (`command` not `pane_current_command`),
+  wrong pane target (now uses tmux pane id `%NNN`), and injection sent to the tool TUI instead of
+  shell panes. Now polls up to 5 s for a shell pane to appear (race on MCP provisioning).
+- **`mcp_configure` parent-dir creation**: `mkdir -p` called before writing config JSON files,
+  preventing `FileNotFoundError` when the parent directory does not yet exist.
+- **`kill_session` MCP tool simplified**: Removed implicit list-expansion from `kill_session_tool`.
+  Batch kills must go through `batch_execute` — matches the documented contract and eliminates a
+  hidden code path.
+
+### Changed
+- **`ai_client`, `fs_watcher`, `proactive_supervisor` simplified** (`refactor`): Internal
+  complexity reduced after initial implementation pass — cleaner async patterns, smaller surface.
+- **`pyproject.toml` dynamic versioning**: Version is now derived from `src/shoal/__init__.py`
+  via `hatch.version`, eliminating the dual-update requirement.
+
+### Stats
+- 1533 tests collected, 1529 passed, 4 skipped
+
 ## [0.35.0] - 2026-04-02
 
 ### Added
