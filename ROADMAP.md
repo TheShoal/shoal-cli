@@ -225,6 +225,30 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-04-02 — Web dashboard + v0.34.0 release
+
+**What we did:**
+
+- Built and committed the Shoal web dashboard sub-app (`src/shoal/dashboard/`): HTMX 2.0.4 + htmx-ext-ws 2.0.2 (vendored), Jinja2 templates, dark design system with urgency-tier colors, fleet grid + session detail, live WS OOB push of session cards, `/` search shortcut, 20-test coverage of context builders
+- Routes: `GET /ui/` (fleet), `GET /ui/sessions/{id}` (detail), partials for status-bar/session-list/journal/pane, `WS /ui/ws`
+- Status poller in `server.py` calls `notify_status_change()` on every status change to push HTML fragments to all connected WS clients
+- Switched pane capture in routes to `async_capture_pane()` (was manual `asyncio.to_thread` wrapper)
+- Cut **v0.34.0**: bumped `pyproject.toml` + `__init__.py`, updated CHANGELOG, tagged `v0.34.0`
+- CI: 1510 passed, 2 skipped (all checks green)
+
+**Current state:**
+
+- Branch: `main`, tagged `v0.34.0`, not yet pushed to remote
+- Dashboard mounted at `/ui` — serve with `shoal serve` and open `http://localhost:<port>/ui`
+- `jinja2>=3.1.0` added to core dependencies (no extra required)
+
+**What to do next:**
+
+- `git push origin main && git push origin v0.34.0` to publish the release
+- Connect to a live Claw gRPC endpoint and run `get_agent_card()` / `send_message()` for real end-to-end validation
+- Consider `--sync-claw` accepting a default from `config.claw.conversations_dir` (avoids requiring explicit path)
+- **Remote status bar**: Fish status bar polling remote WebSocket (`/ws` on main API) for session status — backlog item
+
 ### Session: 2026-04-02 — Lobster integration: --sync-claw, proto compat, dashboard WIP
 
 **What we did:**
