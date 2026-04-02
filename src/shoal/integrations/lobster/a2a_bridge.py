@@ -122,9 +122,11 @@ if GRPC_AVAILABLE:
         """
         await self._ensure_channel()
         stub = _a2a_claw_grpc.AgentLoopStub(self._channel)  # type: ignore[no-untyped-call]
+        call_meta = [("x-employee-id", self.employee_id)] if self.employee_id else []
         try:
             proto_card = await stub.GetAgentCard(
-                _a2a_core_pb2.GetAgentCardRequest()  # type: ignore[attr-defined]
+                _a2a_core_pb2.GetAgentCardRequest(),  # type: ignore[attr-defined]
+                metadata=call_meta,
             )
         except _grpc.aio.AioRpcError as exc:
             raise RuntimeError(f"GetAgentCard RPC failed: {exc.details()}") from exc
@@ -155,6 +157,12 @@ if GRPC_AVAILABLE:
         effective_task_id = task_id or str(uuid.uuid4())
         now = int(time.time())
 
+        # Merge employee_id into proto-level metadata so the Claw service sees it
+        # in the request payload, and pass it as gRPC call metadata for transport-level auth.
+        effective_meta: dict[str, str] = dict(metadata or {})
+        if self.employee_id:
+            effective_meta.setdefault("employee_id", self.employee_id)
+        call_meta = [("x-employee-id", self.employee_id)] if self.employee_id else []
         msg = _a2a_core_pb2.Message(  # type: ignore[attr-defined]
             id=str(uuid.uuid4()),
             role=_a2a_core_pb2.ROLE_USER,  # type: ignore[attr-defined]
@@ -169,13 +177,13 @@ if GRPC_AVAILABLE:
         req = _a2a_core_pb2.SendMessageRequest(  # type: ignore[attr-defined]
             task_id=effective_task_id,
             message=msg,
-            metadata=metadata or {},
+            metadata=effective_meta,
         )
 
         await self._ensure_channel()
         stub = _a2a_claw_grpc.AgentLoopStub(self._channel)  # type: ignore[no-untyped-call]
         try:
-            response = await stub.SendMessage(req)
+            response = await stub.SendMessage(req, metadata=call_meta)
         except _grpc.aio.AioRpcError as exc:
             raise RuntimeError(f"SendMessage RPC failed: {exc.details()}") from exc
 
@@ -250,8 +258,9 @@ if GRPC_AVAILABLE:
 
         await self._ensure_channel()
         stub = _a2a_claw_grpc.AgentLoopStub(self._channel)  # type: ignore[no-untyped-call]
+        call_meta = [("x-employee-id", self.employee_id)] if self.employee_id else []
         try:
-            response = await stub.ListTasks(req)
+            response = await stub.ListTasks(req, metadata=call_meta)
         except _grpc.aio.AioRpcError as exc:
             raise RuntimeError(f"ListTasks RPC failed: {exc.details()}") from exc
 

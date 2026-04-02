@@ -11,6 +11,7 @@ import typer
 import shoal
 
 # Sub-group Typer apps — these are lightweight and needed at import time for add_typer.
+from shoal.cli.claw import app as claw_app
 from shoal.cli.config_cmd import app as config_app
 from shoal.cli.demo import app as demo_app
 from shoal.cli.fin import app as fin_app
@@ -491,6 +492,7 @@ app.add_typer(incident_app, name="incident", help="Incident supervision workflow
 app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
 app.add_typer(mode_app, name="mode", help="Operating modes.")
 app.add_typer(skill_app, name="skill", help="Cross-agent skills.")
+app.add_typer(claw_app, name="claw", help="Claw runtime operations (requires shoal[claw]).")
 
 
 @app.command()
