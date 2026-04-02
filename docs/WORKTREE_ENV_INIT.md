@@ -1,7 +1,20 @@
 # Worktree Environment Initialization — Design Document
 
-> **Status**: Planning / Not yet implemented
-> **Related milestone**: Backlog (post v0.18.0)
+> **Status**: Partially shipped — see notes below
+> **Iterations 1 & 2 shipped** (v0.18.x). Iterations 3–5 remain backlog/deferred.
+
+## What Has Shipped
+
+**Iteration 1 — env gap fixed (v0.18.0)**: `template.env` is now applied at session creation.
+Both the initial pane (via `set -gx` fish commands) and subsequent panes (via `tmux set-environment`) receive template env vars.
+
+**Iteration 2 — `setup_commands` (v0.18.x)**: `setup_commands: list[str]` on both
+`SessionTemplateConfig` and `TemplateMixinConfig`. Commands run in the initial pane before the agent
+launches. `extends` semantics: child replaces; `mixins` semantics: appended after base.
+
+**`[template.git]` identity block (v0.26.x)**: Per-session git identity via a dedicated
+`[template.git]` section — `user_name`, `user_email`, `commit_template`, `branch_prefix`.
+See [Local Templates — Per-Session Git Identity](LOCAL_TEMPLATES.md#per-session-git-identity).
 
 ## Current State (The Bug)
 

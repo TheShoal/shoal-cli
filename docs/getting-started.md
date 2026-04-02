@@ -139,7 +139,7 @@ What those flags do:
 
 - `-t` selects the tool profile.
 - `-w` names the worktree and session.
-- `-b` creates a dedicated branch automatically.
+- `-b` creates a dedicated branch automatically. When the template specifies `[template.git] branch_prefix`, that prefix replaces the default `feat/` category (e.g. `branch_prefix = "fix"` → `fix/<worktree>`). See [Local Templates — Per-Session Git Identity](LOCAL_TEMPLATES.md#per-session-git-identity).
 
 ## Check the fleet
 
@@ -182,3 +182,5 @@ flowchart LR
     <span>Learn patterns for agent momentum and flow-state workflows.</span>
   </a>
 </div>
+
+- **Git identity per session**: Use `[template.git]` in your template to scope `user.name`, `user.email`, and commit template to each worktree. Set `branch_prefix` to control the default branch category for `shoal new -b`. See [Local Templates — Per-Session Git Identity](LOCAL_TEMPLATES.md#per-session-git-identity).

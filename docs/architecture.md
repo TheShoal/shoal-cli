@@ -131,6 +131,24 @@ specialize it without duplicating every pane split or startup command.
 
 Read [Local Templates](LOCAL_TEMPLATES.md) for the user-facing workflow.
 
+### Template Git Config
+
+Both `SessionTemplateConfig` and `TemplateMixinConfig` carry a `git: TemplateGitConfig` block that sets per-worktree git identity at session creation time.
+
+| Field | Type | Effect |
+| --- | --- | --- |
+| `user_name` | `str` | `git config --local user.name` in the worktree; also exports `GIT_AUTHOR_NAME` / `GIT_COMMITTER_NAME` |
+| `user_email` | `str` | `git config --local user.email`; also exports `GIT_AUTHOR_EMAIL` / `GIT_COMMITTER_EMAIL` |
+| `commit_template` | `str` | `git config --local commit.template` — path to a commit message template |
+| `branch_prefix` | `str` | Default branch category for `shoal new -b` (e.g. `"fix"`, `"chore"`). Explicit `/` in worktree name always wins. |
+
+**Merge semantics:**
+
+- `extends`: the child `[template.git]` block replaces the parent's whole block. Fields not set by the child are not inherited from the parent.
+- `mixins`: field-level merge — the first non-empty value wins among the mixin fields, and unset template fields are preserved rather than blanked.
+
+**Implementation:** applied by `_apply_template_git_config_async()` in `services/lifecycle.py` at step 3.4 of session creation (after worktree provisioning, before `setup_commands`).
+
 ## Boundary notes
 
 The current extension boundary is documented in [Extensions](EXTENSIONS.md): Shoal CLI owns the

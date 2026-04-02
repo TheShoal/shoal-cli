@@ -7,7 +7,7 @@ subcommand groups.
 
 | Command | Purpose |
 | ------- | ------- |
-| `shoal new` | Create a new session, optionally with a worktree and branch |
+| `shoal new` | Create a new session, optionally with a worktree and branch (branch category uses `template.git.branch_prefix` when set) |
 | `shoal ls` | List sessions, with filters like `--tree` and `--tag` |
 | `shoal info` | Show detailed metadata for one session |
 | `shoal attach` | Jump into a session |
@@ -131,6 +131,19 @@ Skills in `.shoal/skills/<name>/SKILL.md` are auto-symlinked into `.claude/skill
 | `shoal config show` | Render merged configuration |
 | `shoal config paths` | Show config, state, and runtime paths |
 
+
+### Template git config
+
+Templates can declare a `[template.git]` block that Shoal applies to the worktree at session creation:
+
+| Field | Effect |
+|---|---|
+| `user_name` | Scopes `git config --local user.name`; exports `GIT_AUTHOR_NAME` / `GIT_COMMITTER_NAME` |
+| `user_email` | Scopes `git config --local user.email`; exports `GIT_AUTHOR_EMAIL` / `GIT_COMMITTER_EMAIL` |
+| `commit_template` | Scopes `git config --local commit.template` |
+| `branch_prefix` | Default branch category for `-b` (e.g. `"fix"` → `fix/<worktree>`). Explicit `/` in worktree name always wins. |
+
+See [Local Templates — Per-Session Git Identity](LOCAL_TEMPLATES.md#per-session-git-identity).
 ## Extensions and integrations
 
 | Command | Purpose |

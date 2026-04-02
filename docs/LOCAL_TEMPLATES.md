@@ -141,6 +141,76 @@ See [Handoffs & Modes](handoffs-and-modes.md) for the full operating modes refer
 
 ---
 
+## Per-Session Git Identity
+
+The `[template.git]` block configures a scoped git identity for the session's worktree. When set, Shoal emits `git config --local` commands into the worktree and exports `GIT_AUTHOR_NAME`, `GIT_COMMITTER_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_EMAIL` as fish global env vars so all subprocess git calls inherit the identity automatically.
+
+### Fields
+
+| Field | Description |
+|-------|-------------|
+| `user_name` | `git config --local user.name` for this worktree |
+| `user_email` | `git config --local user.email` for this worktree |
+| `commit_template` | Path to a commit message template (`git config --local commit.template`) |
+| `branch_prefix` | Default branch category prefix used by `shoal new -b` (e.g. `"fix"`, `"chore"`) |
+
+All fields are optional. The block is a no-op when all four are empty.
+
+### Example
+
+```toml
+# ~/.config/shoal/templates/my-template.toml
+[template]
+name = "my-template"
+tool = "pi"
+
+[template.git]
+user_name  = "Robo Coder"
+user_email = "robo@myorg.com"
+commit_template = "~/.gitmessage"
+branch_prefix = "fix"
+
+[[windows]]
+name = "editor"
+[[windows.panes]]
+split = "root"
+command = "{tool_command}"
+```
+
+### `branch_prefix` behaviour
+
+`branch_prefix` is a hint used when running `shoal new -w <name> -b`. If the worktree name contains no `/`, Shoal prepends `branch_prefix/` to form the branch name (e.g. `fix/my-feature`). If the worktree name already contains a `/`, it passes through unchanged — the explicit form always wins.
+
+### Inheritance semantics
+
+**`extends`** — The child `[template.git]` block replaces the parent's entire block. If the child omits a field that the parent set, that field reverts to empty.
+
+**`mixins`** — Field-level merge. A non-empty mixin field wins, but unset mixin fields do not clear the template's own values. This lets a shared mixin supply only `user_name`/`user_email` without disrupting a template's `commit_template` or `branch_prefix`.
+
+Mixin example:
+
+```toml
+# ~/.config/shoal/templates/mixins/git-identity.toml
+[mixin]
+name = "git-identity"
+description = "Per-session git authorship for automated commits"
+
+[mixin.git]
+user_name  = "Robo Coder"
+user_email = "robo@myorg.com"
+```
+
+Apply to any template with:
+
+```toml
+[template]
+name = "my-project"
+tool = "pi"
+mixins = ["git-identity"]
+```
+
+---
+
 ## Directory Layout
 
 A typical project using local templates:
@@ -172,6 +242,7 @@ These mixins are installed globally by `shoal init` into `~/.config/shoal/templa
 | `with-tests` | Appends a test-runner window to the session layout |
 | `shoal-orchestrator` | Attaches the Shoal orchestrator MCP server to the session |
 | `mcp-memory` | Attaches the memory MCP server to the session |
+| `git-identity` | Sets `user_name`, `user_email` for automated commits in the worktree |
 
 ### `uv-dev` — dev-dependency bootstrap
 
@@ -215,6 +286,7 @@ The local version shadows the global one — no other files need changing.
 | Tool-specific defaults (`claude-dev`, `codex-dev`, `pi-dev`) | Global |
 | Project-specific sessions | Local (`.shoal/templates/`) |
 | Project-specific MCP sets | Local mixins (`.shoal/templates/mixins/`) |
+| Per-session git author/commit config | `[template.git]` or `git-identity` mixin |
 
 ---
 
@@ -250,5 +322,6 @@ See [Handoffs & Modes](handoffs-and-modes.md) for the full workspace routing ref
 ## Further Reading
 
 - [Template Inheritance](architecture.md#template-inheritance-and-composition) — Merge semantics for `extends` and `mixins`
+- [Architecture — Template Git Config](architecture.md#template-git-config) — Merge semantics for [template.git]
 - [Handoffs & Modes](handoffs-and-modes.md) — Handoff packets, operating modes, template tags
 - [Shoal Overview](index.md) — Overview of Shoal
