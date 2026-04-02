@@ -324,3 +324,27 @@ Released 2026-04-01
 - **Remote status bar**: Fish status bar polling remote WebSocket (`/ws` on main API) for session status — backlog item
 
 - Pick up any of the three newly formalized backlog items above
+### Session: 2026-04-02 — Pisces integration (shoal-first + lobster-party)
+
+**What we did:**
+
+- Added `examples/config/tools/pisces.toml` — tool profile for the pisces fork of oh-my-pi; `status_provider = "omp_compat"` (pisces shares omp's TUI); `socket_env = "PISCES_MCP_SOCKETS"` wires shoal's MCP pool into pisces sessions
+- Added `examples/config/templates/pisces-dev.toml` — thin stub extending `base-dev`, pins `tool = "pisces"` (same pattern as `omp-dev.toml`)
+- Added `examples/config/robo/pisces.toml` — robo supervisor profile using pisces as the agent tool
+- Fixed `status_provider.py`: `"pisces"` and `"omp"` now both map to `"omp_compat"` provider; previously `"pisces"` incorrectly mapped to `"pi"`
+- Implemented `socket_env` injection in `lifecycle.py`:
+  - New `_mcp_socket_env_injection(provisioned, tool)` — reads `tool.mcp.socket_env`, returns `{env_var: "sock1:sock2:..."}` when set
+  - New `_inject_mcp_socket_env_async(sock_env, tmux_session, session_id)` — sets tmux environment + sends `set -gx` to running shell
+  - Wired into `create_session_lifecycle` and `fork_session_lifecycle` after MCP provisioning; claw sessions skipped (remote gRPC, no tmux)
+
+**Current state:**
+
+- `socket_env` field was previously declared in `ToolConfig.mcp` but never consumed; now fully wired end-to-end
+- `pisces.toml` tool profile ships alongside `omp.toml`, `opencode.toml`, `pi.toml`
+- pisces binary (in the pisces repo) was rebuilt; symlink at `~/.local/bin/pisces` is current
+
+**What to do next:**
+
+- End-to-end smoke test: `shoal new --template pisces-dev`, confirm `PISCES_MCP_SOCKETS` is set in the session environment when MCP servers are configured
+- P0.5 (lobster-party): update `grpc.rs` to invoke `pisces` instead of `opencode`, parse pisces event schema — unblocked once lobster-party repo is accessible
+- Live Claw gRPC validation (pre-existing next step): `get_agent_card()` + `send_message()` smoke test against production endpoint

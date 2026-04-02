@@ -25,4 +25,5 @@ error_patterns = ["Error:", "error:", "ERROR", "FAILED"]
 [mcp]
 config_cmd = ""
 config_file = ".pisces/config.yml"
-socket_env = ""
+socket_env = "PISCES_MCP_SOCKETS"
+
