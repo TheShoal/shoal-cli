@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from shoal.integrations.lobster.a2a_bridge import GRPC_AVAILABLE, proto_to_agent_card
 from shoal.models.config.agent_card import AgentCard
 
@@ -48,6 +50,7 @@ def _make_proto_card(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(GRPC_AVAILABLE, reason="grpcio is installed in this environment")
 def test_grpc_available_false_without_grpcio() -> None:
     """GRPC_AVAILABLE is False when grpcio is not installed in dev env."""
     assert GRPC_AVAILABLE is False
