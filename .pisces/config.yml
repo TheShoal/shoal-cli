@@ -1,0 +1,12 @@
+# Pisces MCP configuration for shoal-orchestrator
+mcpServers:
+  shoal-orchestrator:
+    command: uvx
+    args:
+      - --from
+      - shoal-cli
+      - --python
+      - 3.12
+      - shoal-mcp-server
+    env:
+      SHOAL_DB_PATH: /Users/ricardoroche/sanctum/opus/proprium/the-shoal/shoal-cli/.shoal/shoal.db

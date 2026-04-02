@@ -67,25 +67,22 @@ async def call_llm(
     cfg = load_config()
     dreamer_ai = cfg.dreamer.ai
 
-    provider: str = dreamer_ai.provider
-    endpoint: str = dreamer_ai.endpoint
-
-    if provider == "bedrock":
+    if dreamer_ai.provider == "bedrock":
         return await _call_bedrock(model, prompt, max_tokens, temperature)
 
-    if provider == "gateway" and endpoint:
-        return await _call_gateway(endpoint, model, prompt, max_tokens, temperature)
+    if dreamer_ai.provider == "gateway" and dreamer_ai.endpoint:
+        return await _call_gateway(dreamer_ai.endpoint, model, prompt, max_tokens, temperature)
 
-    # Implicit bedrock if boto3 is installed and provider is not forced
-    if provider in ("auto", "stub"):
+    if dreamer_ai.provider in ("auto", "stub"):
         try:
             return await _call_bedrock(model, prompt, max_tokens, temperature)
         except ImportError:
             pass
 
     msg = (
-        f"No LLM backend configured (provider={provider!r}, endpoint={endpoint!r}). "
-        "Set [dreamer.ai] in config.toml."
+        f"No LLM backend configured (provider={dreamer_ai.provider!r}, ",
+        f"endpoint={dreamer_ai.endpoint!r}). ",
+        "Set [dreamer.ai] in config.toml.",
     )
     raise RuntimeError(msg)
 

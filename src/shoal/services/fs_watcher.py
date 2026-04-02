@@ -180,16 +180,11 @@ class FsWatcher:
         for _change_type, file_path in changes:
             # Find which watched root this file belongs to
             for root_path, wp in path_to_session.items():
-                try:
-                    relative = Path(file_path).relative_to(root_path)
-                    rel_str = str(relative)
-                except ValueError:
-                    continue
-                if not _should_ignore(rel_str):
+                relative = Path(file_path).relative_to(root_path)
+                if not _should_ignore(str(relative)):
                     session_changes.setdefault(wp.session_id, []).append(file_path)
                     break
-
-        # Build a direct session_id → WatchedPath index from the already-grouped changes.
+        # Build session_id → WatchedPath index from the already-grouped changes.
         session_id_to_wp: dict[str, WatchedPath] = {
             wp.session_id: wp for wp in path_to_session.values()
         }
