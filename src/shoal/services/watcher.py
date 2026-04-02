@@ -175,6 +175,16 @@ class Watcher:
                     new_status=new_status,
                 )
 
+                # Emit command_failed when transitioning into error status.
+                # This is the canonical signal for proactive assistance.
+                if new_status.value == "error":
+                    await emit(
+                        LifecycleEvent.command_failed,
+                        session=session,
+                        pane_snapshot=observation.output,
+                        old_status=old_status,
+                    )
+
                 if new_status.value == "waiting":
                     notify(
                         "Shoal",

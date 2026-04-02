@@ -624,6 +624,177 @@ async def read_journal_tool(session: str, limit: int = 10) -> list[dict[str, obj
 
 
 # ---------------------------------------------------------------------------
+# Tool: session_summary
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="session_summary",
+    description=(
+        "Return the latest Dreamer LLM summary for a session. "
+        "Dreamer must be enabled and have completed at least one summarization cycle. "
+        "Falls back to the most recent journal entry tagged [dreamer] when the "
+        "in-process Dreamer singleton is unavailable."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def session_summary_tool(session: str) -> dict[str, object]:
+    """Return the latest Dreamer summary for a session."""
+    from shoal.core.journal import read_journal
+    from shoal.core.state import find_by_name, get_session
+    from shoal.services.dreamer import get_dreamer
+
+    # Resolve session
+    session_id = await find_by_name(session)
+    if session_id is None:
+        raise ToolError(f"Session not found: {session}")
+    s = await get_session(session_id)
+    if s is None:
+        raise ToolError(f"Session not found: {session}")
+
+    # 1. Try in-process Dreamer singleton (fastest path).
+    dreamer = get_dreamer()
+    if dreamer is not None:
+        summary = dreamer.get_summary(s.id)
+        if summary:
+            return {"session": s.name, "summary": summary, "source": "dreamer"}
+
+    # 2. Fall back to the most recent dreamer journal entry.
+    import asyncio
+
+    entries = await asyncio.to_thread(read_journal, s.id, limit=50)
+    for entry in reversed(entries):
+        if entry.source == "dreamer":
+            return {"session": s.name, "summary": entry.content, "source": "journal"}
+
+    return {"session": s.name, "summary": None, "source": None}
+
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Tool: send_session_message
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="send_session_message",
+    description=(
+        "Post a message from the current session to another session via the Agent Bus. "
+        "Messages are stored in SQLite and can be polled with receive_session_messages."
+    ),
+)
+async def send_session_message_tool(
+    to: str,
+    topic: str,
+    payload: str,
+    from_session: str = "",
+) -> dict[str, object]:
+    """Post a message to another session."""
+    from shoal.core.message_bus import send_message
+
+    msg_id = await send_message(
+        from_session=from_session or "mcp",
+        to_session=to,
+        topic=topic,
+        payload=payload,
+    )
+    return {"id": msg_id, "to": to, "topic": topic}
+
+
+# ---------------------------------------------------------------------------
+# Tool: receive_session_messages
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="receive_session_messages",
+    description=(
+        "Fetch pending messages for a session from the Agent Bus. "
+        "By default returns only unconsumed messages. "
+        "Call send_session_message to post messages."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def receive_session_messages_tool(
+    session: str,
+    topic: str | None = None,
+    unconsumed_only: bool = True,
+    limit: int = 50,
+) -> list[dict[str, object]]:
+    """Fetch messages for a session."""
+    from shoal.core.message_bus import receive_messages
+
+    return await receive_messages(session, topic, unconsumed_only=unconsumed_only, limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# Tool: mark_session_message_consumed
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="mark_session_message_consumed",
+    description="Mark an Agent Bus message as consumed by its recipient.",
+)
+async def mark_session_message_consumed_tool(message_id: int) -> dict[str, object]:
+    """Mark a message as consumed."""
+    from shoal.core.message_bus import mark_consumed
+
+    await mark_consumed(message_id)
+    return {"id": message_id, "consumed": True}
+
+
+# ---------------------------------------------------------------------------
+# Tool: get_failure_context
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="get_failure_context",
+    description=(
+        "Return the most recent command failure context for a session. "
+        "The Proactive Supervisor stores these when the Watcher detects an error. "
+        "Consume the packet after use to avoid re-injection on the next turn."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def get_failure_context_tool(
+    session: str,
+    consume: bool = False,
+) -> dict[str, object]:
+    """Return pending failure context for a session."""
+    from shoal.core.state import find_by_name, get_session
+    from shoal.services.proactive_supervisor import get_proactive_supervisor
+
+    session_id = await find_by_name(session)
+    if session_id is None:
+        raise ToolError(f"Session not found: {session}")
+    s = await get_session(session_id)
+    if s is None:
+        raise ToolError(f"Session not found: {session}")
+
+    supervisor = get_proactive_supervisor()
+    if supervisor is None:
+        # Fall through to DB directly even without in-process supervisor.
+        from shoal.core.db import get_db
+
+        db = await get_db()
+        ctx = await db.get_failure_context(s.id)
+    else:
+        ctx = await supervisor.get_failure_context(s.id)
+
+    if ctx is None:
+        return {"session": s.name, "context": None}
+
+    if consume:
+        from shoal.core.db import get_db
+
+        db = await get_db()
+        await db.consume_failure_context(int(str(ctx["id"])))
+
+    return {"session": s.name, "context": ctx}
+
+
 # Tool: wait_for_completion
 # ---------------------------------------------------------------------------
 

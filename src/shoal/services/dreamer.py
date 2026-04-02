@@ -174,6 +174,22 @@ class DreamerService:
             session.summary_history.append(summary)
             logger.info("Dreamer summary for %s: %s", session.session_id, summary[:100])
             session.accumulated_logs.clear()  # Clear after summarizing
+            # Persist to journal so MCP clients can retrieve the latest summary.
+            try:
+                import asyncio
+
+                from shoal.core.journal import append_entry
+
+                await asyncio.to_thread(
+                    append_entry,
+                    session.session_id,
+                    f"[dreamer] {summary}",
+                    source="dreamer",
+                )
+            except Exception as journal_exc:
+                logger.debug(
+                    "Dreamer journal write failed for %s: %s", session.session_id, journal_exc
+                )
         except Exception as exc:
             logger.warning("Failed to summarize session %s: %s", session.session_id, exc)
 
@@ -196,8 +212,7 @@ class DreamerService:
         prompt = self._build_prompt(session_name, logs)
 
         try:
-            # Attempt to use the internal AI SDK if available
-            from shoal.services.ai_client import call_llm  # type: ignore[import-untyped]
+            from shoal.services.ai_client import call_llm
 
             response = await call_llm(
                 model=self.config.model,

@@ -1927,7 +1927,7 @@ wheels = [
 
 [[package]]
 name = "shoal-cli"
-version = "0.34.0"
+version = "0.35.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
@@ -1938,6 +1938,7 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
     { name = "uvicorn" },
+    { name = "watchfiles" },
 ]
 
 [package.optional-dependencies]
@@ -2001,6 +2002,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'docs'", specifier = ">=0.8.0" },
     { name = "typer", specifier = ">=0.15.0" },
     { name = "uvicorn", specifier = ">=0.27.0" },
+    { name = "watchfiles", specifier = ">=0.21.0" },
 ]
 provides-extras = ["mcp", "claw", "dev", "docs"]
 

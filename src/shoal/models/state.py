@@ -26,6 +26,11 @@ class LifecycleEvent(StrEnum):
     session_forked = "session_forked"
     status_changed = "status_changed"
     session_completed = "session_completed"
+    # Proactive events (P1)
+    file_changed = "file_changed"
+    """Fired by FsWatcher when a file in a session's worktree is modified."""
+    command_failed = "command_failed"
+    """Fired by Watcher when a shell command exits with a non-zero code."""
 
 
 class RuntimeKind(StrEnum):

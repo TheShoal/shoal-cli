@@ -139,6 +139,38 @@ class ShoalDB:
             CREATE INDEX IF NOT EXISTS idx_st_timestamp
             ON status_transitions(timestamp)
         """)
+        # Agent Bus: session-to-session message queue.
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                from_session TEXT NOT NULL,
+                to_session TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                consumed_at TEXT
+            )
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_to_session
+            ON messages(to_session, consumed_at, created_at)
+        """)
+        # Failure context packets for proactive supervisor.
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS failure_contexts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                session_name TEXT NOT NULL,
+                pane_snapshot TEXT NOT NULL,
+                old_status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                consumed_at TEXT
+            )
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_fc_session
+            ON failure_contexts(session_id, consumed_at)
+        """)
         # Backfill status_since for existing sessions that predate the field.
         # For each session whose serialised JSON lacks status_since, set it to
         # the timestamp of the most recent status_transitions row, or to
@@ -560,6 +592,177 @@ class ShoalDB:
                 (time.monotonic() - t0) * 1000,
             )
             return result
+
+    # -----------------------------------------------------------------------
+    # Agent Bus: session-to-session message queue
+    # -----------------------------------------------------------------------
+
+    async def send_message(
+        self,
+        from_session: str,
+        to_session: str,
+        topic: str,
+        payload: str,
+    ) -> int:
+        """Insert a message and return its auto-assigned ID."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            cursor = await conn.execute(
+                "INSERT INTO messages (from_session, to_session, topic, payload, created_at)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (from_session, to_session, topic, payload, now),
+            )
+            await conn.commit()
+        return cursor.lastrowid or 0
+
+    async def receive_messages(
+        self,
+        to_session: str,
+        topic: str | None = None,
+        *,
+        unconsumed_only: bool = True,
+        limit: int = 50,
+    ) -> list[dict[str, object]]:
+        """Fetch messages addressed to a session."""
+        parts = ["SELECT id, from_session, to_session, topic, payload, created_at, consumed_at"]
+        parts.append("FROM messages WHERE to_session = ?")
+        params: list[object] = [to_session]
+        if unconsumed_only:
+            parts.append("AND consumed_at IS NULL")
+        if topic is not None:
+            parts.append("AND topic = ?")
+            params.append(topic)
+        parts.append("ORDER BY created_at ASC LIMIT ?")
+        params.append(limit)
+        sql = " ".join(parts)
+
+        async with (
+            self._connection() as conn,
+            conn.execute(sql, params) as cursor,
+        ):
+            rows = await cursor.fetchall()
+        return [
+            {
+                "id": row[0],
+                "from_session": row[1],
+                "to_session": row[2],
+                "topic": row[3],
+                "payload": row[4],
+                "created_at": row[5],
+                "consumed_at": row[6],
+            }
+            for row in rows
+        ]
+
+    async def mark_message_consumed(self, message_id: int) -> None:
+        """Mark a message as consumed."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            await conn.execute(
+                "UPDATE messages SET consumed_at = ? WHERE id = ?",
+                (now, message_id),
+            )
+            await conn.commit()
+
+    async def purge_old_messages(self, older_than_seconds: int = 86_400) -> int:
+        """Delete consumed messages older than ``older_than_seconds``."""
+        from datetime import UTC, datetime, timedelta
+
+        cutoff = (datetime.now(UTC) - timedelta(seconds=older_than_seconds)).isoformat()
+        async with self._connection() as conn:
+            cursor = await conn.execute(
+                "DELETE FROM messages WHERE consumed_at IS NOT NULL AND consumed_at < ?",
+                (cutoff,),
+            )
+            await conn.commit()
+        return cursor.rowcount or 0
+
+    # -----------------------------------------------------------------------
+    # Proactive Supervisor: failure context packets
+    # -----------------------------------------------------------------------
+
+    async def save_failure_context(
+        self,
+        session_id: str,
+        session_name: str,
+        pane_snapshot: str,
+        old_status: str,
+    ) -> int:
+        """Insert a failure context packet and return its ID."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            cursor = await conn.execute(
+                "INSERT INTO failure_contexts"
+                " (session_id, session_name, pane_snapshot, old_status, created_at)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (session_id, session_name, pane_snapshot, old_status, now),
+            )
+            await conn.commit()
+        return cursor.lastrowid or 0
+
+    async def get_failure_context(
+        self,
+        session_id: str,
+        *,
+        unconsumed_only: bool = True,
+    ) -> dict[str, object] | None:
+        """Return the most recent failure context packet for a session."""
+        # Build query using fixed clauses — no user input in the SQL skeleton.
+        params: list[object] = [session_id]
+        sql = (
+            "SELECT id, session_id, session_name, pane_snapshot, old_status, created_at"
+            " FROM failure_contexts WHERE session_id = ?"
+        )
+        if unconsumed_only:
+            sql += " AND consumed_at IS NULL"
+        sql += " ORDER BY created_at DESC LIMIT 1"
+        async with (
+            self._connection() as conn,
+            conn.execute(sql, params) as cursor,
+        ):
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row[0],
+            "session_id": row[1],
+            "session_name": row[2],
+            "pane_snapshot": row[3],
+            "old_status": row[4],
+            "created_at": row[5],
+        }
+
+    async def consume_failure_context(self, context_id: int) -> None:
+        """Mark a failure context packet as consumed."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            await conn.execute(
+                "UPDATE failure_contexts SET consumed_at = ? WHERE id = ?",
+                (now, context_id),
+            )
+            await conn.commit()
+
+    async def expire_old_failure_contexts(self, session_id: str, ttl_seconds: int = 3600) -> None:
+        """Expire unconsumed failure contexts older than ttl_seconds."""
+        from datetime import UTC, datetime, timedelta
+
+        cutoff = (datetime.now(UTC) - timedelta(seconds=ttl_seconds)).isoformat()
+        now = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            await conn.execute(
+                "UPDATE failure_contexts SET consumed_at = ?"
+                " WHERE session_id = ? AND consumed_at IS NULL AND created_at < ?",
+                (now, session_id, cutoff),
+            )
+            await conn.commit()
 
 
 async def get_db() -> ShoalDB:

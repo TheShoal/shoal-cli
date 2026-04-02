@@ -42,6 +42,68 @@ async def generate_status() -> dict[str, int]:
     return counts
 
 
+async def generate_status_extended() -> dict[str, object]:
+    """Generate status counts plus per-session Dreamer summaries.
+
+    Includes a ``dreamer_summaries`` dict mapping session name → latest summary
+    for all sessions where Dreamer has produced at least one summary.
+
+    Returns:
+        Dict with counts (running/idle/waiting/error/inactive) and
+        ``dreamer_summaries: {name: summary_text}``.
+    """
+    from shoal.core.journal import read_journal
+    from shoal.services.dreamer import get_dreamer
+
+    sessions = await list_sessions()
+    running = idle = waiting = error = inactive = 0
+
+    dreamer = get_dreamer()
+    dreamer_summaries: dict[str, str] = {}
+
+    for session in sessions:
+        status_val = session.status.value
+        if status_val == "running":
+            running += 1
+        elif status_val == "idle":
+            idle += 1
+        elif status_val == "waiting":
+            waiting += 1
+        elif status_val == "error":
+            error += 1
+        else:
+            inactive += 1
+
+        # 1. In-process singleton (fastest).
+        if dreamer is not None:
+            summary = dreamer.get_summary(session.id)
+            if summary:
+                dreamer_summaries[session.name] = summary
+                continue
+
+        # 2. Fall back to latest dreamer journal entry.
+        try:
+            entries = await asyncio.to_thread(read_journal, session.id, limit=50)
+            for entry in reversed(entries):
+                if entry.source == "dreamer":
+                    dreamer_summaries[session.name] = entry.content
+                    break
+        except Exception:
+            logger.debug(
+                "Failed to read journal for dreamer summary: %s", session.id, exc_info=True
+            )
+
+    counts: dict[str, object] = {
+        "running": running,
+        "idle": idle,
+        "waiting": waiting,
+        "error": error,
+        "inactive": inactive,
+        "dreamer_summaries": dreamer_summaries,
+    }
+    return counts
+
+
 def generate_remote_status(host: str, api_port: int, timeout: int = 5) -> dict[str, int]:
     """Fetch status counts from a remote Shoal API server.
 
@@ -88,11 +150,16 @@ def main() -> None:
 
     Usage::
 
-        shoal-status                    # local DB
-        shoal-status --remote <name>    # remote host named in [remote.<name>]
+        shoal-status                       # local DB
+        shoal-status --extended            # include Dreamer summaries
+        shoal-status --remote <name>       # remote host named in [remote.<name>]
     """
     remote_name: str | None = None
+    extended = False
     args = sys.argv[1:]
+    if "--extended" in args:
+        extended = True
+        args = [a for a in args if a != "--extended"]
     if "--remote" in args:
         idx = args.index("--remote")
         if idx + 1 >= len(args):
@@ -109,11 +176,14 @@ def main() -> None:
             known = list(cfg.remote.keys())
             print(json.dumps({"error": f"Unknown remote '{remote_name}'. Known: {known}"}))
             sys.exit(1)
-        counts = generate_remote_status(host_cfg.host, host_cfg.api_port)
+        counts: object = generate_remote_status(host_cfg.host, host_cfg.api_port)
     else:
         from shoal.core.db import with_db
 
-        counts = asyncio.run(with_db(generate_status()))
+        if extended:
+            counts = asyncio.run(with_db(generate_status_extended()))
+        else:
+            counts = asyncio.run(with_db(generate_status()))
 
     print(json.dumps(counts))
 

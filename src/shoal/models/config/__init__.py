@@ -6,10 +6,12 @@ to work unchanged across the codebase.
 
 from shoal.models.config.claw import ClawConfig
 from shoal.models.config.general import (
+    DreamerAIConfig,
     DreamerConfig,
     GeneralConfig,
     NotificationsConfig,
     OperatorConfig,
+    ProactiveConfig,
     RemoteHostConfig,
     RoboGlobalConfig,
     ShoalConfig,
@@ -20,6 +22,7 @@ from shoal.models.config.hooks import ProjectHookEntry
 from shoal.models.config.robo import (
     EscalationConfig,
     MonitoringConfig,
+    ProactiveSupervisorConfig,
     RoboProfileConfig,
     TasksConfig,
 )
@@ -47,6 +50,7 @@ __all__ = [
     "ClawConfig",
     "CoordinatorConfig",
     "DetectionPatterns",
+    "DreamerAIConfig",
     "DreamerConfig",
     "EscalationConfig",
     "GeneralConfig",
@@ -54,6 +58,8 @@ __all__ = [
     "MonitoringConfig",
     "NotificationsConfig",
     "OperatorConfig",
+    "ProactiveConfig",
+    "ProactiveSupervisorConfig",
     "ProjectConfig",
     "ProjectHookEntry",
     "RemoteHostConfig",

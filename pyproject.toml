@@ -35,6 +35,7 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "httpx>=0.28.0",
     "jinja2>=3.1.0",
+    "watchfiles>=0.21.0",
 ]
 
 [project.scripts]
@@ -124,6 +125,14 @@ disable_error_code = ["call-overload", "arg-type"]
 [[tool.mypy.overrides]]
 module = "shoal.services.mcp_shoal_server"
 disable_error_code = ["call-arg", "attr-defined", "arg-type"]
+
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "shoal.services.ai_client"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

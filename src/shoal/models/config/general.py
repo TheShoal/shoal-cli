@@ -75,15 +75,50 @@ class OperatorConfig(BaseModel):
     stale_after_minutes: int = 30
 
 
+class DreamerAIConfig(BaseModel):
+    """AI backend configuration for the Dreamer service — maps to [dreamer.ai]."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str = "auto"
+    """Backend: ``auto`` (try Bedrock, then stub), ``bedrock``, ``gateway``, or ``stub``.
+
+    ``auto`` silently falls back to the stub when boto3 is absent.
+    ``gateway`` requires a non-empty ``endpoint``.
+    """
+    endpoint: str = ""
+    """HTTP gateway base URL (e.g. ``http://ai-gw:8080/v1``) — only used for ``gateway``.
+
+    Leave blank to use Bedrock or the stub.
+    """
+
+
 class DreamerConfig(BaseModel):
     """Dreamer pane configuration — maps to [dreamer] in config.toml."""
 
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = False
-    model: str = "gpt-oss-20b"
+    model: str = "amazon.nova-lite-v1:0"
     log_lines: int = 50
     summary_interval_seconds: int = 300
+    ai: DreamerAIConfig = Field(default_factory=DreamerAIConfig)
+
+
+class ProactiveConfig(BaseModel):
+    """Proactive monitoring configuration — maps to [proactive] in config.toml."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    watch_paths: list[str] = Field(default_factory=list)
+    """Additional filesystem paths to watch beyond session worktrees."""
+    ignore_patterns: list[str] = Field(
+        default_factory=lambda: ["*.pyc", "__pycache__", ".git", "node_modules", ".tox"]
+    )
+    """Gitignore-style patterns to exclude from filesystem watching."""
+    failure_ttl_seconds: int = 3600
+    """How long to retain failure context packets before expiry."""
 
 
 class ShoalConfig(BaseModel):
@@ -100,3 +135,4 @@ class ShoalConfig(BaseModel):
     operator: OperatorConfig = Field(default_factory=OperatorConfig)
     dreamer: DreamerConfig = Field(default_factory=DreamerConfig)
     claw: ClawConfig = Field(default_factory=ClawConfig)
+    proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
