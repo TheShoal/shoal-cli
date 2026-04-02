@@ -77,10 +77,18 @@ def handoff_show(
                 get_console().print(f"[red]Error fetching checkpoint: {e}[/red]")
                 raise typer.Exit(1) from None
 
-        if sync_claw is not None:
+        # Resolve the conversations directory: explicit flag takes priority;
+        # fall back to config.claw.conversations_dir when available.
+        effective_claw_dir = sync_claw
+        if effective_claw_dir is None:
+            from shoal.core.config import load_config
+
+            effective_claw_dir = load_config().claw.conversations_dir
+
+        if effective_claw_dir is not None:
             from shoal.integrations.lobster.clawplexer_sync import sync_for_handoff
 
-            imported = await asyncio.to_thread(sync_for_handoff, session_id, sync_claw)
+            imported = await asyncio.to_thread(sync_for_handoff, session_id, effective_claw_dir)
             get_console().print(f"[dim]Synced {imported} Claw turn(s) into journal.[/dim]")
 
         entries = read_journal(session_id)

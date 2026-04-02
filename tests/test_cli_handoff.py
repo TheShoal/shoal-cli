@@ -209,13 +209,54 @@ def test_handoff_show_without_sync_claw(
     mock_generate_handoff,
     mock_console,
 ):
-    """Without --sync-claw, sync_for_handoff is never called."""
+    """Without --sync-claw and no config default, sync_for_handoff is never called."""
     mock_resolve_session.return_value = "sid"
     mock_get_session.return_value = MagicMock(spec=SessionState)
 
-    with patch(
-        "shoal.integrations.lobster.clawplexer_sync.sync_for_handoff",
-    ) as mock_sync:
+    with (
+        patch(
+            "shoal.integrations.lobster.clawplexer_sync.sync_for_handoff",
+        ) as mock_sync,
+        patch(
+            "shoal.core.config.load_config",
+        ) as mock_cfg,
+    ):
+        from shoal.models.config.general import ShoalConfig
+
+        mock_cfg.return_value = ShoalConfig()  # conversations_dir is None by default
         handoff_show("sid")
 
     mock_sync.assert_not_called()
+
+
+def test_handoff_show_sync_claw_from_config(
+    mock_resolve_session,
+    mock_get_session,
+    mock_read_journal,
+    mock_db,
+    mock_generate_handoff,
+    mock_console,
+    tmp_path,
+):
+    """When --sync-claw is absent but config.claw.conversations_dir is set, sync still runs."""
+    mock_resolve_session.return_value = "sid"
+    mock_get_session.return_value = MagicMock(spec=SessionState)
+
+    with (
+        patch(
+            "shoal.integrations.lobster.clawplexer_sync.sync_for_handoff",
+            return_value=5,
+        ) as mock_sync,
+        patch(
+            "shoal.core.config.load_config",
+        ) as mock_cfg,
+    ):
+        from shoal.models.config.claw import ClawConfig
+        from shoal.models.config.general import ShoalConfig
+
+        cfg = ShoalConfig(claw=ClawConfig(conversations_dir=tmp_path))
+        mock_cfg.return_value = cfg
+        handoff_show("sid")  # no sync_claw argument
+
+    mock_sync.assert_called_once_with("sid", tmp_path)
+    mock_console.print.assert_any_call("[dim]Synced 5 Claw turn(s) into journal.[/dim]")
