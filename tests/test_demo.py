@@ -373,10 +373,10 @@ async def test_demo_tour_all_pass(mock_dirs):
 
     mock_con = mock_get()
     all_output = " ".join(str(c) for c in mock_con.print.call_args_list)
-    # All 7 pass when fastmcp is installed; 6 pass + 1 skipped otherwise
+    # All 9 pass when fastmcp is installed; 8 pass + 1 skipped otherwise
     assert (
-        "All 7 feature areas passed" in all_output
-        or "6 feature areas passed, 1 skipped" in all_output
+        "All 9 feature areas passed" in all_output
+        or "8 feature areas passed, 1 skipped" in all_output
     )
 
 
@@ -424,8 +424,8 @@ async def test_demo_tour_with_sessions(mock_dirs):
     mock_con = mock_get()
     all_output = " ".join(str(c) for c in mock_con.print.call_args_list)
     assert (
-        "All 7 feature areas passed" in all_output
-        or "6 feature areas passed, 1 skipped" in all_output
+        "All 9 feature areas passed" in all_output
+        or "8 feature areas passed, 1 skipped" in all_output
     )
     # Verify session count is shown (1 session + tour-journal-test briefly)
     assert "1 sessions" in all_output
@@ -440,8 +440,8 @@ async def test_demo_tour_no_failures(mock_dirs):
     mock_con = mock_get()
     all_output = " ".join(str(c) for c in mock_con.print.call_args_list)
     assert (
-        "All 7 feature areas passed" in all_output
-        or "6 feature areas passed, 1 skipped" in all_output
+        "All 9 feature areas passed" in all_output
+        or "8 feature areas passed, 1 skipped" in all_output
     )
     # Should not contain failure indicators
     assert "failed" not in all_output.lower() or "0 failed" in all_output.lower()
