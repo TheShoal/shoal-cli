@@ -473,6 +473,47 @@ async def step_theme_and_status() -> TourResult:
     return TourResult(passed=True, label="Theme & Status")
 
 
+async def step_agent_teams() -> TourResult:
+    """Step 8: Agent Teams — Coordinator config and subagent delegation."""
+    from shoal.models.config import CoordinatorConfig
+
+    get_console().print("[bold]8. Agent Teams & Subagents[/bold]")
+    get_console().print(
+        "[dim]   Coordinator allows dynamic git worktree spawning and subagent execution.[/dim]"
+    )
+    get_console().print()
+
+    config = CoordinatorConfig(enabled=True, poll_interval_seconds=10, squash_merge=True)
+    get_console().print(
+        f"   [cyan]Coordinator Configured[/cyan]: interval={config.poll_interval_seconds}s, "
+        f"squashing={config.squash_merge}"
+    )
+
+    get_console().print(f"   [green]{Symbols.CHECK} Coordinator system initialized[/green]")
+    get_console().print()
+    return TourResult(passed=True, label="Agent Teams")
+
+
+async def step_journal_dreaming() -> TourResult:
+    """Step 9: Journal Dreaming — background log tailer and LLM summarizer."""
+    from shoal.models.config import DreamerConfig
+
+    get_console().print("[bold]9. Journal Dreaming[/bold]")
+    get_console().print(
+        "[dim]   Dreamer logs passive events and builds LLM summaries in the background.[/dim]"
+    )
+    get_console().print()
+
+    config = DreamerConfig(enabled=True, model="gpt-oss-20b", log_lines=20)
+    get_console().print(
+        f"   [cyan]Dreamer Configured[/cyan]: model={config.model}, lines={config.log_lines}"
+    )
+
+    get_console().print(f"   [green]{Symbols.CHECK} Dreaming observer initialized[/green]")
+    get_console().print()
+    return TourResult(passed=True, label="Journal Dreaming")
+
+
 # ============================================================================
 # Tour runner
 # ============================================================================
@@ -485,6 +526,8 @@ TOUR_STEPS = [
     step_diagnostics,
     step_mcp_orchestration,
     step_theme_and_status,
+    step_agent_teams,
+    step_journal_dreaming,
 ]
 
 
@@ -498,7 +541,7 @@ async def _demo_tour_impl() -> None:
 
     get_console().print()
     get_console().print(Rule("[bold cyan]SHOAL FEATURE TOUR[/bold cyan]", style="cyan"))
-    get_console().print("[dim]Showcasing what Shoal can do \u2014 7 feature areas.[/dim]")
+    get_console().print("[dim]Showcasing what Shoal can do \u2014 9 feature areas.[/dim]")
     get_console().print()
 
     results: list[TourResult] = []
