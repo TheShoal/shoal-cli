@@ -213,7 +213,7 @@ Released 2026-04-01
 
 ### Remaining
 
-- **Fins polish**: Registry/remote install semantics, subprocess timeout controls, contract version support window policy (v1-only vs N/N-1). Core adapter shipped v0.19.0; local install shipped v0.22.0; remote install shipped v0.24.0.
+- ~~**Fins polish**~~: `SUPPORTED_CONTRACT_VERSIONS` constant formalizes v1-only policy; `FinSource.resolve()` and private `_registry_url`/`_download_fin` removed from `models/fin.py`; `install_fin` now delegates to `fin_repo.resolve_fin()`. Shipped this session.
 - **Per-session git practices**: `[template.git]` section for commit conventions, hook profiles, branch naming rules, and per-session identity (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Template env gap (prerequisite) fixed in v0.18.0.
 - ~~**Remote status bar**~~: `shoal-status --remote <name>` now fetches `GET /status` from a remote Shoal API host configured under `[remote.<name>]`. Shipped this session.
 - ~~**--sync-claw default from config**~~: `shoal handoff --sync-claw` now falls back to `config.claw.conversations_dir`; shipped previous session.
@@ -227,6 +227,30 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-04-02 — Fins polish, MCP server restart
+
+**What we did:**
+
+- Fixed `shoal-mcp-server` startup: `fastmcp` is in the `[mcp]` optional extra — reinstalled `shoal-cli[mcp]` via `uv tool install` so the tool venv has it
+- Killed stale `shoal-mcp-server` stdio processes; restarted HTTP instance on port 8390
+- Struck through `--sync-claw default from config` in backlog (already shipped previous session)
+- Fins polish (`refactor(fins): formalize contract version policy, consolidate registry helpers`):
+  - `SUPPORTED_CONTRACT_VERSIONS: frozenset[int] = frozenset({1})` in `fin_runtime.py`; error message now cites the supported set
+  - Removed dead `_registry_url`, `_download_fin`, `FinSource.resolve()` from `models/fin.py`
+  - `install_fin()` calls `fin_repo.resolve_fin()` instead of `source.resolve()`
+  - Trimmed 10 duplicate tests from `test_fin_install_remote.py` (all covered by `test_services_fin_repo.py`)
+- CI: 1510 passed, 4 skipped (−10 removed duplicate tests)
+
+**Current state:**
+
+- Branch: `main`, commit `1ce1a00` pushed
+- `SUPPORTED_CONTRACT_VERSIONS` is the single place to extend when a v2 contract spec ships
+- MCP orchestrator server requires a session restart to reconnect (stale client connection)
+
+**What to do next:**
+
+- **Per-session git practices**: `[template.git]` section with commit conventions, branch naming, and per-session identity vars (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`)
+- Connect to a production Claw endpoint and run `get_agent_card()` / `send_message()` for real traffic validation (live Claw gRPC smoke test — unblocked)
 ### Session: 2026-04-02 — Claw MCP modernization + remote status bar
 
 **What we did:**
