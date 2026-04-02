@@ -8,11 +8,10 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from shoal.models.fin import FinSource
+from shoal.models.fin import FinEntrypoints, FinManifest, FinSource
+from shoal.services.fin_runtime import FinExecutionResult
 
-# ---------------------------------------------------------------------------
-# FinSource.parse classification
-# ---------------------------------------------------------------------------
+# -- FinSource.parse classification ------------------------------------------
 
 
 def test_parse_local_path() -> None:
@@ -48,9 +47,7 @@ def test_parse_registry_without_version() -> None:
     assert src.kind == "registry"
 
 
-# ---------------------------------------------------------------------------
-# install_fin with HTTP source — integration path via fin_repo.resolve_fin
-# ---------------------------------------------------------------------------
+# -- install_fin: HTTP source delegates to fin_repo.resolve_fin --------------
 
 
 def test_install_fin_with_http_source(tmp_path: Path) -> None:
@@ -60,34 +57,32 @@ def test_install_fin_with_http_source(tmp_path: Path) -> None:
     local_fin = tmp_path / "resolved-fin"
     local_fin.mkdir()
 
+    manifest = FinManifest(
+        name="test-fin",
+        version="1.0.0",
+        fin_contract_version=1,
+        capability="test",
+        entrypoints=FinEntrypoints(
+            install="bin/install",
+            configure="bin/configure",
+            run="bin/run",
+            validate="bin/validate",
+        ),
+    )
+
     with (
-        patch("shoal.services.fin_repo.resolve_fin", return_value=local_fin),
-        patch("shoal.services.fin_runtime.load_fin_manifest") as mock_manifest,
+        patch("shoal.services.fin_runtime._resolve_fin", return_value=local_fin),
+        patch("shoal.services.fin_runtime.load_fin_manifest", return_value=(local_fin, manifest)),
         patch(
             "shoal.services.fin_runtime.resolve_entrypoint",
             return_value=local_fin / "bin" / "install",
         ),
-        patch("shoal.services.fin_runtime.execute_entrypoint") as mock_exec,
+        patch(
+            "shoal.services.fin_runtime.execute_entrypoint",
+            return_value=FinExecutionResult(exit_code=0, stdout="", stderr=""),
+        ),
         patch("shoal.services.fin_runtime.register_fin"),
     ):
-        from shoal.models.fin import FinEntrypoints, FinManifest
-        from shoal.services.fin_runtime import FinExecutionResult
-
-        manifest = FinManifest(
-            name="test-fin",
-            version="1.0.0",
-            fin_contract_version=1,
-            capability="test",
-            entrypoints=FinEntrypoints(
-                install="bin/install",
-                configure="bin/configure",
-                run="bin/run",
-                validate="bin/validate",
-            ),
-        )
-        mock_manifest.return_value = (local_fin, manifest)
-        mock_exec.return_value = FinExecutionResult(exit_code=0, stdout="", stderr="")
-
         result = install_fin("https://example.com/test-fin.tar.gz")
 
     assert result.exit_code == 0

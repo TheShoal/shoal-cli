@@ -13,7 +13,8 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from shoal.core.config import fins_dir
-from shoal.models.fin import FinManifest
+from shoal.models.fin import FinManifest, FinSource
+from shoal.services.fin_repo import resolve_fin as _resolve_fin
 
 logger = logging.getLogger(__name__)
 
@@ -245,8 +246,6 @@ def install_fin(
     Returns:
         Result of the install entrypoint execution.
     """
-    from shoal.models.fin import FinSource
-    from shoal.services.fin_repo import resolve_fin as _resolve_fin
 
     source = FinSource.parse(str(fin_path))
     if source.kind != "local":
