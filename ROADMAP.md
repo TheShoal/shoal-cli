@@ -215,7 +215,7 @@ Released 2026-04-01
 
 - **Fins polish**: Registry/remote install semantics, subprocess timeout controls, contract version support window policy (v1-only vs N/N-1). Core adapter shipped v0.19.0; local install shipped v0.22.0; remote install shipped v0.24.0.
 - **Per-session git practices**: `[template.git]` section for commit conventions, hook profiles, branch naming rules, and per-session identity (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Template env gap (prerequisite) fixed in v0.18.0.
-- **Remote status bar**: Fish status bar polls `GET /ws` on the Shoal API server for live session status — mirrors the local tmux-based bar but works against a remote host. Depends on the WebSocket event stream in `server.py`.
+- ~~**Remote status bar**~~: `shoal-status --remote <name>` now fetches `GET /status` from a remote Shoal API host configured under `[remote.<name>]`. Shipped this session.
 - **--sync-claw default from config**: `shoal handoff --sync-claw` should accept a default path from `config.claw.conversations_dir`, eliminating the need to pass the path explicitly on every invocation. Requires a new `[claw]` config section field and fallback resolution in the `handoff` command.
 - **Live Claw gRPC validation**: End-to-end smoke test against a real Claw endpoint — `get_agent_card()` then `send_message()`. `shoal[claw]` extra and proto stubs are in place (v0.30.0); this is pure integration validation. Unblocked.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when FastMCP adds UDS transport or robo needs unified cross-session MCP.
@@ -227,6 +227,29 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-04-02 — Claw MCP modernization + remote status bar
+
+**What we did:**
+
+- Modernized Claw MCP tools in `mcp_shoal_server.py`: keyword-arg `ClawClient`, dict returns, `GRPC_AVAILABLE` guard unified, `send_to_claw` deprecated as wrapper for `send_a2a_message_tool`
+- Fixed `sync_claw_conversations_tool` fallback: checks `cfg.claw.conversations_dir` first, then `~/conversations`
+- Rewrote `tests/test_mcp_claw_tools.py` (25/25 pass); fixed `tests/test_a2a_grpc_roundtrip.py` collection guard (class nested under `if _grpc_for_test:`)
+- Removed 3 stale `# type: ignore[attr-defined]` comments in `lobster_a2a.py`
+- Added flow architecture view to dashboard (`/flow` route, `flow_context()`, `flow.html` template, CSS fonts)
+- Shipped `shoal-status --remote <name>`: `generate_remote_status()` hits `GET /status` on configured remote API host; 9 new tests in `test_status_bar.py`
+- CI: 1520 passed, 4 skipped (all 3 features clean through `just fmt-check lint typecheck test`)
+
+**Current state:**
+
+- Branch: `main`, all commits pushed (3 new commits since `v0.34.0`)
+- `shoal-status --remote <name>` requires `[remote.<name>]` in `config.toml` with `host` and `api_port` (default 8080)
+- Remote status bar backlog item marked done
+
+**What to do next:**
+
+- Connect to a production Claw endpoint and run `get_agent_card()` / `send_message()` for real traffic validation (live Claw gRPC smoke test — unblocked)
+- **Fins polish**: registry/remote install semantics, subprocess timeout controls, contract version support window policy
+- **Per-session git practices**: `[template.git]` section with commit conventions, branch naming, and per-session identity vars
 ### Session: 2026-04-02 — conversations_dir config default + gRPC round-trip tests
 
 **What we did:**
@@ -251,65 +274,4 @@ Released 2026-04-01
 - Connect to a production Claw endpoint and run `get_agent_card()` / `send_message()` for real traffic validation
 - **Remote status bar**: Fish status bar polling remote WebSocket (`/ws` on main API) for session status — backlog item
 
-### Session: 2026-04-02 — Lobster integration: --sync-claw, proto compat, dashboard WIP
-
-**What we did:**
-
-- Wired `sync_for_handoff` into `shoal handoff --sync-claw PATH`: imports Claw QMD turns before generating the handoff artifact
-- Dogfooded `shoal[claw]` with `uv run --extra claw`: `GRPC_AVAILABLE = True`, `ClawClient` patched, `proto_to_agent_card()` round-trip verified
-- Fixed protobuf 6.x descriptor pool compat in three pb2 files (`lobster_loop_pb2`, `a2a_claw_pb2`, `a2a_core_pb2`): added `timestamp_pb2` pre-import
-- Fixed all four `*_grpc.py` files: changed bare `import a2a_claw_pb2` → `from shoal.core.proto import ...` so they work inside a package
-- Added `E402, I001` to pyproject.toml per-file-ignores for `proto/*.py` (generated files)
-- Committed pre-existing dashboard WIP: `src/shoal/dashboard/` (context, routes, ws, static, templates, test)
-- CI green: 1510 passed, 2 skipped
-
-**Current state:**
-
-- Branch: `main`, all commits pushed; last tag: `v0.33.0`
-- `shoal handoff <session> --sync-claw <dir>` works end-to-end
-- `shoal[claw]` extra verified with grpcio 1.80.0; ready for live Claw endpoint testing
-- Dashboard sub-app committed but not in a release yet
-
-**What to do next:**
-
-- Connect to a live Claw gRPC endpoint and run `get_agent_card()` / `send_message()` for real
-- Cut v0.34.0: lobster integration + dashboard
-- Consider `--sync-claw` accepting a default from `config.claw.conversations_dir` (avoids requiring explicit path)
-
-### Session: 2026-03-07 — Dashboard fzf actions
-
-**What we did:**
-
-- Extracted `_build_fzf_args() -> list[str]` from `run_popup()` for testability
-- Added `ctrl-y`: `shoal send {1} ""` — sends Enter to approve agent prompts
-- Added `ctrl-g`: `shoal fork {1}` — forks session into a new worktree
-- Added `ctrl-r`: reload session list
-- Added `ctrl-w`: filter to waiting sessions via awk
-- Updated dashboard header to document all keybindings
-- Added hidden top-level `shoal send <session> <keys>` command in `src/shoal/cli/session.py`
-- Created `tests/test_dashboard.py` with 12 unit tests for `_build_fzf_args()`
-- Key choices: `ctrl-y`/`ctrl-g` to avoid conflicts with tmux leader (`ctrl-a`) and tmux fullscreen (`ctrl-f`)
-
-**Current state:**
-
-- Branch: `feat/dashboard-actions`, 2 commits ahead of `main`, CI green
-- Backlog item for dashboard actions is complete
-
-**What to do next:**
-
-- Merge `feat/dashboard-actions` → `main` and cut a release
-
-### Session: 2026-04-02 — Backlog triage
-
-**What we did:**
-
-- Promoted three deferred items from handoff notes into formal backlog entries: Remote status bar (expanded with `/ws` endpoint detail), `--sync-claw` config default, and live Claw gRPC validation.
-
-**Current state:**
-
-- Branch: `main`, tagged `v0.34.0`
-
-**What to do next:**
-
-- `git push origin main && git push origin v0.34.0` to publish the release
 - Pick up any of the three newly formalized backlog items above
