@@ -34,6 +34,7 @@ app = typer.Typer(
     help="Orchestrate AI coding agents.",
     no_args_is_help=True,
     rich_markup_mode="rich",
+    pretty_exceptions_show_locals=False,
 )
 
 

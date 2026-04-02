@@ -720,7 +720,6 @@ def _mcp_socket_env_injection(provisioned: list[str], tool: str) -> dict[str, st
     return {env_var: ":".join(socket_paths)}
 
 
-
 async def _inject_mcp_socket_env_async(
     sock_env: dict[str, str],
     tmux_session: str,
@@ -742,11 +741,7 @@ async def _inject_mcp_socket_env_async(
     shell_panes: list[str] = []
     for _ in range(20):
         panes = await tmux.async_list_panes(tmux_session)
-        shell_panes = [
-            p["id"]
-            for p in panes
-            if p.get("command", "") in _SHELL_COMMANDS
-        ]
+        shell_panes = [p["id"] for p in panes if p.get("command", "") in _SHELL_COMMANDS]
         if shell_panes:
             break
         await asyncio.sleep(0.25)
@@ -763,6 +758,8 @@ async def _inject_mcp_socket_env_async(
         list(sock_env),
         len(shell_panes),
     )
+
+
 async def _apply_template_git_config_async(
     template_cfg: SessionTemplateConfig,
     tmux_session: str,
@@ -1783,6 +1780,88 @@ async def _hook_journal_on_status_change(event: LifecycleEvent, **kwargs: Any) -
     )
 
 
+def _init_proactive_hooks() -> None:
+    """Initialise the FsWatcher and ProactiveSupervisor if enabled (idempotent)."""
+    if "proactive" in _registered:
+        return
+    _registered.add("proactive")
+    from shoal.core.config import load_config
+
+    cfg = load_config()
+    if not cfg.proactive.enabled:
+        return
+
+    # Ensure singleton exists (started lazily on first add_path).
+    from shoal.services.fs_watcher import get_fs_watcher, init_fs_watcher
+
+    if get_fs_watcher() is None:
+        init_fs_watcher()
+
+    # Register per-session path hooks.
+    on(LifecycleEvent.session_created, _hook_fs_watch_add)
+    on(LifecycleEvent.session_forked, _hook_fs_watch_add)
+    on(LifecycleEvent.session_killed, _hook_fs_watch_remove)
+
+    # Register proactive supervisor.
+    from shoal.core.config import load_robo_profile
+    from shoal.services.proactive_supervisor import (
+        get_proactive_supervisor,
+        init_proactive_supervisor,
+        register_proactive_hook,
+    )
+
+    supervisor = get_proactive_supervisor()
+    if supervisor is None:
+        robo_profile = load_robo_profile(cfg.robo.default_profile)
+        supervisor = init_proactive_supervisor(robo_profile.proactive)
+    register_proactive_hook(supervisor)
+
+
+async def _hook_fs_watch_add(event: LifecycleEvent, **kwargs: Any) -> None:
+    """Register the session worktree with the FsWatcher on session create."""
+    from shoal.services.fs_watcher import get_fs_watcher
+
+    watcher = get_fs_watcher()
+    if watcher is None:
+        return
+    session = kwargs.get("session")
+    if session is None:
+        return
+    from shoal.models.state import SessionState
+
+    if not isinstance(session, SessionState):
+        return
+
+    # Lazily start the watcher loop on first session registration.
+    if not watcher._running:
+        await watcher.start()
+
+    if session.worktree:
+        from pathlib import Path
+
+        wt_path = str(Path(session.path) / ".worktrees" / session.worktree)
+        await watcher.add_path(wt_path, session.id, session.name)
+    else:
+        await watcher.add_path(session.path, session.id, session.name)
+
+
+async def _hook_fs_watch_remove(event: LifecycleEvent, **kwargs: Any) -> None:
+    """Deregister the session from the FsWatcher on kill."""
+    from shoal.services.fs_watcher import get_fs_watcher
+
+    watcher = get_fs_watcher()
+    if watcher is None:
+        return
+    session = kwargs.get("session")
+    if session is None:
+        return
+    from shoal.models.state import SessionState
+
+    if not isinstance(session, SessionState):
+        return
+    await watcher.remove_path(session.id)
+
+
 def register_builtin_hooks() -> None:
     """Register the default set of lifecycle hooks (idempotent)."""
     if "builtin" in _registered:
@@ -1794,6 +1873,7 @@ def register_builtin_hooks() -> None:
     on(LifecycleEvent.status_changed, _hook_journal_on_status_change)
     for evt in LifecycleEvent:
         on(evt, _hook_fish_event)
+    _init_proactive_hooks()
 
 
 def register_project_hooks() -> None:

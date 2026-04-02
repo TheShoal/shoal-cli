@@ -89,6 +89,7 @@ nav:
       - Cross-Agent Skills: cross-agent-skills.md
   - Integrations:
       - Agent Reference: AGENTS.md
+      - Coding Agent Setup: agent-maximalist-setup.md
       - Claude Code Setup: CLAUDE_CODE_SETUP.md
       - OpenCode Setup: OPENCODE_SETUP.md
       - OMP Setup: OMP_SETUP.md
