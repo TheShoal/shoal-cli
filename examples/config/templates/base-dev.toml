@@ -15,6 +15,17 @@ name = "feat/{template_name}"
 # Automatically create a new git branch for the worktree
 create_branch = true
 
+# Optional: per-session git identity and commit conventions.
+# Applied via `git config --local` in the worktree and exported as
+# GIT_AUTHOR_* / GIT_COMMITTER_* env vars.  Leave blank to inherit
+# the global gitconfig.
+#
+# [template.git]
+# user_name    = "Robo"                  # git config user.name
+# user_email   = "robo@yourorg.example"  # git config user.email
+# commit_template = "~/.gitmessage"      # git config commit.template
+# branch_prefix = "feat/"               # convention hint for branch names
+
 # Window definitions. Each [[windows]] block creates a tmux window.
 # The first pane in each window must have split = "root".
 [[windows]]

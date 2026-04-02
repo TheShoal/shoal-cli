@@ -698,6 +698,72 @@ async def _provision_mcp_servers(
     return provisioned
 
 
+async def _apply_template_git_config_async(
+    template_cfg: SessionTemplateConfig,
+    tmux_session: str,
+    work_dir: str,
+) -> None:
+    """Apply [template.git] identity fields to the session's git worktree.
+
+    Emits ``git config --local`` commands into the initial tmux pane so the
+    config is scoped to the worktree and does not leak into the global gitconfig.
+    Also exports ``GIT_AUTHOR_*`` and ``GIT_COMMITTER_*`` as env vars so
+    subprocess git calls inherit the identity even when cwd differs.
+    """
+    git_cfg = template_cfg.git
+    if not (git_cfg.user_name or git_cfg.user_email or git_cfg.commit_template):
+        return
+
+    initial_pane = await tmux.async_first_pane(tmux_session)
+
+    if git_cfg.user_name:
+        name_q = shlex.quote(git_cfg.user_name)
+        work_q = shlex.quote(work_dir)
+        await tmux.async_send_keys(
+            initial_pane,
+            f"git -C {work_q} config --local user.name {name_q}",
+            enter=True,
+        )
+        await tmux.async_send_keys(
+            initial_pane,
+            f"set -gx GIT_AUTHOR_NAME {name_q}",
+            enter=True,
+        )
+        await tmux.async_send_keys(
+            initial_pane,
+            f"set -gx GIT_COMMITTER_NAME {name_q}",
+            enter=True,
+        )
+
+    if git_cfg.user_email:
+        email_q = shlex.quote(git_cfg.user_email)
+        work_q = shlex.quote(work_dir)
+        await tmux.async_send_keys(
+            initial_pane,
+            f"git -C {work_q} config --local user.email {email_q}",
+            enter=True,
+        )
+        await tmux.async_send_keys(
+            initial_pane,
+            f"set -gx GIT_AUTHOR_EMAIL {email_q}",
+            enter=True,
+        )
+        await tmux.async_send_keys(
+            initial_pane,
+            f"set -gx GIT_COMMITTER_EMAIL {email_q}",
+            enter=True,
+        )
+
+    if git_cfg.commit_template:
+        tmpl_q = shlex.quote(git_cfg.commit_template)
+        work_q = shlex.quote(work_dir)
+        await tmux.async_send_keys(
+            initial_pane,
+            f"git -C {work_q} config --local commit.template {tmpl_q}",
+            enter=True,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Lifecycle operations
 # ---------------------------------------------------------------------------
@@ -848,6 +914,10 @@ async def create_session_lifecycle(
                 f"set -gx {shlex.quote(key)} {shlex.quote(value)}",
                 enter=True,
             )
+
+    # 3.4. Apply template git identity config
+    if template_cfg:
+        await _apply_template_git_config_async(template_cfg, tmux_session, work_dir)
 
     # 3.5. Run template setup_commands in initial pane
     if template_cfg and template_cfg.setup_commands:
@@ -1155,6 +1225,11 @@ async def fork_session_lifecycle(
                     enter=True,
                 )
 
+    # 3.4. Apply template git identity config
+    if template_cfg:
+        await _apply_template_git_config_async(template_cfg, tmux_session, work_dir)
+
+    # 3.5. Run template setup_commands in initial pane
     # 3.5. Run template setup_commands in initial pane
     if template_cfg and template_cfg.setup_commands:
         initial_pane = await tmux.async_first_pane(tmux_session)

@@ -25,6 +25,7 @@ from shoal.models.config.robo import (
 )
 from shoal.models.config.templates import (
     SessionTemplateConfig,
+    TemplateGitConfig,
     TemplateMixinConfig,
     TemplatePaneConfig,
     TemplateWindowConfig,
@@ -63,6 +64,7 @@ __all__ = [
     "SkillConfig",
     "StatusBarConfig",
     "TasksConfig",
+    "TemplateGitConfig",
     "TemplateMixinConfig",
     "TemplatePaneConfig",
     "TemplateWindowConfig",

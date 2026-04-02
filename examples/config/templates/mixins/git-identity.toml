@@ -1,0 +1,24 @@
+# Shoal — git-identity mixin
+# Sets per-session git identity so commits in the worktree use a distinct
+# author/email from your global gitconfig.  Useful for agent sessions that
+# should be attributable separately from human commits.
+#
+# Usage: add "git-identity" to your template's mixins list, then override
+# the fields you need.
+#
+# mixins = ["git-identity"]
+#
+# Place in ~/.config/shoal/templates/mixins/git-identity.toml
+
+[mixin]
+name = "git-identity"
+description = "Per-session git author identity for agent worktrees"
+
+[mixin.git]
+# Override these in your own mixin copy or child template.
+user_name  = "Robo Agent"
+user_email = "agent@shoal.local"
+# Uncomment to enforce a commit message template:
+# commit_template = "~/.config/shoal/gitmessage"
+# Uncomment to document the expected branch prefix convention:
+# branch_prefix = "feat/"

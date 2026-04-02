@@ -19,6 +19,7 @@ from shoal.models.config.general import ShoalConfig
 from shoal.models.config.robo import RoboProfileConfig
 from shoal.models.config.templates import (
     SessionTemplateConfig,
+    TemplateGitConfig,
     TemplateMixinConfig,
     TemplateWorktreeConfig,
 )
@@ -385,6 +386,7 @@ def _parse_template_data(
 
     template_section = data.get("template", {})
     worktree_section = template_section.get("worktree", {})
+    git_section = template_section.get("git", {})
     env_section = template_section.get("env", {})
     mcp_section = template_section.get("mcp", [])
     windows_section = data.get("windows", [])
@@ -399,6 +401,7 @@ def _parse_template_data(
             mode=template_section.get("mode", ""),
             tags=template_section.get("tags", []),
             worktree=TemplateWorktreeConfig.model_validate(worktree_section),
+            git=TemplateGitConfig.model_validate(git_section),
             env=env_section,
             mcp=mcp_section,
             windows=windows_section,
@@ -418,6 +421,7 @@ def _merge_templates(
     Merge rules:
     - scalars (description, tool): child wins if explicitly set in TOML
     - worktree: child wins if [template.worktree] present in TOML
+    - git: child wins if [template.git] present in TOML
     - env: parent | child (child wins on conflicts)
     - mcp: union, deduplicated, sorted
     - windows: child replaces parent entirely if child defines any
@@ -428,6 +432,7 @@ def _merge_templates(
     description = child.description if "description" in child_tmpl else parent.description
     tool = child.tool if "tool" in child_tmpl else parent.tool
     worktree = child.worktree if "worktree" in child_tmpl else parent.worktree
+    git = child.git if "git" in child_tmpl else parent.git
     merged_env = {**parent.env, **child.env}
     merged_mcp = sorted(set(parent.mcp) | set(child.mcp))
     merged_windows = child.windows if child.windows else parent.windows
@@ -447,6 +452,7 @@ def _merge_templates(
         mode=mode,
         tags=merged_tags,
         worktree=worktree,
+        git=git,
         env=merged_env,
         mcp=merged_mcp,
         windows=merged_windows,
@@ -514,6 +520,7 @@ def load_mixin(name: str) -> TemplateMixinConfig:
         return TemplateMixinConfig(
             name=mixin_section.get("name", name),
             description=mixin_section.get("description", ""),
+            git=TemplateGitConfig.model_validate(mixin_section.get("git", {})),
             env=mixin_section.get("env", {}),
             mcp=mixin_section.get("mcp", []),
             windows=windows_section,
@@ -530,13 +537,22 @@ def _apply_mixin(
     """Apply a mixin additively to a resolved template.
 
     Additive rules:
+    - git: non-empty mixin fields overwrite template fields
     - env: mixin values merge in (mixin wins on conflict)
     - mcp: union, deduplicated, sorted
     - windows: mixin windows appended
     - setup_commands: mixin commands appended
     """
+
+    merged_git = TemplateGitConfig(
+        user_name=mixin.git.user_name or template.git.user_name,
+        user_email=mixin.git.user_email or template.git.user_email,
+        commit_template=mixin.git.commit_template or template.git.commit_template,
+        branch_prefix=mixin.git.branch_prefix or template.git.branch_prefix,
+    )
     return template.model_copy(
         update={
+            "git": merged_git,
             "env": {**template.env, **mixin.env},
             "mcp": sorted(set(template.mcp) | set(mixin.mcp)),
             "windows": list(template.windows) + list(mixin.windows),

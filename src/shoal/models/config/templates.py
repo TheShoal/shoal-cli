@@ -8,6 +8,26 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+class TemplateGitConfig(BaseModel):
+    """Per-session git identity and commit conventions.
+
+    All fields are optional.  Set only what the template needs to override.
+    Values are applied at session creation time via ``git config --local``
+    in the worktree, and as ``GIT_AUTHOR_*`` / ``GIT_COMMITTER_*`` env vars.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_name: str = ""
+    """git config user.name for commits made in this session."""
+    user_email: str = ""
+    """git config user.email for commits made in this session."""
+    commit_template: str = ""
+    """Path to a commit message template file (git config commit.template)."""
+    branch_prefix: str = ""
+    """Conventional prefix prepended when auto-naming branches, e.g. 'feat/' or 'fix/'."""
+
+
 class TemplateWorktreeConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -65,6 +85,7 @@ class SessionTemplateConfig(BaseModel):
     mode: str = ""
     tags: list[str] = Field(default_factory=list)
     worktree: TemplateWorktreeConfig = Field(default_factory=TemplateWorktreeConfig)
+    git: TemplateGitConfig = Field(default_factory=TemplateGitConfig)
     env: dict[str, str] = Field(default_factory=dict)
     mcp: list[str] = Field(default_factory=list)
     windows: list[TemplateWindowConfig] = Field(default_factory=list)
@@ -92,6 +113,7 @@ class TemplateMixinConfig(BaseModel):
     name: str
     description: str = ""
     env: dict[str, str] = Field(default_factory=dict)
+    git: TemplateGitConfig = Field(default_factory=TemplateGitConfig)
     mcp: list[str] = Field(default_factory=list)
     windows: list[TemplateWindowConfig] = Field(default_factory=list)
     setup_commands: list[str] = Field(default_factory=list)
