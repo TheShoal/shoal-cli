@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Shoal{% endblock %} — Mission Control</title>
+  <link rel="stylesheet" href="/ui/static/style.css">
+  <script src="/ui/static/htmx.min.js" defer></script>
+  <script src="/ui/static/ws.js" defer></script>
+  <script src="/ui/static/shoal.js" defer></script>
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-brand" href="/ui/">
+      <span class="nav-brand-icon">◈</span>
+      <span>Shoal</span>
+    </a>
+    <span class="nav-spacer"></span>
+    {% block nav_extra %}{% endblock %}
+    <span class="nav-version">{% block nav_version %}{% endblock %}</span>
+  </nav>
+
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

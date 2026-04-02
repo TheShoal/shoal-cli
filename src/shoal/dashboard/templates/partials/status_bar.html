@@ -1,0 +1,33 @@
+<div id="status-bar" class="status-bar" hx-swap-oob="true">
+  <span class="text-dim" style="font-size:11px;">{{ counts.total }} sessions</span>
+  {% if counts.error > 0 %}
+  <span class="status-pill pill-error">
+    <span class="status-pill-dot"></span>
+    {{ counts.error }} error{{ "s" if counts.error != 1 else "" }}
+  </span>
+  {% endif %}
+  {% if counts.waiting > 0 %}
+  <span class="status-pill pill-waiting">
+    <span class="status-pill-dot"></span>
+    {{ counts.waiting }} waiting
+  </span>
+  {% endif %}
+  {% if counts.running > 0 %}
+  <span class="status-pill pill-running">
+    <span class="status-pill-dot"></span>
+    {{ counts.running }} running
+  </span>
+  {% endif %}
+  {% if counts.idle > 0 %}
+  <span class="status-pill pill-idle">
+    <span class="status-pill-dot"></span>
+    {{ counts.idle }} idle
+  </span>
+  {% endif %}
+  {% if counts.stopped > 0 %}
+  <span class="status-pill pill-stopped">
+    <span class="status-pill-dot"></span>
+    {{ counts.stopped }} stopped
+  </span>
+  {% endif %}
+</div>

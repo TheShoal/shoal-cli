@@ -1,0 +1,26 @@
+{% if session_cards %}
+  {% for card in session_cards %}
+    {% with %}
+      {% set id = card.id %}
+      {% set name = card.name %}
+      {% set tool = card.tool %}
+      {% set tool_icon = card.tool_icon %}
+      {% set status = card.status %}
+      {% set status_label = card.status_label %}
+      {% set tier_css = card.tier_css %}
+      {% set branch = card.branch %}
+      {% set mcp_servers = card.mcp_servers %}
+      {% set last_activity = card.last_activity %}
+      {% set last_activity_iso = "" %}
+      {% set parent_id = card.parent_id %}
+      {% set tags = card.tags %}
+      {% set oob = false %}
+      {% include "partials/session_card.html" %}
+    {% endwith %}
+  {% endfor %}
+{% else %}
+  <div class="empty-state" style="grid-column: 1/-1">
+    <div class="empty-state-icon">◌</div>
+    <div class="empty-state-text">No sessions found</div>
+  </div>
+{% endif %}

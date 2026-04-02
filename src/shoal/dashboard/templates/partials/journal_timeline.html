@@ -1,0 +1,25 @@
+<div class="journal-timeline">
+  {% if entries %}
+    {% for entry in entries %}
+    <div class="journal-entry">
+      <div class="entry-gutter">
+        <div class="entry-icon" title="{{ entry.source }}">{{ entry.source_icon }}</div>
+        {% if not loop.last %}
+        <div class="entry-line"></div>
+        {% endif %}
+      </div>
+      <div class="entry-body">
+        <div class="entry-meta">
+          <span class="entry-source">{{ entry.source if entry.source else "system" }}</span>
+          <span class="entry-time"
+            data-abs-time="{{ entry.timestamp_iso }}"
+            title="{{ entry.timestamp_iso }}">{{ entry.timestamp_rel }}</span>
+        </div>
+        <div class="entry-content">{{ entry.content_html | safe }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="journal-empty">No journal entries yet.</div>
+  {% endif %}
+</div>

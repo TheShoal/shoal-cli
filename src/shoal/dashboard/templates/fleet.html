@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Fleet{% endblock %}
+
+{% block content %}
+<div hx-ext="ws" ws-connect="/ui/ws">
+
+  <div class="page-header">
+    <span class="page-title-icon">◈</span>
+    <h1 class="page-title">Mission Control</h1>
+  </div>
+
+  <!-- Status bar (auto-refreshed every 5s) -->
+  <div
+    id="status-bar"
+    hx-get="/ui/partials/status-bar"
+    hx-trigger="every 5s"
+    hx-swap="outerHTML"
+  >
+    {% include "partials/status_bar.html" %}
+  </div>
+
+  <!-- Filter controls -->
+  <div class="filter-bar">
+    <button class="status-pill active"
+      hx-get="/ui/partials/session-list?status=all"
+      hx-target="#fleet-grid"
+      hx-swap="innerHTML"
+      onclick="setActiveFilter(this)"
+    >
+      <span class="status-pill-dot pill-all"></span>
+      All
+    </button>
+    <button class="status-pill"
+      hx-get="/ui/partials/session-list?status=attention"
+      hx-target="#fleet-grid"
+      hx-swap="innerHTML"
+      onclick="setActiveFilter(this)"
+    >
+      <span class="status-pill-dot pill-error"></span>
+      Attention
+    </button>
+    <button class="status-pill"
+      hx-get="/ui/partials/session-list?status=running"
+      hx-target="#fleet-grid"
+      hx-swap="innerHTML"
+      onclick="setActiveFilter(this)"
+    >
+      <span class="status-pill-dot pill-running"></span>
+      Running
+    </button>
+    <button class="status-pill"
+      hx-get="/ui/partials/session-list?status=idle"
+      hx-target="#fleet-grid"
+      hx-swap="innerHTML"
+      onclick="setActiveFilter(this)"
+    >
+      <span class="status-pill-dot pill-idle"></span>
+      Idle
+    </button>
+    <button class="status-pill"
+      hx-get="/ui/partials/session-list?status=stopped"
+      hx-target="#fleet-grid"
+      hx-swap="innerHTML"
+      onclick="setActiveFilter(this)"
+    >
+      <span class="status-pill-dot pill-stopped"></span>
+      Stopped
+    </button>
+
+    <input
+      class="search-input"
+      type="search"
+      placeholder="/ search sessions…"
+      autocomplete="off"
+      hx-get="/ui/partials/session-list"
+      hx-trigger="input changed delay:300ms"
+      hx-target="#fleet-grid"
+      hx-swap="innerHTML"
+      name="q"
+    >
+  </div>
+
+  <!-- Session card grid -->
+  <div id="fleet-grid" class="fleet-grid">
+    {% include "partials/session_list.html" %}
+  </div>
+
+</div>
+
+<script>
+function setActiveFilter(btn) {
+  document.querySelectorAll('.filter-bar .status-pill').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  btn.classList.add('active');
+}
+</script>
+{% endblock %}

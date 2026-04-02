@@ -1,0 +1,66 @@
+<div
+  id="session-{{ id }}"
+  class="session-card {{ tier_css }}"
+  {% if oob %}hx-swap-oob="true"{% endif %}
+>
+  <div class="card-tier-indicator"></div>
+
+  <div class="card-header">
+    <span class="card-tool-icon">{{ tool_icon }}</span>
+    <span class="card-name" title="{{ name }}">{{ name }}</span>
+    <span class="card-status-badge {{ tier_css }}">{{ status_label }}</span>
+  </div>
+
+  <div class="card-meta">
+    {% if branch %}
+    <div class="card-meta-row">
+      <span class="card-meta-icon">⎇</span>
+      <span class="card-branch" title="{{ branch }}">{{ branch }}</span>
+    </div>
+    {% endif %}
+
+    {% if mcp_servers %}
+    <div class="card-meta-row">
+      <span class="card-meta-icon">◎</span>
+      <div class="card-mcp-badges">
+        {% for mcp in mcp_servers %}
+          <span class="mcp-badge">{{ mcp }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if tags %}
+    <div class="card-meta-row" style="gap:4px;flex-wrap:wrap;">
+      {% for tag in tags %}
+        <span class="tag">{{ tag }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card-meta-row">
+      <span class="card-meta-icon">◷</span>
+      <span
+        {% if last_activity_iso %}data-abs-time="{{ last_activity_iso }}"{% endif %}
+      >{{ last_activity }}</span>
+    </div>
+  </div>
+
+  <div class="card-actions">
+    <a class="card-link" href="/ui/sessions/{{ id }}">View detail →</a>
+    <button
+      class="btn btn-approve btn-sm"
+      title="Approve (send Enter)"
+      hx-post="/sessions/{{ id }}/send"
+      hx-vals='{"keys": ""}'
+      hx-swap="none"
+    >✓</button>
+    <button
+      class="btn btn-kill btn-sm"
+      title="Kill session"
+      hx-delete="/sessions/{{ id }}"
+      hx-swap="none"
+      hx-confirm="Kill session '{{ name }}'?"
+    >✕</button>
+  </div>
+</div>

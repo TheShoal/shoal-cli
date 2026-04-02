@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}{{ name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/ui/">Fleet</a>
+  <span class="breadcrumb-sep">/</span>
+  <span class="breadcrumb-current">{{ name }}</span>
+</div>
+
+<div class="page-header">
+  <span class="page-title-icon">{{ tool_icon }}</span>
+  <h1 class="page-title">{{ name }}</h1>
+  <span class="card-status-badge {{ tier_css }}">{{ status_label }}</span>
+</div>
+
+<div class="detail-layout">
+
+  <!-- ── Left panel: session info ── -->
+  <div>
+
+    <!-- Identity -->
+    <div class="detail-panel" style="margin-bottom:12px;">
+      <div class="detail-panel-header">◈ Identity</div>
+      <div class="detail-panel-body">
+        <div class="meta-table">
+          <span class="meta-key">ID</span>
+          <span class="meta-value"><code>{{ id }}</code></span>
+
+          <span class="meta-key">Tool</span>
+          <span class="meta-value">{{ tool }}</span>
+
+          {% if template_name %}
+          <span class="meta-key">Template</span>
+          <span class="meta-value">{{ template_name }}</span>
+          {% endif %}
+
+          {% if path %}
+          <span class="meta-key">Root</span>
+          <span class="meta-value font-mono" style="font-size:11px;">{{ path }}</span>
+          {% endif %}
+
+          {% if worktree %}
+          <span class="meta-key">Worktree</span>
+          <span class="meta-value font-mono" style="font-size:11px;">{{ worktree }}</span>
+          {% endif %}
+
+          {% if branch %}
+          <span class="meta-key">Branch</span>
+          <span class="meta-value"><code>{{ branch }}</code></span>
+          {% endif %}
+
+          {% if parent_id %}
+          <span class="meta-key">Parent</span>
+          <span class="meta-value">
+            <a href="/ui/sessions/{{ parent_id }}" style="color:var(--tier-review);">{{ parent_id[:12] }}</a>
+          </span>
+          {% endif %}
+        </div>
+
+        {% if tags %}
+        <div class="meta-section">
+          <div class="meta-section-title">Tags</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            {% for tag in tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Runtime -->
+    <div class="detail-panel" style="margin-bottom:12px;">
+      <div class="detail-panel-header">⚙ Runtime</div>
+      <div class="detail-panel-body">
+        <div class="meta-table">
+          <span class="meta-key">Kind</span>
+          <span class="meta-value">{{ runtime_kind }}</span>
+
+          {% if pid %}
+          <span class="meta-key">PID</span>
+          <span class="meta-value font-mono">{{ pid }}</span>
+          {% endif %}
+
+          {% for k, v in runtime_detail.items() %}
+          <span class="meta-key">{{ k }}</span>
+          <span class="meta-value"><code>{{ v }}</code></span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- MCP Servers -->
+    {% if mcp_servers %}
+    <div class="detail-panel" style="margin-bottom:12px;">
+      <div class="detail-panel-header">◎ MCP Servers</div>
+      <div class="detail-panel-body">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          {% for mcp in mcp_servers %}
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span class="mcp-badge" style="font-size:11px;">{{ mcp }}</span>
+            <button
+              class="btn btn-kill btn-sm"
+              title="Detach {{ mcp }}"
+              hx-delete="/sessions/{{ id }}/mcp/{{ mcp }}"
+              hx-swap="none"
+              hx-confirm="Detach MCP '{{ mcp }}' from this session?"
+            >Detach</button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Timestamps -->
+    <div class="detail-panel" style="margin-bottom:12px;">
+      <div class="detail-panel-header">◷ Timestamps</div>
+      <div class="detail-panel-body">
+        <div class="meta-table">
+          <span class="meta-key">Created</span>
+          <span class="meta-value"
+            data-abs-time="{{ created_at_iso }}">{{ created_at }}</span>
+
+          <span class="meta-key">Activity</span>
+          <span class="meta-value"
+            data-abs-time="{{ last_activity_iso }}">{{ last_activity }}</span>
+
+          <span class="meta-key">Status since</span>
+          <span class="meta-value"
+            data-abs-time="{{ status_since_iso }}">{{ status_since }}</span>
+
+          {% if completed_at %}
+          <span class="meta-key">Completed</span>
+          <span class="meta-value">{{ completed_at }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="detail-panel">
+      <div class="detail-panel-header">⚡ Actions</div>
+      <div class="actions-panel">
+        <div class="send-input-form">
+          <input
+            class="send-input-field"
+            type="text"
+            id="send-keys-input"
+            placeholder="Send keys to session…"
+            autocomplete="off"
+          >
+          <button
+            class="btn btn-primary btn-sm"
+            hx-post="/sessions/{{ id }}/send"
+            hx-include="#send-keys-input"
+            hx-vals='{"keys": ""}'
+            hx-swap="none"
+            onclick="document.getElementById('send-keys-input').value=''"
+          >Send</button>
+        </div>
+        <div class="actions-row">
+          <button
+            class="btn btn-approve"
+            hx-post="/sessions/{{ id }}/send"
+            hx-vals='{"keys": ""}'
+            hx-swap="none"
+          >✓ Approve</button>
+          <button
+            class="btn btn-kill"
+            hx-delete="/sessions/{{ id }}"
+            hx-swap="none"
+            hx-confirm="Kill session '{{ name }}'?"
+          >✕ Kill</button>
+        </div>
+        {% if runtime_detail.tmux_session %}
+        <div style="font-size:11px;color:var(--color-text-dim);">
+          Attach: <code class="font-mono">tmux attach -t {{ runtime_detail.tmux_session }}</code>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- end left panel -->
+
+  <!-- ── Right panel: timeline tabs ── -->
+  <div class="detail-panel tab-panel-group">
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-journal">Journal</button>
+      <button class="tab-btn" data-tab="tab-terminal">Terminal</button>
+      <button class="tab-btn" data-tab="tab-history">History</button>
+    </div>
+
+    <!-- Journal tab -->
+    <div id="tab-journal" class="tab-content active">
+      <div
+        id="journal-{{ id }}"
+        hx-get="/ui/partials/journal/{{ id }}?limit=30"
+        hx-trigger="load, every 10s"
+        hx-swap="innerHTML"
+      >
+        <div class="journal-empty">Loading journal…</div>
+      </div>
+    </div>
+
+    <!-- Terminal tab -->
+    <div id="tab-terminal" class="tab-content">
+      <div class="pane-controls">
+        Lines:
+        <select class="line-select" id="line-count-{{ id }}">
+          <option value="20">20</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
+        <button
+          class="btn btn-primary btn-sm"
+          hx-get="/ui/partials/pane/{{ id }}"
+          hx-include="#line-count-{{ id }}"
+          hx-target="#pane-{{ id }}"
+          hx-swap="innerHTML"
+        >Refresh</button>
+      </div>
+      <div
+        id="pane-{{ id }}"
+        hx-get="/ui/partials/pane/{{ id }}?lines=50"
+        hx-trigger="load, every 5s"
+        hx-swap="innerHTML"
+      >
+        <div class="pane-output">Loading…</div>
+      </div>
+    </div>
+
+    <!-- History tab -->
+    <div id="tab-history" class="tab-content">
+      <div class="history-timeline">
+        <div class="text-dim" style="font-size:12px;padding:12px;">
+          Status history not yet available from this view.
+          Use <code>shoal history {{ name }}</code> in the terminal.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end right panel -->
+
+</div><!-- end detail-layout -->
+{% endblock %}

@@ -33,6 +33,7 @@ from shoal.core.state import (
     remove_mcp_from_session,
     update_session,
 )
+from shoal.dashboard import create_dashboard_app
 from shoal.models.batch import (
     BatchExecutionRequest,
     BatchExecutionResponse,
@@ -207,14 +208,16 @@ async def poll_status_changes() -> None:
             for sid, status in current_status.items():
                 prev = previous_status.get(sid)
                 if prev != status:
-                    await manager.broadcast(
-                        {
-                            "type": "status_change",
-                            "session_id": sid,
-                            "status": status,
-                            "previous": prev,
-                        }
-                    )
+                    event: dict[str, object] = {
+                        "type": "status_change",
+                        "session_id": sid,
+                        "status": status,
+                        "previous": prev,
+                    }
+                    await manager.broadcast(event)
+                    from shoal.dashboard.ws import notify_status_change
+
+                    await notify_status_change(event)
 
             previous_status = current_status
         except Exception:
@@ -815,6 +818,9 @@ async def detach_mcp_from_session(session_id: str, mcp_name: str) -> None:
         )
 
     await remove_mcp_from_session(session_id, mcp_name)
+
+
+app.mount("/ui", create_dashboard_app())
 
 
 if __name__ == "__main__":
