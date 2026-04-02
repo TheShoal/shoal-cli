@@ -1098,14 +1098,11 @@ async def send_a2a_message_tool(
     if not lobster_a2a.GRPC_AVAILABLE:
         raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
 
-    return cast(
-        dict[str, object],
-        await lobster_a2a.send_a2a_message_tool(
-            claw_id=claw_id,
-            message=message,
-            task_id=task_id,
-            employee_id=employee_id,
-        ),
+    return await lobster_a2a.send_a2a_message_tool(
+        claw_id=claw_id,
+        message=message,
+        task_id=task_id,
+        employee_id=employee_id,
     )
 
 

@@ -288,7 +288,21 @@ async def test_get_agent_card_success(
     # Mock will use the lobster_a2a module which has its own ClawClient
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
         with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+            from shoal.models.config.agent_card import (
+                AgentCapabilities,
+                AgentCard,
+                AgentProvider,
+            )
+
+            expected_card = AgentCard(
+                name="claw-1",
+                version="1.0.0",
+                provider=AgentProvider(organization="us-mobile", url="https://usmobile.com"),
+                capabilities=AgentCapabilities(streaming=True),
+                endpoint="localhost:50051",
+            )
             client_instance = AsyncMock()
+            client_instance.get_agent_card = AsyncMock(return_value=expected_card)
             mock_a2a_client.return_value = client_instance
 
             result = await get_agent_card_tool(claw_id="claw-1")
@@ -336,8 +350,9 @@ async def test_send_a2a_message_success(
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
         with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
             client_instance = AsyncMock()
-            client_instance.execute = AsyncMock(return_value=(True, "Response text", b""))
-            client_instance.status = AsyncMock(return_value={"state": "ACTIVE"})
+            client_instance.send_message = AsyncMock(
+                return_value={"task_id": "task-123", "response": "Response text", "state": "ACTIVE"}
+            )
             client_instance.close = AsyncMock()
             mock_a2a_client.return_value = client_instance
 
@@ -359,8 +374,9 @@ async def test_send_a2a_message_with_employee_id(
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
         with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
             client_instance = AsyncMock()
-            client_instance.execute = AsyncMock(return_value=(True, "Response", b""))
-            client_instance.status = AsyncMock(return_value={"state": "READY"})
+            client_instance.send_message = AsyncMock(
+                return_value={"task_id": "gen-id", "response": "Response", "state": "READY"}
+            )
             client_instance.close = AsyncMock()
             mock_a2a_client.return_value = client_instance
 
@@ -380,7 +396,7 @@ async def test_send_a2a_message_failure(
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
         with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
             client_instance = AsyncMock()
-            client_instance.execute = AsyncMock(return_value=(False, "Execution failed", b""))
+            client_instance.send_message = AsyncMock(side_effect=RuntimeError("Execution failed"))
             client_instance.close = AsyncMock()
             mock_a2a_client.return_value = client_instance
 

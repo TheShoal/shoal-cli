@@ -13,13 +13,11 @@ Spec: https://a2a-protocol.org/latest/specification/
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
-
-from shoal.models.config.agent_card import AgentCard  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from shoal.core.claw_client import ClawClient
@@ -29,6 +27,7 @@ logger = logging.getLogger("shoal.lobster_a2a")
 
 # Guard gRPC imports - these are optional dependencies
 try:
+    import shoal.integrations.lobster.a2a_bridge  # noqa: F401 — activates ClawClient A2A extensions
     from shoal.core.claw_client import ClawClient
 
     GRPC_AVAILABLE = True
@@ -130,22 +129,7 @@ async def get_agent_card_tool(claw_id: str) -> dict[str, str | bool | list[dict[
             config=config.claw,
         )
 
-        # TODO: Implement proper GetAgentCard RPC in ClawClient
-        # This is a placeholder that will be replaced with actual RPC call
-        agent_card = AgentCard(
-            name=claw_id,
-            version="1.0.0",
-            provider={"organization": "us-mobile-lobster-party", "url": "https://usmobile.com"},
-            capabilities={
-                "streaming": True,
-                "push_notifications": False,
-                "state_transition_reports": True,
-            },
-            skills=[],
-            endpoint=endpoint,
-            description=f"Claw runtime {claw_id}",
-        )
-
+        agent_card = await client.get_agent_card()  # type: ignore[attr-defined]
         return agent_card.model_dump()  # type: ignore[no-any-return]
 
     except ValidationError as exc:
@@ -178,7 +162,7 @@ async def send_a2a_message_tool(
     message: str,
     task_id: str | None = None,
     employee_id: str | None = None,
-) -> dict[str, str]:
+) -> dict[str, object]:
     """Send a message to a Claw runtime via A2A SendMessage RPC.
 
     This tool submits work to a Claw runtime using the A2A protocol's
@@ -218,25 +202,13 @@ async def send_a2a_message_tool(
             config=config.claw,
         )
 
-        # TODO: Implement proper SendMessage RPC in ClawClient
-        # For now, use the legacy execute method as a placeholder
-        success, message_text, _ = await client.execute(
-            payload=message.encode("utf-8"),
-            event_id=task_id or f"task-{claw_id}-{id(message)}",
-            metadata={"protocol": "a2a"},
+        return cast(
+            dict[str, object],
+            await client.send_message(  # type: ignore[attr-defined]
+                message=message,
+                task_id=task_id,
+            ),
         )
-
-        if not success:
-            raise RuntimeError(f"Claw execution failed: {message_text}")
-
-        # Get current state
-        status = await client.status()
-
-        return {
-            "task_id": task_id or "unknown",
-            "response": message_text,
-            "state": status.get("state", "unknown"),
-        }
 
     except RuntimeError as exc:
         logger.error("Claw %s A2A message failed: %s", claw_id, exc)
@@ -296,12 +268,13 @@ async def list_a2a_tasks_tool(
             config=config.claw,
         )
 
-        # TODO: Implement proper ListTasks RPC in ClawClient
-        # Placeholder implementation
+        tasks = await client.list_tasks(  # type: ignore[attr-defined]
+            context_id=context_id,
+            status=status,
+        )
         return {
-            "tasks": [],
+            "tasks": tasks,
             "claw_id": claw_id,
-            "note": "ListTasks RPC not yet implemented in ClawClient",
         }
 
     except RuntimeError as exc:
