@@ -543,31 +543,18 @@ async def create_session_tool(
 
 @mcp.tool(
     name="kill_session",
-    description="Kill a session and optionally remove its git worktree.",
+    description=(
+        "Kill a session and optionally remove its git worktree. "
+        "For batch kills, use batch_execute with multiple KillSessionBatchOp entries."
+    ),
     annotations={"destructiveHint": True},
 )
 async def kill_session_tool(
-    session: str | list[str],
+    session: str,
     remove_worktree: bool = False,
     force: bool = False,
 ) -> dict[str, object]:
     """Kill a session."""
-    if isinstance(session, list):
-        response = await execute_batch(
-            BatchExecutionRequest(
-                ops=[
-                    KillSessionBatchOp(
-                        op="kill_session",
-                        session=name,
-                        remove_worktree=remove_worktree,
-                        force=force,
-                    )
-                    for name in session
-                ]
-            )
-        )
-        return _legacy_multi_result(session, response)
-
     return cast(
         dict[str, object],
         await _run_single_op(

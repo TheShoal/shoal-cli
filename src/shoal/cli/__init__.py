@@ -22,6 +22,7 @@ from shoal.cli.nvim import app as nvim_app
 from shoal.cli.proactive import app as proactive_app
 from shoal.cli.remote import app as remote_app
 from shoal.cli.robo import app as robo_app
+from shoal.cli.session_cmd import app as session_app
 from shoal.cli.setup import app as setup_app
 from shoal.cli.skill import app as skill_app
 from shoal.cli.tag import app as tag_app
@@ -494,8 +495,9 @@ app.add_typer(incident_app, name="incident", help="Incident supervision workflow
 app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
 app.add_typer(mode_app, name="mode", help="Operating modes.")
 app.add_typer(skill_app, name="skill", help="Cross-agent skills.")
-app.add_typer(claw_app, name="claw", help="Claw runtime operations (requires shoal[claw]).")
 app.add_typer(proactive_app, name="proactive", help="Proactive monitoring and filesystem watching.")
+app.add_typer(claw_app, name="claw", help="Claw runtime operations (requires shoal[claw]).")
+app.add_typer(session_app, name="session", help="Session management commands.")
 
 
 @app.command()

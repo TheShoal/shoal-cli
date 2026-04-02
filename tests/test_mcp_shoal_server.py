@@ -1187,9 +1187,10 @@ async def test_capture_pane_single_backwards_compat() -> None:
     assert "results" not in result
 
 
-async def test_kill_session_batch_kills_all() -> None:
-    """Batch kill_session with a list kills all named sessions."""
-    from shoal.services.mcp_shoal_server import kill_session_tool
+async def test_kill_session_batch_via_batch_execute_kills_all() -> None:
+    """Batch kill_session via batch_execute kills all named sessions."""
+    from shoal.models.batch import BatchExecutionRequest, KillSessionBatchOp
+    from shoal.services.mcp_shoal_server import batch_execute_tool
 
     s1 = _make_session(name="alpha", session_id="id1")
     s2 = _make_session(name="beta", session_id="id2")
@@ -1217,17 +1218,28 @@ async def test_kill_session_batch_kills_all() -> None:
             return_value=summary,
         ) as mock_kill,
     ):
-        result = await kill_session_tool(session=["alpha", "beta"])
+        request = BatchExecutionRequest(
+            ops=[
+                KillSessionBatchOp(op="kill_session", session="alpha"),
+                KillSessionBatchOp(op="kill_session", session="beta"),
+            ],
+        )
+        result = await batch_execute_tool(**request.model_dump())
 
     assert "results" in result
-    assert result["results"]["alpha"]["session"] == "alpha"
-    assert result["results"]["beta"]["session"] == "beta"
+    results = result["results"]
+    assert results[0]["success"] is True
+    assert results[0]["result"]["session"] == "alpha"
+    assert results[1]["success"] is True
+    assert results[1]["result"]["session"] == "beta"
     assert mock_kill.call_count == 2
 
 
 async def test_kill_session_batch_serializes_shared_git_root() -> None:
-    """Multi-session kills do not overlap when sessions share the same repo root."""
-    from shoal.services.mcp_shoal_server import kill_session_tool
+    """Multi-session kills via batch_execute do not overlap when sessions share the same repo root."""
+    import asyncio
+    from shoal.models.batch import BatchExecutionRequest, KillSessionBatchOp
+    from shoal.services.mcp_shoal_server import batch_execute_tool
 
     s1 = _make_session(name="alpha", session_id="id1")
     s2 = _make_session(name="beta", session_id="id2")
@@ -1266,16 +1278,26 @@ async def test_kill_session_batch_serializes_shared_git_root() -> None:
             side_effect=fake_kill_session_lifecycle,
         ),
     ):
-        result = await kill_session_tool(session=["alpha", "beta"])
+        request = BatchExecutionRequest(
+            ops=[
+                KillSessionBatchOp(op="kill_session", session="alpha"),
+                KillSessionBatchOp(op="kill_session", session="beta"),
+            ],
+        )
+        result = await batch_execute_tool(**request.model_dump())
 
-    assert result["results"]["alpha"]["session"] == "alpha"
-    assert result["results"]["beta"]["session"] == "beta"
+    results = result["results"]
+    assert results[0]["success"] is True
+    assert results[0]["result"]["session"] == "alpha"
+    assert results[1]["success"] is True
+    assert results[1]["result"]["session"] == "beta"
     assert max_active_calls == 1
 
 
 async def test_kill_session_batch_preserves_partial_success() -> None:
-    """Serial kill batches still attempt later sessions when continue_on_error stays enabled."""
-    from shoal.services.mcp_shoal_server import kill_session_tool
+    """Batch kills via batch_execute still attempt later sessions when continue_on_error stays enabled."""
+    from shoal.models.batch import BatchExecutionRequest, KillSessionBatchOp
+    from shoal.services.mcp_shoal_server import batch_execute_tool
 
     s1 = _make_session(name="alpha", session_id="id1")
     summary = {
@@ -1303,10 +1325,19 @@ async def test_kill_session_batch_preserves_partial_success() -> None:
             return_value=summary,
         ) as mock_kill,
     ):
-        result = await kill_session_tool(session=["ghost", "alpha"])
+        request = BatchExecutionRequest(
+            ops=[
+                KillSessionBatchOp(op="kill_session", session="ghost"),
+                KillSessionBatchOp(op="kill_session", session="alpha"),
+            ],
+        )
+        result = await batch_execute_tool(**request.model_dump())
 
-    assert result["results"]["ghost"]["error"] == "Session not found: ghost"
-    assert result["results"]["alpha"]["session"] == "alpha"
+    results = result["results"]
+    assert results[0]["success"] is False
+    assert "Session not found" in results[0]["error"]["message"]
+    assert results[1]["success"] is True
+    assert results[1]["result"]["session"] == "alpha"
     mock_kill.assert_called_once()
 
 

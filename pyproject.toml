@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shoal-cli"
-version = "0.35.0"
+dynamic = ["version"]
 description = "Terminal-first orchestration for parallel AI coding agents"
 readme = "README.md"
 license = {text = "MIT"}
@@ -85,6 +85,10 @@ packages = ["src/shoal"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "examples/config" = "shoal/examples/config"
+
+[tool.hatch.version]
+path = "src/shoal/__init__.py"
+expression = "__version__"
 
 [tool.ruff]
 target-version = "py312"

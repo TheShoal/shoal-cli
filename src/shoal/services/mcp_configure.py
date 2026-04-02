@@ -77,9 +77,9 @@ def _configure_http_for_tool(
     """Configure a tool to use an HTTP-mode MCP server."""
     url = f"http://localhost:{port}/mcp/"
 
-    # Strategy 1: Config file (JSON) — set URL-based entry
     if mcp_cfg.config_file:
         path = Path(work_dir) / mcp_cfg.config_file
+        path.parent.mkdir(parents=True, exist_ok=True)
         data: dict[str, Any] = {}
         if path.exists():
             try:
@@ -133,6 +133,7 @@ def _configure_via_command(config_cmd: str, mcp_name: str, work_dir: str) -> str
 def _configure_via_file(config_file: str, mcp_name: str, work_dir: str) -> str:
     """Merge an MCP entry into a tool's JSON config file."""
     path = Path(work_dir) / config_file
+    path.parent.mkdir(parents=True, exist_ok=True)
     data: dict[str, Any] = {}
 
     if path.exists():
