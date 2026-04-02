@@ -249,7 +249,7 @@ Released 2026-04-01
 **What to do next:**
 
 - **Live Claw gRPC validation**: Connect to production Claw endpoint, run `get_agent_card()` / `send_message()` smoke test (unblocked, `shoal[claw]` extra in place)
-- **`branch_prefix` enforcement in `shoal new`**: Use `template.git.branch_prefix` as default prefix when auto-naming branches during `shoal new --template`
+- ~~**`branch_prefix` enforcement in `shoal new`**~~: `infer_branch_name` gains optional `branch_prefix` param; `_add_impl` extracts `template_cfg.git.branch_prefix` and threads it through. Shipped this session.
 - **Pre-commit hook profile** (low priority): `[template.git]` extension — specify a `.pre-commit-config.yaml` path to symlink into the worktree
 
 ### Session: 2026-04-02 — Fins polish, MCP server restart
