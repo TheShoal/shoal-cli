@@ -110,7 +110,7 @@ code, pre { font-family: var(--font-mono); }
     gap: 6px;
 }
 
-.nav-brand-icon { color: var(--shoal-deep); font-size: 18px; }
+.nav-brand-icon { width: 22px; height: 18px; object-fit: contain; }
 
 .nav-spacer { flex: 1; }
 
