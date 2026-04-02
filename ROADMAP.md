@@ -225,6 +225,32 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-04-02 — Lobster integration recovery + A2A fixes
+
+**What we did:**
+
+- Recovered from 3 failed sessions (2026-04-01): `shoal-lobster-qmd` had merged cleanly; `shoal-lobster-a2a` committed `41624f4` but left WIP stashed; `shoal-lobster-delegation` errored with no output
+- Dropped `stash@{0}`: a bad pass that deleted MCP pool infrastructure (`mcp.py`, `mcp_pool.py`, `mcp_configure.py`, `mcp_proxy.py`, `incident_hooks.py`). The delegation wrapper and MCP pool serve orthogonal purposes; the removal was incorrect.
+- Rescued `stash@{1}`: added `step_agent_teams()` and `step_journal_dreaming()` to `cli/demo/tour.py`; tour now has 9 steps
+- Restored missing `src/shoal/models/config/agent_card.py` (AgentCard, AgentProvider, AgentCapabilities, AgentSkill Pydantic models — source was deleted, .pyc survived)
+- Fixed `step_mcp_orchestration` expected tool list: 23 → 26 tools (added `get_agent_card`, `list_a2a_tasks`, `send_a2a_message`)
+- Fixed 3 tour test assertions: `All 7` → `All 9`, `6 pass/1 skip` → `8 pass/1 skip`
+- 7 commits ahead of origin/main; 1477 passed, 2 skipped — CI green
+
+**Current state:**
+
+- Branch: `main`, 7 commits unpushed (NOT on origin/main)
+- Last pushed tag: `v0.32.0`
+- Two stub files still empty: `src/shoal/integrations/lobster/a2a_bridge.py` and `src/shoal/integrations/lobster/clawplexer_sync.py` (per `LOBSTER_PARTY_INTEGRATION.md` Workstreams 1 and 3)
+
+**What to do next:**
+
+- Push local `main` to origin (7 commits, all green)
+- Implement `a2a_bridge.py` (Workstream 1): wire `ClawClient.get_agent_card()` RPC into the bridge; currently `get_agent_card_tool` returns a stub response
+- Implement `clawplexer_sync.py` (Workstream 3): QMD sync loop using `claw_conversations.py` + `ClawTurn`
+- Cut v0.33.0 once both stubs are complete: lobster integration (AgentCard + A2A bridge + delegation wrapper + QMD sync)
+
+
 ### Session: 2026-03-07 — Dashboard fzf actions
 
 **What we did:**
@@ -247,202 +273,3 @@ Released 2026-04-01
 **What to do next:**
 
 - Merge `feat/dashboard-actions` → `main` and cut a release
-
-
-### Session: 2026-03-07 — Onboarding docs refresh + send_keys_delay defaults
-
-**What we did:**
-
-- `docs/index.md`: added `pipx install shoal-cli` as the first step in the sixty-second workflow; switched example agents to `omp`
-- `docs/getting-started.md`: fixed step-grid install hint (was `uv tool install .` local path); removed duplicate `fish` entry from optional prereqs
-- `CONTRIBUTING.md`: replaced stale `uv pip install -e ".[dev]"` with `uv sync --extra dev --extra mcp`
-- `docs/TROUBLESHOOTING.md`: `pip install neovim-remote` → `pipx install neovim-remote`
-- `examples/config/tools/*.toml`: added `send_keys_delay = 0.05` to all six bundled tool profiles (omp, pi, claude, opencode, gemini, codex)
-- `justfile`: added `fmt-check` to the `ci` recipe — local `just ci` now has full parity with GitHub Actions CI
-- Confirmed `shoal-cli 0.21.0` live on PyPI; `pipx install shoal-cli` works end-to-end
-
-**Current state:**
-
-- Branch: `main` at `188c6cc`
-- CI: 1082 passed / 1 skipped, `just ci` fully green (includes `fmt-check` parity)
-- v0.21.0 tag at `c96a0d9`; no new version bump needed for this batch of changes
-
-**What to do next:**
-
-- Decide fin contract version support window policy (v1-only vs N/N-1 overlap) — blocks `shoal fin install` registry semantics
-- Scope v0.22.0 milestone: top candidates are auto-commit lifecycle hook, `shoal fin install` registry/local-source, dashboard fzf actions
-- Existing users who ran `shoal init` before this commit won't pick up `send_keys_delay = 0.05` automatically; a `shoal init --refresh-tools` flag or a note in the v0.22.0 release notes would address this
-
-
-### Session: 2026-03-07 — v0.21.0 public beta ship
-
-**What we did:**
-
-- Published `shoal-cli` to PyPI (trusted publisher via GitHub Actions OIDC)
-- Updated pyproject.toml: name=`shoal-cli`, version=0.21.0, classifiers, authors, project URLs
-- Added PyPI publish job to `.github/workflows/release.yml`
-- README: version badge v0.21.0-beta, test count 1087, removed ecosystem note, updated install section and status table
-- CONTRIBUTING.md + ARCHITECTURE.md: Pi as primary default backend (replaces OpenCode/Neovim references)
-- docs/getting-started.md: PyPI as primary install path
-- ROADMAP.md: v0.20.0 marked complete, v0.21.0 section added
-- CHANGELOG.md: v0.21.0 release entry
-
-**Current state:**
-
-- Branch: `main` at HEAD
-- v0.21.0 tagged, pushed, PyPI publish triggered via GitHub Actions
-
-**What to do next:**
-
-- Verify `pipx install shoal-cli` works from PyPI
-- Decide fin contract version support window policy
-- Consider `send_keys_delay` non-zero default for TUI tools (0.05s)
-
-
-### Session: 2026-03-07 — Roadmap cleanup + v0.19.0 milestone
-
-**What we did:**
-
-- Removed 4 resolved backlog items (Fix template env gap, `state_dir`/`runtime_dir` naming, `send_keys` submission bug, double `feat/` prefix) — shipped in v0.18.0/v0.19.0
-- Added `## v0.19.0` section documenting version flag, XDG naming, archived journal lookup, branch naming fix
-- Added `## v0.20.0` in-progress section (setup_commands, orphan worktrees, readiness signals, batch MCP)
-- v0.19.0 tagged at `4b1daa9`, pushed to origin; `main` at `03fc750`
-
-**Current state:**
-
-- Branch: `main` at `03fc750`
-- v0.20.0 in progress — 4 parallel worktrees: `fix/setup-commands`, `fix/orphan-worktrees`, `fix/mcp-readiness-batch`, `fix/roadmap-cleanup`
-
-**What to do next:**
-
-- Merge all four v0.20.0 worker branches
-- Run `just ci` to verify
-- Cut v0.20.0 release
-
-### Session: 2026-03-07 — CI green-up + send_keys reliability
-
-**What we did:**
-
-- Fixed RET501 lint regression in `tests/test_cli_robo.py` (removed explicit `return None`)
-- Fixed mypy assignment error in `fin_runtime.py` (`manifest` → `child_manifest`, `Path` vs `FinManifest` type conflict)
-- Extracted `infer_branch_name()`, `validate_branch_name()`, and `ALLOWED_BRANCH_CATEGORIES` to `core/git.py`; fixed double `feat/` prefix bug in API server and MCP server; added 27 branch-naming tests
-- Added `send_keys_delay: float = 0.0` to `ToolConfig`; updated `async_send_keys` to split paste + Enter with configurable sleep; wired through `send_keys_tool` and `create_session` prompt dispatch; added 4 new tests
-
-All four fixes committed atomically; CI is fully green (1040 passed, 1 skipped).
-
-**What to do next:**
-
-- Decide fin contract version support window policy (v1-only vs N/N-1 overlap)
-- Add registry/local-source install semantics for `shoal fin install`
-- Add optional subprocess timeout controls for fin lifecycle commands
-- Consider setting `send_keys_delay` to a non-zero default (e.g. `0.05`) for TUI tools in built-in tool profiles
-
-### Session: 2026-02-27 — Fin adapter Iteration 2 (lifecycle + discovery + parity)
-
-**What we did:**
-
-- Added first-class fin lifecycle commands: `shoal fin install` and `shoal fin configure`
-- Added path-based discovery command: `shoal fin ls [--path <dir-or-fin.toml>]`
-- Added valid/invalid manifest reporting in `fin ls` with actionable parse errors
-- Added `SHOAL_LOG_LEVEL` handshake propagation for fin subprocesses
-- Added cross-repo integration guard test using a scaffold generated by `fins-template`
-- Updated extension docs with run-policy note (`run` does not require prior `validate`)
-
-**What to do next:**
-
-- Decide and document contract version support window policy (v1 only vs N/N-1 overlap)
-- Add registry/local-source install semantics for `shoal fin install` (currently lifecycle execution only)
-- Add optional subprocess timeout controls for fin lifecycle commands
-- Consider richer `fin ls` output modes (table/json) and recursive discovery options
-
-### Session: 2026-02-26 — Fin contract-v1 adapter (inspect/validate/run)
-
-**What we did:**
-
-- Implemented `shoal fin` command group with `inspect`, `validate`, and `run`
-- Added `models/fin.py` and `services/fin_runtime.py` for manifest parsing, contract-v1 validation, entrypoint resolution, subprocess execution, and exit-code propagation
-- Added tests for CLI and service behavior (`tests/test_cli_fin.py`, `tests/test_services_fin_runtime.py`)
-- Added extension capability and boundary doc: `docs/EXTENSIONS.md`
-- Updated README command/docs sections and SHOAL next-work status to reflect fin adapter progress
-
-**What to do next:**
-
-- Add first-class `shoal fin install` and `shoal fin configure` commands
-- Add basic discovery (`shoal fin ls`) and local fin source management
-- Define explicit contract version support window policy (v1 now, migration policy for v2)
-- Decide hook package loading model for fins with isolation guarantees
-
-### Session: 2026-02-25 — Pi-first defaults + status-provider abstraction
-
-**What we did:**
-
-- Switched defaults to Pi across config and CLI surfaces (`GeneralConfig.default_tool`, robo defaults, template defaults, demo fallback, example config)
-- Added explicit status-provider architecture: `core/status_provider.py` with providers `pi`, `opencode_compat`, and `regex`; `core/detection.py` now delegates through provider resolution
-- Extended tool schema with `tool.status_provider` and wired config loader defaults (`pi` for Pi, `opencode_compat` for OpenCode, `regex` otherwise)
-- Hardened watcher pane resolution when pane titles drift (fallback to tool executable, active pane, then single-pane session)
-- Updated docs for degraded compatibility behavior (README + TROUBLESHOOTING), and added `Detection` display in `shoal info`
-- Added/updated tests for provider selection, watcher fallback behavior, and config defaults
-- Fixed CI flakiness surfaced during this work (`test_mcp_pool` AF_UNIX path length, `test_api_load` concurrent DB lock race) and remote API connection-reset normalization
-- Full validation passed: `just ci` green (990 passed, 1 skipped)
-
-**What to do next:**
-
-- Implement the first non-regex Pi provider path once explicit Pi event contracts are available (keep current adapter seam)
-- Decide whether to expose provider selection directly in `shoal config`/template docs (currently in tool TOML docs + `shoal info` visibility)
-- Continue extension-system backlog work (Fins capability map + CLI/core boundary recommendation)
-
-### Session: 2026-02-24 — v0.18.0 Phase 4 complete + env fix
-
-**What we did:**
-
-- Fixed template env gap — `lifecycle.py` now applies `template_cfg.env` to initial pane via fish `set -gx` before agent launch (`75a2434`, +31 lines)
-- Added background daemon mode for `shoal robo watch` — `--daemon` flag, `watch-stop`/`watch-status` commands, profile-specific PID files (`3aa15f5`, +290 lines, 6 files)
-- Added LLM escalation for robo supervisor — `_escalate_to_llm()`, `_build_escalation_prompt()`, journal-based polling via `_wait_for_escalation_response()`, `EscalationConfig` with `escalation_session`/`escalation_timeout` (`72cf876`, +288 lines)
-- v0.18.0 Phase 4 now fully complete (all checkboxes done)
-- 986 tests passing (was 967), CI green — 3 parallel Shoal sessions used
-- Added backlog items: Fins extension system, `send_keys` submission bug, auto-commit on idle/kill
-
-**What to do next:**
-
-- Push to origin and tag v0.18.0 release
-- Fix `send_keys` prompt submission reliability (text pastes but Enter doesn't always submit in Claude Code)
-- Fix double `feat/` branch prefix bug
-- Add `setup_commands` template feature (Iteration 2 from `docs/WORKTREE_ENV_INIT.md`)
-- Update CHANGELOG.md `[Unreleased]` section with all v0.18.0 changes before tagging
-
-### Session: 2026-02-24 — v0.18.0 Phase 4 Robo Supervisor
-
-**What we did:**
-
-- Implemented `services/robo_supervisor.py` (248 lines) — async `RoboSupervisor` class with poll loop, `_safe_to_approve()` pattern detection, `_auto_approve()` via tmux, `_escalate()` with journal logging, `_waiting_duration_seconds()` from status_transitions DB
-- Added `shoal robo watch` CLI command in `cli/robo.py` — loads robo profile, prints config summary, runs supervisor loop; fish completions updated
-- 15 new tests (11 supervisor + 4 CLI), 967 total passing
-- Added `-n auto` to justfile test recipes — parallel test execution (5min+ → 21s)
-
-**What to do next:**
-
-- LLM escalation for ambiguous cases (remaining Phase 4 item)
-- Background daemon mode for `shoal robo watch`
-- Fix template env gap
-
-
-### Session: 2026-03-07 — v0.22.0: developer velocity fixes + auto-commit + dashboard actions
-
-**What we did:**
-
-- Fixed tmux pane targeting for `base-index=1` users — every session creation silently failed; `server_base_indices()` now queries the live tmux server and offsets all targets
-- Fixed `DirtyWorktreeError` blocking kill on untracked-only worktrees — kill guard now uses `worktree_has_tracked_changes()` (filters `??` lines from porcelain output)
-- Fixed `shoal ls` ID column truncated to 1 char — `no_wrap=True` + `expand=True` + bounded column widths
-- Fixed `load_tool_config` silently ignoring `send_keys_delay`, `input_mode`, `prompt_flag`, `prompt_file_prefix` from `[tool]` TOML section
-- Added `shoal init --refresh-tools` — re-downloads built-in tool profiles without touching user customizations
-- Added `auto_commit` on session kill — `general.auto_commit = true` stages and commits the worktree before teardown
-- Added dashboard fzf actions — `ctrl-y` approve, `ctrl-g` fork, `ctrl-w` filter waiting, `ctrl-r` reload
-- Added `shoal fin install` local registration and `shoal fin ls` default to installed fins
-- 1125 tests passing, CI green
-
-**What to do next:**
-
-- Publish v0.22.0 to PyPI (create GitHub Release to trigger workflow)
-- Investigate `shoal fin install` from registry/remote source (currently filesystem-local only)
-- Add optional subprocess timeout controls for fin lifecycle commands
-- Consider worktree dev-dep bootstrap (workers need `uv pip install -e ".[dev]"` manually)
