@@ -44,8 +44,8 @@ from shoal.services.lifecycle import (
 )
 
 
-def _branch_name_for_worktree(worktree_name: str) -> str:
-    branch_name = infer_branch_name(worktree_name)
+def _branch_name_for_worktree(worktree_name: str, branch_prefix: str = "") -> str:
+    branch_name = infer_branch_name(worktree_name, branch_prefix)
     validate_branch_name(branch_name)
     return branch_name
 
@@ -112,6 +112,7 @@ async def _add_impl(
     cfg = load_config()
     template_cfg = None
     resolved_mode: str | None = None
+    branch_prefix = ""
     resolved_path = Path(path).resolve() if path else Path.cwd().resolve()
 
     if not resolved_path.is_dir():
@@ -214,6 +215,9 @@ async def _add_impl(
         if template_cfg.worktree.create_branch:
             branch = True
 
+        if template_cfg.git.branch_prefix:
+            branch_prefix = template_cfg.git.branch_prefix
+
         # Merge template MCP declarations with --mcp flag (union, deduped)
         if template_cfg.mcp:
             merged = set(mcp_servers or []) | set(template_cfg.mcp)
@@ -263,7 +267,7 @@ async def _add_impl(
 
         if branch:
             try:
-                branch_name = _branch_name_for_worktree(worktree)
+                branch_name = _branch_name_for_worktree(worktree, branch_prefix)
             except ValueError as e:
                 get_console().print(f"[red]Error: {e}[/red]")
                 raise typer.Exit(1) from None

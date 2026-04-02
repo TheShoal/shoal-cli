@@ -226,23 +226,27 @@ ALLOWED_BRANCH_CATEGORIES: tuple[str, ...] = (
 )
 
 
-def infer_branch_name(worktree_name: str) -> str:
+def infer_branch_name(worktree_name: str, branch_prefix: str = "") -> str:
     """Infer a branch name from a worktree name.
 
     If the worktree name already contains a ``/``, it is returned as-is
     (assumed to carry a valid category prefix like ``fix/`` or ``feat/``).
-    Otherwise ``feat/`` is prepended as the default category.
+    Otherwise *branch_prefix* is prepended; if *branch_prefix* is empty,
+    ``feat/`` is used as the default category.
+
+    *branch_prefix* may include or omit a trailing ``/`` — it is normalised.
 
     Examples::
 
-        fix/tmux-status  -> fix/tmux-status   (pass-through)
-        feat/my-feature  -> feat/my-feature   (pass-through)
-        tmux-status      -> feat/tmux-status  (default prefix)
-        my-feature       -> feat/my-feature   (default prefix)
+        fix/tmux-status  -> fix/tmux-status   (pass-through — explicit wins)
+        feat/my-feature  -> feat/my-feature   (pass-through — explicit wins)
+        tmux-status      -> feat/tmux-status  (default prefix, no template)
+        my-feature       -> fix/my-feature    (branch_prefix="fix" or "fix/")
     """
     if "/" in worktree_name:
         return worktree_name
-    return f"feat/{worktree_name}"
+    prefix = branch_prefix.rstrip("/") if branch_prefix else "feat"
+    return f"{prefix}/{worktree_name}"
 
 
 def validate_branch_name(branch_name: str) -> None:

@@ -83,3 +83,26 @@ class TestValidateBranchName:
     def test_invalid_branches(self, branch: str) -> None:
         with pytest.raises(ValueError, match="category/slug"):
             validate_branch_name(branch)
+
+
+class TestInferBranchNameWithPrefix:
+    """Tests for infer_branch_name() branch_prefix parameter."""
+
+    def test_custom_prefix_applied(self) -> None:
+        assert infer_branch_name("my-task", branch_prefix="fix") == "fix/my-task"
+
+    def test_prefix_trailing_slash_normalised(self) -> None:
+        assert infer_branch_name("my-task", branch_prefix="fix/") == "fix/my-task"
+
+    def test_custom_prefix_chore(self) -> None:
+        assert infer_branch_name("deps-update", branch_prefix="chore") == "chore/deps-update"
+
+    def test_explicit_slash_beats_prefix(self) -> None:
+        """Worktree name that already has a slash is always a pass-through."""
+        assert infer_branch_name("feat/existing", branch_prefix="fix") == "feat/existing"
+
+    def test_empty_prefix_falls_back_to_feat(self) -> None:
+        assert infer_branch_name("my-task", branch_prefix="") == "feat/my-task"
+
+    def test_no_arg_falls_back_to_feat(self) -> None:
+        assert infer_branch_name("my-task") == "feat/my-task"
