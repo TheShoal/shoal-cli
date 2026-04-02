@@ -215,7 +215,9 @@ Released 2026-04-01
 
 - **Fins polish**: Registry/remote install semantics, subprocess timeout controls, contract version support window policy (v1-only vs N/N-1). Core adapter shipped v0.19.0; local install shipped v0.22.0; remote install shipped v0.24.0.
 - **Per-session git practices**: `[template.git]` section for commit conventions, hook profiles, branch naming rules, and per-session identity (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Template env gap (prerequisite) fixed in v0.18.0.
-- **Remote status bar**: Fish status bar polls remote WebSocket for session status.
+- **Remote status bar**: Fish status bar polls `GET /ws` on the Shoal API server for live session status — mirrors the local tmux-based bar but works against a remote host. Depends on the WebSocket event stream in `server.py`.
+- **--sync-claw default from config**: `shoal handoff --sync-claw` should accept a default path from `config.claw.conversations_dir`, eliminating the need to pass the path explicitly on every invocation. Requires a new `[claw]` config section field and fallback resolution in the `handoff` command.
+- **Live Claw gRPC validation**: End-to-end smoke test against a real Claw endpoint — `get_agent_card()` then `send_message()`. `shoal[claw]` extra and proto stubs are in place (v0.30.0); this is pure integration validation. Unblocked.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when FastMCP adds UDS transport or robo needs unified cross-session MCP.
 - **direnv/mise integration** (deferred): Opt-in `env_manager` field on templates. Explicit opt-in only, never auto-detect.
 
@@ -225,28 +227,28 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-04-02 — Web dashboard + v0.34.0 release
+### Session: 2026-04-02 — conversations_dir config default + gRPC round-trip tests
 
 **What we did:**
 
-- Built and committed the Shoal web dashboard sub-app (`src/shoal/dashboard/`): HTMX 2.0.4 + htmx-ext-ws 2.0.2 (vendored), Jinja2 templates, dark design system with urgency-tier colors, fleet grid + session detail, live WS OOB push of session cards, `/` search shortcut, 20-test coverage of context builders
-- Routes: `GET /ui/` (fleet), `GET /ui/sessions/{id}` (detail), partials for status-bar/session-list/journal/pane, `WS /ui/ws`
-- Status poller in `server.py` calls `notify_status_change()` on every status change to push HTML fragments to all connected WS clients
-- Switched pane capture in routes to `async_capture_pane()` (was manual `asyncio.to_thread` wrapper)
-- Cut **v0.34.0**: bumped `pyproject.toml` + `__init__.py`, updated CHANGELOG, tagged `v0.34.0`
-- CI: 1510 passed, 2 skipped (all checks green)
+- Added `conversations_dir: Path | None` to `ClawConfig` — maps to `[claw] conversations_dir` in `config.toml`
+- `shoal handoff <session>` now falls back to `config.claw.conversations_dir` when `--sync-claw` is absent; explicit flag still takes priority
+- Added 2 new tests: `test_handoff_show_without_sync_claw` patched to mock config; `test_handoff_show_sync_claw_from_config` asserts config fallback runs sync
+- Wrote `tests/test_a2a_grpc_roundtrip.py`: 5 in-process gRPC tests using `grpc.aio.server()` + `_TestAgentLoopServicer`; skipped in standard CI, run with `uv run --extra claw pytest`
+- Validated full round-trip: GetAgentCard → AgentCard Pydantic model; SendMessage echo; ListTasks empty; channel reuse; explicit task_id preservation
+- Fixed descriptor pool load order in test file: `# noqa: I001` on first try-block import preserves `a2a_core_pb2` before `a2a_claw_pb2_grpc`
+- CI: 1516 passed, 2 skipped (6 new tests vs prior 1510)
 
 **Current state:**
 
-- Branch: `main`, tagged `v0.34.0`, not yet pushed to remote
-- Dashboard mounted at `/ui` — serve with `shoal serve` and open `http://localhost:<port>/ui`
-- `jinja2>=3.1.0` added to core dependencies (no extra required)
+- Branch: `main`, tagged `v0.34.0` (dashboard release); pending push to remote for prior session
+- `ClawConfig.conversations_dir` defaults to None; set in `config.toml` to enable auto-sync without flag
+- gRPC round-trip tests: 5/5 pass under `uv run --extra claw pytest tests/test_a2a_grpc_roundtrip.py`
 
 **What to do next:**
 
-- `git push origin main && git push origin v0.34.0` to publish the release
-- Connect to a live Claw gRPC endpoint and run `get_agent_card()` / `send_message()` for real end-to-end validation
-- Consider `--sync-claw` accepting a default from `config.claw.conversations_dir` (avoids requiring explicit path)
+- `git push origin main && git push origin v0.34.0` to publish the v0.34.0 release
+- Connect to a production Claw endpoint and run `get_agent_card()` / `send_message()` for real traffic validation
 - **Remote status bar**: Fish status bar polling remote WebSocket (`/ws` on main API) for session status — backlog item
 
 ### Session: 2026-04-02 — Lobster integration: --sync-claw, proto compat, dashboard WIP
@@ -296,3 +298,18 @@ Released 2026-04-01
 **What to do next:**
 
 - Merge `feat/dashboard-actions` → `main` and cut a release
+
+### Session: 2026-04-02 — Backlog triage
+
+**What we did:**
+
+- Promoted three deferred items from handoff notes into formal backlog entries: Remote status bar (expanded with `/ws` endpoint detail), `--sync-claw` config default, and live Claw gRPC validation.
+
+**Current state:**
+
+- Branch: `main`, tagged `v0.34.0`
+
+**What to do next:**
+
+- `git push origin main && git push origin v0.34.0` to publish the release
+- Pick up any of the three newly formalized backlog items above
