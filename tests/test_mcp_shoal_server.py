@@ -1238,6 +1238,7 @@ async def test_kill_session_batch_via_batch_execute_kills_all() -> None:
 async def test_kill_session_batch_serializes_shared_git_root() -> None:
     """Multi-session kills via batch_execute do not overlap when sessions share the same repo root."""
     import asyncio
+
     from shoal.models.batch import BatchExecutionRequest, KillSessionBatchOp
     from shoal.services.mcp_shoal_server import batch_execute_tool
 
