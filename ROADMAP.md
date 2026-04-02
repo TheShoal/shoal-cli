@@ -225,31 +225,30 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-04-02 — Lobster integration recovery + WS1/WS3 implementation
+### Session: 2026-04-02 — Lobster integration: --sync-claw, proto compat, dashboard WIP
 
 **What we did:**
 
-- Recovered from 3 failed sessions (2026-04-01): rescued tour steps, dropped bad MCP-pool removal stash
-- Restored missing `src/shoal/models/config/agent_card.py` (Pydantic models: AgentCard, AgentProvider, AgentCapabilities, AgentSkill)
-- Fixed `step_mcp_orchestration` tool list (23→26) and 3 tour test assertions (7→9 steps)
-- Implemented `src/shoal/integrations/lobster/a2a_bridge.py` (WS1): monkey-patches `ClawClient` with `get_agent_card()`, `send_message()`, `list_tasks()` using `AgentLoopStub` from `a2a_claw_pb2_grpc`; provides `proto_to_agent_card()` translation
-- Implemented `src/shoal/integrations/lobster/clawplexer_sync.py` (WS3): `ClawplexerSync` class + `sync_for_handoff()` using `qmd.sync_journal_with_qmd()`
-- Removed the 3 TODOs from `lobster_a2a.py` — tools now call real client methods
-- Added `tests/test_a2a_bridge.py` (7 tests) and `tests/test_clawplexer_sync.py` (8 tests)
-- CI green: 1492 passed, 2 skipped
-- Cut v0.33.0 and pushed all commits + tag to origin
+- Wired `sync_for_handoff` into `shoal handoff --sync-claw PATH`: imports Claw QMD turns before generating the handoff artifact
+- Dogfooded `shoal[claw]` with `uv run --extra claw`: `GRPC_AVAILABLE = True`, `ClawClient` patched, `proto_to_agent_card()` round-trip verified
+- Fixed protobuf 6.x descriptor pool compat in three pb2 files (`lobster_loop_pb2`, `a2a_claw_pb2`, `a2a_core_pb2`): added `timestamp_pb2` pre-import
+- Fixed all four `*_grpc.py` files: changed bare `import a2a_claw_pb2` → `from shoal.core.proto import ...` so they work inside a package
+- Added `E402, I001` to pyproject.toml per-file-ignores for `proto/*.py` (generated files)
+- Committed pre-existing dashboard WIP: `src/shoal/dashboard/` (context, routes, ws, static, templates, test)
+- CI green: 1510 passed, 2 skipped
 
 **Current state:**
 
 - Branch: `main`, all commits pushed; last tag: `v0.33.0`
-- WS2 (Delegation Wrapper) is already merged (`delegation_wrapper.py` exists)
-- All 3 Lobster Party workstreams have implementations; `a2a_bridge.py` and `clawplexer_sync.py` use real logic (not stubs)
+- `shoal handoff <session> --sync-claw <dir>` works end-to-end
+- `shoal[claw]` extra verified with grpcio 1.80.0; ready for live Claw endpoint testing
+- Dashboard sub-app committed but not in a release yet
 
 **What to do next:**
 
-- Review `a2a_bridge.py` with a live Claw endpoint (needs `pip install shoal[claw]` for grpcio)
-- Consider exposing `sync_for_handoff` in `handoff.py` CLI (`--sync-claw` flag to import Claw turns before generating handoff)
-- Cut v0.34.0 milestone: lobster integration dogfood against real Claw runtime
+- Connect to a live Claw gRPC endpoint and run `get_agent_card()` / `send_message()` for real
+- Cut v0.34.0: lobster integration + dashboard
+- Consider `--sync-claw` accepting a default from `config.claw.conversations_dir` (avoids requiring explicit path)
 
 ### Session: 2026-03-07 — Dashboard fzf actions
 
