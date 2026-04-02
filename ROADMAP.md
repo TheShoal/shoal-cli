@@ -216,7 +216,7 @@ Released 2026-04-01
 - **Fins polish**: Registry/remote install semantics, subprocess timeout controls, contract version support window policy (v1-only vs N/N-1). Core adapter shipped v0.19.0; local install shipped v0.22.0; remote install shipped v0.24.0.
 - **Per-session git practices**: `[template.git]` section for commit conventions, hook profiles, branch naming rules, and per-session identity (`GIT_AUTHOR_NAME`, `GIT_COMMITTER_EMAIL`). Template env gap (prerequisite) fixed in v0.18.0.
 - ~~**Remote status bar**~~: `shoal-status --remote <name>` now fetches `GET /status` from a remote Shoal API host configured under `[remote.<name>]`. Shipped this session.
-- **--sync-claw default from config**: `shoal handoff --sync-claw` should accept a default path from `config.claw.conversations_dir`, eliminating the need to pass the path explicitly on every invocation. Requires a new `[claw]` config section field and fallback resolution in the `handoff` command.
+- ~~**--sync-claw default from config**~~: `shoal handoff --sync-claw` now falls back to `config.claw.conversations_dir`; shipped previous session.
 - **Live Claw gRPC validation**: End-to-end smoke test against a real Claw endpoint — `get_agent_card()` then `send_message()`. `shoal[claw]` extra and proto stubs are in place (v0.30.0); this is pure integration validation. Unblocked.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when FastMCP adds UDS transport or robo needs unified cross-session MCP.
 - **direnv/mise integration** (deferred): Opt-in `env_manager` field on templates. Explicit opt-in only, never auto-detect.

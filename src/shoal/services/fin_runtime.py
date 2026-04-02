@@ -17,6 +17,11 @@ from shoal.models.fin import FinManifest
 
 logger = logging.getLogger(__name__)
 
+# Contract versions this runtime supports. Fins declaring any other version
+# are rejected at load time. Currently v1-only; extend to {1, 2} when a v2
+# contract spec ships and the N/N-1 support window policy is adopted.
+SUPPORTED_CONTRACT_VERSIONS: frozenset[int] = frozenset({1})
+
 
 class FinRuntimeError(Exception):
     """Raised for fin manifest/runtime failures with user-facing context."""
@@ -74,9 +79,10 @@ def load_fin_manifest(fin_path: str | Path) -> tuple[Path, FinManifest]:
     except ValidationError as exc:
         raise FinRuntimeError(f"Invalid manifest {manifest_path}: {exc}") from exc
 
-    if manifest.fin_contract_version != 1:
+    if manifest.fin_contract_version not in SUPPORTED_CONTRACT_VERSIONS:
         raise FinRuntimeError(
-            f"Unsupported fin_contract_version={manifest.fin_contract_version} (expected 1)"
+            f"Unsupported fin_contract_version={manifest.fin_contract_version}"
+            f" (supported: {sorted(SUPPORTED_CONTRACT_VERSIONS)})"
         )
 
     return fin_root, manifest
@@ -240,11 +246,12 @@ def install_fin(
         Result of the install entrypoint execution.
     """
     from shoal.models.fin import FinSource
+    from shoal.services.fin_repo import resolve_fin as _resolve_fin
 
     source = FinSource.parse(str(fin_path))
     if source.kind != "local":
         try:
-            fin_path = source.resolve(registry_url)
+            fin_path = _resolve_fin(source, registry_url)
         except ValueError as exc:
             raise FinRuntimeError(str(exc)) from exc
     fin_root, manifest = load_fin_manifest(fin_path)
