@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.35.0] - 2026-04-02
+
+### Added
+- **Dashboard JSON API**: All dashboard partial endpoints (`/partials/status-bar`,
+  `/partials/session-list`, `/sessions/{id}`, `/partials/journal/{id}`, `/partials/pane/{id}`)
+  accept `?format=json` to return structured JSON instead of HTML fragments, enabling
+  integration with external tools like Pisces and Lobster Party.
+- **Dashboard schemas** (`dashboard/schemas.py`): Pydantic models (`FleetResponse`,
+  `SessionDetailResponse`, `JournalEntryResponse`, `PaneResponse`) for the JSON API.
+- **Pisces tool support**: `pisces` recognised as `omp_compat` status provider.
+  Example configs added: `examples/config/tools/pisces.toml`,
+  `examples/config/robo/pisces.toml`, `examples/config/templates/pisces-dev.toml`.
+- **MCP socket env injection** (`_mcp_socket_env_injection`): When a tool config sets
+  `mcp.socket_env`, shoal injects the colon-delimited Unix socket paths into the tmux
+  environment and the agent shell via `set -gx` on session create and fork.
+
+### Fixed
+- **Dashboard WS broadcast debounce**: Status change events are batched within a 100ms
+  window before rendering session cards, preventing client flooding during rapid
+  state transitions.
+- **Dashboard XSS**: `html.escape()` applied in `_basic_md_to_html` before markdown
+  substitution to prevent injection through journal content.
+- **Dashboard status counts**: Replaced N×linear-scan with a single `Counter` pass.
+- **Pane capture**: ANSI escape codes stripped from terminal output before rendering.
+- **Bandit B310 suppressor** added to `status_bar.py` `urlopen` call (pre-existing
+  ruff `# noqa: S310` was insufficient for bandit).
+- **`_apply_template_git_config_async`**: Guard against `template_cfg.git is None`
+  to avoid `AttributeError` when templates omit the `[git]` section.
 ## [0.34.0] - 2026-04-02
 
 ### Added
