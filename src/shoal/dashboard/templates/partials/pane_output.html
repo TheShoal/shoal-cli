@@ -1,1 +1,1 @@
-<pre class="pane-output">{% if pane_text %}{{ pane_text }}{% else %}(no output captured){% endif %}</pre>
+<pre class="pane-output">{% if pane_text %}{{ pane_text | safe }}{% else %}(no output captured){% endif %}</pre>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 import re
 from datetime import UTC, datetime
@@ -243,8 +244,8 @@ async def pane_partial(
                 session.runtime.session_name,
                 lines=lines,
             )
-            # Strip ANSI escape codes from terminal output
-            pane_text = _ANSI_ESCAPE.sub("", raw_text)
+            # Strip ANSI escape codes and HTML-escape for safe template rendering
+            pane_text = html.escape(_ANSI_ESCAPE.sub("", raw_text))
         except Exception:
             logger.warning("pane capture failed for %s", session_id, exc_info=True)
 
