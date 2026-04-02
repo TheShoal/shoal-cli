@@ -18,7 +18,7 @@ def default_status_provider_for_tool(tool_name: str) -> ProviderName:
     lowered = tool_name.strip().lower()
     if lowered == "pi":
         return "pi"
-    if lowered == "omp":
+    if lowered in ("omp", "pisces"):
         return "omp_compat"
     if lowered == "opencode":
         return "opencode_compat"

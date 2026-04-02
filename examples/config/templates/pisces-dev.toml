@@ -1,0 +1,13 @@
+# Shoal — pisces development template
+# Inherits the base layout and pins the worker tool to pisces.
+# pisces is the lobster-party fork of oh-my-pi (omp); TUI and session model are identical.
+# Usage: shoal new --template pisces-dev
+
+[template]
+name = "pisces-dev"
+description = "pisces agent with base editor + terminal layout"
+extends = "base-dev"
+tool = "pisces"
+
+[template.env]
+SHOAL_TOOL = "pisces"

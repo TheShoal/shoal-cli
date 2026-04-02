@@ -95,6 +95,7 @@ class TestCreateRollback:
         template_cfg.windows[0].panes = []
         template_cfg.windows[0].layout = None
         template_cfg.name = "bad-template"
+        template_cfg.git = None
 
         with (
             patch("shoal.core.tmux.has_session", return_value=False),

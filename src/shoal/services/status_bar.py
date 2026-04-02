@@ -61,7 +61,7 @@ def generate_remote_status(host: str, api_port: int, timeout: int = 5) -> dict[s
     url = f"http://{host}:{api_port}/status"
     empty: dict[str, int] = {"running": 0, "idle": 0, "waiting": 0, "error": 0, "inactive": 0}
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310  # nosec B310
             raw: dict[str, object] = json.loads(resp.read())
     except urllib.error.URLError as exc:
         logger.warning("Remote status unavailable (%s): %s", url, exc)

@@ -698,6 +698,33 @@ async def _provision_mcp_servers(
     return provisioned
 
 
+def _mcp_socket_env_injection(provisioned: list[str], tool: str) -> dict[str, str]:
+    """Build env var injection for tools that receive MCP sockets via an env var.
+
+    When a tool's config sets ``mcp.socket_env`` (e.g. ``PISCES_MCP_SOCKETS``), shoal
+    collects the Unix socket paths for all provisioned servers and injects them as a
+    colon-delimited value under that env var.  This lets the tool connect to pooled
+    MCP servers without any config-file rewriting.
+
+    Returns an empty dict when the tool has no ``socket_env`` configured or when no
+    servers were provisioned.
+    """
+    from shoal.core.config import load_tool_config
+    from shoal.services.mcp_pool import mcp_socket
+
+    if not provisioned:
+        return {}
+    try:
+        tool_cfg = load_tool_config(tool)
+    except FileNotFoundError:
+        return {}
+    env_var = tool_cfg.mcp.socket_env
+    if not env_var:
+        return {}
+    socket_paths = [str(mcp_socket(name)) for name in provisioned]
+    return {env_var: ":".join(socket_paths)}
+
+
 async def _apply_template_git_config_async(
     template_cfg: SessionTemplateConfig,
     tmux_session: str,
@@ -711,6 +738,8 @@ async def _apply_template_git_config_async(
     subprocess git calls inherit the identity even when cwd differs.
     """
     git_cfg = template_cfg.git
+    if git_cfg is None:
+        return
     if not (git_cfg.user_name or git_cfg.user_email or git_cfg.commit_template):
         return
 
@@ -965,6 +994,17 @@ async def create_session_lifecycle(
         provisioned = await _provision_mcp_servers(mcp_servers, session.id, tool, work_dir)
         if provisioned:
             logger.info("[%s] create: MCP provisioned: %s", session.id, provisioned)
+            sock_env = _mcp_socket_env_injection(provisioned, tool)
+            if sock_env:
+                for key, value in sock_env.items():
+                    await tmux.async_set_environment(tmux_session, key, value)
+                initial_pane = await tmux.async_first_pane(tmux_session)
+                for key, value in sock_env.items():
+                    await tmux.async_send_keys(
+                        initial_pane,
+                        f"set -gx {shlex.quote(key)} {shlex.quote(value)}",
+                        enter=True,
+                    )
 
     # 4.6. Sync skills into worktree (best-effort)
     if wt_path:
@@ -1276,6 +1316,17 @@ async def fork_session_lifecycle(
         provisioned = await _provision_mcp_servers(mcp_servers, session.id, source_tool, work_dir)
         if provisioned:
             logger.info("[%s] fork: MCP provisioned: %s", session.id, provisioned)
+            sock_env = _mcp_socket_env_injection(provisioned, source_tool)
+            if sock_env:
+                for key, value in sock_env.items():
+                    await tmux.async_set_environment(tmux_session, key, value)
+                initial_pane = await tmux.async_first_pane(tmux_session)
+                for key, value in sock_env.items():
+                    await tmux.async_send_keys(
+                        initial_pane,
+                        f"set -gx {shlex.quote(key)} {shlex.quote(value)}",
+                        enter=True,
+                    )
 
     # 5. Set pane title on the agent pane (first pane)
     fork_agent_pane = await tmux.async_first_pane(tmux_session)

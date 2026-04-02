@@ -1,0 +1,19 @@
+# Shoal — pisces robo (supervisor) profile
+# pisces is the lobster-party fork of oh-my-pi (omp); TUI and session model are identical.
+# Place in ~/.config/shoal/robo/pisces.toml
+
+[robo]
+name = "pisces"
+tool = "pisces"
+auto_approve = false
+
+[monitoring]
+poll_interval = 10
+waiting_timeout = 300
+
+[escalation]
+notify = true
+auto_respond = false
+
+[tasks]
+log_file = "task-log.md"

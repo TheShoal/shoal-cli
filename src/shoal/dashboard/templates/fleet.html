@@ -18,6 +18,8 @@
   <!-- Status bar (auto-refreshed every 5s) -->
   <div
     id="status-bar"
+    aria-live="polite"
+    aria-atomic="true"
     hx-get="/ui/partials/status-bar"
     hx-trigger="every 5s"
     hx-swap="outerHTML"
@@ -28,6 +30,7 @@
   <!-- Filter controls -->
   <div class="filter-bar">
     <button class="status-pill active"
+      aria-pressed="true"
       hx-get="/ui/partials/session-list?status=all"
       hx-target="#fleet-grid"
       hx-swap="innerHTML"
@@ -37,6 +40,7 @@
       All
     </button>
     <button class="status-pill"
+      aria-pressed="false"
       hx-get="/ui/partials/session-list?status=attention"
       hx-target="#fleet-grid"
       hx-swap="innerHTML"
@@ -46,6 +50,7 @@
       Attention
     </button>
     <button class="status-pill"
+      aria-pressed="false"
       hx-get="/ui/partials/session-list?status=running"
       hx-target="#fleet-grid"
       hx-swap="innerHTML"
@@ -55,6 +60,7 @@
       Running
     </button>
     <button class="status-pill"
+      aria-pressed="false"
       hx-get="/ui/partials/session-list?status=idle"
       hx-target="#fleet-grid"
       hx-swap="innerHTML"
@@ -64,6 +70,7 @@
       Idle
     </button>
     <button class="status-pill"
+      aria-pressed="false"
       hx-get="/ui/partials/session-list?status=stopped"
       hx-target="#fleet-grid"
       hx-swap="innerHTML"

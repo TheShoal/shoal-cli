@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from shoal.core import journal as journal_core
@@ -20,6 +21,8 @@ from shoal.dashboard.context import (
 )
 from shoal.dashboard.ws import dashboard_ws_endpoint, init_jinja_env
 from shoal.models.state import TmuxRuntimeState
+
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
 logger = logging.getLogger(__name__)
 
@@ -85,12 +88,24 @@ async def flow_architecture(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/partials/status-bar", response_class=HTMLResponse)
-async def status_bar_partial(request: Request) -> HTMLResponse:
-    """Return the live status bar fragment (polled every 5s)."""
+@router.get("/partials/status-bar", response_class=HTMLResponse, response_model=None)
+async def status_bar_partial(
+    request: Request,
+    format: str | None = None,
+) -> HTMLResponse | JSONResponse:
+    """Return the live status bar fragment (polled every 5s).
+
+    Args:
+        request: The incoming request.
+        format: If "json", return structured JSON instead of HTML fragment.
+    """
     sessions = await list_sessions()
     now = datetime.now(UTC)
     ctx = fleet_context(sessions, now=now)
+
+    if format == "json":
+        return JSONResponse(content=ctx)
+
     return _get_templates().TemplateResponse(
         request,
         "partials/status_bar.html",
@@ -98,18 +113,20 @@ async def status_bar_partial(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/partials/session-list", response_class=HTMLResponse)
+@router.get("/partials/session-list", response_class=HTMLResponse, response_model=None)
 async def session_list_partial(
     request: Request,
     status: str | None = None,
     q: str | None = None,
-) -> HTMLResponse:
+    format: str | None = None,
+) -> HTMLResponse | JSONResponse:
     """Return filtered session-list fragment for HTMX swaps.
 
     Args:
         request: The incoming request.
         status: Optional status filter: "all", "attention", "running", "idle", "stopped".
         q: Optional name search string (case-insensitive substring).
+        format: If "json", return structured JSON instead of HTML fragment.
     """
     sessions = await list_sessions()
     now = datetime.now(UTC)
@@ -131,6 +148,10 @@ async def session_list_partial(
         sessions = [s for s in sessions if q.lower() in s.name.lower()]
 
     ctx = fleet_context(sessions, now=now)
+
+    if format == "json":
+        return JSONResponse(content=ctx)
+
     return _get_templates().TemplateResponse(
         request,
         "partials/session_list.html",
@@ -143,8 +164,12 @@ async def session_list_partial(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/sessions/{session_id}", response_class=HTMLResponse)
-async def session_detail(request: Request, session_id: str) -> HTMLResponse:
+@router.get("/sessions/{session_id}", response_class=HTMLResponse, response_model=None)
+async def session_detail(
+    request: Request,
+    session_id: str,
+    format: str | None = None,
+) -> HTMLResponse | JSONResponse:
     """Render the session detail page."""
     session = await get_session(session_id)
     if session is None:
@@ -152,6 +177,10 @@ async def session_detail(request: Request, session_id: str) -> HTMLResponse:
 
     now = datetime.now(UTC)
     ctx = session_detail_context(session, now=now)
+
+    if format == "json":
+        return JSONResponse(content=ctx)
+
     return _get_templates().TemplateResponse(
         request,
         "session.html",
@@ -159,22 +188,28 @@ async def session_detail(request: Request, session_id: str) -> HTMLResponse:
     )
 
 
-@router.get("/partials/journal/{session_id}", response_class=HTMLResponse)
+@router.get("/partials/journal/{session_id}", response_class=HTMLResponse, response_model=None)
 async def journal_partial(
     request: Request,
     session_id: str,
     limit: int = 20,
-) -> HTMLResponse:
+    format: str | None = None,
+) -> HTMLResponse | JSONResponse:
     """Return the journal timeline fragment.
 
     Args:
         request: The incoming request.
         session_id: The session whose journal to render.
         limit: Maximum number of entries to return (most recent).
+        format: If "json", return structured JSON instead of HTML fragment.
     """
     entries = journal_core.read_journal(session_id, limit=limit)
     now = datetime.now(UTC)
     entry_ctxs = [journal_entry_context(e, now=now) for e in entries]
+
+    if format == "json":
+        return JSONResponse(content={"entries": entry_ctxs})
+
     return _get_templates().TemplateResponse(
         request,
         "partials/journal_timeline.html",
@@ -182,18 +217,20 @@ async def journal_partial(
     )
 
 
-@router.get("/partials/pane/{session_id}", response_class=HTMLResponse)
+@router.get("/partials/pane/{session_id}", response_class=HTMLResponse, response_model=None)
 async def pane_partial(
     request: Request,
     session_id: str,
     lines: int = 50,
-) -> HTMLResponse:
+    format: str | None = None,
+) -> HTMLResponse | JSONResponse:
     """Return the terminal pane capture fragment.
 
     Args:
         request: The incoming request.
         session_id: The session whose pane to capture.
         lines: Number of lines to capture.
+        format: If "json", return structured JSON instead of HTML fragment.
     """
     session = await get_session(session_id)
     if session is None:
@@ -202,12 +239,17 @@ async def pane_partial(
     pane_text = ""
     if isinstance(session.runtime, TmuxRuntimeState):
         try:
-            pane_text = await async_capture_pane(
+            raw_text = await async_capture_pane(
                 session.runtime.session_name,
                 lines=lines,
             )
+            # Strip ANSI escape codes from terminal output
+            pane_text = _ANSI_ESCAPE.sub("", raw_text)
         except Exception:
             logger.warning("pane capture failed for %s", session_id, exc_info=True)
+
+    if format == "json":
+        return JSONResponse(content={"session_id": session_id, "pane_text": pane_text})
 
     return _get_templates().TemplateResponse(
         request,

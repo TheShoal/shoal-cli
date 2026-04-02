@@ -5,7 +5,9 @@ Pure functions: SessionState → template-friendly dicts.  No I/O, no DB access.
 
 from __future__ import annotations
 
+import html
 import re
+from collections import Counter
 from datetime import UTC, datetime
 
 from shoal.core.urgency import UrgencyTier, derive_urgency
@@ -159,14 +161,15 @@ def fleet_context(
         ),
     )
 
+    status_counts = Counter(s.status for s in sessions)
     counts: dict[str, int] = {
         "total": len(sessions),
-        "running": sum(1 for s in sessions if s.status == SessionStatus.running),
-        "waiting": sum(1 for s in sessions if s.status == SessionStatus.waiting),
-        "error": sum(1 for s in sessions if s.status == SessionStatus.error),
-        "idle": sum(1 for s in sessions if s.status == SessionStatus.idle),
-        "stopped": sum(1 for s in sessions if s.status == SessionStatus.stopped),
-        "unknown": sum(1 for s in sessions if s.status == SessionStatus.unknown),
+        "running": status_counts.get(SessionStatus.running, 0),
+        "waiting": status_counts.get(SessionStatus.waiting, 0),
+        "error": status_counts.get(SessionStatus.error, 0),
+        "idle": status_counts.get(SessionStatus.idle, 0),
+        "stopped": status_counts.get(SessionStatus.stopped, 0),
+        "unknown": status_counts.get(SessionStatus.unknown, 0),
     }
     counts["attention"] = counts["error"] + counts["waiting"]
 
@@ -258,6 +261,7 @@ def _basic_md_to_html(text: str) -> str:
     Returns:
         HTML string with ``<strong>`` and ``<code>`` tags.
     """
+    text = html.escape(text)
     text = _MD_BOLD.sub(r"<strong>\1</strong>", text)
     text = _MD_CODE.sub(r"<code>\1</code>", text)
     lines = text.split("\n")

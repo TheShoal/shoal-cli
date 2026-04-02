@@ -1,0 +1,28 @@
+# Shoal — pisces coding agent tool definition
+# pisces is the lobster-party fork of oh-my-pi (omp).
+# Binary: pisces  (built from sanctum/opus/proprium/pisces)
+# Place in ~/.config/shoal/tools/pisces.toml
+#
+# Uses the same TUI and session model as omp; detection uses the omp_compat provider.
+# Config dir is ~/.pisces/ instead of ~/.omp/.
+
+[tool]
+name = "pisces"
+command = "pisces"
+icon = ""
+status_provider = "omp_compat"
+# Prompt delivery: write prompt to a file and pass "@/path/to/file.md" as a
+# positional argument, same as omp.
+input_mode = "arg"
+prompt_file_prefix = "@"
+send_keys_delay = 0.05
+
+[detection]
+busy_patterns = ["thinking", "generating", "executing", "reading", "writing", "editing"]
+waiting_patterns = ["permission", "confirm", "approve", "y/n"]
+error_patterns = ["Error:", "error:", "ERROR", "FAILED"]
+
+[mcp]
+config_cmd = ""
+config_file = ".pisces/config.yml"
+socket_env = ""
