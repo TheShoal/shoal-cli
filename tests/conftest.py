@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
@@ -183,26 +185,33 @@ def tmp_runtime(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
-    """Patch config_dir(), data_dir(), and state_dir() to use temp directories."""
+def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path) -> tuple[Path, Path]:
+    """Patch config_dir(), data_dir(), and state_dir() to use temp directories.
+
+    Also patches ``shoal.core.journal.data_dir`` directly since that module
+    imports ``data_dir`` at module top-level (not via the ``config`` submodule
+    reference), so the patch on ``shoal.core.config.data_dir`` alone does not
+    redirect journal writes.
+    """
+    import asyncio
+
     from shoal.core.config import load_config
     from shoal.core.db import ShoalDB
 
     load_config.cache_clear()
-
-    # Reset DB singleton before test
-    import asyncio
-
     asyncio.run(ShoalDB.reset_instance())
 
     config_patch = patch("shoal.core.config.config_dir", return_value=tmp_config)
     data_dir_patch = patch("shoal.core.config.data_dir", return_value=tmp_state)
     state_dir_patch = patch("shoal.core.config.state_dir", return_value=tmp_runtime)
+    # journal.py binds data_dir at module top-level; patch it directly
+    journal_data_dir_patch = patch("shoal.core.journal.data_dir", return_value=tmp_state)
 
     with (
         config_patch,
         data_dir_patch,
         state_dir_patch,
+        journal_data_dir_patch,
         # Patch imported references in all modules that import these
         patch("shoal.cli.session_create.config_dir", return_value=tmp_config),
         patch("shoal.cli.mcp.data_dir", return_value=tmp_state),
@@ -212,15 +221,30 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path):
         patch("shoal.cli.watcher.state_dir", return_value=tmp_runtime),
         patch("shoal.services.mcp_pool.data_dir", return_value=tmp_state),
         patch("shoal.services.mcp_proxy.data_dir", return_value=tmp_state),
+        patch("shoal.core.journal.data_dir", return_value=tmp_state),
     ):
         yield tmp_config, tmp_state
         load_config.cache_clear()
-        # Reset DB singleton after test
         asyncio.run(ShoalDB.reset_instance())
+
+        # Safety net: purge any test-named sessions that escaped into the real DB.
+        # Guards against tests that bypass mock_dirs via the MCP orchestrator.
+        _cleanup_logger = logging.getLogger(__name__)
+        try:
+            db_path = str(tmp_state.parent.parent / "shoal" / "shoal.db")
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM sessions WHERE json_extract(data, '$.name') LIKE 'test%'",
+            )
+            conn.commit()
+            conn.close()
+        except Exception:  # pragma: no cover
+            _cleanup_logger.debug("Could not clean up test sessions from DB")
 
 
 @pytest.fixture
-async def async_client(mock_dirs):
+async def async_client(mock_dirs: tuple[Path, Path]) -> AsyncClient:
     """Async test client for the Shoal API."""
     from shoal.api.server import app
 

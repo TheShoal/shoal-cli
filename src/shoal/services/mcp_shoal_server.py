@@ -54,12 +54,14 @@ logger = logging.getLogger("shoal.mcp_server")
 
 @asynccontextmanager
 async def _lifespan(server: Any) -> AsyncIterator[dict[str, Any]]:
-    """Initialize DB on startup, clean up on shutdown."""
+    """Initialize DB and lifecycle hooks on startup, clean up on shutdown."""
     from shoal.core.config import ensure_dirs
     from shoal.core.db import ShoalDB, get_db
+    from shoal.services.lifecycle import register_builtin_hooks
 
     ensure_dirs()
     await get_db()
+    register_builtin_hooks()  # Wire journal, fish, and status-transition hooks
     yield {}
     await ShoalDB.reset_instance()
 
@@ -898,8 +900,9 @@ except ImportError:
 async def list_claws_tool() -> list[dict[str, str]]:
     """List all configured Claw runtimes from config."""
     from shoal.core.config import load_config
+    from shoal.integrations.lobster import lobster_a2a
 
-    if not _CLAW_TOOLS_AVAILABLE:
+    if not lobster_a2a.GRPC_AVAILABLE:
         raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
 
     cfg = load_config()
@@ -920,8 +923,9 @@ async def list_claws_tool() -> list[dict[str, str]]:
 async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
     """Get status for one or more Claws."""
     from shoal.core.config import load_config
+    from shoal.integrations.lobster import lobster_a2a
 
-    if not _CLAW_TOOLS_AVAILABLE:
+    if not lobster_a2a.GRPC_AVAILABLE:
         raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
 
     cfg = load_config()
@@ -932,19 +936,29 @@ async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
         for cid in claw_id:
             grpc_addr = known_claws.get(cid, cfg.claw.grpc_addr)
             try:
-                client = ClawClient(grpc_addr)
-                status = await client.status(cid)
-                results[cid] = {"state": status.state, "grpc_addr": grpc_addr}
+                client = ClawClient(
+                    claw_id=cid,
+                    endpoint=grpc_addr,
+                    employee_id=cfg.claw.employee_id,
+                    config=cfg.claw,
+                )
+                status = await client.status()
+                results[cid] = {"state": status["state"], "grpc_addr": grpc_addr}
                 await client.close()
             except Exception as e:
                 results[cid] = {"error": str(e)}
         return {"results": results}
 
     grpc_addr = known_claws.get(claw_id, cfg.claw.grpc_addr)
-    client = ClawClient(grpc_addr)
+    client = ClawClient(
+        claw_id=claw_id,
+        endpoint=grpc_addr,
+        employee_id=cfg.claw.employee_id,
+        config=cfg.claw,
+    )
     try:
-        status = await client.status(claw_id)
-        return {"state": status.state, "grpc_addr": grpc_addr}
+        status = await client.status()
+        return {"state": status["state"], "grpc_addr": grpc_addr}
     except Exception as e:
         return {"error": str(e)}
     finally:
@@ -964,19 +978,22 @@ async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
 async def claw_health_tool(claw_id: str) -> dict[str, object]:
     """Check health of a Claw. Returns {healthy: bool, issues: list[str]}."""
     from shoal.core.config import load_config
+    from shoal.integrations.lobster import lobster_a2a
 
-    if not _CLAW_TOOLS_AVAILABLE:
+    if not lobster_a2a.GRPC_AVAILABLE:
         raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
 
     cfg = load_config()
     grpc_addr = cfg.claw.known_claws.get(claw_id, cfg.claw.grpc_addr)
-    client = ClawClient(grpc_addr)
+    client = ClawClient(
+        claw_id=claw_id,
+        endpoint=grpc_addr,
+        employee_id=cfg.claw.employee_id,
+        config=cfg.claw,
+    )
     try:
-        health = await client.health(claw_id)
-        issues: list[str] = []
-        if not health.healthy:
-            issues.append("Claw reported unhealthy")
-        return {"healthy": health.healthy, "issues": issues}
+        health = await client.health()
+        return {"healthy": health["healthy"], "issues": health.get("issues", [])}
     except Exception as e:
         return {"healthy": False, "issues": [str(e)]}
     finally:
@@ -990,28 +1007,24 @@ async def claw_health_tool(claw_id: str) -> dict[str, object]:
 
 @mcp.tool(
     name="send_to_claw",
-    description="Send a message to a Claw runtime and get response.",
+    description=(
+        "[Deprecated: use send_a2a_message] Send a message to a Claw runtime. "
+        "Delegates to the A2A SendMessage RPC internally."
+    ),
     annotations={"destructiveHint": True},
 )
 async def send_to_claw_tool(claw_id: str, message: str, employee_id: str = "") -> dict[str, object]:
-    """Send a message to a Claw via Turn RPC."""
-    from shoal.core.config import load_config
+    """Send a message to a Claw via A2A (deprecated wrapper around send_a2a_message)."""
+    from shoal.integrations.lobster import lobster_a2a
 
-    if not _CLAW_TOOLS_AVAILABLE:
+    if not lobster_a2a.GRPC_AVAILABLE:
         raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
 
-    cfg = load_config()
-    grpc_addr = cfg.claw.known_claws.get(claw_id, cfg.claw.grpc_addr)
-    resolved_employee_id = employee_id or cfg.claw.employee_id
-
-    client = ClawClient(grpc_addr, jwt_secret=cfg.claw.jwt_secret)
-    try:
-        response = await client.turn(claw_id, resolved_employee_id, message)
-        # Get state after turn
-        status = await client.status(claw_id)
-        return {"response": response, "state": status.state}
-    finally:
-        await client.close()
+    return await lobster_a2a.send_a2a_message_tool(
+        claw_id=claw_id,
+        message=message,
+        employee_id=employee_id or None,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1186,6 +1199,7 @@ async def sync_claw_conversations_tool(
     from datetime import UTC, datetime
 
     from shoal.core.claw_conversations import export_journal_to_qmd
+    from shoal.core.config import load_config
     from shoal.core.journal import import_claw_turns, journal_path
     from shoal.core.state import find_by_name, get_session
 
@@ -1210,10 +1224,14 @@ async def sync_claw_conversations_tool(
 
     # Resolve conversations directory
     if conversations_dir is None:
-        import os
+        cfg = load_config()
+        if cfg.claw.conversations_dir:
+            conversations_dir = str(cfg.claw.conversations_dir)
+        else:
+            import os
 
-        home = os.path.expanduser("~")
-        conversations_dir = str(Path(home) / "conversations")
+            home = os.path.expanduser("~")
+            conversations_dir = str(Path(home) / "conversations")
 
     conv_dir = Path(conversations_dir)
 

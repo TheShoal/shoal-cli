@@ -125,7 +125,7 @@ async def get_agent_card_tool(claw_id: str) -> dict[str, str | bool | list[dict[
         client = ClawClient(
             claw_id=claw_id,
             endpoint=endpoint,
-            employee_id=config.claw.employee_id,  # type: ignore[attr-defined]
+            employee_id=config.claw.employee_id,
             config=config.claw,
         )
 
@@ -191,7 +191,7 @@ async def send_a2a_message_tool(
 
     config = load_config()
     endpoint = _get_claw_endpoint(config, claw_id)
-    emp_id = employee_id or config.claw.employee_id  # type: ignore[attr-defined]
+    emp_id = employee_id or config.claw.employee_id
 
     client: ClawClient | None = None
     try:
@@ -264,7 +264,7 @@ async def list_a2a_tasks_tool(
         client = ClawClient(
             claw_id=claw_id,
             endpoint=endpoint,
-            employee_id=config.claw.employee_id,  # type: ignore[attr-defined]
+            employee_id=config.claw.employee_id,
             config=config.claw,
         )
 
