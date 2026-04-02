@@ -213,13 +213,15 @@ Released 2026-04-01
 
 ### Remaining
 
-- ~~**Fins polish**~~: `SUPPORTED_CONTRACT_VERSIONS` constant formalizes v1-only policy; `FinSource.resolve()` and private `_registry_url`/`_download_fin` removed from `models/fin.py`; `install_fin` now delegates to `fin_repo.resolve_fin()`. Shipped this session.
-- ~~**Per-session git practices**~~: `[template.git]` section shipped — `TemplateGitConfig` with `user_name`, `user_email`, `commit_template`, `branch_prefix`; `git config --local` applied at session creation; `GIT_AUTHOR_*`/`GIT_COMMITTER_*` exported as env vars; inherits/merges through `extends` and `mixins`; `git-identity` mixin example added. Shipped this session.
-- ~~**Remote status bar**~~: `shoal-status --remote <name>` now fetches `GET /status` from a remote Shoal API host configured under `[remote.<name>]`. Shipped this session.
-- ~~**--sync-claw default from config**~~: `shoal handoff --sync-claw` now falls back to `config.claw.conversations_dir`; shipped previous session.
+- ~~**Dreamer LLM + session summary MCP**~~: `ai_client.py` wraps Bedrock/HTTP-gateway/stub; `session_summary` MCP tool; summaries persisted to journal; `shoal-status --extended`. Shipped this session.
+- ~~**FsWatcher + command failure events**~~: `fs_watcher.py` (watchfiles, now core dep); `file_changed`/`command_failed` lifecycle events; `shoal proactive fs-watch` CLI. Shipped this session.
+- ~~**Agent Bus**~~: `messages` + `failure_contexts` SQLite tables; `message_bus.py`; `send_session_message`, `receive_session_messages`, `mark_session_message_consumed` MCP tools; `shoal proactive message` CLI. Shipped this session.
+- ~~**Proactive Supervisor (KAIROS)**~~: `proactive_supervisor.py` subscribes to `command_failed`, stores failure context packets; `get_failure_context` MCP tool with `consume` flag; `ProactiveSupervisorConfig` in `RoboProfileConfig`. Shipped this session.
 - **Live Claw gRPC validation**: End-to-end smoke test against a real Claw endpoint — `get_agent_card()` then `send_message()`. `shoal[claw]` extra and proto stubs are in place (v0.30.0); this is pure integration validation. Unblocked.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when FastMCP adds UDS transport or robo needs unified cross-session MCP.
 - **direnv/mise integration** (deferred): Opt-in `env_manager` field on templates. Explicit opt-in only, never auto-detect.
+- **`branch_prefix` enforcement in `shoal new`**: `infer_branch_name` gains optional `branch_prefix` param threaded from `template_cfg.git.branch_prefix`. Low-effort follow-up to `[template.git]`.
+- **Pre-commit hook profile** (low priority): `[template.git]` extension — specify a `.pre-commit-config.yaml` path to symlink into the worktree.
 
 ---
 
@@ -348,3 +350,38 @@ Released 2026-04-01
 - End-to-end smoke test: `shoal new --template pisces-dev`, confirm `PISCES_MCP_SOCKETS` is set in the session environment when MCP servers are configured
 - P0.5 (lobster-party): update `grpc.rs` to invoke `pisces` instead of `opencode`, parse pisces event schema — unblocked once lobster-party repo is accessible
 - Live Claw gRPC validation (pre-existing next step): `get_agent_card()` + `send_message()` smoke test against production endpoint
+
+### Session: 2026-04-02 — Proactive agent assistance (Dreamer LLM, FsWatcher, Agent Bus, KAIROS)
+
+**What we did:**
+
+- `src/shoal/services/ai_client.py`: async LLM wrapper supporting Bedrock (`boto3`), HTTP AI Gateway, stub fallback. Reads `cfg.dreamer.ai` (`provider`, `endpoint`).
+- `DreamerAIConfig` + `DreamerConfig.ai` in `models/config/general.py`; default model changed to `amazon.nova-lite-v1:0`.
+- `dreamer.py`: summaries persisted to journal via `append_entry(..., source="dreamer")`.
+- `session_summary` MCP tool: reads in-process Dreamer singleton first, falls back to journal entries with `source=="dreamer"`.
+- `shoal-status --extended`: emits `dreamer_summaries` dict keyed by session name.
+- `watchfiles` promoted to core dependency (removed `proactive` optional extra).
+- `src/shoal/services/fs_watcher.py`: async FsWatcher backed by `watchfiles.awatch`; emits `file_changed` lifecycle events per session worktree. Global singleton via `init_fs_watcher()` / `get_fs_watcher()`.
+- `LifecycleEvent.file_changed` + `LifecycleEvent.command_failed` added to `models/state.py`.
+- `Watcher._poll_cycle`: emits `command_failed` on error status transition, passing `pane_snapshot` and `old_status`.
+- `shoal proactive fs-watch start/status` + `shoal proactive message send/list` CLI commands (`src/shoal/cli/proactive.py`).
+- `messages` + `failure_contexts` tables in SQLite schema; `ShoalDB` gains 8 new methods.
+- `src/shoal/core/message_bus.py`: thin wrappers over new `ShoalDB` methods.
+- `send_session_message`, `receive_session_messages`, `mark_session_message_consumed` MCP tools.
+- `src/shoal/services/proactive_supervisor.py`: subscribes to `command_failed` via `lifecycle.on()`; stores failure context packets; serves them via `get_failure_context` MCP tool (with `consume` flag).
+- `ProactiveSupervisorConfig` embedded in `RoboProfileConfig`.
+- Tour updated to 31 MCP tools. CI: 1529 passed, 4 skipped.
+
+**Current state:**
+
+- Branch: `main`, commit `6dbbffe` (unpushed)
+- 31 MCP tools in `shoal-orchestrator`
+- `proactive_supervisor.py` wires into lifecycle events via `register_proactive_hook()`; caller must invoke this during startup (not yet wired into `lifecycle.py` bootstrap — intentional, avoids unconditional DB access at import time)
+- `ProactiveConfig` on `ShoalConfig` and `ProactiveSupervisorConfig` on `RoboProfileConfig` are opt-in; no runtime effect unless supervisor is initialised
+
+**What to do next:**
+
+- **Wire `register_proactive_hook` into startup**: call from `services/lifecycle.py` bootstrap when `cfg.proactive.enabled` is True (requires passing `cfg` to the lifecycle module or using lazy init)
+- **Wire `init_fs_watcher` into lifecycle startup**: similar pattern — start watching session worktrees when a session is created, stop on kill
+- **Live Claw gRPC validation**: `get_agent_card()` + `send_message()` smoke test against production endpoint (unblocked)
+- **`branch_prefix` enforcement**: `infer_branch_name` gains optional `branch_prefix` param from `template_cfg.git.branch_prefix`
