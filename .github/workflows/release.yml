@@ -53,11 +53,14 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip_existing: true  # idempotent: 0.x.y may already exist if re-running after pyapp failure
 
   pyapp:
     name: Build PyApp binary (${{ matrix.target }})
     needs: publish
     strategy:
+      fail-fast: false  # one failing target should not cancel the others
       matrix:
         include:
           - os: macos-latest
