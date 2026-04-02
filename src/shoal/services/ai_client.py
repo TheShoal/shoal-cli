@@ -184,7 +184,7 @@ async def _call_gateway(
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310  # nosec B310
                 body = json.loads(resp.read())
             return str(body["choices"][0]["message"]["content"])
         except urllib.error.HTTPError as exc:
