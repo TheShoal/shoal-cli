@@ -527,7 +527,9 @@ app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
 app.add_typer(mode_app, name="mode", help="Operating modes.")
 app.add_typer(skill_app, name="skill", help="Cross-agent skills.")
 app.add_typer(proactive_app, name="proactive", help="Proactive monitoring and filesystem watching.")
-app.add_typer(lobster_app, name="lobster", help="Lobster runtime operations (requires shoal[claw]).")
+app.add_typer(
+    lobster_app, name="lobster", help="Lobster runtime operations (requires shoal[lobster])."
+)
 app.add_typer(session_app, name="session", help="Session management commands.")
 
 

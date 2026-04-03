@@ -14,7 +14,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 from shoal.models.claw import ClawTask, ClawTaskStatus, ClawTaskType, TaskResult
 
@@ -115,9 +116,7 @@ class ClawScheduler:
             try:
                 # Wait for tick or signal, whichever comes first
                 with contextlib.suppress(TimeoutError):
-                    await asyncio.wait_for(
-                        self._signal.wait(), timeout=self._tick_seconds
-                    )
+                    await asyncio.wait_for(self._signal.wait(), timeout=self._tick_seconds)
                 self._signal.clear()
 
                 if not self._running:
@@ -131,15 +130,13 @@ class ClawScheduler:
 
     async def _drain_once(self) -> None:
         """Claim one due task, execute its handler, record the result."""
-        from datetime import UTC, datetime
-
         now = datetime.now(UTC).isoformat()
         due = await self._db.list_due_tasks(now, limit=1)
         if not due:
             return
 
         task_dict = due[0]
-        task_id = int(task_dict["id"])  # type: ignore[arg-type]
+        task_id = cast(int, task_dict["id"])
 
         # CAS claim — another scheduler instance might beat us
         if not await self._db.claim_claw_task(task_id):
@@ -151,7 +148,8 @@ class ClawScheduler:
         if handler is None:
             logger.error(
                 "No handler registered for %r, dead-lettering task %d",
-                handler_key, task_id,
+                handler_key,
+                task_id,
             )
             await self._db.fail_claw_task(
                 task_id, f"Unknown handler: {handler_key}", permanent=True
@@ -170,8 +168,8 @@ class ClawScheduler:
             payload_json=str(task_dict["payload_json"]),
             run_at=str(task_dict["run_at"]),
             status=ClawTaskStatus(str(task_dict["status"])),
-            retry_count=int(task_dict["retry_count"]),  # type: ignore[arg-type]
-            max_retries=int(task_dict["max_retries"]),  # type: ignore[arg-type]
+            retry_count=cast(int, task_dict["retry_count"]),
+            max_retries=cast(int, task_dict["max_retries"]),
             correlation_id=task_dict["correlation_id"],  # type: ignore[arg-type]
             created_at=str(task_dict["created_at"]),
             last_run_at=task_dict["last_run_at"],  # type: ignore[arg-type]
@@ -190,17 +188,17 @@ class ClawScheduler:
         match result:
             case TaskResult.succeeded:
                 await self._db.complete_claw_task(task_id)
-                logger.info("[claw] %s completed (task %d)", handler_key, task_id)
+                logger.info("[lobster] %s completed (task %d)", handler_key, task_id)
                 # Reschedule if recurring
                 if task.task_type in (ClawTaskType.recurring, ClawTaskType.cron):
                     new_id = await self._db.reschedule_recurring_task(task_id)
                     if new_id:
-                        logger.info("[claw] %s rescheduled as task %d", handler_key, new_id)
+                        logger.info("[lobster] %s rescheduled as task %d", handler_key, new_id)
             case TaskResult.retryable_failure:
                 await self._db.fail_claw_task(task_id, task.error or "retryable failure")
-                logger.warning("[claw] %s retryable failure (task %d)", handler_key, task_id)
+                logger.warning("[lobster] %s retryable failure (task %d)", handler_key, task_id)
             case TaskResult.permanent_failure:
                 await self._db.fail_claw_task(
                     task_id, task.error or "permanent failure", permanent=True
                 )
-                logger.error("[claw] %s permanent failure (task %d)", handler_key, task_id)
+                logger.error("[lobster] %s permanent failure (task %d)", handler_key, task_id)

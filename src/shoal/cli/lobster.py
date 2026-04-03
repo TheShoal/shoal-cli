@@ -14,7 +14,7 @@ from shoal.core.theme import create_table
 
 app = typer.Typer(
     name="lobster",
-    help="Lobster runtime operations (requires shoal[claw]).",
+    help="Lobster runtime operations (requires shoal[lobster]).",
     no_args_is_help=True,
 )
 
@@ -29,7 +29,7 @@ def _require_grpc() -> None:
         import grpc as _grpc  # noqa: F401
     except ImportError as exc:
         typer.echo(
-            "grpcio is not installed. Install with: pip install 'shoal[claw]'",
+            "grpcio is not installed. Install with: uv add 'shoal[lobster]'",
             err=True,
         )
         raise typer.Exit(1) from exc
@@ -71,7 +71,7 @@ def lobster_ping(
         cfg = load_config()
         endpoint = _resolve_endpoint(lobster_id)
         async with LobsterClient(
-            claw_id=lobster_id,
+            lobster_id=lobster_id,
             endpoint=endpoint,
             employee_id=cfg.lobster.employee_id,
             config=cfg.lobster,
@@ -137,7 +137,7 @@ def lobster_send(
         cfg = load_config()
         endpoint = _resolve_endpoint(lobster_id)
         async with LobsterClient(
-            claw_id=lobster_id,
+            lobster_id=lobster_id,
             endpoint=endpoint,
             employee_id=cfg.lobster.employee_id,
             config=cfg.lobster,
@@ -196,7 +196,7 @@ def lobster_tasks(
         cfg = load_config()
         endpoint = _resolve_endpoint(lobster_id)
         async with LobsterClient(
-            claw_id=lobster_id,
+            lobster_id=lobster_id,
             endpoint=endpoint,
             employee_id=cfg.lobster.employee_id,
             config=cfg.lobster,

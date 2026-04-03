@@ -113,7 +113,7 @@ async def get_agent_card_tool(lobster_id: str) -> dict[str, str | bool | list[di
         RuntimeError: If gRPC call fails.
     """
     if not GRPC_AVAILABLE:
-        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+        raise ToolError("Lobster A2A bridge requires grpcio. Install with: uv add shoal[lobster]")
 
     from shoal.core.config import load_config
 
@@ -185,7 +185,7 @@ async def send_a2a_message_tool(
         RuntimeError: If gRPC call fails.
     """
     if not GRPC_AVAILABLE:
-        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+        raise ToolError("Lobster A2A bridge requires grpcio. Install with: uv add shoal[lobster]")
 
     from shoal.core.config import load_config
 
@@ -252,7 +252,7 @@ async def list_a2a_tasks_tool(
         RuntimeError: If gRPC call fails.
     """
     if not GRPC_AVAILABLE:
-        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+        raise ToolError("Lobster A2A bridge requires grpcio. Install with: uv add shoal[lobster]")
 
     from shoal.core.config import load_config
 
