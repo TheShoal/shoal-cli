@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 try:
     import grpc as _grpc  # noqa: I001 — load order preserved for descriptor pool
 
-    from shoal.core.claw_client import ClawClient as _ClawClient
+    from shoal.core.lobster_client import LobsterClient as _LobsterClient
 
     # Load a2a_core_pb2 first — a2a_claw_pb2 depends on a2a_core.proto
     from shoal.core.proto import (
@@ -38,7 +38,7 @@ try:
     GRPC_AVAILABLE = True
 except (ImportError, TypeError):
     GRPC_AVAILABLE = False
-    _ClawClient = None  # type: ignore
+    _LobsterClient = None  # type: ignore
 
 
 # ---------------------------------------------------------------------------
@@ -49,20 +49,20 @@ except (ImportError, TypeError):
 def proto_to_agent_card(
     proto_card: Any,
     *,
-    claw_id: str,
+    lobster_id: str,
     endpoint: str,
 ) -> AgentCard:
     """Translate a proto AgentCard message to the Pydantic model.
 
     Args:
         proto_card: A ``a2a_core_pb2.AgentCard`` proto message.
-        claw_id: Fallback name when the proto card's name field is empty.
+        lobster_id: Fallback name when the lobster's name field is empty.
         endpoint: Fallback endpoint when the proto card's endpoint field is empty.
 
     Returns:
         Populated :class:`AgentCard` instance.
     """
-    name = proto_card.name or claw_id
+    name = proto_card.name or lobster_id
     version = proto_card.version or "1.0.0"
     ep = proto_card.endpoint or endpoint
 
@@ -106,7 +106,7 @@ def proto_to_agent_card(
 
 
 # ---------------------------------------------------------------------------
-# ClawClient method implementations (defined only when GRPC_AVAILABLE)
+# LobsterClient method implementations (defined only when GRPC_AVAILABLE)
 # ---------------------------------------------------------------------------
 
 if GRPC_AVAILABLE:
@@ -130,7 +130,7 @@ if GRPC_AVAILABLE:
             )
         except _grpc.aio.AioRpcError as exc:
             raise RuntimeError(f"GetAgentCard RPC failed: {exc.details()}") from exc
-        return proto_to_agent_card(proto_card, claw_id=self.claw_id, endpoint=self.endpoint)
+        return proto_to_agent_card(proto_card, lobster_id=self.lobster_id, endpoint=self.endpoint)
 
     async def _send_message_impl(
         self: Any,
@@ -283,7 +283,7 @@ if GRPC_AVAILABLE:
 
         return tasks
 
-    # Patch ClawClient with the A2A methods
-    _ClawClient.get_agent_card = _get_agent_card_impl  # type: ignore[attr-defined]
-    _ClawClient.send_message = _send_message_impl  # type: ignore[attr-defined]
-    _ClawClient.list_tasks = _list_tasks_impl  # type: ignore[attr-defined]
+    # Patch LobsterClient with the A2A methods
+    _LobsterClient.get_agent_card = _get_agent_card_impl  # type: ignore[attr-defined]
+    _LobsterClient.send_message = _send_message_impl  # type: ignore[attr-defined]
+    _LobsterClient.list_tasks = _list_tasks_impl  # type: ignore[attr-defined]

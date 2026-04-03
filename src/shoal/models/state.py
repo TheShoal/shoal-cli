@@ -35,7 +35,7 @@ class LifecycleEvent(StrEnum):
 
 class RuntimeKind(StrEnum):
     tmux = "tmux"
-    claw = "claw"
+    lobster = "lobster"
 
 
 class RuntimeCapability(StrEnum):
@@ -58,20 +58,19 @@ class TmuxRuntimeState(BaseModel):
     nvim_socket: str = ""
 
 
-class ClawRuntimeState(BaseModel):
-    kind: Literal[RuntimeKind.claw] = RuntimeKind.claw
-    claw_id: str
+class LobsterRuntimeState(BaseModel):
+    kind: Literal[RuntimeKind.lobster] = RuntimeKind.lobster
+    lobster_id: str
     endpoint: str = ""
     employee_id: str = ""
 
-
 # Default type alias — used by code that only handles tmux sessions.
-# Claw-aware code should use the discriminated union directly.
+# Lobster-aware code should use the discriminated union directly.
 RuntimeState = TmuxRuntimeState
 
 # Discriminated union for Pydantic (de)serialization — handles both runtime kinds.
 AnyRuntimeState = Annotated[
-    Annotated[TmuxRuntimeState, Tag("tmux")] | Annotated[ClawRuntimeState, Tag("claw")],
+    Annotated[TmuxRuntimeState, Tag("tmux")] | Annotated[LobsterRuntimeState, Tag("lobster")],
     Discriminator("kind"),
 ]
 

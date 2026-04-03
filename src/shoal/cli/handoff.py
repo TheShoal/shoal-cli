@@ -83,7 +83,7 @@ def handoff_show(
         if effective_claw_dir is None:
             from shoal.core.config import load_config
 
-            effective_claw_dir = load_config().claw.conversations_dir
+            effective_claw_dir = load_config().lobster.conversations_dir
 
         if effective_claw_dir is not None:
             from shoal.integrations.lobster.clawplexer_sync import sync_for_handoff

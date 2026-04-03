@@ -72,7 +72,7 @@ class QmdTurnLike(Protocol):
     def metadata(self) -> dict[str, Any]: ...
 
 
-class ClawTurnLike(Protocol):
+class LobsterTurnLike(Protocol):
     """Structural type for Lobster/Claw-compatible QMD turns."""
 
     @property
@@ -459,7 +459,7 @@ def qmd_turn_to_event(turn: QmdTurnLike, session_name: str | None = None) -> Con
 
 
 def claw_turn_to_event(
-    turn: ClawTurnLike,
+    turn: LobsterTurnLike,
     *,
     session_id: str = "",
     session_name: str = "",

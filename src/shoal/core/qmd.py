@@ -667,10 +667,10 @@ def import_qmd_to_journal(
         )
         return 0
 
-    from shoal.core.claw_conversations import read_qmd_turns as read_claw_qmd_turns
-    from shoal.core.claw_conversations import turns_to_journal_entries
+    from shoal.core.lobster_conversations import read_qmd_turns as read_lobster_qmd_turns
+    from shoal.core.lobster_conversations import turns_to_journal_entries
 
-    claw_turns = read_claw_qmd_turns(conversations_dir, since=since)
+    claw_turns = read_lobster_qmd_turns(conversations_dir, since=since)
     if not claw_turns:
         logger.debug("No QMD turns found to import")
         return 0

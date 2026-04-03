@@ -108,6 +108,8 @@ def session_card_context(
     tier, urgency_label = derive_urgency(session, now=now)
     tool_icon = _TOOL_ICONS.get(session.tool.lower(), "◇")
 
+    runtime_kind = session.runtime.kind.value if session.runtime else "unknown"
+
     return {
         "id": session.id,
         "name": session.name,
@@ -117,6 +119,8 @@ def session_card_context(
         "status_label": urgency_label,
         "tier_css": _TIER_CSS.get(tier, "tier-unknown"),
         "tier_name": tier.name,
+        "runtime_kind": runtime_kind,
+        "show_approve_action": runtime_kind == "tmux",
         "branch": session.branch or "",
         "worktree": session.worktree or "",
         "mcp_servers": session.mcp_servers,
@@ -215,6 +219,10 @@ def session_detail_context(
     if session.completed_at is not None:
         completed_at = relative_time(session.completed_at, now=now)
 
+    send_placeholder = (
+        "Send keys to session…" if runtime_kind == "tmux" else "Send message to Claw…"
+    )
+
     return {
         "id": session.id,
         "name": session.name,
@@ -234,6 +242,8 @@ def session_detail_context(
         "pid": session.pid,
         "runtime_kind": runtime_kind,
         "runtime_detail": runtime_detail,
+        "show_approve_action": runtime_kind == "tmux",
+        "send_placeholder": send_placeholder,
         "created_at_iso": session.created_at.isoformat(),
         "created_at": relative_time(session.created_at, now=now),
         "last_activity_iso": session.last_activity.isoformat(),

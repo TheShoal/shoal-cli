@@ -13,7 +13,6 @@ from fastapi.templating import Jinja2Templates
 
 from shoal.core import journal as journal_core
 from shoal.core.state import get_session, list_sessions
-from shoal.core.tmux import async_capture_pane
 from shoal.dashboard.context import (
     fleet_context,
     flow_context,
@@ -21,7 +20,7 @@ from shoal.dashboard.context import (
     session_detail_context,
 )
 from shoal.dashboard.ws import dashboard_ws_endpoint, init_jinja_env
-from shoal.models.state import TmuxRuntimeState
+from shoal.services.runtime_provider import provider_for_session
 
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
@@ -238,16 +237,11 @@ async def pane_partial(
         raise HTTPException(status_code=404, detail="Session not found")
 
     pane_text = ""
-    if isinstance(session.runtime, TmuxRuntimeState):
-        try:
-            raw_text = await async_capture_pane(
-                session.runtime.session_name,
-                lines=lines,
-            )
-            # Strip ANSI escape codes and HTML-escape for safe template rendering
-            pane_text = html.escape(_ANSI_ESCAPE.sub("", raw_text))
-        except Exception:
-            logger.warning("pane capture failed for %s", session_id, exc_info=True)
+    try:
+        raw_text = await provider_for_session(session).async_capture_output(session, lines=lines)
+        pane_text = html.escape(_ANSI_ESCAPE.sub("", raw_text))
+    except Exception:
+        logger.warning("pane capture failed for %s", session_id, exc_info=True)
 
     if format == "json":
         return JSONResponse(content={"session_id": session_id, "pane_text": pane_text})

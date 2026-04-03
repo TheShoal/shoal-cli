@@ -12,7 +12,7 @@ from shoal.dashboard.context import (
     session_card_context,
     session_detail_context,
 )
-from shoal.models.state import SessionState, SessionStatus, TmuxRuntimeState
+from shoal.models.state import ClawRuntimeState, SessionState, SessionStatus, TmuxRuntimeState
 
 
 def _make_session(
@@ -36,6 +36,28 @@ def _make_session(
         status=status,
         mcp_servers=mcp_servers or [],
         tags=tags or [],
+        created_at=now - timedelta(hours=1),
+        last_activity=now - timedelta(minutes=5),
+        status_since=now - timedelta(minutes=5),
+    )
+
+
+def _make_claw_session(
+    session_id: str = "claw123",
+    name: str = "claw-session",
+) -> SessionState:
+    now = datetime.now(UTC)
+    return SessionState(
+        id=session_id,
+        name=name,
+        tool="claw",
+        path="/tmp/repo",
+        worktree="",
+        branch="",
+        runtime=ClawRuntimeState(claw_id="demo", endpoint="grpc://localhost:50071"),
+        status=SessionStatus.idle,
+        mcp_servers=[],
+        tags=[],
         created_at=now - timedelta(hours=1),
         last_activity=now - timedelta(minutes=5),
         status_since=now - timedelta(minutes=5),
@@ -118,6 +140,12 @@ class TestSessionCardContext:
         ctx = session_card_context(session, now=now)
         assert ctx["mcp_servers"] == ["github", "jira"]
 
+    def test_claw_session_hides_approve_action(self) -> None:
+        now = datetime(2024, 6, 1, 12, 0, 0, tzinfo=UTC)
+        ctx = session_card_context(_make_claw_session(), now=now)
+        assert ctx["runtime_kind"] == "claw"
+        assert ctx["show_approve_action"] is False
+
 
 class TestFleetContext:
     def test_sorting_puts_error_first(self) -> None:
@@ -178,6 +206,18 @@ class TestSessionDetailContext:
         session = _make_session()
         ctx = session_detail_context(session, now=now)
         assert ctx["completed_at"] is None
+
+    def test_claw_runtime_detail(self) -> None:
+        now = datetime(2024, 6, 1, 12, 0, 0, tzinfo=UTC)
+        ctx = session_detail_context(_make_claw_session(), now=now)
+
+        assert ctx["runtime_kind"] == "claw"
+        assert ctx["show_approve_action"] is False
+        assert ctx["send_placeholder"] == "Send message to Claw…"
+        detail = ctx["runtime_detail"]
+        assert isinstance(detail, dict)
+        assert detail["claw_id"] == "demo"
+        assert detail["endpoint"] == "grpc://localhost:50071"
 
 
 class TestJournalEntryContext:

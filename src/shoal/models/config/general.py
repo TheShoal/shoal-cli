@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from shoal.models.config.claw import ClawConfig
+from shoal.models.config.lobster import LobsterConfig
 
 
 class GeneralConfig(BaseModel):
@@ -148,6 +148,6 @@ class ShoalConfig(BaseModel):
     remote: dict[str, RemoteHostConfig] = Field(default_factory=dict)
     operator: OperatorConfig = Field(default_factory=OperatorConfig)
     dreamer: DreamerConfig = Field(default_factory=DreamerConfig)
-    claw: ClawConfig = Field(default_factory=ClawConfig)
+    lobster: LobsterConfig = Field(default_factory=LobsterConfig)
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
     claw_scheduler: ClawSchedulerConfig = Field(default_factory=ClawSchedulerConfig)

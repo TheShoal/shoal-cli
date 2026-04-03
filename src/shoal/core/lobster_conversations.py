@@ -23,17 +23,17 @@ from shoal.core.conversations import (
     render_event_as_journal_content,
 )
 
-logger = logging.getLogger("shoal.claw_conversations")
+logger = logging.getLogger("shoal.lobster_conversations")
 
 
 @dataclass
-class ClawTurn:
-    """A single turn from a Claw conversation.
+class LobsterTurn:
+    """A single turn from a Lobster conversation.
 
     Attributes:
         id: Unique turn identifier.
         timestamp: When the turn occurred (UTC).
-        claw_id: The Claw runtime that processed this turn.
+        claw_id: The Lobster runtime that processed this turn.
         event_id: Optional event/correlation ID.
         prompt: The user's prompt text.
         response: The model's response text.
@@ -60,14 +60,14 @@ class ClawTurn:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_json_record(cls, record: dict[str, object]) -> ClawTurn:
-        """Create a ClawTurn from a QMD JSON TurnRecord.
+    def from_json_record(cls, record: dict[str, object]) -> LobsterTurn:
+        """Create a LobsterTurn from a QMD JSON TurnRecord.
 
         Args:
             record: Dict with QMD TurnRecord fields.
 
         Returns:
-            ClawTurn instance with mapped fields.
+            LobsterTurn instance with mapped fields.
         """
         # Parse timestamp - handle both ISO format and Unix timestamp
         ts_raw = record.get("timestamp", "")
@@ -128,24 +128,24 @@ def _parse_iso_week_dir(dir_name: str) -> tuple[int, int] | None:
 def read_qmd_turns(
     conversations_dir: Path,
     since: datetime | None = None,
-) -> list[ClawTurn]:
+) -> list[LobsterTurn]:
     """Read all QMD turn records from a conversations directory.
 
     Scans weekly subdirectories (YYYY-Www format) for .json turn files,
-    loads and parses them into ClawTurn objects.
+    loads and parses them into LobsterTurn objects.
 
     Args:
         conversations_dir: Path to the conversations root directory.
         since: Optional cutoff - only return turns after this timestamp.
 
     Returns:
-        List of ClawTurn objects, sorted by timestamp (oldest first).
+        List of LobsterTurn objects, sorted by timestamp (oldest first).
     """
     if not conversations_dir.exists():
         logger.debug("Conversations directory does not exist: %s", conversations_dir)
         return []
 
-    turns: list[ClawTurn] = []
+    turns: list[LobsterTurn] = []
 
     # Scan weekly subdirectories
     for week_dir in sorted(conversations_dir.iterdir()):
@@ -161,7 +161,7 @@ def read_qmd_turns(
         for json_file in sorted(week_dir.glob("*.json")):
             try:
                 record_data = json.loads(json_file.read_text())
-                turn = ClawTurn.from_json_record(record_data)
+                turn = LobsterTurn.from_json_record(record_data)
 
                 # Filter by timestamp if since is provided
                 if since is not None and turn.timestamp <= since:
@@ -176,8 +176,8 @@ def read_qmd_turns(
     return turns
 
 
-def turns_to_journal_entries(turns: list[ClawTurn]) -> str:
-    """Convert a list of ClawTurns into journal entry markdown."""
+def turns_to_journal_entries(turns: list[LobsterTurn]) -> str:
+    """Convert a list of LobsterTurns into journal entry markdown."""
     entries: list[str] = []
 
     for turn in turns:

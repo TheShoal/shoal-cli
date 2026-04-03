@@ -48,7 +48,7 @@ from shoal.models.incident import (
     IncidentSpawnRequest,
     IncidentStatus,
 )
-from shoal.models.state import SessionState, SessionStatus
+from shoal.models.state import RuntimeKind, SessionState, SessionStatus
 from shoal.services.batch import execute_batch
 from shoal.services.batch import session_snapshot as build_session_snapshot
 from shoal.services.incident import (
@@ -547,9 +547,10 @@ async def delete_session_api(
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
+        tmux_session = s.runtime.session_name if s.runtime.kind == RuntimeKind.tmux else ""
         await kill_session_lifecycle(
             session_id=s.id,
-            tmux_session=s.tmux_runtime.session_name,
+            tmux_session=tmux_session,
             worktree=s.worktree,
             git_root=s.path,
             branch=s.branch,
@@ -603,6 +604,8 @@ async def attach_session_api(session_id: str) -> dict[str, str]:
     s = await get_session(session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
+    if s.runtime.kind != RuntimeKind.tmux:
+        raise HTTPException(status_code=400, detail="Attach is only supported for tmux sessions")
     provider = provider_for_session(s)
     if not provider.exists(s):
         raise HTTPException(status_code=400, detail="Runtime session not found")

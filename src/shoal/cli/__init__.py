@@ -9,13 +9,13 @@ from typing import Annotated
 import typer
 
 import shoal
-
-# Sub-group Typer apps — these are lightweight and needed at import time for add_typer.
-from shoal.cli.claw import app as claw_app
 from shoal.cli.config_cmd import app as config_app
 from shoal.cli.demo import app as demo_app
 from shoal.cli.fin import app as fin_app
 from shoal.cli.incident import app as incident_app
+
+# Sub-group Typer apps — these are lightweight and needed at import time for add_typer.
+from shoal.cli.lobster import app as lobster_app
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.mode_cmd import app as mode_app
 from shoal.cli.nvim import app as nvim_app
@@ -527,7 +527,7 @@ app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
 app.add_typer(mode_app, name="mode", help="Operating modes.")
 app.add_typer(skill_app, name="skill", help="Cross-agent skills.")
 app.add_typer(proactive_app, name="proactive", help="Proactive monitoring and filesystem watching.")
-app.add_typer(claw_app, name="claw", help="Claw runtime operations (requires shoal[claw]).")
+app.add_typer(lobster_app, name="lobster", help="Lobster runtime operations (requires shoal[claw]).")
 app.add_typer(session_app, name="session", help="Session management commands.")
 
 

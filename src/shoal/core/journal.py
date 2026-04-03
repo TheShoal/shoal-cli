@@ -637,7 +637,7 @@ async def import_claw_turns(
     Returns:
         Number of turns imported.
     """
-    from shoal.core.claw_conversations import read_qmd_turns, turns_to_journal_entries
+    from shoal.core.lobster_conversations import read_qmd_turns, turns_to_journal_entries
     from shoal.core.state import find_by_name
 
     session_id = await find_by_name(session_name)
@@ -672,6 +672,6 @@ def export_journal_to_qmd(
     Returns:
         Number of turns exported.
     """
-    from shoal.core.claw_conversations import export_journal_to_qmd as _export
+    from shoal.core.lobster_conversations import export_journal_to_qmd as _export
 
     return _export(journal_path, output_dir, session_name)

@@ -2,7 +2,7 @@
   "mcpServers": {
     "shoal-orchestrator": {
       "command": "uv",
-      "args": ["run", "shoal-mcp-server"],
+      "args": ["run", "--extra", "claw", "python", "-m", "shoal.services.mcp_shoal_server"],
       "type": "stdio"
     }
   }

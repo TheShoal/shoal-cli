@@ -1,4 +1,4 @@
-"""Claw runtime CLI commands: ping, send, tasks."""
+"""Lobster runtime CLI commands: ping, send, tasks."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from shoal.cli._console import get_console
 from shoal.core.theme import create_table
 
 app = typer.Typer(
-    name="claw",
-    help="Claw runtime operations (requires shoal[claw]).",
+    name="lobster",
+    help="Lobster runtime operations (requires shoal[claw]).",
     no_args_is_help=True,
 )
 
@@ -35,15 +35,15 @@ def _require_grpc() -> None:
         raise typer.Exit(1) from exc
 
 
-def _resolve_endpoint(claw_id: str) -> str:
-    """Look up endpoint for *claw_id* from config, aborting if not found."""
+def _resolve_endpoint(lobster_id: str) -> str:
+    """Look up endpoint for *lobster_id* from config, aborting if not found."""
     from shoal.core.config import load_config
 
     cfg = load_config()
-    endpoint = cfg.claw.known_claws.get(claw_id) or cfg.claw.grpc_addr
+    endpoint = cfg.lobster.known_lobsters.get(lobster_id) or cfg.lobster.grpc_addr
     if not endpoint:
         typer.echo(
-            f"Claw '{claw_id}' not found in known_claws and no grpc_addr fallback.",
+            f"Lobster '{lobster_id}' not found in known_lobsters and no grpc_addr fallback.",
             err=True,
         )
         raise typer.Exit(1)
@@ -56,25 +56,25 @@ def _resolve_endpoint(claw_id: str) -> str:
 
 
 @app.command("ping")
-def claw_ping(
-    claw_id: Annotated[str, typer.Argument(help="Claw identifier to query")],
+def lobster_ping(
+    lobster_id: Annotated[str, typer.Argument(help="Lobster identifier to query")],
     json_output: Annotated[bool, typer.Option("--json", help="Emit JSON")] = False,
 ) -> None:
-    """Fetch a Claw's AgentCard (agent discovery smoke-test)."""
+    """Fetch a Lobster's AgentCard (agent discovery smoke-test)."""
     _require_grpc()
 
-    from shoal.core.claw_client import ClawClient
     from shoal.core.config import load_config
+    from shoal.core.lobster_client import LobsterClient
     from shoal.integrations.lobster import a2a_bridge as _bridge  # noqa: F401
 
     async def _run() -> dict[str, object]:
         cfg = load_config()
-        endpoint = _resolve_endpoint(claw_id)
-        async with ClawClient(
-            claw_id=claw_id,
+        endpoint = _resolve_endpoint(lobster_id)
+        async with LobsterClient(
+            claw_id=lobster_id,
             endpoint=endpoint,
-            employee_id=cfg.claw.employee_id,
-            config=cfg.claw,
+            employee_id=cfg.lobster.employee_id,
+            config=cfg.lobster,
         ) as client:
             card = await client.get_agent_card()  # type: ignore[attr-defined]
             result: dict[str, object] = card.model_dump()
@@ -103,7 +103,7 @@ def claw_ping(
 
     skills = cast(list[dict[str, str]], data.get("skills") or [])
     if skills:
-        table = create_table(title=f"Skills on {claw_id}")
+        table = create_table(title=f"Skills on {lobster_id}")
         table.add_column("id")
         table.add_column("name")
         table.add_column("description")
@@ -118,29 +118,29 @@ def claw_ping(
 
 
 @app.command("send")
-def claw_send(
-    claw_id: Annotated[str, typer.Argument(help="Claw identifier")],
+def lobster_send(
+    lobster_id: Annotated[str, typer.Argument(help="Lobster identifier")],
     message: Annotated[str, typer.Argument(help="Message text to send")],
     task_id: Annotated[
         str | None, typer.Option("--task-id", help="Explicit task ID (idempotency key)")
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit JSON")] = False,
 ) -> None:
-    """Send a message to a Claw and print the response."""
+    """Send a message to a Lobster and print the response."""
     _require_grpc()
 
-    from shoal.core.claw_client import ClawClient
     from shoal.core.config import load_config
+    from shoal.core.lobster_client import LobsterClient
     from shoal.integrations.lobster import a2a_bridge as _bridge  # noqa: F401
 
     async def _run() -> dict[str, object]:
         cfg = load_config()
-        endpoint = _resolve_endpoint(claw_id)
-        async with ClawClient(
-            claw_id=claw_id,
+        endpoint = _resolve_endpoint(lobster_id)
+        async with LobsterClient(
+            claw_id=lobster_id,
             endpoint=endpoint,
-            employee_id=cfg.claw.employee_id,
-            config=cfg.claw,
+            employee_id=cfg.lobster.employee_id,
+            config=cfg.lobster,
         ) as client:
             result: dict[str, object] = await client.send_message(  # type: ignore[attr-defined]
                 message=message,
@@ -171,8 +171,8 @@ def claw_send(
 
 
 @app.command("tasks")
-def claw_tasks(
-    claw_id: Annotated[str, typer.Argument(help="Claw identifier")],
+def lobster_tasks(
+    lobster_id: Annotated[str, typer.Argument(help="Lobster identifier")],
     context_id: Annotated[
         str | None, typer.Option("--context", help="Filter by context ID")
     ] = None,
@@ -185,21 +185,21 @@ def claw_tasks(
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit JSON")] = False,
 ) -> None:
-    """List tasks on a Claw runtime."""
+    """List tasks on a Lobster runtime."""
     _require_grpc()
 
-    from shoal.core.claw_client import ClawClient
     from shoal.core.config import load_config
+    from shoal.core.lobster_client import LobsterClient
     from shoal.integrations.lobster import a2a_bridge as _bridge  # noqa: F401
 
     async def _run() -> list[dict[str, object]]:
         cfg = load_config()
-        endpoint = _resolve_endpoint(claw_id)
-        async with ClawClient(
-            claw_id=claw_id,
+        endpoint = _resolve_endpoint(lobster_id)
+        async with LobsterClient(
+            claw_id=lobster_id,
             endpoint=endpoint,
-            employee_id=cfg.claw.employee_id,
-            config=cfg.claw,
+            employee_id=cfg.lobster.employee_id,
+            config=cfg.lobster,
         ) as client:
             tasks: list[dict[str, object]] = await client.list_tasks(  # type: ignore[attr-defined]
                 context_id=context_id,
@@ -219,10 +219,10 @@ def claw_tasks(
 
     console = get_console()
     if not tasks:
-        console.print(f"[dim]No tasks on {claw_id}[/dim]")
+        console.print(f"[dim]No tasks on {lobster_id}[/dim]")
         return
 
-    table = create_table(title=f"Tasks on {claw_id}")
+    table = create_table(title=f"Tasks on {lobster_id}")
     table.add_column("id")
     table.add_column("state")
     table.add_column("context_id")

@@ -48,6 +48,7 @@
 
   <div class="card-actions">
     <a class="card-link" href="/ui/sessions/{{ id }}">View detail →</a>
+    {% if show_approve_action %}
     <button
       class="btn btn-approve btn-sm"
       title="Approve (send Enter)"
@@ -55,6 +56,7 @@
       hx-vals='{"keys": ""}'
       hx-swap="none"
     >✓</button>
+    {% endif %}
     <button
       class="btn btn-kill btn-sm"
       title="Kill session"

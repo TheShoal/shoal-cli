@@ -143,30 +143,28 @@
     <div class="detail-panel">
       <div class="detail-panel-header">⚡ Actions</div>
       <div class="actions-panel">
-        <div class="send-input-form">
+        <form class="send-input-form" hx-post="/sessions/{{ id }}/send" hx-swap="none">
           <input
             class="send-input-field"
             type="text"
             id="send-keys-input"
-            placeholder="Send keys to session…"
+            name="keys"
+            placeholder="{{ send_placeholder }}"
             autocomplete="off"
           >
-          <button
-            class="btn btn-primary btn-sm"
-            hx-post="/sessions/{{ id }}/send"
-            hx-include="#send-keys-input"
-            hx-vals='{"keys": ""}'
-            hx-swap="none"
-            onclick="document.getElementById('send-keys-input').value=''"
-          >Send</button>
-        </div>
+          <button class="btn btn-primary btn-sm" type="submit">
+            {% if runtime_kind == "tmux" %}Send{% else %}Send message{% endif %}
+          </button>
+        </form>
         <div class="actions-row">
+          {% if show_approve_action %}
           <button
             class="btn btn-approve"
             hx-post="/sessions/{{ id }}/send"
             hx-vals='{"keys": ""}'
             hx-swap="none"
           >✓ Approve</button>
+          {% endif %}
           <button
             class="btn btn-kill"
             hx-delete="/sessions/{{ id }}"
@@ -174,6 +172,11 @@
             hx-confirm="Kill session '{{ name }}'?"
           >✕ Kill</button>
         </div>
+        {% if runtime_kind == "claw" %}
+        <div style="font-size:11px;color:var(--color-text-dim);">
+          Messages are sent to the remote Claw over the A2A/gRPC bridge.
+        </div>
+        {% endif %}
         {% if runtime_detail.tmux_session %}
         <div style="font-size:11px;color:var(--color-text-dim);">
           Attach: <code class="font-mono">tmux attach -t {{ runtime_detail.tmux_session }}</code>

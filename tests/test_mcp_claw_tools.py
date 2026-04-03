@@ -16,8 +16,8 @@ from fastmcp.exceptions import ToolError
 
 @pytest.fixture
 def mock_claw_client() -> Generator[MagicMock, None, None]:
-    """Create a mock ClawClient class."""
-    with patch("shoal.services.mcp_shoal_server.ClawClient") as mock:
+    """Create a mock LobsterClient class."""
+    with patch("shoal.services.mcp_shoal_server.LobsterClient") as mock:
         client_instance = AsyncMock()
         client_instance.status = AsyncMock()
         client_instance.health = AsyncMock()
@@ -28,12 +28,12 @@ def mock_claw_client() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def mock_config_with_claws() -> Generator[MagicMock, None, None]:
-    """Mock config with claw configuration."""
+    """Mock config with lobster configuration."""
     mock_cfg = MagicMock()
-    mock_cfg.claw.grpc_addr = "localhost:50051"
-    mock_cfg.claw.employee_id = "emp-123"
-    mock_cfg.claw.conversations_dir = None
-    mock_cfg.claw.known_claws = {
+    mock_cfg.lobster.grpc_addr = "localhost:50051"
+    mock_cfg.lobster.employee_id = "emp-123"
+    mock_cfg.lobster.conversations_dir = None
+    mock_cfg.lobster.known_lobsters = {
         "claw-1": "localhost:50051",
         "claw-2": "localhost:50052",
     }
@@ -42,31 +42,31 @@ def mock_config_with_claws() -> Generator[MagicMock, None, None]:
 
 
 # ---------------------------------------------------------------------------
-# list_claws tests
+# list_lobsters tests
 # ---------------------------------------------------------------------------
 
 
-async def test_list_claws_empty() -> None:
-    """list_claws returns empty list when no claws configured."""
-    from shoal.services.mcp_shoal_server import list_claws_tool
+async def test_list_lobsters_empty() -> None:
+    """list_lobsters returns empty list when no lobsters configured."""
+    from shoal.services.mcp_shoal_server import list_lobsters_tool
 
     mock_cfg = MagicMock()
-    mock_cfg.claw.known_claws = {}
+    mock_cfg.lobster.known_lobsters = {}
     with patch("shoal.core.config.load_config", return_value=mock_cfg):
         import shoal.integrations.lobster.lobster_a2a as lobster_a2a
 
         with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
-            result = await list_claws_tool()
+            result = await list_lobsters_tool()
 
     assert result == []
 
 
-async def test_list_claws_with_known_claws() -> None:
-    """list_claws returns configured claws."""
-    from shoal.services.mcp_shoal_server import list_claws_tool
+async def test_list_lobsters_with_known_lobsters() -> None:
+    """list_lobsters returns configured lobsters."""
+    from shoal.services.mcp_shoal_server import list_lobsters_tool
 
     mock_cfg = MagicMock()
-    mock_cfg.claw.known_claws = {
+    mock_cfg.lobster.known_lobsters = {
         "alpha": "localhost:50051",
         "beta": "localhost:50052",
     }
@@ -74,62 +74,62 @@ async def test_list_claws_with_known_claws() -> None:
         import shoal.integrations.lobster.lobster_a2a as lobster_a2a
 
         with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
-            result = await list_claws_tool()
+            result = await list_lobsters_tool()
 
     assert len(result) == 2
     assert {"name": "alpha", "grpc_addr": "localhost:50051"} in result
     assert {"name": "beta", "grpc_addr": "localhost:50052"} in result
 
 
-async def test_list_claws_not_available() -> None:
-    """list_claws raises error when grpcio not installed."""
+async def test_list_lobsters_not_available() -> None:
+    """list_lobsters raises error when grpcio not installed."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import list_claws_tool
+    from shoal.services.mcp_shoal_server import list_lobsters_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
         with pytest.raises(ToolError, match="Claw tools require grpcio"):
-            await list_claws_tool()
+            await list_lobsters_tool()
 
 
 # ---------------------------------------------------------------------------
-# claw_status tests
+# lobster_status tests
 # ---------------------------------------------------------------------------
 
 
-async def test_claw_status_single(
+async def test_lobster_status_single(
     mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
 ) -> None:
-    """claw_status returns status for a single claw."""
+    """lobster_status returns status for a single lobster."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import claw_status_tool
+    from shoal.services.mcp_shoal_server import lobster_status_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
         mock_claw_client.return_value.status.return_value = {"state": "READY"}
 
-        result = await claw_status_tool(claw_id="claw-1")
+        result = await lobster_status_tool(lobster_id="claw-1")
 
         assert result == {"state": "READY", "grpc_addr": "localhost:50051"}
         mock_claw_client.assert_called_once_with(
-            claw_id="claw-1",
+            lobster_id="claw-1",
             endpoint="localhost:50051",
             employee_id="emp-123",
-            config=mock_config_with_claws.claw,
+            config=mock_config_with_claws.lobster,
         )
         mock_claw_client.return_value.status.assert_called_once_with()
         mock_claw_client.return_value.close.assert_called_once()
 
 
-async def test_claw_status_batch(
+async def test_lobster_status_batch(
     mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
 ) -> None:
-    """claw_status returns status for multiple claws."""
+    """lobster_status returns status for multiple lobsters."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import claw_status_tool
+    from shoal.services.mcp_shoal_server import lobster_status_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
         mock_claw_client.return_value.status.return_value = {"state": "ACTIVE"}
 
-        result = cast(dict[str, Any], await claw_status_tool(claw_id=["claw-1", "claw-2"]))
+        result = cast(dict[str, Any], await lobster_status_tool(lobster_id=["claw-1", "claw-2"]))
 
         assert "results" in result
         results = cast(dict[str, Any], result["results"])
@@ -140,66 +140,66 @@ async def test_claw_status_batch(
         assert mock_claw_client.return_value.close.call_count == 2
 
 
-async def test_claw_status_error(
+async def test_lobster_status_error(
     mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
 ) -> None:
-    """claw_status handles errors gracefully."""
+    """lobster_status handles errors gracefully."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import claw_status_tool
+    from shoal.services.mcp_shoal_server import lobster_status_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
         mock_claw_client.return_value.status.side_effect = RuntimeError("Connection failed")
 
-        result = cast(dict[str, Any], await claw_status_tool(claw_id="claw-1"))
+        result = cast(dict[str, Any], await lobster_status_tool(lobster_id="claw-1"))
 
         assert "error" in result
         assert "Connection failed" in cast(str, result["error"])
 
 
-async def test_claw_status_not_available() -> None:
-    """claw_status raises error when grpcio not installed."""
+async def test_lobster_status_not_available() -> None:
+    """lobster_status raises error when grpcio not installed."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import claw_status_tool
+    from shoal.services.mcp_shoal_server import lobster_status_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
         with pytest.raises(ToolError, match="Claw tools require grpcio"):
-            await claw_status_tool(claw_id="claw-1")
+            await lobster_status_tool(lobster_id="claw-1")
 
 
 # ---------------------------------------------------------------------------
-# claw_health tests
+# lobster_health tests
 # ---------------------------------------------------------------------------
 
 
-async def test_claw_health_healthy(
+async def test_lobster_health_healthy(
     mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
 ) -> None:
-    """claw_health returns healthy status."""
+    """lobster_health returns healthy status."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import claw_health_tool
+    from shoal.services.mcp_shoal_server import lobster_health_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
         mock_claw_client.return_value.health.return_value = {"healthy": True, "issues": []}
 
-        result = await claw_health_tool(claw_id="claw-1")
+        result = await lobster_health_tool(lobster_id="claw-1")
 
         assert result == {"healthy": True, "issues": []}
         mock_claw_client.assert_called_once_with(
-            claw_id="claw-1",
+            lobster_id="claw-1",
             endpoint="localhost:50051",
             employee_id="emp-123",
-            config=mock_config_with_claws.claw,
+            config=mock_config_with_claws.lobster,
         )
         mock_claw_client.return_value.health.assert_called_once_with()
         mock_claw_client.return_value.close.assert_called_once()
 
 
-async def test_claw_health_unhealthy(
+async def test_lobster_health_unhealthy(
     mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
 ) -> None:
-    """claw_health returns unhealthy status with issues."""
+    """lobster_health returns unhealthy status with issues."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import claw_health_tool
+    from shoal.services.mcp_shoal_server import lobster_health_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
         mock_claw_client.return_value.health.return_value = {
@@ -207,37 +207,37 @@ async def test_claw_health_unhealthy(
             "issues": ["Claw reported unhealthy"],
         }
 
-        result = cast(dict[str, Any], await claw_health_tool(claw_id="claw-1"))
+        result = cast(dict[str, Any], await lobster_health_tool(lobster_id="claw-1"))
 
         assert result["healthy"] is False
         assert "Claw reported unhealthy" in cast(list[str], result["issues"])
 
 
-async def test_claw_health_exception(
+async def test_lobster_health_exception(
     mock_claw_client: MagicMock, mock_config_with_claws: MagicMock
 ) -> None:
-    """claw_health handles exceptions gracefully."""
+    """lobster_health handles exceptions gracefully."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import claw_health_tool
+    from shoal.services.mcp_shoal_server import lobster_health_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
         mock_claw_client.return_value.health.side_effect = RuntimeError("gRPC error")
 
-        result = cast(dict[str, Any], await claw_health_tool(claw_id="claw-1"))
+        result = cast(dict[str, Any], await lobster_health_tool(lobster_id="claw-1"))
 
         assert result["healthy"] is False
         issues = cast(list[str], result["issues"])
         assert "gRPC error" in issues[0]
 
 
-async def test_claw_health_not_available() -> None:
-    """claw_health raises error when grpcio not installed."""
+async def test_lobster_health_not_available() -> None:
+    """lobster_health raises error when grpcio not installed."""
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
-    from shoal.services.mcp_shoal_server import claw_health_tool
+    from shoal.services.mcp_shoal_server import lobster_health_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
         with pytest.raises(ToolError, match="Claw tools require grpcio"):
-            await claw_health_tool(claw_id="claw-1")
+            await lobster_health_tool(lobster_id="claw-1")
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ async def test_send_to_claw_success(
 
             assert result == {"response": "A2A Response", "task_id": "t-1"}
             mock_a2a.assert_called_once_with(
-                claw_id="claw-1",
+                lobster_id="claw-1",
                 message="Test message",
                 employee_id=None,
             )
@@ -278,7 +278,7 @@ async def test_send_to_claw_with_employee_id(
             await send_to_claw_tool(claw_id="claw-1", message="Hello", employee_id="custom-emp")
 
             mock_a2a.assert_called_once_with(
-                claw_id="claw-1",
+                lobster_id="claw-1",
                 message="Hello",
                 employee_id="custom-emp",
             )
@@ -307,9 +307,9 @@ async def test_get_agent_card_success(
     import shoal.integrations.lobster.lobster_a2a as lobster_a2a
     from shoal.services.mcp_shoal_server import get_agent_card_tool
 
-    # Mock will use the lobster_a2a module which has its own ClawClient
+    # Mock will use the lobster_a2a module which has its own LobsterClient
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
-        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+        with patch("shoal.integrations.lobster.lobster_a2a.LobsterClient") as mock_a2a_client:
             from shoal.models.config.agent_card import (
                 AgentCapabilities,
                 AgentCard,
@@ -327,7 +327,7 @@ async def test_get_agent_card_success(
             client_instance.get_agent_card = AsyncMock(return_value=expected_card)
             mock_a2a_client.return_value = client_instance
 
-            result = await get_agent_card_tool(claw_id="claw-1")
+            result = await get_agent_card_tool(lobster_id="claw-1")
 
     assert "name" in result
     assert "version" in result
@@ -340,7 +340,7 @@ async def test_get_agent_card_not_available() -> None:
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
         with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
-            await get_agent_card_tool(claw_id="claw-1")
+            await get_agent_card_tool(lobster_id="claw-1")
 
 
 async def test_get_agent_card_not_found() -> None:
@@ -349,8 +349,8 @@ async def test_get_agent_card_not_found() -> None:
     from shoal.services.mcp_shoal_server import get_agent_card_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
-        with pytest.raises(ToolError, match="Claw 'unknown' not found"):
-            await get_agent_card_tool(claw_id="unknown")
+        with pytest.raises(ToolError, match="Lobster 'unknown' not found"):
+            await get_agent_card_tool(lobster_id="unknown")
 
 
 # ---------------------------------------------------------------------------
@@ -366,12 +366,12 @@ async def test_send_a2a_message_success(
     from shoal.services.mcp_shoal_server import send_a2a_message_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
-        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+        with patch("shoal.integrations.lobster.lobster_a2a.LobsterClient") as mock_a2a_client:
             client_instance = AsyncMock()
             client_instance.send_message = AsyncMock(return_value={"response": "Done"})
             mock_a2a_client.return_value = client_instance
 
-            result = await send_a2a_message_tool(claw_id="claw-1", message="Work")
+            result = await send_a2a_message_tool(lobster_id="claw-1", message="Work")
 
     assert result == {"response": "Done"}
 
@@ -384,18 +384,20 @@ async def test_send_a2a_message_with_employee_id(
     from shoal.services.mcp_shoal_server import send_a2a_message_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
-        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+        with patch("shoal.integrations.lobster.lobster_a2a.LobsterClient") as mock_a2a_client:
             client_instance = AsyncMock()
             client_instance.send_message = AsyncMock(return_value={"response": "Done"})
             mock_a2a_client.return_value = client_instance
 
-            await send_a2a_message_tool(claw_id="claw-1", message="Work", employee_id="custom-emp")
+            await send_a2a_message_tool(
+                lobster_id="claw-1", message="Work", employee_id="custom-emp"
+            )
 
             mock_a2a_client.assert_called_once_with(
-                claw_id="claw-1",
+                lobster_id="claw-1",
                 endpoint="localhost:50051",
                 employee_id="custom-emp",
-                config=mock_config_with_claws.claw,
+                config=mock_config_with_claws.lobster,
             )
             client_instance.send_message.assert_called_once_with(
                 message="Work",
@@ -411,13 +413,13 @@ async def test_send_a2a_message_failure(
     from shoal.services.mcp_shoal_server import send_a2a_message_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", True):
-        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+        with patch("shoal.integrations.lobster.lobster_a2a.LobsterClient") as mock_a2a_client:
             client_instance = AsyncMock()
             client_instance.send_message.side_effect = RuntimeError("gRPC failed")
             mock_a2a_client.return_value = client_instance
 
             with pytest.raises(ToolError, match="Failed to send message"):
-                await send_a2a_message_tool(claw_id="claw-1", message="Test")
+                await send_a2a_message_tool(lobster_id="claw-1", message="Test")
 
 
 async def test_send_a2a_message_not_available() -> None:
@@ -426,7 +428,7 @@ async def test_send_a2a_message_not_available() -> None:
 
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", False):
         with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
-            await send_a2a_message_tool(claw_id="claw-1", message="Test")
+            await send_a2a_message_tool(lobster_id="claw-1", message="Test")
 
 
 # ---------------------------------------------------------------------------
@@ -441,17 +443,17 @@ async def test_list_a2a_tasks_success(
     from shoal.services.mcp_shoal_server import list_a2a_tasks_tool
 
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
-        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+        with patch("shoal.integrations.lobster.lobster_a2a.LobsterClient") as mock_a2a_client:
             client_instance = AsyncMock()
             client_instance.list_tasks = AsyncMock(return_value=[])
             client_instance.close = AsyncMock()
             mock_a2a_client.return_value = client_instance
 
-            result = cast(dict[str, Any], await list_a2a_tasks_tool(claw_id="claw-1"))
+            result = cast(dict[str, Any], await list_a2a_tasks_tool(lobster_id="claw-1"))
 
     assert "tasks" in result
-    assert "claw_id" in result
-    assert result["claw_id"] == "claw-1"
+    assert "lobster_id" in result
+    assert result["lobster_id"] == "claw-1"
 
 
 async def test_list_a2a_tasks_with_filters(
@@ -461,7 +463,7 @@ async def test_list_a2a_tasks_with_filters(
     from shoal.services.mcp_shoal_server import list_a2a_tasks_tool
 
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", True):
-        with patch("shoal.integrations.lobster.lobster_a2a.ClawClient") as mock_a2a_client:
+        with patch("shoal.integrations.lobster.lobster_a2a.LobsterClient") as mock_a2a_client:
             client_instance = AsyncMock()
             client_instance.list_tasks = AsyncMock(return_value=[])
             client_instance.close = AsyncMock()
@@ -470,7 +472,7 @@ async def test_list_a2a_tasks_with_filters(
             result = cast(
                 dict[str, Any],
                 await list_a2a_tasks_tool(
-                    claw_id="claw-1", context_id="ctx-123", status="completed"
+                    lobster_id="claw-1", context_id="ctx-123", status="completed"
                 ),
             )
 
@@ -483,21 +485,21 @@ async def test_list_a2a_tasks_not_available() -> None:
 
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", False):
         with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
-            await list_a2a_tasks_tool(claw_id="claw-1")
+            await list_a2a_tasks_tool(lobster_id="claw-1")
 
 
 # ---------------------------------------------------------------------------
-# sync_claw_conversations tests
+# sync_lobster_conversations tests
 # ---------------------------------------------------------------------------
 
 
-async def test_sync_claw_conversations_dir_fallback(
+async def test_sync_lobster_conversations_dir_fallback(
     mock_config_with_claws: MagicMock,
 ) -> None:
-    """sync_claw_conversations falls back to config or home dir."""
+    """sync_lobster_conversations falls back to config or home dir."""
     from pathlib import Path
 
-    from shoal.services.mcp_shoal_server import sync_claw_conversations_tool
+    from shoal.services.mcp_shoal_server import sync_lobster_conversations_tool
 
     # Mock session resolution
     with patch("shoal.core.state.find_by_name", return_value="sess-123"):
@@ -508,8 +510,8 @@ async def test_sync_claw_conversations_dir_fallback(
             # Mock sync functions to avoid IO
             with patch("shoal.core.qmd.import_qmd_to_journal", return_value=5) as mock_import:
                 # 1. Test config fallback
-                mock_config_with_claws.claw.conversations_dir = "/path/from/config"
-                await sync_claw_conversations_tool(session="test-session")
+                mock_config_with_claws.lobster.conversations_dir = "/path/from/config"
+                await sync_lobster_conversations_tool(session="test-session")
                 assert mock_import.call_args.kwargs["conversations_dir"] == Path(
                     "/path/from/config"
                 )
@@ -518,9 +520,9 @@ async def test_sync_claw_conversations_dir_fallback(
                 assert mock_import.call_args.kwargs["journal_path"].name == "sess-123.md"
 
                 # 2. Test home dir fallback when config is None
-                mock_config_with_claws.claw.conversations_dir = None
+                mock_config_with_claws.lobster.conversations_dir = None
                 with patch("os.path.expanduser", return_value="/mock/home"):
-                    await sync_claw_conversations_tool(session="test-session")
+                    await sync_lobster_conversations_tool(session="test-session")
                     assert mock_import.call_args.kwargs["conversations_dir"] == Path(
                         "/mock/home/conversations"
                     )

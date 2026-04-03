@@ -64,9 +64,9 @@ def _providers() -> dict[RuntimeKind, RuntimeProvider]:
     providers: dict[RuntimeKind, RuntimeProvider] = {}
     providers[RuntimeKind.tmux] = TmuxRuntimeProvider()  # type: ignore[assignment]
     try:
-        from shoal.services.runtime_providers.claw import ClawRuntimeProvider
+        from shoal.services.runtime_providers.lobster import LobsterRuntimeProvider
 
-        providers[RuntimeKind.claw] = ClawRuntimeProvider()  # type: ignore[assignment]
+        providers[RuntimeKind.lobster] = LobsterRuntimeProvider()  # type: ignore[assignment]
     except ImportError:
         pass  # grpcio not installed
     return providers

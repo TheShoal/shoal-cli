@@ -20,15 +20,15 @@ from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
 if TYPE_CHECKING:
-    from shoal.core.claw_client import ClawClient
+    from shoal.core.lobster_client import LobsterClient
     from shoal.models.config import ShoalConfig
 
 logger = logging.getLogger("shoal.lobster_a2a")
 
 # Guard gRPC imports - these are optional dependencies
 try:
-    import shoal.integrations.lobster.a2a_bridge  # noqa: F401 — activates ClawClient A2A extensions
-    from shoal.core.claw_client import ClawClient
+    import shoal.integrations.lobster.a2a_bridge  # noqa: F401 — activates LobsterClient A2A extensions
+    from shoal.core.lobster_client import LobsterClient
 
     GRPC_AVAILABLE = True
 except ImportError:
@@ -54,22 +54,22 @@ mcp = FastMCP(
 # ---------------------------------------------------------------------------
 
 
-def _get_claw_endpoint(config: ShoalConfig, claw_id: str) -> str:
-    """Get endpoint URL for a Claw from config.
+def _get_lobster_endpoint(config: ShoalConfig, lobster_id: str) -> str:
+    """Get endpoint URL for a Lobster from config.
 
     Args:
-        config: Shoal configuration with known_claws mapping.
-        claw_id: The Claw identifier to lookup.
+        config: Shoal configuration with known_lobsters mapping.
+        lobster_id: The Lobster identifier to lookup.
 
     Returns:
-        The gRPC endpoint URL for the Claw.
+        The gRPC endpoint URL for the Lobster.
 
     Raises:
-        ToolError: If Claw is not found in known_claws.
+        ToolError: If Lobster is not found in known_lobsters.
     """
-    endpoint = config.claw.known_claws.get(claw_id)
+    endpoint = config.lobster.known_lobsters.get(lobster_id)
     if not endpoint:
-        raise ToolError(f"Claw '{claw_id}' not found in known_claws configuration")
+        raise ToolError(f"Lobster '{lobster_id}' not found in known_lobsters configuration")
     return endpoint
 
 
@@ -87,15 +87,15 @@ def _get_claw_endpoint(config: ShoalConfig, claw_id: str) -> str:
     ),
     annotations={"readOnlyHint": True},
 )
-async def get_agent_card_tool(claw_id: str) -> dict[str, str | bool | list[dict[str, str]]]:
-    """Get AgentCard from a Claw runtime.
+async def get_agent_card_tool(lobster_id: str) -> dict[str, str | bool | list[dict[str, str]]]:
+    """Get AgentCard from a Lobster runtime.
 
-    This tool queries a Claw runtime's GetAgentCard RPC to retrieve
+    This tool queries a Lobster runtime's GetAgentCard RPC to retrieve
     its capabilities and identity metadata. This is the primary A2A
     agent discovery mechanism.
 
     Args:
-        claw_id: The Claw identifier to query.
+        lobster_id: The Lobster identifier to query.
 
     Returns:
         Dictionary containing the AgentCard with fields:
@@ -109,7 +109,7 @@ async def get_agent_card_tool(claw_id: str) -> dict[str, str | bool | list[dict[
         - metadata: Additional key-value pairs
 
     Raises:
-        ToolError: If grpcio is not installed or Claw is not configured.
+        ToolError: If grpcio is not installed or Lobster is not configured.
         RuntimeError: If gRPC call fails.
     """
     if not GRPC_AVAILABLE:
@@ -118,26 +118,26 @@ async def get_agent_card_tool(claw_id: str) -> dict[str, str | bool | list[dict[
     from shoal.core.config import load_config
 
     config = load_config()
-    endpoint = _get_claw_endpoint(config, claw_id)
+    endpoint = _get_lobster_endpoint(config, lobster_id)
 
-    client: ClawClient | None = None
+    client: LobsterClient | None = None
     try:
-        client = ClawClient(
-            claw_id=claw_id,
+        client = LobsterClient(
+            lobster_id=lobster_id,
             endpoint=endpoint,
-            employee_id=config.claw.employee_id,
-            config=config.claw,
+            employee_id=config.lobster.employee_id,
+            config=config.lobster,
         )
 
         agent_card = await client.get_agent_card()  # type: ignore[attr-defined]
         return agent_card.model_dump()  # type: ignore[no-any-return]
 
     except ValidationError as exc:
-        logger.error("AgentCard validation failed for Claw %s: %s", claw_id, exc)
-        raise ToolError(f"Invalid AgentCard from Claw {claw_id}: {exc}") from exc
+        logger.error("AgentCard validation failed for Lobster %s: %s", lobster_id, exc)
+        raise ToolError(f"Invalid AgentCard from Lobster {lobster_id}: {exc}") from exc
     except RuntimeError as exc:
-        logger.error("Claw %s AgentCard RPC failed: %s", claw_id, exc)
-        raise ToolError(f"Failed to get AgentCard from {claw_id}: {exc}") from exc
+        logger.error("Lobster %s AgentCard RPC failed: %s", lobster_id, exc)
+        raise ToolError(f"Failed to get AgentCard from {lobster_id}: {exc}") from exc
     finally:
         if client:
             await client.close()
@@ -158,18 +158,18 @@ async def get_agent_card_tool(claw_id: str) -> dict[str, str | bool | list[dict[
     annotations={"destructiveHint": True},
 )
 async def send_a2a_message_tool(
-    claw_id: str,
+    lobster_id: str,
     message: str,
     task_id: str | None = None,
     employee_id: str | None = None,
 ) -> dict[str, object]:
-    """Send a message to a Claw runtime via A2A SendMessage RPC.
+    """Send a message to a Lobster runtime via A2A SendMessage RPC.
 
-    This tool submits work to a Claw runtime using the A2A protocol's
+    This tool submits work to a Lobster runtime using the A2A protocol's
     SendMessage operation. It replaces the legacy Turn RPC.
 
     Args:
-        claw_id: The Claw identifier to send work to.
+        lobster_id: The Lobster identifier to send work to.
         message: The message/work payload to process.
         task_id: Optional task ID for idempotency (generated if not provided).
         employee_id: Optional employee ID for audit trail (uses config default if not provided).
@@ -177,11 +177,11 @@ async def send_a2a_message_tool(
     Returns:
         Dictionary containing:
         - task_id: The task identifier
-        - response: The Claw's response text
-        - state: Current Claw state after processing
+        - response: The Lobster's response text
+        - state: Current Lobster state after processing
 
     Raises:
-        ToolError: If grpcio is not installed or Claw is not configured.
+        ToolError: If grpcio is not installed or Lobster is not configured.
         RuntimeError: If gRPC call fails.
     """
     if not GRPC_AVAILABLE:
@@ -190,16 +190,16 @@ async def send_a2a_message_tool(
     from shoal.core.config import load_config
 
     config = load_config()
-    endpoint = _get_claw_endpoint(config, claw_id)
-    emp_id = employee_id or config.claw.employee_id
+    endpoint = _get_lobster_endpoint(config, lobster_id)
+    emp_id = employee_id or config.lobster.employee_id
 
-    client: ClawClient | None = None
+    client: LobsterClient | None = None
     try:
-        client = ClawClient(
-            claw_id=claw_id,
+        client = LobsterClient(
+            lobster_id=lobster_id,
             endpoint=endpoint,
             employee_id=emp_id,
-            config=config.claw,
+            config=config.lobster,
         )
 
         return cast(
@@ -211,8 +211,8 @@ async def send_a2a_message_tool(
         )
 
     except RuntimeError as exc:
-        logger.error("Claw %s A2A message failed: %s", claw_id, exc)
-        raise ToolError(f"Failed to send message to {claw_id}: {exc}") from exc
+        logger.error("Lobster %s A2A message failed: %s", lobster_id, exc)
+        raise ToolError(f"Failed to send message to {lobster_id}: {exc}") from exc
     finally:
         if client:
             await client.close()
@@ -233,14 +233,14 @@ async def send_a2a_message_tool(
     annotations={"readOnlyHint": True},
 )
 async def list_a2a_tasks_tool(
-    claw_id: str,
+    lobster_id: str,
     context_id: str | None = None,
     status: str | None = None,
 ) -> dict[str, list[dict[str, str]] | str]:
-    """List tasks from a Claw runtime via A2A ListTasks RPC.
+    """List tasks from a Lobster runtime via A2A ListTasks RPC.
 
     Args:
-        claw_id: The Claw identifier to query.
+        lobster_id: The Lobster identifier to query.
         context_id: Optional context ID to filter tasks by.
         status: Optional task state to filter by (e.g., "working", "completed").
 
@@ -248,7 +248,7 @@ async def list_a2a_tasks_tool(
         Dictionary containing list of tasks with their states and metadata.
 
     Raises:
-        ToolError: If grpcio is not installed or Claw is not configured.
+        ToolError: If grpcio is not installed or Lobster is not configured.
         RuntimeError: If gRPC call fails.
     """
     if not GRPC_AVAILABLE:
@@ -257,15 +257,15 @@ async def list_a2a_tasks_tool(
     from shoal.core.config import load_config
 
     config = load_config()
-    endpoint = _get_claw_endpoint(config, claw_id)
+    endpoint = _get_lobster_endpoint(config, lobster_id)
 
-    client: ClawClient | None = None
+    client: LobsterClient | None = None
     try:
-        client = ClawClient(
-            claw_id=claw_id,
+        client = LobsterClient(
+            lobster_id=lobster_id,
             endpoint=endpoint,
-            employee_id=config.claw.employee_id,
-            config=config.claw,
+            employee_id=config.lobster.employee_id,
+            config=config.lobster,
         )
 
         tasks = await client.list_tasks(  # type: ignore[attr-defined]
@@ -274,12 +274,12 @@ async def list_a2a_tasks_tool(
         )
         return {
             "tasks": tasks,
-            "claw_id": claw_id,
+            "lobster_id": lobster_id,
         }
 
     except RuntimeError as exc:
-        logger.error("Claw %s ListTasks RPC failed: %s", claw_id, exc)
-        raise ToolError(f"Failed to list tasks from {claw_id}: {exc}") from exc
+        logger.error("Lobster %s ListTasks RPC failed: %s", lobster_id, exc)
+        raise ToolError(f"Failed to list tasks from {lobster_id}: {exc}") from exc
     finally:
         if client:
             await client.close()

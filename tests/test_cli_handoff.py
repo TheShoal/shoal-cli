@@ -251,10 +251,10 @@ def test_handoff_show_sync_claw_from_config(
             "shoal.core.config.load_config",
         ) as mock_cfg,
     ):
-        from shoal.models.config.claw import ClawConfig
         from shoal.models.config.general import ShoalConfig
+        from shoal.models.config.lobster import LobsterConfig
 
-        cfg = ShoalConfig(claw=ClawConfig(conversations_dir=tmp_path))
+        cfg = ShoalConfig(lobster=LobsterConfig(conversations_dir=tmp_path))
         mock_cfg.return_value = cfg
         handoff_show("sid")  # no sync_claw argument
 

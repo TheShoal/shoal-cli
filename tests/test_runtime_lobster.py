@@ -5,23 +5,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from shoal.models.config import ToolConfig
-from shoal.models.state import ClawRuntimeState, SessionState, TmuxRuntimeState
-from shoal.services.runtime_providers.claw import ClawRuntimeProvider
+from shoal.models.state import LobsterRuntimeState, SessionState, TmuxRuntimeState
+from shoal.services.runtime_providers.lobster import LobsterRuntimeProvider
 
 # Mock for grpc stuff because of optional import in provider
 claw_client_mock = MagicMock()
-claw_client_mock.ClawClient = MagicMock()
+claw_client_mock.LobsterClient = MagicMock()
 
 
 @pytest.fixture
 def provider():
-    return ClawRuntimeProvider()
+    return LobsterRuntimeProvider()
 
 
 @pytest.fixture
 def session():
-    runtime = ClawRuntimeState(
-        claw_id="test_claw", endpoint="grpc://localhost:50051", employee_id="emp_1"
+    runtime = LobsterRuntimeState(
+        lobster_id="test_claw", endpoint="grpc://localhost:50051", employee_id="emp_1"
     )
     return SessionState(
         id="test_session", name="test_session", tool="test_tool", path="/tmp/test", runtime=runtime
@@ -33,8 +33,8 @@ def tool_config():
     return ToolConfig(name="test_tool", command="echo hello")
 
 
-class TestClawRuntimeProviderCoverage:
-    def test_get_client_raises_if_not_claw_runtime(self, provider):
+class TestLobsterRuntimeProviderCoverage:
+    def test_get_client_raises_if_not_lobster_runtime(self, provider):
         # We manually construct a SessionState as a dict to bypass pydantic validation logic
         # and trigger the check in the provider
         {
@@ -49,15 +49,15 @@ class TestClawRuntimeProviderCoverage:
         session = SessionState(
             id="t", name="t", tool="t", path="/", runtime=TmuxRuntimeState(session_name="t")
         )
-        with pytest.raises(ValueError, match="Expected ClawRuntimeState"):
+        with pytest.raises(ValueError, match="Expected LobsterRuntimeState"):
             provider._get_client(session)
 
-    def test_payload_raises_if_not_claw_runtime(self, provider):
-        with pytest.raises(ValueError, match="Expected ClawRuntimeState"):
+    def test_payload_raises_if_not_lobster_runtime(self, provider):
+        with pytest.raises(ValueError, match="Expected LobsterRuntimeState"):
             provider.payload(TmuxRuntimeState(session_name="t"))
 
-    def test_summary_raises_if_not_claw_runtime(self, provider):
-        with pytest.raises(ValueError, match="Expected ClawRuntimeState"):
+    def test_summary_raises_if_not_lobster_runtime(self, provider):
+        with pytest.raises(ValueError, match="Expected LobsterRuntimeState"):
             provider.summary(TmuxRuntimeState(session_name="t"))
 
     def test_exists_in_async_context(self, provider, session):
@@ -92,8 +92,14 @@ class TestClawRuntimeProviderCoverage:
         assert await provider.async_capture_output(session, lines=5) == ""
 
     @pytest.mark.asyncio
-    async def test_async_send_input_is_noop(self, provider, session):
-        await provider.async_send_input(session, "text")
+    async def test_async_send_input_delegates_to_a2a(self, provider, session):
+        mock_client = AsyncMock()
+        mock_ctx = AsyncMock()
+        mock_ctx.send_message.return_value = {"task_id": "t1", "state": "working"}
+        mock_client.__aenter__.return_value = mock_ctx
+        with patch.object(provider, "_get_client", return_value=mock_client):
+            await provider.async_send_input(session, "text")  # must not raise
+        mock_ctx.send_message.assert_awaited_once_with(message="text")
 
     @pytest.mark.asyncio
     async def test_async_wait_for_ready_timeout(self, provider, session, tool_config):

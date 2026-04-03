@@ -1,4 +1,4 @@
-"""Async gRPC client wrapper for Claw runtime communication."""
+"""Async gRPC client wrapper for Lobster runtime communication."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
-logger = logging.getLogger("shoal.claw_client")
+logger = logging.getLogger("shoal.lobster_client")
 
 # Optional gRPC imports - guarded since grpcio is an optional dependency
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
         lobster_loop_pb2,
         lobster_loop_pb2_grpc,
     )
-    from shoal.models.config.claw import ClawConfig
+    from shoal.models.config.lobster import LobsterConfig
 
 # Runtime imports - these will fail gracefully if grpcio is not installed
 try:
@@ -29,36 +29,36 @@ try:
     GRPC_AVAILABLE = True
 except ImportError:
     GRPC_AVAILABLE = False
-    logger.debug("grpcio not installed - Claw client disabled")
+    logger.debug("grpcio not installed - Lobster client disabled")
 
 
-class ClawClient:
-    """Async gRPC client for communicating with Claw runtimes.
+class LobsterClient:
+    """Async gRPC client for communicating with Lobster runtimes.
 
-    This client provides a high-level async interface to the Claw gRPC services,
+    This client provides a high-level async interface to the Lobster gRPC services,
     handling connection management, retries, and error translation.
 
     All gRPC imports are optional - the client gracefully degrades when grpcio
     is not installed.
 
     Attributes:
-        claw_id: The Claw identifier this client communicates with.
-        endpoint: The gRPC endpoint URL for the Claw.
+        lobster_id: The Lobster identifier this client communicates with.
+        endpoint: The gRPC endpoint URL for the Lobster.
         employee_id: The employee ID for audit/auth purposes.
         config: Optional configuration for timeouts and retries.
     """
 
     def __init__(
         self,
-        claw_id: str,
+        lobster_id: str,
         endpoint: str,
         employee_id: str = "",
-        config: ClawConfig | None = None,
+        config: LobsterConfig | None = None,
     ) -> None:
-        """Initialize a Claw client.
+        """Initialize a Lobster client.
 
         Args:
-            claw_id: The Claw identifier.
+            lobster_id: The Lobster identifier.
             endpoint: gRPC endpoint URL (e.g., "grpc://host:port").
             employee_id: Employee ID for audit trail.
             config: Optional configuration for timeouts and retries.
@@ -68,10 +68,10 @@ class ClawClient:
         """
         if not GRPC_AVAILABLE:
             raise ImportError(
-                "grpcio is required for Claw client. Install with: pip install grpcio grpcio-tools"
+                "grpcio is required for Lobster client. Install with: pip install grpcio grpcio-tools"
             )
 
-        self.claw_id = claw_id
+        self.lobster_id = lobster_id
         self.endpoint = endpoint
         self.employee_id = employee_id
         self.config = config
@@ -109,7 +109,7 @@ class ClawClient:
             self._channel = None
             self._stub = None
 
-    async def __aenter__(self) -> ClawClient:
+    async def __aenter__(self) -> LobsterClient:
         """Async context manager entry."""
         await self._ensure_channel()
         return self
@@ -119,10 +119,10 @@ class ClawClient:
         await self.close()
 
     async def status(self) -> dict[str, Any]:
-        """Get Claw status.
+        """Get Lobster status.
 
         Returns:
-            Dictionary with Claw state and resource usage.
+            Dictionary with Lobster state and resource usage.
 
         Raises:
             RuntimeError: If gRPC call fails.
@@ -131,7 +131,7 @@ class ClawClient:
         assert self._stub is not None
 
         try:
-            request = lobster_loop_pb2.StatusRequest(claw_id=self.claw_id)  # type: ignore[attr-defined]
+            request = lobster_loop_pb2.StatusRequest(claw_id=self.lobster_id)  # type: ignore[attr-defined]
             response = await self._stub.Status(request)
 
             return {
@@ -149,11 +149,11 @@ class ClawClient:
                 else {},
             }
         except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
-            logger.error("Claw %s status RPC failed: %s", self.claw_id, exc)
-            raise RuntimeError(f"Claw status failed: {exc.details()}") from exc
+            logger.error("Lobster %s status RPC failed: %s", self.lobster_id, exc)
+            raise RuntimeError(f"Lobster status failed: {exc.details()}") from exc
 
     async def health(self) -> dict[str, Any]:
-        """Get Claw health status.
+        """Get Lobster health status.
 
         Returns:
             Dictionary with health status and any issues.
@@ -165,7 +165,7 @@ class ClawClient:
         assert self._stub is not None
 
         try:
-            request = lobster_loop_pb2.HealthRequest(claw_id=self.claw_id)  # type: ignore[attr-defined]
+            request = lobster_loop_pb2.HealthRequest(claw_id=self.lobster_id)  # type: ignore[attr-defined]
             response = await self._stub.Health(request)
 
             return {
@@ -175,8 +175,8 @@ class ClawClient:
                 "state": response.state,
             }
         except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
-            logger.error("Claw %s health RPC failed: %s", self.claw_id, exc)
-            raise RuntimeError(f"Claw health failed: {exc.details()}") from exc
+            logger.error("Lobster %s health RPC failed: %s", self.lobster_id, exc)
+            raise RuntimeError(f"Lobster health failed: {exc.details()}") from exc
 
     async def execute(
         self,
@@ -184,7 +184,7 @@ class ClawClient:
         event_id: str,
         metadata: dict[str, str] | None = None,
     ) -> tuple[bool, str, bytes]:
-        """Execute a turn on the Claw.
+        """Execute a turn on the Lobster.
 
         Args:
             payload: The work payload to execute.
@@ -202,7 +202,7 @@ class ClawClient:
 
         try:
             request = lobster_loop_pb2.TurnRequest(  # type: ignore[attr-defined]
-                claw_id=self.claw_id,
+                claw_id=self.lobster_id,
                 employee_id=self.employee_id,
                 payload=payload,
                 event_id=event_id,
@@ -217,7 +217,7 @@ class ClawClient:
             async for item in self._stub.Turn(request):
                 if item.HasField("typing"):
                     # Typing indicator - just log it
-                    logger.debug("Claw %s sending typing indicator", self.claw_id)
+                    logger.debug("Lobster %s sending typing indicator", self.lobster_id)
                 elif item.HasField("response"):
                     success = item.response.success
                     message = item.response.message
@@ -225,14 +225,14 @@ class ClawClient:
 
             return success, message, result
         except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
-            logger.error("Claw %s turn RPC failed: %s", self.claw_id, exc)
-            raise RuntimeError(f"Claw turn failed: {exc.details()}") from exc
+            logger.error("Lobster %s turn RPC failed: %s", self.lobster_id, exc)
+            raise RuntimeError(f"Lobster turn failed: {exc.details()}") from exc
 
     async def subscribe(
         self,
         event_types: list[str] | None = None,
     ) -> Any:
-        """Subscribe to Claw events.
+        """Subscribe to Lobster events.
 
         Args:
             event_types: Optional list of event types to filter.
@@ -248,7 +248,7 @@ class ClawClient:
 
         try:
             request = lobster_loop_pb2.SubscribeRequest(  # type: ignore[attr-defined]
-                claw_id=self.claw_id,
+                claw_id=self.lobster_id,
                 event_types=event_types or [],
             )
 
@@ -262,21 +262,21 @@ class ClawClient:
                     "timestamp": event.timestamp,
                 }
         except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
-            logger.error("Claw %s subscribe RPC failed: %s", self.claw_id, exc)
-            raise RuntimeError(f"Claw subscribe failed: {exc.details()}") from exc
+            logger.error("Lobster %s subscribe RPC failed: %s", self.lobster_id, exc)
+            raise RuntimeError(f"Lobster subscribe failed: {exc.details()}") from exc
 
     async def inter_claw(
         self,
-        target_claw_id: str,
+        target_lobster_id: str,
         action: str,
         payload: bytes,
         event_id: str,
         metadata: dict[str, str] | None = None,
     ) -> tuple[bool, str, bytes]:
-        """Send an InterClaw request to another Claw.
+        """Send an InterClaw request to another Lobster.
 
         Args:
-            target_claw_id: The target Claw identifier.
+            target_lobster_id: The target Lobster identifier.
             action: What action to request.
             payload: The request payload.
             event_id: Idempotency key for the request.
@@ -293,8 +293,8 @@ class ClawClient:
 
         try:
             request = lobster_loop_pb2.InterClawRequest(  # type: ignore[attr-defined]
-                source_claw_id=self.claw_id,
-                target_claw_id=target_claw_id,
+                source_claw_id=self.lobster_id,
+                target_claw_id=target_lobster_id,
                 action=action,
                 payload=payload,
                 event_id=event_id,

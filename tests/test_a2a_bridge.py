@@ -64,7 +64,7 @@ def test_grpc_available_false_without_grpcio() -> None:
 def test_proto_to_agent_card_basic() -> None:
     """Basic translation from proto namespace to AgentCard."""
     proto_card = _make_proto_card()
-    result = proto_to_agent_card(proto_card, claw_id="claw-abc", endpoint="grpc://host:50051")
+    result = proto_to_agent_card(proto_card, lobster_id="claw-abc", endpoint="grpc://host:50051")
 
     assert isinstance(result, AgentCard)
     assert result.name == "claw-abc"
@@ -82,14 +82,14 @@ def test_proto_to_agent_card_basic() -> None:
 def test_proto_to_agent_card_empty_name_uses_claw_id() -> None:
     """Falls back to claw_id when proto name is empty."""
     proto_card = _make_proto_card(name="")
-    result = proto_to_agent_card(proto_card, claw_id="fallback-claw", endpoint="grpc://host:50051")
+    result = proto_to_agent_card(proto_card, lobster_id="fallback-claw", endpoint="grpc://host:50051")
     assert result.name == "fallback-claw"
 
 
 def test_proto_to_agent_card_empty_provider_uses_defaults() -> None:
     """Falls back to default provider values when proto provider fields are empty."""
     proto_card = _make_proto_card(org="", url="")
-    result = proto_to_agent_card(proto_card, claw_id="claw", endpoint="grpc://host")
+    result = proto_to_agent_card(proto_card, lobster_id="claw", endpoint="grpc://host")
     assert result.provider.organization == "us-mobile-lobster-party"
     assert result.provider.url == "https://usmobile.com"
 
@@ -97,7 +97,7 @@ def test_proto_to_agent_card_empty_provider_uses_defaults() -> None:
 def test_proto_to_agent_card_empty_endpoint_uses_fallback() -> None:
     """Falls back to endpoint arg when proto endpoint is empty."""
     proto_card = _make_proto_card(endpoint="")
-    result = proto_to_agent_card(proto_card, claw_id="claw", endpoint="grpc://fallback:9999")
+    result = proto_to_agent_card(proto_card, lobster_id="claw", endpoint="grpc://fallback:9999")
     assert result.endpoint == "grpc://fallback:9999"
 
 
@@ -107,7 +107,7 @@ def test_proto_to_agent_card_with_skills() -> None:
     skill2 = SimpleNamespace(id="s2", name="S2", description="", tags=[])
     proto_card = _make_proto_card(skills=[skill1, skill2])
 
-    result = proto_to_agent_card(proto_card, claw_id="claw", endpoint="grpc://host")
+    result = proto_to_agent_card(proto_card, lobster_id="claw", endpoint="grpc://host")
 
     assert len(result.skills) == 2
     assert result.skills[0].id == "s1"
@@ -120,5 +120,5 @@ def test_proto_to_agent_card_with_skills() -> None:
 def test_proto_to_agent_card_with_metadata() -> None:
     """Metadata map is copied to result."""
     proto_card = _make_proto_card(metadata={"env": "prod", "region": "us-east-1"})
-    result = proto_to_agent_card(proto_card, claw_id="claw", endpoint="grpc://host")
+    result = proto_to_agent_card(proto_card, lobster_id="claw", endpoint="grpc://host")
     assert result.metadata == {"env": "prod", "region": "us-east-1"}

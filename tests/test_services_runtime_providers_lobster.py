@@ -5,19 +5,19 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from shoal.models.config import ToolConfig
-from shoal.models.state import ClawRuntimeState, SessionState
-from shoal.services.runtime_providers.claw import ClawRuntimeProvider
+from shoal.models.state import LobsterRuntimeState, SessionState
+from shoal.services.runtime_providers.lobster import LobsterRuntimeProvider
 
 
 @pytest.fixture
 def provider():
-    return ClawRuntimeProvider()
+    return LobsterRuntimeProvider()
 
 
 @pytest.fixture
 def session():
-    runtime = ClawRuntimeState(
-        claw_id="test_claw",
+    runtime = LobsterRuntimeState(
+        lobster_id="test_claw",
         endpoint="grpc://localhost:50051",
         employee_id="emp_1",
     )
@@ -53,10 +53,10 @@ def test_exists_no_running_loop_exception(provider, session):
 @pytest.mark.asyncio
 async def test_async_wait_for_ready_with_sleep():
     """Test wait_for_ready where it has to sleep before succeeding."""
-    provider = ClawRuntimeProvider()
+    provider = LobsterRuntimeProvider()
 
-    runtime = ClawRuntimeState(
-        claw_id="test_claw",
+    runtime = LobsterRuntimeState(
+        lobster_id="test_claw",
         endpoint="grpc://localhost:50051",
         employee_id="emp_1",
     )
@@ -118,25 +118,25 @@ def test_grpc_not_available_import_error():
     import sys
 
     # Force the module variables by mocking import
-    with patch.dict(sys.modules, {"shoal.core.claw_client": None}):
-        import shoal.services.runtime_providers.claw as claw_mod
+    with patch.dict(sys.modules, {"shoal.core.lobster_client": None}):
+        import shoal.services.runtime_providers.lobster as lobster_mod
 
-        importlib.reload(claw_mod)
+        importlib.reload(lobster_mod)
 
-        provider = claw_mod.ClawRuntimeProvider()
+        provider = lobster_mod.LobsterRuntimeProvider()
 
         session = SessionState(
-            id="t", name="t", tool="t", path="/", runtime=ClawRuntimeState(claw_id="c")
+            id="t", name="t", tool="t", path="/", runtime=LobsterRuntimeState(lobster_id="c")
         )
 
         with pytest.raises(RuntimeError, match="grpcio is required"):
             provider._get_client(session)
 
     # Reload again to restore the real module
-    importlib.reload(claw_mod)
+    importlib.reload(lobster_mod)
 
 
-@patch("shoal.services.runtime_providers.claw.RuntimeClawClient")
+@patch("shoal.services.runtime_providers.lobster.RuntimeLobsterClient")
 def test_get_client_success(mock_client, provider, session):
     """Test _get_client success path."""
     client = provider._get_client(session)
@@ -146,10 +146,10 @@ def test_get_client_success(mock_client, provider, session):
 def test_payload_success(provider, session):
     payload = provider.payload(session.runtime)
     assert isinstance(payload, dict)
-    assert payload["claw_id"] == session.runtime.claw_id
+    assert payload["lobster_id"] == session.runtime.lobster_id
 
 
 def test_summary_success(provider, session):
     summary = provider.summary(session.runtime)
     assert isinstance(summary, dict)
-    assert summary["claw_id"] == session.runtime.claw_id
+    assert summary["lobster_id"] == session.runtime.lobster_id

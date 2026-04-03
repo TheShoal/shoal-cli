@@ -1179,9 +1179,9 @@ async def create_claw_session_lifecycle(
 
     # 3. Validate Claw connectivity
     try:
-        from shoal.services.runtime_providers.claw import ClawRuntimeProvider
+        from shoal.services.runtime_providers.lobster import LobsterRuntimeProvider
 
-        provider = ClawRuntimeProvider()
+        provider = LobsterRuntimeProvider()
         # Create a temporary session state for the connectivity check
         temp_session = session.model_copy(update={"runtime": runtime})
         ready = await provider.async_exists(temp_session)

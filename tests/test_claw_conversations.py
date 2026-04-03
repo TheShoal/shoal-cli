@@ -9,15 +9,15 @@ from unittest.mock import patch
 
 import pytest
 
-from shoal.core.claw_conversations import (
-    ClawTurn,
+from shoal.core.journal import append_entry, journal_path
+from shoal.core.lobster_conversations import (
+    LobsterTurn,
     _get_iso_week_dir,
     _parse_iso_week_dir,
     export_journal_to_qmd,
     read_qmd_turns,
     turns_to_journal_entries,
 )
-from shoal.core.journal import append_entry, journal_path
 
 
 @pytest.fixture
@@ -34,15 +34,15 @@ def temp_conversations_dir(tmp_path: Path) -> Path:
     return conv_dir
 
 
-class TestClawTurn:
-    """Test ClawTurn dataclass and parsing."""
+class TestLobsterTurn:
+    """Test LobsterTurn dataclass and parsing."""
 
     def test_from_json_record_basic(self, qmd_fixtures_dir: Path) -> None:
         """Test parsing a basic QMD JSON turn record."""
         json_file = qmd_fixtures_dir / "2025-W03" / "turn-001.json"
         record = json.loads(json_file.read_text())
 
-        turn = ClawTurn.from_json_record(record)
+        turn = LobsterTurn.from_json_record(record)
 
         assert turn.id == "turn-001"
         assert turn.claw_id == "claw-alpha"
@@ -75,7 +75,7 @@ class TestClawTurn:
             "cost_usd": 0.001,
         }
 
-        turn = ClawTurn.from_json_record(record)
+        turn = LobsterTurn.from_json_record(record)
 
         assert turn.id == "turn-unix"
         assert turn.timestamp.tzinfo is not None  # Should be UTC
@@ -95,7 +95,7 @@ class TestClawTurn:
             "cost_usd": 0.0005,
         }
 
-        turn = ClawTurn.from_json_record(record)
+        turn = LobsterTurn.from_json_record(record)
 
         assert turn.tokens == 100  # 25 + 75
 
@@ -112,7 +112,7 @@ class TestClawTurn:
             "cost_usd": 0.0005,
         }
 
-        turn = ClawTurn.from_json_record(record)
+        turn = LobsterTurn.from_json_record(record)
 
         assert turn.tokens is None
 
@@ -201,7 +201,7 @@ class TestTurnsToJournalEntries:
         """Test converting a single turn to journal entry."""
         json_file = qmd_fixtures_dir / "2025-W03" / "turn-001.json"
         record = json.loads(json_file.read_text())
-        turn = ClawTurn.from_json_record(record)
+        turn = LobsterTurn.from_json_record(record)
 
         md = turns_to_journal_entries([turn])
 
@@ -223,7 +223,7 @@ class TestTurnsToJournalEntries:
 
     def test_convert_with_truncation(self) -> None:
         """Test that long prompts/responses are truncated."""
-        turn = ClawTurn(
+        turn = LobsterTurn(
             id="turn-long",
             timestamp=datetime(2025, 1, 15, 10, 0, 0, tzinfo=UTC),
             claw_id="claw-test",
@@ -243,7 +243,7 @@ class TestTurnsToJournalEntries:
 
     def test_convert_without_metadata(self) -> None:
         """Test conversion when tokens/cost are None."""
-        turn = ClawTurn(
+        turn = LobsterTurn(
             id="turn-no-meta",
             timestamp=datetime(2025, 1, 15, 10, 0, 0, tzinfo=UTC),
             claw_id="claw-test",

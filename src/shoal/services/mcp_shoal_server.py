@@ -1336,13 +1336,13 @@ async def list_worktree_files_tool(
 
 
 # ---------------------------------------------------------------------------
-# Claw MCP tools (optional — require grpcio)
+# Lobster MCP tools (optional — require grpcio)
 # ---------------------------------------------------------------------------
 
 
 _CLAW_TOOLS_AVAILABLE: bool = False
 try:
-    from shoal.core.claw_client import ClawClient
+    from shoal.core.lobster_client import LobsterClient
 
     _CLAW_TOOLS_AVAILABLE = True
 except ImportError:
@@ -1350,17 +1350,17 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Tool: list_claws
+# Tool: list_lobsters
 # ---------------------------------------------------------------------------
 
 
 @mcp.tool(
-    name="list_claws",
-    description="List all configured Claws from ClawConfig.",
+    name="list_lobsters",
+    description="List all configured Lobsters from LobsterConfig.",
     annotations={"readOnlyHint": True},
 )
-async def list_claws_tool() -> list[dict[str, str]]:
-    """List all configured Claw runtimes from config."""
+async def list_lobsters_tool() -> list[dict[str, str]]:
+    """List all configured Lobster runtimes from config."""
     from shoal.core.config import load_config
     from shoal.integrations.lobster import lobster_a2a
 
@@ -1368,22 +1368,22 @@ async def list_claws_tool() -> list[dict[str, str]]:
         raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
 
     cfg = load_config()
-    known_claws = cfg.claw.known_claws if hasattr(cfg, "claw") else {}
-    return [{"name": name, "grpc_addr": addr} for name, addr in known_claws.items()]
+    known_lobsters = cfg.lobster.known_lobsters if hasattr(cfg, "lobster") else {}
+    return [{"name": name, "grpc_addr": addr} for name, addr in known_lobsters.items()]
 
 
 # ---------------------------------------------------------------------------
-# Tool: claw_status
+# Tool: lobster_status
 # ---------------------------------------------------------------------------
 
 
 @mcp.tool(
-    name="claw_status",
-    description="Get status for one or more Claw runtimes.",
+    name="lobster_status",
+    description="Get status for one or more Lobster runtimes.",
     annotations={"readOnlyHint": True},
 )
-async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
-    """Get status for one or more Claws."""
+async def lobster_status_tool(lobster_id: str | list[str]) -> dict[str, object]:
+    """Get status for one or more Lobsters."""
     from shoal.core.config import load_config
     from shoal.integrations.lobster import lobster_a2a
 
@@ -1391,18 +1391,18 @@ async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
         raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
 
     cfg = load_config()
-    known_claws = cfg.claw.known_claws if hasattr(cfg, "claw") else {}
+    known_lobsters = cfg.lobster.known_lobsters if hasattr(cfg, "lobster") else {}
 
-    if isinstance(claw_id, list):
+    if isinstance(lobster_id, list):
         results: dict[str, object] = {}
-        for cid in claw_id:
-            grpc_addr = known_claws.get(cid, cfg.claw.grpc_addr)
+        for cid in lobster_id:
+            grpc_addr = known_lobsters.get(cid, cfg.lobster.grpc_addr)
             try:
-                client = ClawClient(
-                    claw_id=cid,
+                client = LobsterClient(
+                    lobster_id=cid,
                     endpoint=grpc_addr,
-                    employee_id=cfg.claw.employee_id,
-                    config=cfg.claw,
+                    employee_id=cfg.lobster.employee_id,
+                    config=cfg.lobster,
                 )
                 status = await client.status()
                 results[cid] = {"state": status["state"], "grpc_addr": grpc_addr}
@@ -1411,12 +1411,12 @@ async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
                 results[cid] = {"error": str(e)}
         return {"results": results}
 
-    grpc_addr = known_claws.get(claw_id, cfg.claw.grpc_addr)
-    client = ClawClient(
-        claw_id=claw_id,
+    grpc_addr = known_lobsters.get(lobster_id, cfg.lobster.grpc_addr)
+    client = LobsterClient(
+        lobster_id=lobster_id,
         endpoint=grpc_addr,
-        employee_id=cfg.claw.employee_id,
-        config=cfg.claw,
+        employee_id=cfg.lobster.employee_id,
+        config=cfg.lobster,
     )
     try:
         status = await client.status()
@@ -1428,17 +1428,17 @@ async def claw_status_tool(claw_id: str | list[str]) -> dict[str, object]:
 
 
 # ---------------------------------------------------------------------------
-# Tool: claw_health
+# Tool: lobster_health
 # ---------------------------------------------------------------------------
 
 
 @mcp.tool(
-    name="claw_health",
-    description="Check health of a Claw runtime.",
+    name="lobster_health",
+    description="Check health of a Lobster runtime.",
     annotations={"readOnlyHint": True},
 )
-async def claw_health_tool(claw_id: str) -> dict[str, object]:
-    """Check health of a Claw. Returns {healthy: bool, issues: list[str]}."""
+async def lobster_health_tool(lobster_id: str) -> dict[str, object]:
+    """Check health of a Lobster. Returns {healthy: bool, issues: list[str]}."""
     from shoal.core.config import load_config
     from shoal.integrations.lobster import lobster_a2a
 
@@ -1446,12 +1446,12 @@ async def claw_health_tool(claw_id: str) -> dict[str, object]:
         raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
 
     cfg = load_config()
-    grpc_addr = cfg.claw.known_claws.get(claw_id, cfg.claw.grpc_addr)
-    client = ClawClient(
-        claw_id=claw_id,
+    grpc_addr = cfg.lobster.known_lobsters.get(lobster_id, cfg.lobster.grpc_addr)
+    client = LobsterClient(
+        lobster_id=lobster_id,
         endpoint=grpc_addr,
-        employee_id=cfg.claw.employee_id,
-        config=cfg.claw,
+        employee_id=cfg.lobster.employee_id,
+        config=cfg.lobster,
     )
     try:
         health = await client.health()
@@ -1483,7 +1483,7 @@ async def send_to_claw_tool(claw_id: str, message: str, employee_id: str = "") -
         raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
 
     return await lobster_a2a.send_a2a_message_tool(
-        claw_id=claw_id,
+        lobster_id=claw_id,
         message=message,
         employee_id=employee_id or None,
     )
@@ -1503,11 +1503,11 @@ async def send_to_claw_tool(claw_id: str, message: str, employee_id: str = "") -
     ),
     annotations={"readOnlyHint": True},
 )
-async def get_agent_card_tool(claw_id: str) -> dict[str, object]:
+async def get_agent_card_tool(lobster_id: str) -> dict[str, object]:
     """Get AgentCard from a Claw runtime via A2A protocol.
 
     Args:
-        claw_id: The Claw identifier to query.
+        lobster_id: The Lobster identifier to query.
 
     Returns:
         Dictionary containing the AgentCard with fields:
@@ -1528,7 +1528,7 @@ async def get_agent_card_tool(claw_id: str) -> dict[str, object]:
     if not lobster_a2a.GRPC_AVAILABLE:
         raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
 
-    return cast(dict[str, object], await lobster_a2a.get_agent_card_tool(claw_id))
+    return cast(dict[str, object], await lobster_a2a.get_agent_card_tool(lobster_id))
 
 
 # ---------------------------------------------------------------------------
@@ -1546,7 +1546,7 @@ async def get_agent_card_tool(claw_id: str) -> dict[str, object]:
     annotations={"destructiveHint": True},
 )
 async def send_a2a_message_tool(
-    claw_id: str,
+    lobster_id: str,
     message: str,
     task_id: str | None = None,
     employee_id: str | None = None,
@@ -1554,7 +1554,7 @@ async def send_a2a_message_tool(
     """Send a message to a Claw runtime via A2A SendMessage RPC.
 
     Args:
-        claw_id: The Claw identifier to send work to.
+        lobster_id: The Lobster identifier to send work to.
         message: The message/work payload to process.
         task_id: Optional task ID for idempotency (generated if not provided).
         employee_id: Optional employee ID for audit trail (uses config default if not provided).
@@ -1574,7 +1574,7 @@ async def send_a2a_message_tool(
         raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
 
     return await lobster_a2a.send_a2a_message_tool(
-        claw_id=claw_id,
+        lobster_id=lobster_id,
         message=message,
         task_id=task_id,
         employee_id=employee_id,
@@ -1596,14 +1596,14 @@ async def send_a2a_message_tool(
     annotations={"readOnlyHint": True},
 )
 async def list_a2a_tasks_tool(
-    claw_id: str,
+    lobster_id: str,
     context_id: str | None = None,
     status: str | None = None,
 ) -> dict[str, object]:
     """List tasks from a Claw runtime via A2A ListTasks RPC.
 
     Args:
-        claw_id: The Claw identifier to query.
+        lobster_id: The Lobster identifier to query.
         context_id: Optional context ID to filter tasks by.
         status: Optional task state to filter by (e.g., "working", "completed").
 
@@ -1621,7 +1621,7 @@ async def list_a2a_tasks_tool(
     return cast(
         dict[str, object],
         await lobster_a2a.list_a2a_tasks_tool(
-            claw_id=claw_id,
+            lobster_id=lobster_id,
             context_id=context_id,
             status=status,
         ),
@@ -1629,19 +1629,19 @@ async def list_a2a_tasks_tool(
 
 
 # ---------------------------------------------------------------------------
-# Tool: sync_claw_conversations
+# Tool: sync_lobster_conversations
 # ---------------------------------------------------------------------------
 
 
 @mcp.tool(
-    name="sync_claw_conversations",
+    name="sync_lobster_conversations",
     description=(
         "Sync conversations between Shoal journal and Lobster Party QMD format. "
         "Imports QMD turns into session journal or exports journal entries to QMD."
     ),
     annotations={"destructiveHint": True},
 )
-async def sync_claw_conversations_tool(
+async def sync_lobster_conversations_tool(
     session: str,
     direction: str = "import",
     since: str | None = None,
@@ -1687,8 +1687,8 @@ async def sync_claw_conversations_tool(
     # Resolve conversations directory
     if conversations_dir is None:
         cfg = load_config()
-        if cfg.claw.conversations_dir:
-            conversations_dir = str(cfg.claw.conversations_dir)
+        if cfg.lobster.conversations_dir:
+            conversations_dir = str(cfg.lobster.conversations_dir)
         else:
             import os
 

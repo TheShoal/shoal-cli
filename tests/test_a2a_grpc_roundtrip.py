@@ -6,8 +6,8 @@ Run explicitly with:
     uv run --extra claw pytest tests/test_a2a_grpc_roundtrip.py -v
 
 The test spins up a real grpc.aio.server() in-process, registers a minimal
-AgentLoopServicer, and exercises ClawClient.get_agent_card(),
-ClawClient.send_message(), and ClawClient.list_tasks() against it.
+AgentLoopServicer, and exercises LobsterClient.get_agent_card(),
+LobsterClient.send_message(), and LobsterClient.list_tasks() against it.
 """
 
 from __future__ import annotations
@@ -23,14 +23,14 @@ import pytest
 try:
     import grpc.aio
 
-    from shoal.core.claw_client import ClawClient
+    from shoal.core.lobster_client import LobsterClient
 
     # a2a_core_pb2 must be in the descriptor pool before a2a_claw_pb2_grpc is imported
     # (a2a_claw_pb2_grpc transitively loads a2a_claw_pb2 which depends on a2a_core.proto).
     # The noqa: I001 above suppresses ruff's auto-merge of the two proto import lines.
     from shoal.core.proto import a2a_claw_pb2_grpc, a2a_core_pb2
 
-    # Import a2a_bridge after proto stubs — its module body patches ClawClient.
+    # Import a2a_bridge after proto stubs — its module body patches LobsterClient.
     from shoal.integrations.lobster import a2a_bridge as _bridge
 
     _grpc_for_test: bool = _bridge.GRPC_AVAILABLE
@@ -94,7 +94,7 @@ if _grpc_for_test:
 
     @pytest.fixture()
     async def claw_client_and_server() -> Any:
-        """Start an in-process gRPC server and yield a connected ClawClient."""
+        """Start an in-process gRPC server and yield a connected LobsterClient."""
         server = grpc.aio.server()
         a2a_claw_pb2_grpc.add_AgentLoopServicer_to_server(  # type: ignore[no-untyped-call]
             _TestAgentLoopServicer(), server
@@ -102,7 +102,7 @@ if _grpc_for_test:
         port = server.add_insecure_port("localhost:0")
         await server.start()
 
-        client = ClawClient(claw_id="round-trip-claw", endpoint=f"grpc://localhost:{port}")
+        client = LobsterClient(lobster_id="round-trip-claw", endpoint=f"grpc://localhost:{port}")
         try:
             yield client
         finally:
@@ -115,7 +115,7 @@ if _grpc_for_test:
 
     @pytest.mark.asyncio
     async def test_get_agent_card_round_trip(claw_client_and_server: Any) -> None:
-        """GetAgentCard: proto serialization → ClawClient → AgentCard Pydantic model."""
+        """GetAgentCard: proto serialization → LobsterClient → AgentCard Pydantic model."""
         client = claw_client_and_server
 
         card = await client.get_agent_card()
