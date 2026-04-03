@@ -136,7 +136,7 @@ def test_grpc_not_available_import_error():
     importlib.reload(claw_mod)
 
 
-@patch("shoal.services.runtime_providers.claw.ClawClient")
+@patch("shoal.services.runtime_providers.claw.RuntimeClawClient")
 def test_get_client_success(mock_client, provider, session):
     """Test _get_client success path."""
     client = provider._get_client(session)
