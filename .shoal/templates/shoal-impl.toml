@@ -1,66 +1,28 @@
-# shoal-impl — Feature implementer template for shoal-cli.
+# shoal-impl — Feature implementer for shoal-cli.
 #
-# Primary workhorse. Uses pisces with the `slow` model role
-# (google-antigravity/claude-opus-4-6-thinking) for complex multi-file
-# async Python work across lifecycle, MCP, and status detection layers.
+# Python 3.12+, async-first, mypy --strict enforced.
+# Powerful model — writes code, runs tests, follows conventional commits.
 #
-# Git identity is set via [template.git] below.
-# uv sync runs via .shoal.toml setup_commands at session creation.
+# Invariants to preserve (from ARCHITECTURE.md):
+#   - All I/O via async/await; blocking calls wrapped in asyncio.to_thread()
+#   - CLI and API delegate to services/lifecycle.py — never bypass it
+#   - SQLite writes guarded by asyncio.Lock
+#   - New MCP tools must have docstrings and be counted in tour.py
 #
 # Usage:
-#   shoal new impl/my-feature --template shoal-impl --branch \
-#     --prompt "Implement X per ROADMAP.md backlog"
+#   shoal new feat/my-feature --template shoal-impl --branch
 
 [template]
 name        = "shoal-impl"
-description = "Shoal feature implementer — pisces slow model, full MCP, tests window, git identity"
+description = "Feature implementer — async Python, mypy strict, conventional commits"
 extends     = "base-dev"
 tool        = "pisces"
 mcp         = ["shoal-orchestrator", "memory"]
-mixins      = ["with-tests"]
 mode        = "implementer"
 tags        = ["dogfood", "impl"]
 
-[template.env]
-SHOAL_TOOL  = "pisces"
-SHOAL_AGENT = "1"
-# Route to the `slow` model role: google-antigravity/claude-opus-4-6-thinking
-# This is the high-reasoning model for complex multi-file shoal work.
-PISCES_LAUNCH_ARGS = "--model google-antigravity/claude-opus-4-6-thinking"
-
 [template.git]
-user_name     = "Shoal Impl Agent"
-user_email    = "impl@shoal.local"
 branch_prefix = "feat/"
 
-[[windows]]
-name  = "agent"
-focus = true
-
-[[windows.panes]]
-split   = "root"
-size    = "65%"
-title   = "agent"
-command = "{tool_command}"
-
-[[windows.panes]]
-split   = "right"
-size    = "35%"
-title   = "terminal"
-command = "echo 'Terminal ready'"
-
-[[windows]]
-name = "tests"
-
-[[windows.panes]]
-split   = "root"
-title   = "test-runner"
-command = "echo 'just test  |  just ci  |  uv run pytest tests/ -x -q'"
-
-[[windows]]
-name = "monitor"
-
-[[windows.panes]]
-split   = "root"
-title   = "git-log"
-command = "git log --oneline --graph --decorate -20"
+[template.worktree]
+post_worktree_create = "examples/scripts/shoal-skill-sync.sh"

@@ -1,0 +1,27 @@
+# shoal-sec — Security reviewer for shoal-cli.
+#
+# Read-only. Focused on security-sensitive patterns specific to this codebase:
+#   - Subprocess injection via session names, branch names, shell commands
+#   - Path traversal in worktree/journal/template file resolution
+#   - Secret leakage via tmux environment, logs, journal entries
+#   - Config model trust boundaries (extra="forbid" maintained?)
+#   - SQL injection via aiosqlite query construction
+#   - SSRF / open redirect in remote tunnel / HTTP client usage
+#
+# Run bandit separately: just security
+#
+# Usage:
+#   shoal new review/sec-audit --template shoal-sec --branch \
+#     --prompt "/shoal-sec-review"
+
+[template]
+name        = "shoal-sec"
+description = "Security reviewer — injection, traversal, secrets, trust boundaries"
+extends     = "base-dev"
+tool        = "pisces"
+mcp         = ["shoal-orchestrator"]
+mode        = "reviewer"
+tags        = ["dogfood", "security", "reviewer"]
+
+[template.worktree]
+post_worktree_create = "examples/scripts/shoal-skill-sync.sh"

@@ -1,8 +1,10 @@
-# shoal-release — Release cutter template for shoal-cli.
+# shoal-release — Release cutter for shoal-cli.
 #
-# Uses pisces with the `commit` model role (github-copilot/claude-haiku-4.5).
-# Deterministic, low-reasoning work: bump version in pyproject.toml,
-# update CHANGELOG.md, tag. Uses shoal-release and shoal-changelog skills.
+# Deterministic, low-reasoning work: bump version, update CHANGELOG, and
+# prepare the release branch and tag instructions.
+#
+# Unlike interactive roles, this template keeps an explicit git identity because
+# it is intended for deliberate release automation.
 #
 # Usage:
 #   shoal new release/v0.37.0 --template shoal-release --branch \
@@ -10,19 +12,20 @@
 
 [template]
 name        = "shoal-release"
-description = "Shoal release cutter — pisces commit model, changelog + version bump"
+description = "Release cutter — changelog, version bump, and tag prep"
 extends     = "base-dev"
 tool        = "pisces"
 mcp         = ["shoal-orchestrator"]
+mode        = "release"
 tags        = ["dogfood", "release"]
 
 [template.env]
-SHOAL_TOOL  = "pisces"
 SHOAL_AGENT = "1"
-# Route to the `commit` model role: github-copilot/claude-haiku-4.5
-PISCES_LAUNCH_ARGS = "--model github-copilot/claude-haiku-4.5"
 
 [template.git]
 user_name     = "Shoal Release Agent"
 user_email    = "release@shoal.local"
 branch_prefix = "release/"
+
+[template.worktree]
+post_worktree_create = "examples/scripts/shoal-skill-sync.sh"

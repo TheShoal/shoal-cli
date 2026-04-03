@@ -1,0 +1,43 @@
+# shoal-supervisor — Interactive fleet planner and supervisor for shoal-cli.
+#
+# This is the session the human talks to. It plans work interactively,
+# writes PLAN.md, spawns a worker fleet on confirmation, then supervises
+# workers to completion — surfacing blockers and routing completions.
+#
+# Distinct from `shoal robo`: that profile drives Shoal's background robo
+# supervisor flow. This template is the interactive coordinator session.
+#
+# The human can attach to any worker session directly at any time.
+# The supervisor manages the fleet on their behalf, not instead of them.
+#
+# Phases (driven by the shoal-supervisor skill):
+#   1. Orient     — read repo state, Linear tickets, existing sessions
+#   2. Plan       — interactive brainstorm → PLAN.md
+#   3. Confirm    — human approves PLAN.md before anything is spawned
+#   4. Spawn      — spawn_team with worker specs from the plan
+#   5. Supervise  — poll workers, auto-approve safe prompts, escalate blockers
+#   6. Complete   — summarize, ask before killing sessions
+#
+# Linear MCP: add "linear" to the mcp list below once the Linear MCP server
+# is registered (shoal mcp registry). The skill handles its absence gracefully.
+#
+# Usage:
+#   shoal new supervisor/my-feature --template shoal-supervisor
+#   (then start the conversation — the skill drives from there)
+
+[template]
+name        = "shoal-supervisor"
+description = "Interactive supervisor — plan work, spawn fleet, supervise to completion"
+extends     = "base-dev"
+tool        = "pisces"
+mcp         = ["shoal-orchestrator", "memory"]
+# mcp       = ["shoal-orchestrator", "memory", "linear"]  # uncomment when linear is registered
+mixins      = ["shoal-orchestrator"]
+mode        = "supervisor"
+tags        = ["dogfood", "supervisor", "planner"]
+
+[template.env]
+SHOAL_ROBO = "1"
+
+[template.worktree]
+post_worktree_create = "examples/scripts/shoal-skill-sync.sh"
