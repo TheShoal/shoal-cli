@@ -81,7 +81,19 @@ async def generate_status_extended() -> dict[str, object]:
                 dreamer_summaries[session.name] = summary
                 continue
 
-        # 2. Fall back to latest dreamer journal entry.
+        # 2. Try structured QMD artifact index.
+        try:
+            from shoal.core.conversation_index import get_index
+
+            idx = await get_index()
+            row = await idx.latest_summary(session.id)
+            if row is not None and row.get("summary"):
+                dreamer_summaries[session.name] = row["summary"]
+                continue
+        except Exception:  # noqa: S110
+            pass  # index unavailable; fall through to journal
+
+        # 3. Fall back to latest dreamer journal entry.
         try:
             entries = await asyncio.to_thread(read_journal, session.id, limit=50)
             for entry in reversed(entries):

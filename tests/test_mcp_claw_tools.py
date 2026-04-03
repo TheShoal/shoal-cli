@@ -506,18 +506,24 @@ async def test_sync_claw_conversations_dir_fallback(
         mock_session.name = "test-session"
         with patch("shoal.core.state.get_session", return_value=mock_session):
             # Mock sync functions to avoid IO
-            with patch("shoal.core.journal.import_claw_turns", return_value=5) as mock_import:
+            with patch("shoal.core.qmd.import_qmd_to_journal", return_value=5) as mock_import:
                 # 1. Test config fallback
                 mock_config_with_claws.claw.conversations_dir = "/path/from/config"
                 await sync_claw_conversations_tool(session="test-session")
-                mock_import.assert_called_with(
-                    "test-session", Path("/path/from/config"), since=None
+                assert mock_import.call_args.kwargs["conversations_dir"] == Path(
+                    "/path/from/config"
                 )
+                assert mock_import.call_args.kwargs["session_id"] == "sess-123"
+                assert mock_import.call_args.kwargs["since"] is None
+                assert mock_import.call_args.kwargs["journal_path"].name == "sess-123.md"
 
                 # 2. Test home dir fallback when config is None
                 mock_config_with_claws.claw.conversations_dir = None
                 with patch("os.path.expanduser", return_value="/mock/home"):
                     await sync_claw_conversations_tool(session="test-session")
-                    mock_import.assert_called_with(
-                        "test-session", Path("/mock/home/conversations"), since=None
+                    assert mock_import.call_args.kwargs["conversations_dir"] == Path(
+                        "/mock/home/conversations"
                     )
+                    assert mock_import.call_args.kwargs["session_id"] == "sess-123"
+                    assert mock_import.call_args.kwargs["since"] is None
+                    assert mock_import.call_args.kwargs["journal_path"].name == "sess-123.md"

@@ -1505,7 +1505,31 @@ async def kill_session_lifecycle(
             entries = await asyncio.to_thread(read_journal, session_id)
             handoff_db = await get_db()
             transitions = await handoff_db.get_status_transitions(session_id, limit=5)
-            artifact = await asyncio.to_thread(generate_handoff, session, entries, transitions)
+
+            # Pull structured summaries from index when available.
+            dreamer_summary = ""
+            workflow_summary = ""
+            try:
+                from shoal.core.conversation_index import get_index
+
+                idx = await get_index()
+                ds = await idx.latest_summary(session_id, kind="summary")
+                if ds and ds.get("summary"):
+                    dreamer_summary = ds["summary"]
+                ws = await idx.latest_summary(session_id, kind="workflow_summary")
+                if ws and ws.get("summary"):
+                    workflow_summary = ws["summary"]
+            except Exception:  # noqa: S110
+                pass  # index unavailable; proceed without structured summaries
+
+            artifact = await asyncio.to_thread(
+                generate_handoff,
+                session,
+                entries,
+                transitions,
+                dreamer_summary=dreamer_summary,
+                workflow_summary=workflow_summary,
+            )
             await asyncio.to_thread(write_handoff_artifact, session_id, artifact)
             summary["handoff_generated"] = True
             logger.info("[%s] kill: handoff artifact generated", session_id)

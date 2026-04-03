@@ -167,17 +167,40 @@ class DreamerService:
         if not session.accumulated_logs:
             return
 
-        logs_text = "\n".join(session.accumulated_logs[-self.config.log_lines :])
+        recent_logs = session.accumulated_logs[-self.config.log_lines :]
+        logs_text = "\n".join(recent_logs)
 
         try:
             summary = await self._call_llm(session.session_name, logs_text)
             session.summary_history.append(summary)
             logger.info("Dreamer summary for %s: %s", session.session_id, summary[:100])
             session.accumulated_logs.clear()  # Clear after summarizing
+
+            try:
+                from shoal.core.qmd import persist_summary_event
+
+                await asyncio.to_thread(
+                    persist_summary_event,
+                    session_id=session.session_id,
+                    session_name=session.session_name,
+                    source="dreamer",
+                    summary=summary,
+                    tags=("summary", "dreamer"),
+                    metadata={
+                        "producer": "dreamer",
+                        "model": self.config.model,
+                        "log_line_count": len(recent_logs),
+                    },
+                )
+            except Exception as artifact_exc:
+                logger.debug(
+                    "Dreamer artifact write failed for %s: %s",
+                    session.session_id,
+                    artifact_exc,
+                )
+
             # Persist to journal so MCP clients can retrieve the latest summary.
             try:
-                import asyncio
-
                 from shoal.core.journal import append_entry
 
                 await asyncio.to_thread(

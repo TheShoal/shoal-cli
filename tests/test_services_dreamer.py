@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from pydantic import BaseModel
 
+from shoal.core.journal import read_journal
+from shoal.core.qmd import read_qmd_events
 from shoal.services.dreamer import (
     DreamerService,
     DreamerSession,
@@ -110,14 +112,31 @@ async def test_tail_logs(mock_capture, mock_first, service, session):
 
 
 @pytest.mark.asyncio
-async def test_summarize(service, session):
+async def test_summarize(service, session, tmp_path):
     session.accumulated_logs = ["line 1"]
 
-    with patch.object(service, "_call_llm", new_callable=AsyncMock) as mock_call:
+    with (
+        patch.object(service, "_call_llm", new_callable=AsyncMock) as mock_call,
+        patch("shoal.core.journal.data_dir", return_value=tmp_path),
+        patch("shoal.core.qmd.data_dir", return_value=tmp_path),
+    ):
         mock_call.return_value = "Summary!"
         await service._summarize(session)
+
         assert session.summary_history == ["Summary!"]
         assert len(session.accumulated_logs) == 0
+
+        entries = read_journal(session.session_id, limit=10)
+        assert entries[-1].source == "dreamer"
+        assert entries[-1].content == "[dreamer] Summary!"
+
+        events = read_qmd_events(session_id=session.session_id, kind="summary", source="dreamer")
+        assert len(events) == 1
+        assert events[0].summary == "Summary!"
+        assert events[0].session_name == session.session_name
+        assert events[0].metadata["producer"] == "dreamer"
+        assert events[0].metadata["model"] == service.config.model
+        assert events[0].metadata["log_line_count"] == 1
 
 
 @pytest.mark.asyncio

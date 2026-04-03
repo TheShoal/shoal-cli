@@ -226,8 +226,8 @@ async def _sync_impl(
     conversations_dir: str | None,
 ) -> None:
     """Implementation of sync command."""
-    from shoal.core.claw_conversations import export_journal_to_qmd
-    from shoal.core.journal import import_claw_turns, journal_path
+    from shoal.core.journal import journal_path
+    from shoal.core.qmd import export_journal_to_qmd, import_qmd_to_journal
     from shoal.core.state import resolve_session
 
     ensure_dirs()
@@ -262,19 +262,28 @@ async def _sync_impl(
         conversations_dir = str(Path(home) / "conversations")
 
     conv_dir = Path(conversations_dir)
+    jpath = journal_path(s.id)
 
     imported = 0
     exported = 0
 
     if direction in ("import", "both"):
-        imported = await import_claw_turns(s.name, conv_dir, since=since_dt)
+        imported = import_qmd_to_journal(
+            conversations_dir=conv_dir,
+            journal_path=jpath,
+            session_id=s.id,
+            since=since_dt,
+        )
         get_console().print(f"[green]Imported {imported} turns into session {s.name}[/green]")
 
     if direction in ("export", "both"):
-        jpath = journal_path(s.id)
-        # Export to subdirectory under conversations dir
         export_dir = conv_dir / "shoal-exports" / s.name
-        exported = export_journal_to_qmd(jpath, export_dir, s.name)
+        exported = export_journal_to_qmd(
+            journal_path=jpath,
+            output_dir=export_dir,
+            session_id=s.id,
+            session_name=s.name,
+        )
         get_console().print(f"[green]Exported {exported} turns to {export_dir}[/green]")
 
     if imported == 0 and exported == 0:

@@ -395,6 +395,8 @@ class HandoffArtifact:
     worktree: str = ""
     git_diff_summary: str = ""
     commit_count: int = 0
+    dreamer_summary: str = ""
+    workflow_summary: str = ""
 
     def to_markdown(self) -> str:
         """Render as a markdown handoff document."""
@@ -435,6 +437,16 @@ class HandoffArtifact:
                 lines.append("")
                 lines.append(entry.content.strip())
                 lines.append("")
+        if self.dreamer_summary:
+            lines.append("## Dreamer summary")
+            lines.append("")
+            lines.append(self.dreamer_summary.strip())
+            lines.append("")
+        if self.workflow_summary:
+            lines.append("## Workflow summary")
+            lines.append("")
+            lines.append(self.workflow_summary.strip())
+            lines.append("")
         lines.append("## Suggested next action")
         lines.append("")
         lines.append(self.suggested_next)
@@ -456,6 +468,8 @@ class HandoffArtifact:
             "commit_count": self.commit_count,
             "transition_summary": self.transition_summary,
             "suggested_next": self.suggested_next,
+            "dreamer_summary": self.dreamer_summary,
+            "workflow_summary": self.workflow_summary,
             "recent_entries": [
                 {
                     "timestamp": e.timestamp.isoformat(),
@@ -476,6 +490,8 @@ def generate_handoff(
     now: datetime | None = None,
     blocked_after_minutes: int = 5,
     stale_after_minutes: int = 30,
+    dreamer_summary: str = "",
+    workflow_summary: str = "",
 ) -> HandoffArtifact:
     """Build a HandoffArtifact from a session and its journal data.
 
@@ -601,6 +617,8 @@ def generate_handoff(
         worktree=wt,
         git_diff_summary=git_diff_summary,
         commit_count=commit_count,
+        dreamer_summary=dreamer_summary,
+        workflow_summary=workflow_summary,
     )
 
 
@@ -622,21 +640,18 @@ async def import_claw_turns(
     from shoal.core.claw_conversations import read_qmd_turns, turns_to_journal_entries
     from shoal.core.state import find_by_name
 
-    # Resolve session
-    session_rec = await find_by_name(session_name)
-    if not session_rec:
+    session_id = await find_by_name(session_name)
+    if not session_id:
         logger.warning("Session not found for journal import: %s", session_name)
         return 0
 
-    # Read turns from QMD
     turns = read_qmd_turns(conversations_dir, since=since)
     if not turns:
         logger.debug("No turns to import from %s", conversations_dir)
         return 0
 
-    # Convert to journal entries and append
     entries_md = turns_to_journal_entries(turns)
-    append_entry(session_rec, entries_md, source="claw-sync")
+    append_entry(session_id, entries_md, source="claw-sync")
 
     logger.info("Imported %d turns into session %s", len(turns), session_name)
     return len(turns)

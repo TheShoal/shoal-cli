@@ -25,6 +25,7 @@ from shoal.core.journal import (
     build_journal_metadata,
     delete_journal,
     find_archived_session_id,
+    import_claw_turns,
     journal_exists,
     journal_path,
     read_archived_journal,
@@ -119,6 +120,32 @@ class TestCoreJournal:
         path = archived_journal_path("my-session")
         assert path.name == "my-session.md"
         assert "archive" in str(path)
+
+    def test_import_claw_turns_passes_session_id_to_append_entry(
+        self,
+        journals_dir: Path,
+    ) -> None:
+        with (
+            patch(
+                "shoal.core.state.find_by_name",
+                new_callable=AsyncMock,
+                return_value="sess-import",
+            ),
+            patch("shoal.core.claw_conversations.read_qmd_turns", return_value=[object()]),
+            patch(
+                "shoal.core.claw_conversations.turns_to_journal_entries",
+                return_value="converted turns",
+            ),
+            patch("shoal.core.journal.append_entry") as mock_append,
+        ):
+            imported = asyncio.run(import_claw_turns("feature-auth", Path("/tmp/conversations")))
+
+        assert imported == 1
+        mock_append.assert_called_once_with(
+            "sess-import",
+            "converted turns",
+            source="claw-sync",
+        )
 
 
 class TestParseJournal:

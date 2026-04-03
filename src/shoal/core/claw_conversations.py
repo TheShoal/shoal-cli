@@ -12,9 +12,16 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
+
+from shoal.core.conversations import (
+    claw_turn_to_event,
+    journal_entry_to_event,
+    render_event_as_journal_content,
+)
 
 logger = logging.getLogger("shoal.claw_conversations")
 
@@ -43,7 +50,14 @@ class ClawTurn:
     response: str
     model: str
     tokens: int | None = None
+    prompt_tokens: int | None = None
+    response_tokens: int | None = None
     cost_usd: float | None = None
+    thinking: str | None = None
+    prompt_summary: str | None = None
+    response_summary: str | None = None
+    thinking_summary: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_json_record(cls, record: dict[str, object]) -> ClawTurn:
@@ -68,12 +82,11 @@ class ClawTurn:
             timestamp = timestamp.replace(tzinfo=UTC)
 
         # Calculate total tokens if separate counts provided
+        prompt_tokens = int(record.get("prompt_tokens", 0) or 0)
+        response_tokens = int(record.get("response_tokens", 0) or 0)
         tokens = record.get("tokens")
-        if tokens is None:
-            prompt_tokens = int(record.get("prompt_tokens", 0) or 0)
-            response_tokens = int(record.get("response_tokens", 0) or 0)
-            if prompt_tokens or response_tokens:
-                tokens = prompt_tokens + response_tokens
+        if tokens is None and (prompt_tokens or response_tokens):
+            tokens = prompt_tokens + response_tokens
 
         cost_usd = record.get("cost_usd")
 
@@ -86,7 +99,14 @@ class ClawTurn:
             response=str(record.get("response", "")),
             model=str(record.get("model", "")),
             tokens=int(tokens) if tokens is not None else None,
+            prompt_tokens=prompt_tokens or None,
+            response_tokens=response_tokens or None,
             cost_usd=float(cost_usd) if cost_usd is not None else None,
+            thinking=str(record.get("thinking", "")) or None,
+            prompt_summary=str(record.get("prompt_summary", "")) or None,
+            response_summary=str(record.get("response_summary", "")) or None,
+            thinking_summary=str(record.get("thinking_summary", "")) or None,
+            metadata=dict(record.get("metadata", {})),
         )
 
 
@@ -157,53 +177,16 @@ def read_qmd_turns(
 
 
 def turns_to_journal_entries(turns: list[ClawTurn]) -> str:
-    """Convert a list of ClawTurns into journal entry markdown.
-
-    Each turn becomes a journal entry with this format:
-        ## {timestamp} — claw-sync
-
-        **[claw:{claw_id} turn:{event_id}]** {prompt_summary}
-        > {response_summary}
-        ({tokens} tokens, ${cost_usd})
-
-    Args:
-        turns: List of ClawTurn objects to convert.
-
-    Returns:
-        Markdown string with all entries concatenated.
-    """
+    """Convert a list of ClawTurns into journal entry markdown."""
     entries: list[str] = []
 
     for turn in turns:
-        ts = turn.timestamp.isoformat()
-
-        # Create summaries from prompt/response (first 200 chars)
-        prompt_summary = turn.prompt[:200].replace("\n", " ").strip()
-        if len(turn.prompt) > 200:
-            prompt_summary += "..."
-
-        response_summary = turn.response[:200].replace("\n", " ").strip()
-        if len(turn.response) > 200:
-            response_summary += "..."
-
-        # Build metadata line
-        meta_parts: list[str] = []
-        if turn.tokens is not None:
-            meta_parts.append(f"{turn.tokens} tokens")
-        if turn.cost_usd is not None:
-            meta_parts.append(f"${turn.cost_usd:.4f}")
-
-        metadata = f"({', '.join(meta_parts)})" if meta_parts else ""
-
-        entry = f"""## {ts} — claw-sync
-
-**[claw:{turn.claw_id} turn:{turn.event_id}]** {prompt_summary}
-> {response_summary}
-{metadata}
-
----
-
-"""
+        event = claw_turn_to_event(turn, session_name=turn.claw_id)
+        entry = (
+            f"## {turn.timestamp.isoformat()} — claw-sync\n\n"
+            f"{render_event_as_journal_content(event, actor=turn.claw_id)}\n\n"
+            "---\n"
+        )
         entries.append(entry)
 
     return "\n".join(entries)
@@ -260,66 +243,44 @@ def export_journal_to_qmd(
     output_dir.mkdir(parents=True, exist_ok=True)
     exported = 0
 
-    for i, entry in enumerate(claw_entries):
-        # Generate turn ID from timestamp and index
-        turn_id = f"{entry.timestamp.strftime('%Y%m%d%H%M%S')}-{i:03d}"
-        week_dir_name = _get_iso_week_dir(entry.timestamp)
+    for entry in claw_entries:
+        event = journal_entry_to_event(entry, session_name, session_name)
+        turn_id = event.id
+        week_dir_name = _get_iso_week_dir(event.timestamp)
         week_path = output_dir / week_dir_name
         week_path.mkdir(parents=True, exist_ok=True)
 
-        # Parse entry content to extract claw_id, event_id, etc.
-        # Format: **[claw:{claw_id} turn:{event_id}]** {prompt}
-        claw_id = session_name
-        event_id = turn_id
-        prompt = entry.content
-        response = ""
+        claw_id = str(event.metadata.get("claw_id") or session_name)
+        prompt = event.prompt or event.content_markdown or event.summary or ""
+        response = event.response or ""
+        prompt_summary = event.prompt_summary or prompt[:100]
+        response_summary = event.response_summary or response[:100]
 
-        # Try to parse the header line
-        header_match = re.search(
-            r"\*\*\[claw:([^\s]+)\s+turn:([^\]]+)\]\*\*\s*(.*)",
-            entry.content,
-            re.DOTALL,
-        )
-        if header_match:
-            claw_id = header_match.group(1)
-            event_id = header_match.group(2)
-            rest = header_match.group(3).strip()
-            # Response is after the > marker
-            response_match = re.search(r">\s*(.*)", rest, re.DOTALL)
-            if response_match:
-                response = response_match.group(1).strip()
-                prompt = rest[: response_match.start()].strip()
-            else:
-                prompt = rest
-
-        # Create TurnRecord JSON
         record: dict[str, object] = {
             "id": turn_id,
-            "timestamp": entry.timestamp.isoformat(),
+            "timestamp": event.timestamp.isoformat(),
             "claw_id": claw_id,
-            "event_id": event_id,
+            "event_id": event.event_id or turn_id,
             "prompt": prompt,
             "response": response,
-            "thinking": "",
-            "prompt_summary": prompt[:100],
-            "response_summary": response[:100],
-            "model": "unknown",
-            "prompt_tokens": 0,
-            "response_tokens": 0,
-            "cost_usd": 0.0,
-            "metadata": {"source": "shoal-journal-export"},
+            "thinking": event.thinking or "",
+            "prompt_summary": prompt_summary,
+            "response_summary": response_summary,
+            "model": event.model or "unknown",
+            "prompt_tokens": event.prompt_tokens or 0,
+            "response_tokens": event.response_tokens or 0,
+            "cost_usd": event.cost_usd or 0.0,
+            "metadata": {**event.metadata, "source": "shoal-journal-export"},
         }
 
-        # Write JSON file
         json_file = week_path / f"{turn_id}.json"
         json_file.write_text(json.dumps(record, indent=2))
 
-        # Write markdown file with frontmatter
         md_content = f"""---
 turn_id: {turn_id}
-timestamp: {entry.timestamp.isoformat()}
+timestamp: {event.timestamp.isoformat()}
 claw_id: {claw_id}
-event_id: {event_id}
+event_id: {event.event_id or turn_id}
 ---
 
 # Turn {turn_id}

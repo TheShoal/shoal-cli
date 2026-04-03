@@ -49,9 +49,17 @@ class TestClawTurn:
         assert turn.event_id == "evt-12345"
         assert turn.prompt == "What is the capital of France?"
         assert "Paris" in turn.response
+        assert turn.thinking == (
+            "User is asking a simple geography question. Provide direct answer with context."
+        )
+        assert turn.prompt_summary == "What is the capital of France?"
+        assert turn.response_summary == "The capital of France is Paris."
         assert turn.model == "claude-sonnet-4-20250514"
+        assert turn.prompt_tokens == 15
+        assert turn.response_tokens == 42
         assert turn.tokens == 57  # 15 + 42
         assert abs(turn.cost_usd - 0.0003) < 0.0001
+        assert turn.metadata["source"] == "lobster-party"
 
     def test_from_json_record_unix_timestamp(self) -> None:
         """Test parsing with Unix timestamp instead of ISO string."""

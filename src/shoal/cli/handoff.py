@@ -94,7 +94,30 @@ def handoff_show(
         entries = read_journal(session_id)
         db = await get_db()
         transitions = await db.get_status_transitions(session_id, limit=5)
-        artifact = generate_handoff(session_state, entries, transitions)
+
+        # Pull structured summaries from the index when available.
+        dreamer_summary = ""
+        workflow_summary = ""
+        try:
+            from shoal.core.conversation_index import get_index
+
+            idx = await get_index()
+            ds = await idx.latest_summary(session_id, kind="summary")
+            if ds and ds.get("summary"):
+                dreamer_summary = ds["summary"]
+            ws = await idx.latest_summary(session_id, kind="workflow_summary")
+            if ws and ws.get("summary"):
+                workflow_summary = ws["summary"]
+        except Exception:  # noqa: S110
+            pass  # index unavailable; handoff proceeds without structured summaries
+
+        artifact = generate_handoff(
+            session_state,
+            entries,
+            transitions,
+            dreamer_summary=dreamer_summary,
+            workflow_summary=workflow_summary,
+        )
 
         if save:
             path = write_handoff_artifact(session_id, artifact)

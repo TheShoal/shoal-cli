@@ -70,6 +70,7 @@ async def _lifespan(server: Any) -> AsyncIterator[dict[str, Any]]:
 # Server instance
 # ---------------------------------------------------------------------------
 
+
 def _mcp_instructions() -> str:
     """Build MCP server instructions, prepending SOUL.md if available."""
     from shoal.core.config import soul_text
@@ -681,7 +682,23 @@ async def session_summary_tool(session: str) -> dict[str, object]:
                 "active_workflow_ids": active_workflow_ids,
             }
 
-    # 2. Fall back to the most recent dreamer journal entry.
+    # 2. Try structured QMD artifact index (persisted summaries, fastest cold path).
+    try:
+        from shoal.core.conversation_index import get_index
+
+        idx = await get_index()
+        row = await idx.latest_summary(s.id)
+        if row is not None and row.get("summary"):
+            return {
+                "session": s.name,
+                "summary": row["summary"],
+                "source": "index",
+                "active_workflow_ids": active_workflow_ids,
+            }
+    except Exception:  # noqa: S110
+        pass  # index unavailable; fall through to journal
+
+    # 3. Fall back to the most recent dreamer journal entry.
     entries = await asyncio.to_thread(read_journal, s.id, limit=50)
     for entry in reversed(entries):
         if entry.source == "dreamer":
@@ -1643,9 +1660,9 @@ async def sync_claw_conversations_tool(
     """
     from datetime import UTC, datetime
 
-    from shoal.core.claw_conversations import export_journal_to_qmd
     from shoal.core.config import load_config
-    from shoal.core.journal import import_claw_turns, journal_path
+    from shoal.core.journal import journal_path
+    from shoal.core.qmd import export_journal_to_qmd, import_qmd_to_journal
     from shoal.core.state import find_by_name, get_session
 
     # Resolve session
@@ -1679,17 +1696,27 @@ async def sync_claw_conversations_tool(
             conversations_dir = str(Path(home) / "conversations")
 
     conv_dir = Path(conversations_dir)
+    jpath = journal_path(s.id)
 
     imported = 0
     exported = 0
 
     if direction in ("import", "both"):
-        imported = await import_claw_turns(s.name, conv_dir, since=since_dt)
+        imported = import_qmd_to_journal(
+            conversations_dir=conv_dir,
+            journal_path=jpath,
+            session_id=s.id,
+            since=since_dt,
+        )
 
     if direction in ("export", "both"):
-        jpath = journal_path(s.id)
         export_dir = conv_dir / "shoal-exports" / s.name
-        exported = export_journal_to_qmd(jpath, export_dir, s.name)
+        exported = export_journal_to_qmd(
+            journal_path=jpath,
+            output_dir=export_dir,
+            session_id=s.id,
+            session_name=s.name,
+        )
 
     return {
         "session": s.name,

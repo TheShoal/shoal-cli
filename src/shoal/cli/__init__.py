@@ -255,6 +255,37 @@ def _prune_cmd(
     prune(force)
 
 
+@app.command("sync")
+def _sync_cmd(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    direction: Annotated[
+        str,
+        typer.Option("--direction", "-d", help="Sync direction: import, export, or both"),
+    ] = "import",
+    since: Annotated[
+        str | None,
+        typer.Option("--since", help="Only import turns after this ISO timestamp"),
+    ] = None,
+    conversations_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--conversations-dir",
+            "-c",
+            help="Path to QMD conversations directory",
+        ),
+    ] = None,
+) -> None:
+    """Sync conversations between Shoal journal and Lobster Party QMD format."""
+    from shoal.cli.session import sync
+
+    sync(
+        session=session,
+        direction=direction,
+        since=since,
+        conversations_dir=conversations_dir,
+    )
+
+
 @app.command("status")
 def _status_cmd(
     format: Annotated[

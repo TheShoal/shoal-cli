@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -246,6 +247,66 @@ class TestPruneConfirmation:
         result = runner.invoke(app, ["prune", "--force"])
         assert result.exit_code == 0
         assert "Removed" in result.output
+
+
+class TestSyncFlow:
+    """Cover sync routing through the canonical qmd module."""
+
+    def test_sync_import_routes_through_qmd(self, mock_dirs, runner):
+        session = _make_session("sync-me")
+
+        async def mock_resolve(name):
+            return session.id
+
+        with (
+            patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
+            patch("shoal.cli.session.get_session", new_callable=AsyncMock, return_value=session),
+            patch("shoal.core.qmd.import_qmd_to_journal", return_value=2) as mock_import,
+        ):
+            result = runner.invoke(
+                app,
+                ["session", "sync", "sync-me", "--conversations-dir", "/tmp/conversations"],
+            )
+
+        assert result.exit_code == 0
+        assert "Imported 2 turns into session sync-me" in result.output
+        assert mock_import.call_args.kwargs["conversations_dir"] == Path("/tmp/conversations")
+        assert mock_import.call_args.kwargs["journal_path"].name == f"{session.id}.md"
+        assert mock_import.call_args.kwargs["session_id"] == session.id
+        assert mock_import.call_args.kwargs["since"] is None
+
+    def test_sync_export_routes_through_qmd(self, mock_dirs, runner):
+        session = _make_session("sync-me")
+
+        async def mock_resolve(name):
+            return session.id
+
+        with (
+            patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
+            patch("shoal.cli.session.get_session", new_callable=AsyncMock, return_value=session),
+            patch("shoal.core.qmd.export_journal_to_qmd", return_value=4) as mock_export,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "session",
+                    "sync",
+                    "sync-me",
+                    "--direction",
+                    "export",
+                    "--conversations-dir",
+                    "/tmp/conversations",
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "Exported 4 turns to /tmp/conversations/shoal-exports/sync-me" in result.output
+        assert mock_export.call_args.kwargs["journal_path"].name == f"{session.id}.md"
+        assert mock_export.call_args.kwargs["output_dir"] == Path(
+            "/tmp/conversations/shoal-exports/sync-me"
+        )
+        assert mock_export.call_args.kwargs["session_id"] == session.id
+        assert mock_export.call_args.kwargs["session_name"] == session.name
 
 
 class TestPopupFlow:

@@ -7,12 +7,12 @@ Call ``start_claw`` during application startup (e.g. lifecycle.py) and
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from shoal.core.claw_scheduler import ClawScheduler
-
+    from shoal.core.claw_scheduler import ClawScheduler, TaskHandler
 logger = logging.getLogger("shoal.claw_bootstrap")
 
 # Module-level singleton
@@ -65,7 +65,7 @@ def get_claw_scheduler() -> ClawScheduler | None:
     return _scheduler
 
 
-def _build_handlers(summary_model: str) -> dict[str, object]:
+def _build_handlers(summary_model: str) -> dict[str, TaskHandler]:
     """Construct the built-in handler registry.
 
     Args:
@@ -108,18 +108,40 @@ def _build_handlers(summary_model: str) -> dict[str, object]:
         budget = SummaryBudget(budget_str)
 
         try:
-            from shoal.core.journal import read_journal
+            from shoal.core.journal import append_entry, read_journal
+            from shoal.core.qmd import persist_summary_event
+            from shoal.core.state import get_session
 
-            entries = read_journal(session_id, limit=20)
+            entries = await asyncio.to_thread(read_journal, session_id, limit=20)
             if not entries:
                 return TaskResult.succeeded
 
             text = "\n".join(f"[{e.timestamp}] {e.content}" for e in entries)
             summary = await summarizer.summarize(text, budget, context=session_id)
 
-            from shoal.core.journal import append_entry
+            session_record = await get_session(session_id)
+            session_name = session_record.name if session_record is not None else session_id
 
-            append_entry(session_id, f"[claw-summary] {summary}", source="claw")
+            await asyncio.to_thread(
+                persist_summary_event,
+                session_id=session_id,
+                session_name=session_name,
+                source="claw",
+                summary=summary,
+                tags=("summary", "claw"),
+                metadata={
+                    "producer": "claw",
+                    "budget": budget.value,
+                    "entry_count": len(entries),
+                    "model": summary_model,
+                },
+            )
+            await asyncio.to_thread(
+                append_entry,
+                session_id,
+                f"[claw-summary] {summary}",
+                source="claw",
+            )
             logger.info("[claw] summarize_journal completed for %s", session_id)
             return TaskResult.succeeded
         except Exception as exc:
@@ -140,7 +162,9 @@ def _build_handlers(summary_model: str) -> dict[str, object]:
         budget = SummaryBudget(budget_str)
 
         try:
-            from shoal.core.message_bus import get_workflow_messages
+            from shoal.core.message_bus import get_workflow_messages, send_message
+            from shoal.core.qmd import persist_summary_event
+            from shoal.core.state import get_session
 
             messages = await get_workflow_messages(corr_id, limit=50)
             if not messages:
@@ -152,7 +176,30 @@ def _build_handlers(summary_model: str) -> dict[str, object]:
             )
             summary = await summarizer.summarize(trace, budget, context=corr_id)
 
-            from shoal.core.message_bus import send_message
+            session_id = str(task.session or f"workflow:{corr_id}")
+            session_name = session_id
+            if task.session is not None:
+                session_record = await get_session(task.session)
+                if session_record is not None:
+                    session_name = session_record.name
+
+            await asyncio.to_thread(
+                persist_summary_event,
+                session_id=session_id,
+                session_name=session_name,
+                source="claw",
+                summary=summary,
+                kind="workflow_summary",
+                correlation_id=corr_id,
+                tags=("summary", "workflow", "claw"),
+                metadata={
+                    "producer": "claw",
+                    "budget": budget.value,
+                    "message_count": len(messages),
+                    "model": summary_model,
+                    "scope": "workflow",
+                },
+            )
 
             await send_message(
                 from_session="__claw__",
