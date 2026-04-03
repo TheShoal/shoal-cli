@@ -9,7 +9,9 @@ Requires the ``mcp`` optional dependency: ``pip install shoal[mcp]``
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -42,7 +44,8 @@ from shoal.services.batch import session_snapshot as build_session_snapshot
 from shoal.services.runtime_provider import provider_for_session, runtime_payload
 
 if TYPE_CHECKING:
-    from shoal.models.config import ToolConfig
+    from shoal.models.config import SessionTemplateConfig, ToolConfig
+    from shoal.models.state import SessionState
 
 logger = logging.getLogger("shoal.mcp_server")
 
@@ -403,6 +406,59 @@ def _tool_command_for_session(
     return build_tool_command_with_prompt(tool_cfg, prompt, session_id)
 
 
+def _resolve_template_and_mcp(
+    template: str | None,
+    mcp_servers: list[str] | None,
+) -> tuple[SessionTemplateConfig | None, list[str] | None]:
+    """Load a template and merge its MCP servers with the caller's list.
+
+    Returns ``(template_cfg, merged_mcp_servers)``.  Raises ``ToolError`` on
+    missing or invalid templates.
+    """
+    from shoal.core.config import load_template
+
+    if not template:
+        return None, mcp_servers
+
+    try:
+        template_cfg = load_template(template)
+    except FileNotFoundError:
+        raise ToolError(f"Template not found: {template}") from None
+    except ValueError as e:
+        raise ToolError(f"Invalid template '{template}': {e}") from None
+
+    merged: list[str] | None = mcp_servers
+    if template_cfg.mcp:
+        merged = sorted(set(mcp_servers or []) | set(template_cfg.mcp))
+    return template_cfg, merged
+
+
+async def _create_worker_worktree(
+    source_session: SessionState,
+    worker_name: str,
+    template_cfg: SessionTemplateConfig | None,
+) -> tuple[str, str]:
+    """Create a worktree for a worker session.
+
+    Returns ``(wt_path, branch_name)``.
+    """
+    from shoal.core import git
+
+    wt_dir_name = worker_name.replace("/", "-")
+    wt_path = f"{source_session.path}/.worktrees/{wt_dir_name}"
+    Path(source_session.path, ".worktrees").mkdir(parents=True, exist_ok=True)
+    branch_prefix = template_cfg.git.branch_prefix if template_cfg and template_cfg.git else ""
+    branch_name = git.infer_branch_name(worker_name, branch_prefix)
+    await asyncio.to_thread(
+        git.worktree_add,
+        source_session.path,
+        wt_path,
+        branch=branch_name,
+        start_point=source_session.branch,
+    )
+    return wt_path, branch_name
+
+
 # ---------------------------------------------------------------------------
 # Tool: create_session
 # ---------------------------------------------------------------------------
@@ -551,6 +607,300 @@ async def create_session_tool(
         "runtime": runtime_payload(session.runtime),
         "branch": session.branch,
         "worktree": session.worktree,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tool: fork_session
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="fork_session",
+    description=(
+        "Fork an existing session into a new worker session with its own git worktree. "
+        "Use this to spawn worker agents from a coordinator agent. "
+        "Returns the new session's id, name, branch, and worktree path."
+    ),
+    annotations={"destructiveHint": True},
+)
+async def fork_session_tool(
+    source: str,
+    name: str,
+    prompt: str | None = None,
+    template: str | None = None,
+    mcp_servers: list[str] | None = None,
+) -> dict[str, Any]:
+    """Fork a session into a new worker.
+
+    Args:
+        source: Name or ID of the session to fork from.
+        name: Name for the new worker session.
+        prompt: Initial prompt to send to the worker after startup.
+        template: Template name to apply to the worker session.
+        mcp_servers: MCP servers to provision for the worker.
+    """
+    from shoal.core.config import ensure_dirs, load_config, load_tool_config
+    from shoal.core.state import find_by_name, get_session
+    from shoal.services.lifecycle import (
+        SessionExistsError,
+        StartupCommandError,
+        TmuxSetupError,
+        fork_session_lifecycle,
+    )
+
+    ensure_dirs()
+    cfg = load_config()
+
+    source_id = await find_by_name(source)
+    if source_id is None:
+        raise ToolError(f"Source session not found: {source}")
+    source_session = await get_session(source_id)
+    if source_session is None:
+        raise ToolError(f"Source session not found: {source}")
+
+    try:
+        tool_cfg = load_tool_config(source_session.tool)
+    except FileNotFoundError:
+        raise ToolError(f"Unknown tool: {source_session.tool}") from None
+
+    template_cfg, mcp_servers = _resolve_template_and_mcp(template, mcp_servers)
+    wt_path, branch_name = await _create_worker_worktree(source_session, name, template_cfg)
+
+    try:
+        session = await fork_session_lifecycle(
+            session_name=name,
+            source_tool=source_session.tool,
+            source_path=source_session.path,
+            source_branch=source_session.branch,
+            wt_path=wt_path,
+            work_dir=wt_path,
+            new_branch=branch_name,
+            tool_command=_tool_command_for_session(tool_cfg, prompt, name),
+            startup_commands=cfg.tmux.startup_commands,
+            template_cfg=template_cfg,
+            worktree_name=name,
+            mcp_servers=mcp_servers,
+            parent_id=source_session.id,
+        )
+    except SessionExistsError as e:
+        raise ToolError(str(e)) from e
+    except TmuxSetupError as e:
+        raise ToolError(f"Failed to create tmux session: {e}") from e
+    except StartupCommandError as e:
+        raise ToolError(f"Startup command failed: {e}") from e
+    except ValueError as e:
+        raise ToolError(f"Invalid session configuration: {e}") from e
+
+    if prompt and tool_cfg.input_mode == "keys":
+        provider = provider_for_session(session)
+        await provider.async_wait_for_ready(session, tool_cfg, ready_timeout=5.0)
+        await provider.async_send_input(session, prompt, delay=tool_cfg.send_keys_delay)
+
+    return {
+        "id": session.id,
+        "name": session.name,
+        "tool": session.tool,
+        "status": session.status.value,
+        "branch": session.branch,
+        "worktree": session.worktree,
+        "parent_id": source_session.id,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tool: spawn_team
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="spawn_team",
+    description=(
+        "Spawn multiple worker sessions from the current coordinator session. "
+        "Each worker gets its own git worktree, branch, and optional prompt. "
+        "Returns a correlation_id you can use with wait_for_team to collect results."
+    ),
+    annotations={"destructiveHint": True},
+)
+async def spawn_team_tool(
+    source: str,
+    workers: list[dict[str, Any]],
+    template: str | None = None,
+    mcp_servers: list[str] | None = None,
+) -> dict[str, Any]:
+    """Spawn multiple worker sessions.
+
+    Args:
+        source: Name or ID of the coordinator session to fork from.
+        workers: List of worker specs. Each dict must have 'name' (str) and optionally
+                 'prompt' (str) to send after startup.
+        template: Template to apply to all workers.
+        mcp_servers: MCP servers to provision for all workers.
+    """
+    from shoal.core.config import ensure_dirs, load_config, load_tool_config
+    from shoal.core.message_bus import send_message
+    from shoal.core.state import find_by_name, get_session
+    from shoal.services.lifecycle import (
+        SessionExistsError,
+        StartupCommandError,
+        TmuxSetupError,
+        fork_session_lifecycle,
+    )
+
+    for i, worker in enumerate(workers):
+        if "name" not in worker:
+            raise ToolError(f"Worker at index {i} is missing required 'name' key")
+
+    ensure_dirs()
+    cfg = load_config()
+
+    source_id = await find_by_name(source)
+    if source_id is None:
+        raise ToolError(f"Source session not found: {source}")
+    source_session = await get_session(source_id)
+    if source_session is None:
+        raise ToolError(f"Source session not found: {source}")
+
+    try:
+        tool_cfg = load_tool_config(source_session.tool)
+    except FileNotFoundError:
+        raise ToolError(f"Unknown tool: {source_session.tool}") from None
+
+    template_cfg, resolved_mcp = _resolve_template_and_mcp(template, mcp_servers)
+    correlation_id = str(uuid.uuid4())[:8]
+    spawned: list[dict[str, Any]] = []
+    failed: list[dict[str, Any]] = []
+
+    for worker in workers:
+        worker_name: str = worker["name"]
+        worker_prompt: str | None = worker.get("prompt")
+
+        try:
+            wt_path, branch_name = await _create_worker_worktree(
+                source_session, worker_name, template_cfg
+            )
+            worker_session = await fork_session_lifecycle(
+                session_name=worker_name,
+                source_tool=source_session.tool,
+                source_path=source_session.path,
+                source_branch=source_session.branch,
+                wt_path=wt_path,
+                work_dir=wt_path,
+                new_branch=branch_name,
+                tool_command=_tool_command_for_session(tool_cfg, worker_prompt, worker_name),
+                startup_commands=cfg.tmux.startup_commands,
+                template_cfg=template_cfg,
+                worktree_name=worker_name,
+                mcp_servers=resolved_mcp,
+                parent_id=source_session.id,
+            )
+        except (SessionExistsError, TmuxSetupError, StartupCommandError, ValueError) as e:
+            logger.warning("[spawn_team] worker %s failed: %s", worker_name, e)
+            failed.append({"name": worker_name, "error": str(e)})
+            continue
+
+        if worker_prompt and tool_cfg.input_mode == "keys":
+            provider = provider_for_session(worker_session)
+            await provider.async_wait_for_ready(worker_session, tool_cfg, ready_timeout=5.0)
+            await provider.async_send_input(
+                worker_session, worker_prompt, delay=tool_cfg.send_keys_delay
+            )
+
+        try:
+            await send_message(
+                from_session=source,
+                to_session=worker_name,
+                topic="handoff",
+                payload=(
+                    f"You are worker {worker_name} in team {correlation_id}."
+                    f" Your task: {worker_prompt or ''}"
+                ),
+                kind="handoff",
+                correlation_id=correlation_id,
+            )
+        except Exception:
+            logger.debug("[spawn_team] handoff message to %s failed (non-fatal)", worker_name)
+
+        spawned.append(
+            {"name": worker_session.name, "id": worker_session.id, "branch": worker_session.branch}
+        )
+
+    return {"correlation_id": correlation_id, "spawned": spawned, "failed": failed}
+
+
+# ---------------------------------------------------------------------------
+# Tool: wait_for_team
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="wait_for_team",
+    description=(
+        "Wait until all worker sessions associated with a correlation_id have "
+        "completed (status=completed) or reached a terminal state. "
+        "Poll-based with configurable timeout. Returns per-worker final status."
+    ),
+)
+async def wait_for_team_tool(
+    correlation_id: str,
+    session_names: list[str],
+    timeout_seconds: int = 300,
+    poll_interval_seconds: int = 10,
+) -> dict[str, Any]:
+    """Wait for a team of workers to reach terminal states.
+
+    Args:
+        correlation_id: The correlation ID returned by spawn_team.
+        session_names: Names of the worker sessions to wait for.
+        timeout_seconds: Maximum seconds to wait (default 300).
+        poll_interval_seconds: Seconds between status polls (default 10).
+    """
+    from shoal.core.state import list_sessions
+    from shoal.models.state import SessionStatus
+
+    _TERMINAL = {SessionStatus.error, SessionStatus.stopped}
+
+    def _is_terminal(sess: SessionState) -> bool:
+        return sess.completed_at is not None or sess.status in _TERMINAL
+
+    def _effective_status(sess: SessionState) -> str:
+        return "completed" if sess.completed_at is not None else sess.status.value
+
+    async def _collect_workers() -> tuple[bool, list[dict[str, Any]]]:
+        all_sessions = {s.name: s for s in await list_sessions()}
+        info: list[dict[str, Any]] = []
+        all_done = True
+        for session_name in session_names:
+            s = all_sessions.get(session_name)
+            if s is None:
+                info.append({"name": session_name, "status": "not_found", "branch": ""})
+                continue
+            if not _is_terminal(s):
+                all_done = False
+            info.append({"name": s.name, "status": _effective_status(s), "branch": s.branch})
+        return all_done, info
+
+    elapsed = 0
+
+    while elapsed < timeout_seconds:
+        all_terminal, workers_info = await _collect_workers()
+        if all_terminal:
+            return {
+                "correlation_id": correlation_id,
+                "all_complete": True,
+                "timed_out": False,
+                "workers": workers_info,
+            }
+        await asyncio.sleep(poll_interval_seconds)
+        elapsed += poll_interval_seconds
+
+    # Final check after timeout
+    all_terminal, workers_info = await _collect_workers()
+    return {
+        "correlation_id": correlation_id,
+        "all_complete": all_terminal,
+        "timed_out": True,
+        "workers": workers_info,
     }
 
 

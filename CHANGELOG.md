@@ -7,7 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] "Agentic Teams" - 2026-04-03
 
+**Agents can now spawn and coordinate worker teams from within a session.**
+
+### Added
+- **`fork_session` MCP tool**: Agents self-spawn a worker session with its own git worktree and branch. Returns `id`, `name`, `branch`, `worktree`, `parent_id`.
+- **`spawn_team` MCP tool**: Fan-out primitive — takes a list of worker specs (`name`, optional `prompt`), spawns each as a forked session, sends a `handoff` message with a shared `correlation_id`. Returns `{correlation_id, spawned, failed}` with per-worker error isolation.
+- **`wait_for_team` MCP tool**: Poll-based collective completion — waits for all named workers to reach a terminal state (`completed`, `error`, or `stopped`). Single `list_sessions()` call per poll cycle instead of N individual lookups.
+- **Worker completion signals to coordinator**: New `_hook_coordinator_on_complete` lifecycle hook fires on `session_completed`; if the session has a `parent_id`, sends a `worker_completed` event message to the parent session automatically.
+- **`_resolve_template_and_mcp` helper**: Extracted shared template-load + MCP merge logic used by `create_session_tool`, `fork_session_tool`, and `spawn_team_tool`.
+- **`_create_worker_worktree` helper**: Extracted shared worktree + branch creation logic used by both fork tools.
+- **`MessageKind` type on `send_message`**: `message_bus.send_message(kind=...)` now typed as `MessageKind` Literal instead of bare `str`.
+
+### Docs
+- **`docs/features.md` rewrite**: Full feature reference covering all capabilities with tables, config examples, and links. Replaces the old vague marketing copy.
+- **`docs/project/` stubs** (7 new files): Resolves broken nav links in mkdocs.yml — roadmap, changelog, release-process, commit-guidelines, contributing, security, architecture-guide.
+- **`docs/cli-reference.md`**: Added `shoal proactive`, `shoal sync`, web dashboard, and MCP tools table (including new team tools). Fixed broken `lobster-integration.md` reference.
+
+### Stats
+- 1572 tests, 1 skipped
 
 ## [0.37.2] - 2026-04-03
 
@@ -43,513 +62,208 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `_init_proactive_hooks` enabled/disabled/idempotent paths.
 
 
-## [0.37.0] - 2026-04-03
+## [0.37.0] – [0.37.2] "Agent Bus & Memory" (2026-04-03)
+
+**Inter-Agent Communication + Conversation Memory** — enriched message bus, Lobster scheduler, QMD memory, pre-commit hook profile.
+
+### v0.37.2 — Pre-Commit Hook Profile
+- **`[template.git].pre_commit_config`**: Symlinks `.pre-commit-config.yaml` into worktrees at session creation
+
+### v0.37.1 — KAIROS Hotfix + Test Coverage
+- Fixed `_handle_command_failed` missing `event` parameter (KAIROS was silently broken)
+- Added 20 `FsWatcher` tests, 18 `ProactiveSupervisor` tests
+
+### v0.37.0 — Agent Bus, Memory, Scheduler
+- **Agent Bus enhancements**: `watch_messages`, `watch_pending_actions` async generators; enriched message envelope (typed `kind`, `priority`, `correlation_id`, `requires_ack`)
+- **Lobster scheduler**: Fair-scheduling async tick loop for background/agent tasks; recurring/cron support; `TaskHandler` protocol
+- **SOUL.md integration**: Auto-loads repo SOUL into MCP instructions + fin env
+- **Dual-plane QMD**: Structured conversation memory (Markdown full-text + JSON sidecar); `ConversationIndex` for fast lookup; 3-tier handoff chain (Dreamer → index → prose)
+- **Claw → Lobster rename**: Completed across all user surfaces
+- 1673 tests (1669 passed, 4 skipped)
+
+## [0.36.0] "KAIROS" (2026-04-02)
+
+**Proactive Agent Assistance** — full autonomous monitoring stack with Dreamer LLM, FsWatcher, Agent Bus, and KAIROS supervisor.
 
 ### Added
-- **Agent Bus — watch and workflow surfaces** (`core/message_bus.py`, `core/action_bus.py`):
-  `watch_messages` and `watch_pending_actions` async generators for event-like polling;
-  `get_workflow_messages` cross-session workflow trace by `correlation_id`.
-- **Agent Bus — enriched message envelope** (`models/message.py`, `models/action.py`):
-  Typed `kind` (event/request/response/handoff/approval_request/approval_decision/error),
-  `priority` (1–5), `correlation_id`, `reply_to_message_id`, `requires_ack`; action approval
-  lifecycle (`pending → approved/denied`); `mark_session_message_acked` MCP tool.
-- **Claw/Lobster scheduler subsystem** (`core/claw_scheduler.py`, `core/db.py`,
-  `services/claw_bootstrap.py`): Fair-scheduling async tick loop for background and
-  agent-scheduled tasks. One task per tick cycle; recurring and cron task types;
-  `TaskHandler` protocol; `ClawScheduler.signal()` for immediate wake.
-- **SOUL.md integration** (`services/mcp_shoal_server.py`, fins): Auto-loads `SOUL.md`
-  from the repo root into MCP `instructions` and fin environment on session start.
-- **Conversation memory — dual-plane QMD** (`core/qmd.py`, `core/conversations.py`,
-  `core/conversation_index.py`, `core/claw_conversations.py`, `core/lobster_conversations.py`,
-  `cli/handoff.py`): Structured QMD turn format with Markdown full-text plane and JSON
-  sidecar; `ConversationIndex` for fast lookup; `generate_handoff` narrative builder;
-  `--sync-claw` CLI flag on `shoal handoff`; 3-tier summary chain (Dreamer → index → prose).
-- **MCP `list_sessions` path filter**: New `path` parameter scopes session discovery to a
-  git root or worktree subtree.
+- **Dreamer LLM**: AWS Bedrock/HTTP gateway wrapper, persists session summaries to journal
+- **FsWatcher**: `watchfiles`-backed async watcher, `file_changed` lifecycle events, `shoal proactive fs-watch`
+- **Agent Bus**: Session-to-session SQLite messaging, `messages` + `failure_contexts` tables, 3 new MCP tools
+- **KAIROS Supervisor**: Subscribes to `command_failed`, stores failure contexts, `get_failure_context` MCP tool
+- **`shoal session` subcommand**: Ergonomic aliases (list/info/logs/status/attach/detach/kill/prune)
+- **`branch_prefix` in MCP**: `create_session_tool` now honors `template_cfg.git.branch_prefix`
+- **`--extended` status**: Emits `dreamer_summaries` dict
+
+### Fixed
+- MCP socket env injection (3 bugs: pane-dict key, pane target, TUI vs shell)
+- `mcp_configure` parent-dir creation
+- `kill_session` implicit list-expansion removed
 
 ### Changed
-- **Claw → Lobster rename** completed across all user-visible surfaces: help text, error
-  messages, install hints (`shoal[lobster]`, `uv add`), log prefixes (`[lobster]`),
-  `LobsterClient` kwarg (`lobster_id=`), `LobsterRuntimeState` field (`lobster_id`),
-  CLI `shoal lobster` help strings, `a2a_bridge` docstrings.
-- **`ClawTask` model hardened**: Added `model_config = ConfigDict(extra="forbid")`,
-  consistent with all other bus models.
-- **`asyncio.get_event_loop()` → `get_running_loop()`** in `action_bus.py` and
-  `message_bus.py` (deprecated in Python 3.10+).
-- **Blocking I/O wrapped in `asyncio.to_thread`**: `import_qmd_to_journal` and
-  `export_journal_to_qmd` inside `sync_lobster_conversations_tool`.
-- **`cast()` over `int(x)` for object-typed DB dict values** in `claw_scheduler.py`,
-  `lobster_conversations.py`, and `db.py` — eliminates mypy `call-overload` errors.
+- Dynamic versioning via `hatch.version`
+- 1533 tests (1529 passed, 4 skipped)
 
-### Fixed
-- **`ConversationIndex._initialized` was class-level** (caused `no such table` errors on
-  second instance); corrected to per-instance flag.
-- **`db.py` stale `type: ignore` casts**: Replaced `int(obj)` / `float(obj)` on
-  `object`-typed dict values with `cast(int, ...)` / `cast(float, ...)`.
-- **All mypy --strict errors** in new post-v0.36.0 code: stale `type: ignore` codes on
-  gRPC stub lines, import-sort violations, line-length violation in `lobster_client.py`.
+## [0.35.0] "Dashboard API" (2026-04-02)
 
-### Stats
-- 1673 tests collected, 1669 passed, 4 skipped
-
-## [0.36.0] - 2026-04-02
+**JSON API + Pisces** — dashboard JSON endpoints, Pisces tool support, socket env injection.
 
 ### Added
-- **Proactive agent assistance** (`services/proactive_supervisor.py`, `services/fs_watcher.py`,
-  `services/ai_client.py`, `core/message_bus.py`): Full KAIROS proactive monitoring stack.
-  - **Dreamer LLM** (`ai_client.py`): Thin async LLM wrapper supporting AWS Bedrock, HTTP gateway,
-    and a no-op stub fallback. Dreamer now persists session summaries to the journal.
-  - **FsWatcher** (`fs_watcher.py`): `watchfiles`-backed async watcher that emits `file_changed`
-    lifecycle events per session worktree. Start/status exposed via `shoal proactive fs-watch`.
-  - **Agent Bus** (`message_bus.py`): Session-to-session SQLite messaging. Adds `messages` and
-    `failure_contexts` tables; `send_session_message`, `receive_session_messages`,
-    `mark_session_message_consumed` MCP tools; `shoal proactive message send/list` CLI commands.
-  - **KAIROS Supervisor** (`proactive_supervisor.py`): Subscribes to `command_failed` events,
-    stores failure context packets, and serves them via `get_failure_context` MCP tool. Configured
-    via `ProactiveSupervisorConfig` in robo profile (`auto_enqueue`, `failure_ttl_seconds`,
-    `trigger_topics`).
-  - New lifecycle events: `file_changed`, `command_failed`.
-  - New MCP tools: `session_summary`, `send_session_message`, `receive_session_messages`,
-    `mark_session_message_consumed`, `get_failure_context`.
-  - New CLI commands: `shoal proactive fs-watch start/status`, `shoal proactive message send/list`.
-- **`shoal session` subcommand group** (`cli/session_cmd.py`): Ergonomic aliases for session
-  management — `shoal session list`, `ls`, `info`, `logs`, `status`, `attach`, `detach`, `kill`,
-  `prune`.
-- **`branch_prefix` in MCP `create_session`**: MCP server `create_session_tool` now passes
-  `template_cfg.git.branch_prefix` to `infer_branch_name`, matching CLI behaviour since v0.27.0.
-- **`--extended` flag for `shoal-status`**: Emits a `dreamer_summaries` dict alongside standard
-  status output.
-- **`watchfiles` promoted to core dependency**: Dropped the `proactive` extra — at 200 KB it's
-  not worth the install friction.
+- **Dashboard JSON API**: All partial endpoints accept `?format=json` for structured data
+- **Dashboard schemas**: Pydantic models (`FleetResponse`, `SessionDetailResponse`, `JournalEntryResponse`, `PaneResponse`)
+- **Pisces tool**: `omp_compat` status provider, example configs (tool/robo/template)
+- **MCP socket env injection**: `socket_env` field injects Unix socket paths into agent shell
 
 ### Fixed
-- **MCP socket env injection** (`lifecycle.py`): Three bugs fixed in
-  `_inject_mcp_socket_env_async` — wrong pane-dict key (`command` not `pane_current_command`),
-  wrong pane target (now uses tmux pane id `%NNN`), and injection sent to the tool TUI instead of
-  shell panes. Now polls up to 5 s for a shell pane to appear (race on MCP provisioning).
-- **`mcp_configure` parent-dir creation**: `mkdir -p` called before writing config JSON files,
-  preventing `FileNotFoundError` when the parent directory does not yet exist.
-- **`kill_session` MCP tool simplified**: Removed implicit list-expansion from `kill_session_tool`.
-  Batch kills must go through `batch_execute` — matches the documented contract and eliminates a
-  hidden code path.
+- Dashboard WS broadcast debounce (100ms batching)
+- Dashboard XSS (`html.escape()` before markdown)
+- Dashboard status counts (single `Counter` pass)
+- Pane capture ANSI stripping
+- `template_cfg.git is None` guard
+## [0.34.0] "Web Dashboard" (2026-04-02)
+
+**Live Operator UI** — HTMX-powered web dashboard with real-time updates.
+
+### Added
+- **Web dashboard**: `/ui` operator board with fleet overview, status bar, filter pills, WebSocket live updates
+- **Session detail page**: Identity/runtime/MCP panel + Journal/Terminal/History tabs
+- **Dark theme**: Urgency-tier color coding (error → waiting → running → idle → completed)
+- **`shoal handoff --sync-claw`**: Import Lobster QMD turns before handoff generation
+
+### Fixed
+- Proto pb2 compat for protobuf 6.x / grpcio 1.80 (descriptor pool collision)
+
+## [0.30.0] – [0.32.0] "Lobster Integration" (2026-04-01)
+
+**Cross-System A2A Bridge** — Claw runtime provider, MCP ↔ A2A bridge, conversation sync, agent teams.
+
+### v0.32.0 — Agent Teams & Journal Dreaming
+- **Agent teams**: `shoal create --team` spawns nested parallel sub-sessions; `CoordinatorSession` abstraction
+- **Journal dreaming**: Sessions compress past findings into agent loop
+
+### v0.31.4 — Hotfix
+- Fixed mermaid markup on docs homepage
+
+### v0.30.0 — Claw Runtime + A2A Bridge
+- **Claw runtime**: `RuntimeKind.claw`, `ClawRuntimeProvider` (13 Protocol methods), `ClawRuntimeState`, gRPC session lifecycle
+- **MCP ↔ A2A bridge**: 5 new tools (`send_to_claw`, `claw_status`, `list_claws`, `claw_health`, `sync_claw_conversations`); 23 total MCP tools
+- **Conversation sync**: QMD ↔ journal import/export; `shoal sync <session>` CLI
+- **Proto stubs**: Lobster Party protobuf/gRPC stubs in `src/shoal/core/proto/`
+- **Integration spec**: `INTEGRATION.md` documents Shoal × Lobster Party × Smorgasbord architecture
+
+## [0.29.0] "Binary Release" (2026-03-31)
+
+**Distribution + Performance** — PyApp self-contained binary, Homebrew tap, omp as default tool.
+
+### Added
+- **MCP robo tools**: `mark_complete`, `read_worktree_file`, `list_worktree_files` (18 total tools)
+- **PyApp binary**: Self-contained `shoal` binary; Homebrew formula at `TheShoal/tap/shoal-cli`
+- **omp default**: Replaced `pi` as default tool across config/robo/templates
 
 ### Changed
-- **`ai_client`, `fs_watcher`, `proactive_supervisor` simplified** (`refactor`): Internal
-  complexity reduced after initial implementation pass — cleaner async patterns, smaller surface.
-- **`pyproject.toml` dynamic versioning**: Version is now derived from `src/shoal/__init__.py`
-  via `hatch.version`, eliminating the dual-update requirement.
+- **Deferred CLI imports**: Lazy loading via thin wrappers improves `shoal --help` latency
+- **Config model split**: `models/config.py` → focused submodules (general/tools/templates/hooks/workspace/robo)
 
-### Stats
-- 1533 tests collected, 1529 passed, 4 skipped
+## [0.28.0] "Fleet Showcase" (2026-03-31)
 
-## [0.35.0] - 2026-04-02
+**Demo Maturity + Skill Ecosystem** — flagship 6-step fleet demo, skill discovery, and project-level config.
 
 ### Added
-- **Dashboard JSON API**: All dashboard partial endpoints (`/partials/status-bar`,
-  `/partials/session-list`, `/sessions/{id}`, `/partials/journal/{id}`, `/partials/pane/{id}`)
-  accept `?format=json` to return structured JSON instead of HTML fragments, enabling
-  integration with external tools like Pisces and Lobster Party.
-- **Dashboard schemas** (`dashboard/schemas.py`): Pydantic models (`FleetResponse`,
-  `SessionDetailResponse`, `JournalEntryResponse`, `PaneResponse`) for the JSON API.
-- **Pisces tool support**: `pisces` recognised as `omp_compat` status provider.
-  Example configs added: `examples/config/tools/pisces.toml`,
-  `examples/config/robo/pisces.toml`, `examples/config/templates/pisces-dev.toml`.
-- **MCP socket env injection** (`_mcp_socket_env_injection`): When a tool config sets
-  `mcp.socket_env`, shoal injects the colon-delimited Unix socket paths into the tmux
-  environment and the agent shell via `set -gx` on session create and fork.
+- **`shoal demo fleet`**: 6-step showcase (planner → implementer → reviewer → escalation → overnight → summary) with real sessions/worktrees/journals
+- **Skill discovery**: `discover_skills()` searches `.shoal/skills/` + `~/.config/shoal/skills/`; `shoal skill ls`; auto-symlink for Claude Code
+- **Project-level `.shoal.toml`**: Git-root config with `[env]`, `setup_commands`, `default_tool`, `default_template` (precedence: project < template < flags)
+- **Cross-tool skill parity**: OpenCode (`.opencode/agents/`), omp (`.omp/skills/`), Claude Code (`.claude/skills/`)
 
 ### Fixed
-- **Dashboard WS broadcast debounce**: Status change events are batched within a 100ms
-  window before rendering session cards, preventing client flooding during rapid
-  state transitions.
-- **Dashboard XSS**: `html.escape()` applied in `_basic_md_to_html` before markdown
-  substitution to prevent injection through journal content.
-- **Dashboard status counts**: Replaced N×linear-scan with a single `Counter` pass.
-- **Pane capture**: ANSI escape codes stripped from terminal output before rendering.
-- **Bandit B310 suppressor** added to `status_bar.py` `urlopen` call (pre-existing
-  ruff `# noqa: S310` was insufficient for bandit).
-- **`_apply_template_git_config_async`**: Guard against `template_cfg.git is None`
-  to avoid `AttributeError` when templates omit the `[git]` section.
-## [0.34.0] - 2026-04-02
+- `send_keys` pane targeting in multi-pane templates (was active pane, now first pane)
+- GitHub Actions Node.js 24 compatibility
+
+## [0.27.0] "Workspaces & Modes" (2026-03-31)
+
+**Meta-Repo Support + Agent Roles** — nested workspace routing, structured handoffs, and operating modes for multi-agent workflows.
 
 ### Added
-- **Web dashboard**: HTMX-powered operator board mounted at `/ui` on the Shoal API server.
-  Fleet overview page with live status bar, filter pills, and real-time session card updates
-  via WebSocket OOB swaps. Session detail page with identity/runtime/MCP left panel and
-  Journal/Terminal/History tab strip. Vendored HTMX 2.0.4 + htmx-ext-ws 2.0.2 — no CDN
-  dependency. Dark design system with urgency-tier color coding (error → waiting → running
-  → idle → completed). Keyboard shortcut `/` focuses search. `GET /ui/ws` for live push.
-- **`shoal handoff --sync-claw PATH`**: Imports Lobster Party QMD conversation turns into
-  the session journal before generating the handoff artifact, enabling cross-system context
-  hand-off from Claw agents.
+- **Meta-repo workspaces**: `.shoal/workspace.toml` maps logical names to sub-repos (SMORGASBORD §3.1); `--repo` flag + auto-match
+- **Structured handoffs**: `HandoffArtifact` with git stats, JSON export, auto-generation on kill; `shoal handoff` + `handoff-ls` commands
+- **Operating modes**: `MODE_REGISTRY` with `planner`, `implementer`, `reviewer` specs; `shoal mode ls`; auto-tagging
+- **Template `mode` + `tags`**: Union-merged during inheritance, auto-applied to sessions
+- **Branch categories**: `plan`, `impl`, `review`, `batch` prefixes
+- **Cross-agent skills**: `.shoal/skills/` with transpilation to Claude/OpenCode/omp; `shoal-skill-sync.sh` hook
+- **`claude-review` template**: Review-oriented session
 
 ### Fixed
-- **Proto pb2 compat for protobuf 6.x / grpcio 1.80**: Pre-import `google.protobuf.timestamp_pb2`
-  in `lobster_loop_pb2`, `a2a_claw_pb2`, `a2a_core_pb2` to resolve descriptor pool collision.
-  Fixed `*_grpc.py` stubs to use `from shoal.core.proto import …` instead of bare relative
-  imports so they resolve correctly inside the package.
+- Template inheritance now merges `mode`/`tags` (were dropped)
+- Handoff generation race (now before DB deletion)
+- Workspace path traversal validation
+- `shoal new <nonexistent-path>` friendly error (TheShoal/shoal-cli#7)
 
-## [0.32.0] - 2026-04-01
+## [0.26.0] "Incident Response" (2026-03-30)
+
+**Alert-Driven Multi-Agent Ops** — first-class incident workflows with role-based lanes, Claude hook integration, and remote ops.
 
 ### Added
-- **Agent Teams**: Create sessions that spawn nested parallel agent sub-sessions for wide tasks using `shoal create --team`. Supported by a new `CoordinatorSession` abstraction.
-- **Journal Dreaming**: Agent sessions now compress past findings into the main session loop.
-
-## [0.31.4] - 2026-04-01
-
-### Fixed
-- Fix broken mermaid markup on docs homepage
-
-
-## [0.30.0] - 2026-04-01
-
-### Added
-- **Claw runtime provider**: Shoal now manages lobster-party Claw sessions via gRPC.
-  `RuntimeKind.claw` with full `ClawRuntimeProvider` implementing all 13 Protocol methods.
-  `ClawRuntimeState` (claw_id, endpoint, employee_id) joins `TmuxRuntimeState` in the
-  `AnyRuntimeState` discriminated union with `SessionState.tmux_runtime` for type narrowing.
-  `ClawConfig` model for `[claw]` config.toml section. `create_claw_session_lifecycle()` for
-  Claw session creation without tmux/worktree. New `claw` optional dep group:
-  `grpcio>=1.60`, `grpcio-tools>=1.60`, `protobuf>=4.25`.
-- **MCP ↔ A2A bridge**: 5 new `shoal-orchestrator` MCP tools for cross-system agent
-  collaboration: `send_to_claw` (gRPC Turn with streaming), `claw_status` (single or batch),
-  `list_claws` (enumerate known Claws from config), `claw_health` (liveness check),
-  `sync_claw_conversations` (import/export/both QMD↔journal). MCP server now exposes 23 tools.
-- **Conversation/journal sync**: `core/claw_conversations.py` reads lobster-party QMD files
-  (YAML frontmatter + JSON turns). `import_claw_turns()` appends new turns to session journals;
-  `export_journal_to_qmd()` writes Shoal journals to QMD format. `shoal sync <session>` CLI
-  command with `--direction` flag (import/export/both).
-- **Lobster Party proto stubs**: Generated protobuf/gRPC stubs committed to
-  `src/shoal/core/proto/` (lobster_loop, a2a_core, a2a_claw, delegation). Regenerate with
-  `just gen-protos` when protos change.
-- **Integration spec**: `INTEGRATION.md` documents the full Shoal × Lobster Party ×
-  Smorgasbord integration architecture and data flow.
-
-## [0.29.0] - 2026-03-31
-
-### Added
-- **MCP tools for robo workflows**: `mark_complete` (agents signal task completion),
-  `read_worktree_file` (supervisors read worker output files with path traversal
-  protection), `list_worktree_files` (enumerate worktree contents). MCP server
-  now exposes 18 tools.
-- **PyApp binary distribution**: Self-contained `shoal` binary via PyApp packaging.
-  Homebrew formula at `TheShoal/tap/shoal-cli`.
-- **omp as default tool**: Replaced `pi` with `omp` (oh-my-pi) as the default tool
-  across `GeneralConfig`, robo profiles, mode presets, and templates.
-
-### Changed
-- **Deferred CLI imports**: All subcommand modules now use lazy imports via thin
-  wrappers in `cli/__init__.py`, improving `shoal --help` startup latency.
-- **Config model split**: Monolithic `models/config.py` refactored into focused
-  submodules (`models/config/general.py`, `tools.py`, `templates.py`, `hooks.py`,
-  `workspace.py`, `robo.py`). Public API unchanged via `__init__.py` re-exports.
+- **Incident workflows**: `shoal incident ingest/ls/show/spawn/resolve` for alert ingestion and multi-lane coordination
+- **Five incident roles**: supervisor, investigator, repro, comms, reviewer — role-specific prompts + env injection
+- **Incident REST API**: Full programmatic access (`GET /incidents`, `POST /incidents`, lane spawning)
+- **Claude hook integration**: `hook-scaffold` writes `TaskCreated`/`TaskCompleted`/`StopFailure` templates; `hook-report` ingests events
+- **Remote incident ops**: `shoal remote incident` commands proxy to remote hosts via SSH tunnel
+- **`post_worktree_create` hook**: Template field executes script after worktree provisioning
+- **Project-local hooks**: `.shoal/hooks.toml` binds shell commands to lifecycle events with status filters
 
 ### Fixed
-- Default tool assertions in tests updated for omp default.
+- **Lifecycle hooks silently broken**: `register_builtin_hooks()` never called at API startup since v0.18.0
+- **Path traversal in prompt files**: Session names with `/` now sanitized
 
-## [0.28.0] - 2026-03-31
+## [0.24.0] – [0.25.0] "Runtime Abstraction" (2026-03-18)
 
-### Added
-- **Flagship fleet demo**: `shoal demo fleet` runs a 6-step scripted showcase —
-  planner → implementer → reviewer → supervisor escalation → overnight progress
-  → morning fleet summary. Uses real sessions, worktrees, journals, and handoff
-  artifacts in a scratch repo.
-- **Shoal-native skills**: `SkillConfig` model, `discover_skills()` searches
-  `.shoal/skills/` (project-local) and `~/.config/shoal/skills/` (global) with
-  local-wins dedup. `shoal skill ls` command. Auto-symlink into `.claude/skills/`
-  for Claude Code sessions on worktree creation.
-- **Project-level `.shoal.toml`**: Committed config at git root with `[env]`,
-  `setup_commands`, `default_tool`, `default_template`. Precedence: project <
-  template < CLI flags.
-- **Cross-agent skill setup**: OpenCode agents (`.opencode/agents/`), omp skills
-  (`.omp/skills/`), and rules for both tools. Parity with Claude Code skills.
-  New docs: `OPENCODE_SETUP.md`, `OMP_SETUP.md`.
-- **`claude-review` template**: Review-oriented Claude session for reviewer mode.
+**Backend Flexibility** — runtime provider architecture enables future multi-backend support (tmux today, potentially Docker/K8s/SSH later).
 
-### Fixed
-- **`send_keys` pane targeting**: `shoal:<session_id>` title was set on the active
-  pane (terminal) instead of the agent pane (first pane) in multi-pane templates.
-  Now uses `first_pane()` for both create and fork lifecycle paths.
-- **GitHub Actions Node.js 24**: Bumped checkout v6, setup-python v6, setup-uv v7,
-  codeql-action v4, upload-pages-artifact v4.
+### v0.25.0 — Runtime Provider Seam
+- **Session runtime model**: Canonical nested `runtime` object replaces tmux-specific top-level fields
+- **Runtime provider dispatch**: `services/runtime_provider.py` + `runtime_providers/tmux.py` abstracts lifecycle, watcher, CLI, API, MCP flows
+- **Legacy migration**: Automatic DB migration for pre-v0.25.0 sessions
+- **Type-safe payloads**: Session info/snapshot surfaces return provider-tagged runtime metadata
 
-### Changed
-- **CLI reference docs**: Added `shoal handoff`, `handoff-ls`, `mode ls`, `done`,
-  `incident` commands. AGENTS.md added to mkdocs nav. Workspace routing
-  documented in LOCAL_TEMPLATES.md.
+### v0.24.1 — Hotfixes
+- Fixed `shoal done` hanging on exit (missing `with_db()` wrapper)
+- Fixed `fin install <url>` raw tracebacks (network errors now wrapped as `FinRuntimeError`)
+- Fixed `httpx` missing from core dependencies
+- Fixed stale `__version__` (was `0.22.0`, now correct)
 
-## [0.27.0] - 2026-03-31
+### v0.24.0 — Worker Completion & Git MCP
+- **Worker completion signals**: `session_completed` event, `shoal done`, `completed_at` field, `wait_for_completion` MCP tool
+- **Git MCP tools**: `branch_status`, `merge_branch` for robo supervisors
+- **Fin remote install**: HTTPS URLs + `fin:<name>[@<version>]` registry shorthand
+- **Validation**: `branch=True` without `worktree` now raises clear error
+## [0.17.0] – [0.23.0] (2026-02-24 – 2026-03-09)
 
-### Added
-- **Meta-repo workspace routing**: `.shoal/workspace.toml` manifest maps logical names
-  to sub-repo paths for nested workspace support (SMORGASBORD §3.1). `--repo` CLI/API
-  flag for explicit targeting. Auto-match by worktree hint or path prefix.
-- **Structured handoff packets**: `HandoffArtifact` enriched with worktree path, git diff
-  summary, and commit count. `to_dict()` for JSON serialization. Auto-generated on every
-  `shoal kill` (before journal archival). New `shoal handoff <session>` command with
-  `--json` and `--save` flags. `shoal handoff-ls` lists saved artifacts.
-- **Operating modes**: Data-driven `MODE_REGISTRY` with `ModeSpec` replacing hardcoded
-  if/elif chain. Three new modes: `planner`, `implementer`, `reviewer`. `shoal mode ls`
-  command. Modes auto-tag sessions (e.g., reviewer → `review-ready` urgency tier).
-- **Template `tags` and `mode` fields**: `SessionTemplateConfig` gains `tags: list[str]`
-  (union-merged during inheritance) and `mode: str`. Auto-applied to sessions at creation.
-- **Branch categories**: `plan`, `impl`, `review`, `batch` added to allowed branch prefixes.
-- **Git helpers**: `diff_stat()`, `commit_count_since_main()` with async wrappers.
-- **Cross-agent skills**: `.shoal/skills/<name>/SKILL.md` tool-agnostic skill format with
-  transpilation to Claude Code (symlink), OpenCode (instructions), and omp (`@file`).
-  Bundled `shoal-skill-sync.sh` script for `post_worktree_create` hook.
-- **`claude-review` template**: Review-oriented Claude session with `review-ready` tagging.
-- **Docs**: New "Handoffs & Modes" and "Cross-Agent Skills" mkdocs pages. Updated CLI
-  reference, JOURNALS, LOCAL_TEMPLATES, operator playbooks, and AGENTS docs (Bedrock
-  section, workspace.toml, missing commands).
+**Observability, Operator Workflows & Automation** — seven releases focused on production operations, remote management, and autonomous supervision.
 
-### Fixed
-- Template inheritance now merges `mode` and `tags` fields (previously dropped).
-- Template TOML parser now extracts `mode` and `tags` from `[template]` section.
-- Handoff generation runs before DB row deletion (was after, risking empty transitions).
-- `generate_handoff()` wrapped in `asyncio.to_thread()` to avoid blocking event loop.
-- Path traversal validation on workspace repo paths (rejects `..` and absolute paths).
-- `shoal new <nonexistent-path>` no longer crashes with raw traceback; shows friendly
-  error with `--name` hint (TheShoal/shoal-cli#7).
+### Major Features
+- **Demo & Onboarding** (v0.17.0): Interactive `shoal demo tutorial`, redesigned tour, onboarding prompts
+- **Logging & Diagnostics** (v0.17.0): Named loggers, context propagation, `shoal diag`, structured JSON logs, operation timing
+- **Remote Sessions** (v0.17.0): `shoal remote` subcommand group, SSH tunnel lifecycle, HTTP client
+- **Lifecycle Hooks** (v0.18.0): Event system, fish event emission, built-in hooks, MCP tools (`capture_pane`, `read_history`)
+- **Session Graph** (v0.18.0): `parent_id`, `tags`, `template_name` tracking, fork/tag commands, `--tree` view
+- **Robo Supervision** (v0.18.0): Async supervision loop, pattern-based auto-approve, LLM escalation, daemon mode
+- **Tool-Native Prompts** (v0.19.0): `input_mode` (arg/flag/keys), file-based prompt delivery, status provider abstraction
+- **Fin Extensions** (v0.19.0): `shoal fin` commands, contract-v1 adapter, install/configure/run lifecycle
+- **Template Setup** (v0.20.0): `setup_commands` field, batch MCP operations, agent readiness signals
+- **PyPI Release** (v0.21.0): Published as `shoal-cli` on PyPI with OIDC trusted publisher
+- **Dashboard & Automation** (v0.22.0): fzf actions, auto-commit on kill, fin registration
+- **Urgency Board** (v0.23.0): `status_since` tracking, attention-first layout, urgency tiers, handoff summaries
 
-## [0.26.0] - 2026-03-30
+### Key Changes
+- **XDG compliance**: Corrected `data_dir`, `state_dir`, `runtime_dir` naming
+- **Remote API**: SSH tunnel management, HTTP transport evaluation
+- **Journal features**: YAML frontmatter, archived lookup, search, size warnings
+- **Test infrastructure**: Parallel execution (pytest-xdist), 1100+ tests by v0.23.0
 
-### Added
-- **Incident supervision workflow**: `shoal incident ingest/ls/show/spawn/resolve` commands
-  for alert-driven multi-agent coordination. `ingest` accepts a JSON alert payload (file,
-  string, or stdin), persists an `IncidentRecord` to SQLite, and auto-spawns a supervisor
-  lane unless `--no-supervisor` is passed.
-- **Incident roles**: five first-class roles (`incident-supervisor`, `incident-investigator`,
-  `incident-repro`, `incident-comms`, `incident-reviewer`) with role-specific prompts and
-  lifecycle env injection (`SHOAL_INCIDENT_ID`, `SHOAL_INCIDENT_ROLE`, `SHOAL_SESSION_ID`).
-- **Incident REST API**: `GET /incidents`, `GET /incidents/{id}`, `POST /incidents`,
-  `POST /incidents/{id}/lanes`, `POST /incidents/hooks/claude` — full programmatic access
-  to incident state and lane spawning.
-- **Claude hook integration**: `shoal incident hook-scaffold` writes example
-  `TaskCreated`/`TaskCompleted`/`StopFailure` hook files; `shoal incident hook-report`
-  (hidden) ingests hook events via `/incidents/hooks/claude`.
-- **Remote incident commands**: `shoal remote incident ls/show/ingest/spawn` proxy to
-  incident endpoints on remote hosts via existing SSH tunnel forwarding.
-- **`post_worktree_create` template field**: `[template.worktree] post_worktree_create`
-  executes a script after git worktree provisioning, before agent startup. Script receives
-  the worktree absolute path as `$1`. Relative paths resolve against the git root.
-- **Project-local lifecycle hooks** (`.shoal/hooks.toml`): `[[hooks]]` entries bind shell
-  commands to lifecycle events with optional `when_status` filter. Executed via `asyncio.to_thread`
-  with 30s timeout; injects `SHOAL_EVENT`, `SHOAL_SESSION_ID`, `SHOAL_SESSION_NAME`,
-  `SHOAL_OLD_STATUS`, `SHOAL_NEW_STATUS`. Loaded at API startup from project git root.
-
-### Fixed
-- **Lifecycle hooks never fired in production**: `register_builtin_hooks()` was only
-  called in tests, never at API startup — fish events and journal writes were silently
-  broken since v0.18.0. Fixed by wiring both `register_builtin_hooks()` and
-  `register_project_hooks()` into the API `lifespan` context.
-- **Prompt file path traversal**: session names containing `/` (e.g. `repo/incident-worker`)
-  would produce invalid file paths. Path separators are now replaced with `-` before
-  constructing the prompt filename.
-
-## [0.25.0] - 2026-03-18
-
-### Changed
-- **Session runtime model**: `SessionState` now stores a canonical nested `runtime` object instead of leaking tmux-specific fields (`tmux_session`, `tmux_session_id`, `tmux_window`, `nvim_socket`) at the top level
-- **Runtime provider architecture**: added `services/runtime_provider.py` and `services/runtime_providers/tmux.py`; lifecycle, watcher, CLI, API, MCP, and robo flows now dispatch through the runtime provider seam instead of hard-coding tmux operations across the codebase
-- **Batch/API/MCP runtime payloads**: session info and snapshot surfaces now return `runtime` metadata as a provider-tagged object rather than a flat `tmux_session` string
-
-### Fixed
-- **Legacy session migration**: SQLite-backed session blobs created before the refactor are eagerly migrated into the nested runtime shape on load/startup, so existing sessions survive the v0.25.0 cutover without manual cleanup
-- **Robo and operator flows after abstraction**: `shoal info`, `shoal send`, `shoal robo send`, `shoal robo approve`, and related capture/attach flows now continue to work against live tmux-backed sessions through the provider boundary
-
-## [0.24.1] - 2026-03-18
-
-### Fixed
-- **`shoal done` hangs on exit**: missing `with_db()` wrapper in CLI; aiosqlite background thread was never released, leaving the process hanging indefinitely after marking a session complete
-- **`fin install <url>` raw traceback**: `httpx.ConnectError`, `HTTPStatusError`, and other network errors escaped uncaught from `_download_fin()`; now wrapped as `FinRuntimeError` with a clean one-line error message
-- **`httpx` missing from core dependencies**: `models/fin.py` imports `httpx` unconditionally but it was only available via the `[mcp]` extra; added to `dependencies` so bare installs work
-- **`__version__` stale at `0.22.0`**: hardcoded value not updated during v0.24.0 release; now correctly reports `0.24.1`
-
-## [0.24.0] - 2026-03-18
-
-### Added
-- **Worker completion signals**: `session_completed` lifecycle event, `shoal done [--summary]` CLI command, `completed_at` on `SessionState`, `wait_for_completion` MCP tool
-- **Git MCP tools**: `branch_status` and `merge_branch` backed by `services/git_tools.py` — robo supervisors no longer need raw `send_keys` for git ops
-- **`fin install` remote source**: accepts HTTPS URLs and `fin:<name>[@<version>]` registry shorthand; `--registry-url` flag added
-
-### Changed
-- **`session_snapshot` default `pane_lines`**: 20 → 50
-- **`create_session` validation**: `branch=True` without `worktree` now raises a clear error
-## [0.23.0] - 2026-03-09
-
-### Added
-- **Urgency-based operator board**: Sessions now carry a `status_since: datetime` field tracking when they entered their current status. A new `core/urgency.py` module derives `UrgencyTier` (error → blocked → waiting → review → running → stale → idle → stopped) and a human-readable label from `status + status_since`. Thresholds are configurable via `[operator] blocked_after_minutes` and `stale_after_minutes` in `config.toml` (defaults: 5m / 30m). Existing sessions are backfilled from `status_transitions` history on first startup.
-- **`shoal status` attention-first layout**: Output is now grouped into four tiers — **Needs attention** (error/blocked/waiting), **Ready for review**, **Active** (running), and **Background** (idle/stale/stopped). Each session shows an urgency label with age (`blocked 8m`, `stale 2h`). Sessions that need you appear first; stopped sessions are last.
-- **`shoal popup` urgency sort**: Popup entries are pre-sorted by urgency tier before being piped to fzf, so the most urgent sessions appear at the top regardless of `--no-sort` being set. The status column shows the urgency label instead of the raw status value. `ctrl-w` attention filter now matches `error`, `blocked`, and `waiting` labels.
-- **`shoal journal <session> --handoff`**: Generates a structured markdown handoff summary — session metadata, time in current status, last 5 status transitions with timestamps, up to 5 recent journal entries, and a suggested next action keyed to the urgency tier (attach, send keys, review diff, etc.). Pure function `generate_handoff()` in `core/journal.py` with full test coverage.
-
-### Changed
-- **`SessionResponse` and MCP `session_info`**: Both now include `status_since` in their output.
-
-## [0.22.0] - 2026-03-07
-
-### Added
-- **`shoal init --refresh-tools`**: Re-downloads all built-in tool profiles to `~/.config/shoal/tools/` without touching custom profiles. Useful after upgrading to pick up revised defaults.
-- **Auto-commit on kill**: New `general.auto_commit = true` in `config.toml`. When enabled, stages all changes and creates a conventional commit in the session worktree before teardown. Runs before optional worktree removal — a combined `auto_commit + remove_worktree` commits first then removes cleanly. Failures are logged and do not block the kill.
-- **Dashboard fzf actions**: `ctrl-y` approves agent prompt, `ctrl-g` forks session into a new worktree, `ctrl-w` filters to waiting sessions, `ctrl-r` reloads the session list. Bindings avoid tmux leader (`ctrl-a`) and tmux fullscreen (`ctrl-f`) conflicts.
-- **Fin local registration**: `shoal fin install` now registers fins in `~/.config/shoal/fins/` by default. `shoal fin ls` defaults to showing installed fins. Pass `--no-register` to `install` to skip registration, or `--path` to `ls` for path-based listing.
-
-### Changed
-- **`load_tool_config` now reads all tool fields**: `send_keys_delay`, `input_mode`, `prompt_flag`, and `prompt_file_prefix` from the `[tool]` TOML section were silently ignored. All four are now correctly propagated to `ToolConfig`. Built-in tool profiles updated with `send_keys_delay = 0.05`.
-
-### Fixed
-- **tmux pane targeting with non-default `base-index`**: Sessions on tmux configs with `base-index=1` saw every startup command fail — `send-keys -t session:0.0` targeted a non-existent pane. Shoal now queries the live tmux server and offsets all window/pane targets by the actual base-index. Affected: template setup loops, initial pane in `create_session`/`fork_session`, and the MCP `wait_for_ready` probe.
-- **Kill guard blocking on untracked-only worktrees**: `DirtyWorktreeError` fired when a worktree had only untracked files (e.g. a stray `TASK.md`). The guard now checks tracked changes only (`??` lines excluded from `git status --porcelain`).
-- **`shoal ls` ID column truncated to 1 char**: Compressed inside Rich panels on standard-width terminals. Fixed with `no_wrap=True`, `expand=True` on the table, and bounded `max_width` on name/status/path columns.
-
-## [0.21.0] - 2026-03-07
-
-### Changed
-- **PyPI package name**: Project published as `shoal-cli` on PyPI. Install with `pipx install shoal-cli` or `uv tool install shoal-cli`. The CLI command remains `shoal`.
-- **pyproject.toml metadata**: Added `authors`, `keywords`, `classifiers` (Development Status :: 4 - Beta), and `[project.urls]` (Homepage, Documentation, Repository, Issues, Changelog).
-- **GitHub Actions release workflow**: Added `publish` job with OIDC trusted publisher support (`pypa/gh-action-pypi-publish`) — runs after GitHub Release is created.
-- **Default backend docs**: CONTRIBUTING.md and ARCHITECTURE.md updated to document Pi as the primary reference backend; OpenCode referenced as compatibility mode.
-- **Install docs**: README and getting-started.md now show `pipx install shoal-cli` / `uv tool install shoal-cli` as the primary install path; from-source instructions moved to secondary.
-
-### Fixed
-- **Flaky `test_post_success`**: `_MockHandler.do_POST` in `tests/test_remote.py` now reads the request body before responding, eliminating a connection-reset race that caused intermittent CI failures under parallel test execution.
-## [0.20.0] - 2026-03-07
-
-### Added
-- **Template `setup_commands`**: New `setup_commands: list[str]` field on `SessionTemplateConfig` and `TemplateMixinConfig` — commands run via `send-keys` in the initial pane before the agent tool launches. Canonical use-case: venv activation (`uv sync`, `source .venv/bin/activate.fish`). Inheritance: `extends` replaces, `mixins` append. (+266 lines: `models/config.py`, `core/config.py`, `services/lifecycle.py`, 243 lines of tests).
-- **Batch MCP session operations**: `capture_pane`, `send_keys`, `kill_session`, and `session_status` MCP tools now accept `session: str | list[str]`. String input returns the same shape as before (backwards-compatible); list input returns `{"results": {name: per-session-result}}` with per-session errors collected rather than raised.
-- **Agent readiness signals**: Replaced `asyncio.sleep(1)` after session creation with `async_wait_for_ready(pane, tool_cfg, timeout=5.0)` in `core/tmux.py` — polls capture_pane every 100ms until the tool's busy/waiting detection patterns appear or timeout is reached. Returns `False` immediately when no patterns are configured.
-
-### Fixed
-- **Orphaned worktree detection**: `wt cleanup` now detects orphaned worktrees in `$CWD/.worktrees/` even when no sessions exist in the DB for the current repo — critical for post-kill cleanup flows where all sessions have been removed.
-- **Test CWD isolation**: Pre-existing `test_wt_cleanup_no_orphans` and `test_wt_cleanup_with_orphans` now `monkeypatch.chdir(tmp_path)` to prevent the new CWD fallback from leaking real `.worktrees/` state into unit tests.
-## [0.19.0] - 2026-03-07
-
-### Added
-- **Tool-native prompt delivery**: Three `input_mode` mechanisms in `ToolConfig` for initial session prompts — `"arg"` (positional CLI arg, e.g. `claude "prompt"`), `"flag"` (named flag, e.g. `opencode --prompt "prompt"`), `"keys"` (post-launch `send_keys`, legacy). For `omp`, `prompt_file_prefix="@"` writes to `~/.local/share/shoal/prompts/<session>.md` and passes `@/path` for native expansion. Eliminates TUI render race for initial prompts. Robo escalation uses `@file` for omp sessions to avoid garbling multi-line prompts. New `core/prompt_delivery.py` module with `write_prompt_file()` and `build_tool_command_with_prompt()`.
-- **Status provider abstraction**: Explicit backend adapters in `core/status_provider.py` (`pi`, `opencode_compat`, `regex`) with tool-level selection via `tool.status_provider`
-- **Detection mode visibility**: `shoal info` now shows a `Detection` field so sessions surface provider mode, including compatibility markers
-- **Fin contract-v1 adapter**: New `shoal fin` command group with `inspect`, `validate`, and `run` subcommands for path-based fin execution
-- **Fin runtime support**: Manifest parsing, contract-version checks, entrypoint resolution, subprocess invocation, and exit-code propagation in `services/fin_runtime.py`
-- **Extension capability docs**: `docs/EXTENSIONS.md` adds discovery/loading/lifecycle map, gaps, and `shoal-cli` vs `shoal-core` boundary recommendation
-- **Fin lifecycle completeness (Iteration 2)**: Added first-class `shoal fin install` and `shoal fin configure` commands with env/exit parity
-- **Fin discovery basics**: Added `shoal fin ls [--path <dir-or-fin.toml>]` for path-based listing with valid/invalid manifest reporting
-- **Cross-repo contract guard**: Added integration test that bootstraps a fin from `fins-template` and verifies inspect/validate/run roundtrip
-
-### Changed
-- **Pi-first defaults**: `default_tool` defaults now use `pi` in general config, robo config, profile loading, templates, and demo startup
-- **Watcher pane tracking fallback**: watcher now falls back from `shoal:<session_id>` title to tool-command and single-pane heuristics when titles drift
-- **Tool docs and examples**: README/tool examples now document Pi as primary and OpenCode as compatibility mode
-- **Fin env handshake parity**: Fin subprocess runtime now passes `SHOAL_LOG_LEVEL` when available
-
-### Fixed
-- **Remote API robustness**: remote GET/POST/DELETE helpers now normalize connection reset OS errors into `RemoteConnectionError`
-- **Flaky tests**: stabilized concurrent API load and Unix socket server tests for deterministic CI behavior
-- **Lint regression**: removed explicit `return None` in robo watch test helpers (RET501)
-- **mypy assignment error**: renamed shadowed `manifest` variable to `child_manifest` in `fin_runtime.py` to resolve `Path` vs `FinManifest` type conflict
-- **Double `feat/` branch prefix**: extracted `infer_branch_name()` to `core/git.py` so the API server and MCP server no longer prepend `feat/` when input already carries a category prefix (e.g. `feat/foo` no longer became `feat/feat/foo`)
-- **`send_keys` Enter racing TUI rendering**: added `send_keys_delay` float field to `ToolConfig` (default `0.0`); when non-zero, `async_send_keys` splits the text paste and Enter keypress into separate `asyncio.to_thread` calls with a configurable sleep in between
-- **`shoal --version` flag**: Standard `--version` flag now supported in addition to `shoal version` subcommand; exits 0 with `shoal <version>` output
-- **XDG directory naming**: Corrected `state_dir()` → `data_dir()` (`XDG_DATA_HOME`) and `runtime_dir()` → `state_dir()` (`XDG_STATE_HOME`) across 26 files; function names now match the XDG Base Directory spec
-- **`shoal journal --archived` post-kill lookup**: Archived journals are now findable by session name after the session is deleted from DB; new `find_archived_session_id()` scans frontmatter title/aliases as fallback when DB resolution fails
-
-## [0.18.0] - 2026-02-24
-
-### Added
-- **`shoal journal --archived <session>`**: Read archived journals from killed sessions with `read_archived_journal()` core helper, DB name resolution fallback, and Rich rendering
-- **Nerd Font toggle**: `use_nerd_fonts` config flag in `GeneralConfig` (default `True`), wired through `_ls_impl` and `_status_impl` with Unicode fallback symbols
-- **Feature documentation**: `docs/JOURNALS.md`, `docs/LOCAL_TEMPLATES.md`, `docs/HTTP_TRANSPORT.md` — standalone guides for shipped features
-- **Lifecycle event system**: `LifecycleEvent` enum (`session_created`, `session_killed`, `session_forked`, `status_changed`) with async callback registry (`lifecycle.on()` / `lifecycle.emit()`)
-- **Built-in lifecycle hooks**: Auto-journal entry on session create, fish event emission via `fish -c "emit shoal_status_changed <name> <status>"`
-- **Fish event hook templates**: `hooks.fish` with `__shoal_on_status_changed` dispatcher and per-status handlers (`__shoal_on_waiting`, `__shoal_on_error`, `__shoal_on_created`, `__shoal_on_killed`), installed by `shoal setup fish`
-- **Pre-commit agent bypass**: `SHOAL_AGENT=1` env var skips pre-commit hooks in Shoal-spawned agent sessions
-- **`capture_pane` MCP tool**: Read last N lines from a session's terminal via `shoal-orchestrator` MCP server
-- **`read_history` MCP tool**: Query status transition history for a session via `shoal-orchestrator` MCP server
-- **`status_transitions` SQLite table**: Records every status change with session ID, from/to status, timestamp, and optional pane snapshot
-- **`shoal history <session>` CLI**: Rich table showing status transition timeline with timestamps, color-styled statuses, and durations
-- **Status change lifecycle hooks**: `_hook_record_status_transition` persists to DB; `_hook_journal_on_status_change` appends journal entries
-- **Session graph fields**: `parent_id`, `tags`, `template_name` on `SessionState` — Pydantic defaults handle existing DB rows
-- **`shoal tag` CLI subcommand**: `shoal tag <session> add/remove/ls` for managing session tags
-- **`shoal ls --tag <tag>`**: Filter sessions by tag
-- **`shoal ls --tree`**: Display fork relationships as indented tree with tree characters
-- **`shoal journal --search <query>`**: Search across all session journals (case-insensitive substring match)
-- **`JournalSearchResult`**: Dataclass for structured journal search results
-- **Fork tracking**: `fork_session_lifecycle` records `parent_id` from source session
-- **Template tracking**: `create_session_lifecycle` records `template_name` from template config
-- **Enhanced `shoal info`**: Shows parent session, template name, and tags when present
-- **Composition gateway spike**: `docs/composition-gateway.md` — FastMCP `mount()` investigation, decision no-go
-- **Robo supervision loop**: `services/robo_supervisor.py` — async `RoboSupervisor` class with configurable poll loop, safe-to-approve pattern detection, auto-approve via tmux send_keys, timeout escalation, and journal decision logging
-- **`shoal robo watch` CLI command**: Start the robo supervision loop for a named profile — loads `RoboProfileConfig`, prints config summary, runs in foreground or background daemon mode
-- **Robo daemon mode**: `shoal robo watch --daemon` launches supervisor as background process with PID file management; `watch-stop` and `watch-status` commands for daemon lifecycle; profile-specific PID files (`robo-{profile}.pid`)
-- **LLM escalation**: `_escalate_to_llm()` sends ambiguous waiting sessions to a configured LLM agent session via `send_keys`, polls journal for `robo-escalation-response` entries; `EscalationConfig` gains `escalation_session` and `escalation_timeout` fields; graceful fallback when no escalation session configured or on timeout
-- **Fish completions**: Added `watch`, `watch-stop`, `watch-status` to robo subcommand completions
-- **`shoal-robo-supervisor`**: New console script entry point for background daemon invocation
-
-### Changed
-- **Parallel test execution**: Added `-n auto` (pytest-xdist) to justfile `test` and `test-all` recipes
-- **Tool-profile-aware `send_keys`**: MCP `send_keys` tool checks session tool profile for Enter handling behavior
-
-### Fixed
-- **Template env gap**: `template_cfg.env` now applied to the initial pane via fish `set -gx` commands sent before agent launch — `tmux set-environment` alone only affects subsequent panes, not the one created by `new-session`
-- **send_keys Enter bug**: Use `-l` flag for literal text in tmux send-keys, then send Enter as a separate command — fixes key-name interpretation issues in Claude Code sessions
-- **mypy strict**: Resolved type narrowing error in journal archived CLI (`str | None` assignment)
-
-## [0.17.0] - 2026-02-24
-
-### Added
-- **Demo & onboarding overhaul**: Split monolithic `demo.py` (1249 lines) into `cli/demo/` package with `__init__.py`, `start_stop.py`, `tour.py`, `tutorial.py`
-- **`shoal demo tutorial`**: Interactive 7-step guided walkthrough — creates real sessions, worktrees, journals, and diagnostics in `/tmp/shoal-tutorial/` with `typer.confirm()` pacing, `--cleanup` flag, `--step N` resume, and Ctrl+C crash recovery
-- **Redesigned `shoal demo tour`**: 7 user-facing feature steps (was 9 internal verification steps) — Session Lifecycle, Status Detection, Templates & Inheritance, Journals, Diagnostics, MCP Orchestration, Theme & Status; each step is an independent async function returning `TourResult` dataclass
-- **Next-step prompts**: `shoal init` shows "Get Started" panel; `shoal setup fish` shows tutorial/demo hints after install
-- **Fish completions**: Added `tour` and `tutorial` to demo subcommand completions
-- **Journal frontmatter**: Obsidian-compatible YAML frontmatter (`title`, `aliases`, `tags`, `created`) written on journal creation via `JournalMetadata` dataclass and `build_journal_metadata()` factory
-- **Journal size warning**: Advisory 1MB threshold with `shoal.journal` logger warning after writes
-- **`read_frontmatter()`**: Parse YAML frontmatter from journal files for future tooling
-- **Logging infrastructure**: Named loggers for 8 previously silent modules (`db`, `tmux`, `git`, `config`, `detection`, `mcp_pool`, `mcp_proxy`, `status_bar`) with targeted DEBUG/WARNING statements
-- **Context propagation**: `core/context.py` with `ContextVar`-based `session_id` and `request_id` propagation; `ContextFilter` wired into CLI, watcher, and lifecycle
-- **Request ID middleware**: FastAPI `RequestIdMiddleware` reads/generates `X-Request-ID` header on all API requests
-- **`shoal diag` command**: Diagnostics command checking DB connectivity, watcher PID, tmux reachability, MCP sockets; supports `--json` output
-- **Structured logging**: `JsonFormatter` for JSON-lines output; `--log-level`, `--log-file`, `--json-logs` CLI flags via `configure_logging()`
-- **Operation timing**: `time.monotonic()` timing at DEBUG level for DB operations (`save_session`, `get_session`, `list_sessions`, `update_session`, `delete_session`) and MCP pool connections
-- **Deepened `/health` endpoint**: Returns component-level status (`db`, `watcher`, `tmux`) with `healthy`/`degraded` overall status
-- **XDG Base Directory compliance**: `config_dir()`, `state_dir()`, `runtime_dir()` read `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` respectively; `build_nvim_socket_path()` reads `XDG_RUNTIME_DIR`
-- **`shoal remote` subcommand group**: 7 commands for remote session management via SSH tunnel — `ls`, `connect`, `disconnect`, `status`, `sessions`, `send`, `attach`
-- **SSH tunnel lifecycle**: `core/remote.py` with PID/port file management, auto port selection, tunnel health checks
-- **`RemoteHostConfig`**: Pydantic model for remote hosts in `~/.config/shoal/config.toml` (`[remote.<name>]` sections)
-- **Remote HTTP client**: stdlib `urllib.request`-based API client (GET/POST/DELETE) — no new dependencies
-- **Fish completions**: Remote subcommands and dynamic host name completions
-- **Transport evaluation spike**: Benchmark comparing UDS byte bridge vs FastMCP HTTP transport ([docs/transport-spike.md](docs/transport-spike.md))
-- **`shoal-mcp-server --http`**: HTTP (streamable-http) transport mode for the Shoal MCP server
-- **Benchmark script**: `benchmarks/transport_spike.py` for self-contained transport performance comparison
-
-### Changed
-- **Demo tour**: Reduced from 9 steps to 7, removed developer-facing tests (Pydantic validation, exception hierarchy, MCP name regex), added Journals and Diagnostics steps
-- **Demo pane content**: Updated command references to include `shoal demo tutorial`
-- **Ghost session wording**: `shoal ls` now shows "was running" instead of "running" for ghost sessions
-- **`mcp status` hint**: Suggests `shoal mcp doctor --cleanup` instead of manual `mcp stop` for stale entries
-- **Fish completions**: `__shoal_tools`, `__shoal_templates`, `__shoal_remote_hosts` use `$XDG_CONFIG_HOME` instead of hardcoded `~/.config`
-- **Status bar**: `status_bar.py` returns dict of counts, `main()` prints JSON; removed `tmux_fg`/`tmux_status_segment` from theme
-- **`mcp doctor`**: Replaced manual JSON-RPC probe with FastMCP Client for protocol-aware health checks
-- **`mcp doctor` table**: New columns (PROTOCOL, TOOLS, VERSION, LATENCY) replace old SOCKET + JSON-RPC columns
-- **Graceful fallback**: `mcp doctor` shows "skip" with install hint when `fastmcp` is not installed
-
-### Removed
-- Dead `state_dir` field from `GeneralConfig` model (never read anywhere)
-
-### Fixed
-- **Async-unsafe prune**: `_prune_impl()` now calls `archive_journal()` via `asyncio.to_thread()` instead of blocking the event loop
-- **Nerd Font glyphs**: Populated all 5 `STATUS_STYLES` nerd fields (were empty strings)
-- **Demo branch detection**: `demo-main` and `demo-robo` sessions now correctly pass `branch=` to `create_session()`
-- **Tour MCP skip**: Step 8 (MCP Orchestration) now shows "skipped" instead of false pass when `fastmcp` is not installed
-- **`mcp doctor --cleanup`**: New flag to remove stale PID/socket files for dead MCP servers
-- **CORS configuration**: Changed `allow_credentials=True` to `allow_credentials=False` — invalid per CORS spec when `origins=["*"]`
-- **SSH credential redaction**: `_redact_ssh_cmd()` replaces identity file paths with `<redacted>` in remote tunnel logs
-- **Watcher error backoff**: Exponential backoff on consecutive poll failures (`_MAX_BACKOFF=300s`), reset on success
-- **Watcher logging**: Replaced `logging.basicConfig` with named `FileHandler` to avoid conflicts with CLI logging
-- **Bandit B310**: Added `# nosec B310` to intentional localhost-only `urlopen()` calls in `remote.py`
-- **MCP proxy Python 3.13 compatibility**: Replaced `BaseProtocol` with `StreamReaderProtocol` for stdout write pipe — `StreamWriter` requires `_drain_helper` from `FlowControlMixin` which `BaseProtocol` lacks on Python 3.13+
-- 4 pre-existing ruff lint warnings in test_mcp_pool, test_notify, test_popup
+### Notable Fixes
+- tmux pane targeting with non-default `base-index`
+- Lifecycle hooks never fired in production (v0.18.0)
+- Double `feat/` branch prefix
+- Async-unsafe operations in prune/archive
+- MCP proxy Python 3.13 compatibility
 
 ## [0.4.0] – [0.15.0] (2026-02-16 – 2026-02-22)
 

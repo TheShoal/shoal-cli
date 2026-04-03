@@ -32,6 +32,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from shoal.models.message import MessageKind
+
 logger = logging.getLogger("shoal.message_bus")
 
 
@@ -41,7 +43,7 @@ async def send_message(
     topic: str,
     payload: str,
     *,
-    kind: str = "event",
+    kind: MessageKind = "event",
     correlation_id: str | None = None,
     reply_to_message_id: int | None = None,
     priority: int = 3,

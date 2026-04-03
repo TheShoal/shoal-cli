@@ -79,19 +79,6 @@ and `prune` to clear stopped sessions from the database after cleanup.
 
 For patterns and safety rules, read [Robo Supervisor](ROBO_GUIDE.md).
 
-## Lobster runtime commands
-
-`shoal lobster` requires `grpcio` to be installed (`uv add 'shoal[lobster]'`).
-
-| Command | Description |
-|---|---|
-| `shoal lobster ping <id>` | Fetch AgentCard — agent discovery smoke-test (`--json`) |
-| `shoal lobster send <id> <msg>` | Send a message and print the response (`--task-id`, `--json`) |
-| `shoal lobster tasks <id>` | List tasks (`--context`, `--status`, `--json`) |
-
-Lobster identifiers are configured in `[lobster] known_lobsters` in `~/.config/shoal/config.toml`.
-See [Lobster Party Integration](lobster-integration.md) for setup details.
-
 ## Remote control
 
 | Command | Purpose |
@@ -102,6 +89,28 @@ See [Lobster Party Integration](lobster-integration.md) for setup details.
 | `shoal remote sessions` | List sessions on a remote host |
 | `shoal remote send` | Send keys to a remote session |
 | `shoal remote attach` | Attach to a remote session |
+
+See [Remote Sessions](REMOTE_GUIDE.md) for config and tunnel setup.
+
+## Web dashboard
+
+```bash
+shoal serve
+```
+
+Starts the FastAPI server (default: `http://localhost:8080`). Navigate to `http://localhost:8080/ui` for the fleet dashboard with live WebSocket updates, session detail, pane capture, and urgency-tier color coding.
+
+## Proactive supervision
+
+| Command | Purpose |
+| ------- | ------- |
+| `shoal proactive fs-watch start` | Start the FsWatcher — emits `file_changed` events per session worktree |
+| `shoal proactive fs-watch status` | Check watcher state |
+| `shoal proactive message send <src> <dst> <text>` | Send a message via the Agent Bus |
+| `shoal proactive message list <session>` | List messages for a session |
+
+!!! note "Enable KAIROS"
+    Proactive supervision requires `[proactive] enabled = true` in `~/.config/shoal/config.toml` and a robo profile with `[robo.proactive] auto_enqueue = true`.
 
 ## Operating modes
 
@@ -157,6 +166,56 @@ Templates can declare a `[template.git]` block that Shoal applies to the worktre
 | `branch_prefix` | Default branch category for `-b` (e.g. `"fix"` → `fix/<worktree>`). Explicit `/` in worktree name always wins. |
 
 See [Local Templates — Per-Session Git Identity](LOCAL_TEMPLATES.md#per-session-git-identity).
+
+## Lobster Party Integration
+
+`shoal lobster` requires the `lobster` optional extra:
+
+```bash
+uv add 'shoal-cli[lobster]'
+```
+
+| Command | Description |
+|---------|-------------|
+| `shoal lobster ping <id>` | Fetch AgentCard — agent discovery smoke-test (`--json`) |
+| `shoal lobster send <id> <msg>` | Send a message and print the response (`--task-id`, `--json`) |
+| `shoal lobster tasks <id>` | List tasks (`--context`, `--status`, `--json`) |
+
+Lobster identifiers are configured in `[lobster] known_lobsters` in `~/.config/shoal/config.toml`.
+
+```bash
+shoal sync <session>     # sync session journal with a Lobster QMD conversation file
+```
+
+## MCP Tools reference
+
+Key tools exposed by `shoal-orchestrator` beyond what `shoal mcp ls` shows:
+
+| Tool | Category | Notes |
+|------|----------|-------|
+| `create_session` | lifecycle | Respects `branch_prefix` from template |
+| `fork_session` | lifecycle | Agents can self-spawn worker sessions |
+| `spawn_team` | teams | Fan-out N workers with shared `correlation_id` |
+| `wait_for_team` | teams | Block until all team workers complete |
+| `send_keys` | lifecycle | Auto-appends Enter for Claude Code tool profile |
+| `capture_pane` | lifecycle | Read last N lines of terminal output |
+| `session_snapshot` | lifecycle | Status + last 50 pane lines |
+| `mark_complete` | completion | Signal task done from within a session |
+| `wait_for_completion` | completion | Block until `completed` status |
+| `read_history` | observability | Status transition timeline |
+| `read_worktree_file` | files | Path-traversal-protected file read |
+| `list_worktree_files` | files | Enumerate worktree |
+| `merge_branch` | git | Merge session branch into main |
+| `branch_status` | git | Branch, ahead/behind, dirty state |
+| `session_summary` | dreamer | Dreamer LLM summary |
+| `get_failure_context` | proactive | KAIROS failure context packet (`consume` flag) |
+| `send_session_message` | messaging | Agent Bus send |
+| `receive_session_messages` | messaging | Poll unread messages |
+| `get_workflow_messages` | messaging | Trace by `correlation_id` |
+| `request_session_action` | actions | Request approval |
+| `approve_session_action` | actions | Approve pending action |
+| `deny_session_action` | actions | Deny pending action |
+
 ## Extensions and integrations
 
 | Command | Purpose |

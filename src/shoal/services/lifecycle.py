@@ -1792,6 +1792,29 @@ async def _hook_fs_watch_remove(event: LifecycleEvent, **kwargs: Any) -> None:
     await watcher.remove_path(session.id)
 
 
+async def _hook_coordinator_on_complete(event: LifecycleEvent, **kwargs: Any) -> None:
+    """Notify the parent (coordinator) session when a worker session completes."""
+    session: SessionState | None = kwargs.get("session")
+    if session is None or not session.parent_id:
+        return
+    from shoal.core.message_bus import send_message
+    from shoal.core.state import get_session
+
+    parent = await get_session(session.parent_id)
+    if parent is None:
+        return
+    try:
+        await send_message(
+            from_session=session.name,
+            to_session=parent.name,
+            topic="worker_completed",
+            payload=session.name,
+            kind="event",
+        )
+    except Exception:
+        logger.debug("coordinator notification failed (non-fatal)", exc_info=True)
+
+
 def register_builtin_hooks() -> None:
     """Register the default set of lifecycle hooks (idempotent)."""
     if "builtin" in _registered:
@@ -1801,6 +1824,7 @@ def register_builtin_hooks() -> None:
     on(LifecycleEvent.session_forked, _hook_journal_on_create)
     on(LifecycleEvent.status_changed, _hook_record_status_transition)
     on(LifecycleEvent.status_changed, _hook_journal_on_status_change)
+    on(LifecycleEvent.session_completed, _hook_coordinator_on_complete)
     for evt in LifecycleEvent:
         on(evt, _hook_fish_event)
     _init_proactive_hooks()
