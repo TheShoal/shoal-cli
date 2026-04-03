@@ -81,6 +81,8 @@ Profile at `.shoal/robo/shoal-dev.toml`. The global robo profile (written by
 `~/.config/shoal/robo/shoal-dev.toml`. Runtime state (AGENTS.md, task-log.md)
 is at `~/.local/share/shoal/robo/shoal-dev/`.
 
+The repo-local `shoal-supervisor` template is separate: it is the interactive coordinator session you talk to inside this repo, while the robo profile above powers the standalone `shoal robo` flow.
+
 ```bash
 shoal robo start shoal-dev    # start supervisor
 shoal robo status shoal-dev   # check health

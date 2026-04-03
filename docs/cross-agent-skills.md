@@ -85,11 +85,8 @@ OpenCode reads these as context at session start.
 
 ### omp (oh-my-pi)
 
-Skills are concatenated into a context file and injected via omp's `@file` prompt prefix:
-
-```
-# Injected at session start as @.shoal/context/skills.md
-```
+Skills are symlinked directly into `.omp/skills/<name>/SKILL.md`, matching omp's
+native project-local discovery path. No concatenated context file is required.
 
 ## Setting Up Skill Sync
 
@@ -134,6 +131,8 @@ Reference it in your template:
 post_worktree_create = "scripts/shoal-skill-sync.sh"
 ```
 
+If `.shoal/skills/` is your source of truth, treat `.claude/skills/`, `.pisces/skills/`, `.omp/skills/`, and any generated `.shoal/context/` files as derived artifacts and ignore them in `.gitignore`.
+
 ### Option 2: `setup_commands` in template
 
 For simpler cases, use `setup_commands` to copy skills before the agent starts:
@@ -148,6 +147,42 @@ setup_commands = [
 ### Option 3: Commit `.claude/skills/` directly
 
 If you only use Claude Code, skip transpilation entirely — just commit `.claude/skills/` to your repo. Shoal worktrees inherit the repo's files, so skills are available in every session automatically.
+
+## Setting Up Shoal for a New Repository
+
+Rather than writing templates and config by hand, use the **`shoal-setup` skill**.
+It reads the repo, infers the right roles and templates, confirms with you, then
+writes the entire `.shoal/` configuration.
+
+### Using `shoal-setup`
+
+Invoke it from any Claude Code session in the target repo:
+
+```
+/shoal-setup
+```
+
+Or from pisces / omp:
+
+```
+/shoal-setup
+```
+
+The skill will:
+
+1. **Read the repo** — detect stack (Python/Node/Go/Rust), monorepo structure, CI commands, existing Shoal config
+2. **Present a summary** — show what it found and what roles it plans to create (supervisor, planner, implementer, reviewer)
+3. **Ask targeted questions** — only for genuinely ambiguous choices (tool, supervisor template, branch convention)
+4. **Write config** — `.shoal.toml`, `.shoal/templates/<role>.toml`, `.shoal/workspace.toml` (monorepos only)
+5. **Wire symlinks** — runs the appropriate symlink/transpile step for whichever tools are in PATH
+
+If you also want Shoal's standalone background robo supervisor, configure that separately
+with `shoal robo setup <name>` — it is related to, but distinct from, a repo-local
+`*-supervisor` template.
+
+The skill is discoverable in this repo at `.shoal/skills/shoal-setup/SKILL.md` and symlinked to `.claude/skills/shoal-setup/`.
+
+---
 
 ## Writing Good Skills
 

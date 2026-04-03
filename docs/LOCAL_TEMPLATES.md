@@ -145,6 +145,8 @@ See [Handoffs & Modes](handoffs-and-modes.md) for the full operating modes refer
 
 The `[template.git]` block configures a scoped git identity for the session's worktree. When set, Shoal emits `git config --local` commands into the worktree and exports `GIT_AUTHOR_NAME`, `GIT_COMMITTER_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_EMAIL` as fish global env vars so all subprocess git calls inherit the identity automatically.
 
+For interactive templates, prefer `branch_prefix` without overriding `user_name` / `user_email`. Reserve explicit git authorship for deliberate automation roles such as release cutters or bot-driven commit flows.
+
 ### Fields
 
 | Field | Description |

@@ -2,6 +2,12 @@
 
 The **Robo** is Shoal's supervisory agent—a "robo-fish" that monitors and coordinates your fleet of AI coding agents.
 
+A **robo profile** and an **interactive supervisor template** are related but different:
+- `shoal robo setup/start <name>` manages the background robo supervisor in user config
+- a repo-local template such as `shoal-supervisor` is the session the human talks to while planning and coordinating a team
+
+Use the robo profile for long-running supervision. Use the supervisor template for interactive planning and orchestration.
+
 ## The Robo-Fish Analogy
 
 In nature, researchers demonstrated that biomimetic robot fish can integrate into and lead schools of real fish by alternating between following and leading behaviors ([Marras & Porfiri 2012](https://royalsocietypublishing.org/doi/10.1098/rsif.2012.0084), [Papaspyros et al. 2019](https://doi.org/10.1371/journal.pone.0220559)).

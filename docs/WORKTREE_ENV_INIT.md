@@ -106,11 +106,12 @@ Add `setup_strict = true` flag later for hard failures.
 `.shoal.toml` at project root (committed to git), loaded when `work_dir` is in that git tree.
 
 ```toml
+default_tool = "omp"
+default_template = "base-dev"
+setup_commands = ["uv sync --quiet", "source .venv/bin/activate.fish"]
+
 [env]
 PYTHONDONTWRITEBYTECODE = "1"
-
-[setup]
-commands = ["uv sync --quiet", "source .venv/bin/activate.fish"]
 ```
 
 **Discovery**: `Path(git_root) / ".shoal.toml"` — git_root already known at session creation.
