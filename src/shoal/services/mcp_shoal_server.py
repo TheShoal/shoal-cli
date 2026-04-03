@@ -1684,6 +1684,146 @@ async def sync_claw_conversations_tool(
     }
 
 
+
+# ---------------------------------------------------------------------------
+# Claw scheduler tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="schedule_claw_task",
+    description=(
+        "Schedule a one-shot or recurring task in the claw scheduler. "
+        "Use for background work like summarization, cleanup, or custom "
+        "agent-defined periodic jobs. Returns the new task ID."
+    ),
+)
+async def schedule_claw_task_tool(
+    name: str,
+    handler: str,
+    session: str | None = None,
+    task_type: str = "once",
+    run_at: str | None = None,
+    interval_seconds: float | None = None,
+    cron_expr: str | None = None,
+    payload_json: str = "{}",
+    correlation_id: str | None = None,
+    max_retries: int = 3,
+) -> dict[str, object]:
+    """Schedule a claw task and return its details."""
+    from datetime import UTC, datetime
+
+    from shoal.core.db import get_db
+
+    if run_at is None:
+        run_at = datetime.now(UTC).isoformat()
+
+    db = await get_db()
+    await db.connect()
+    task_id = await db.create_claw_task(
+        name=name,
+        handler=handler,
+        run_at=run_at,
+        session=session,
+        task_type=task_type,
+        cron_expr=cron_expr,
+        interval_seconds=interval_seconds,
+        payload_json=payload_json,
+        correlation_id=correlation_id,
+        max_retries=max_retries,
+    )
+    task = await db.get_claw_task(task_id)
+    return task or {"id": task_id}
+
+
+@mcp.tool(
+    name="list_claw_tasks",
+    description=(
+        "List claw scheduler tasks for a session (or system tasks when "
+        "session is omitted). Optionally filter by status."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def list_claw_tasks_tool(
+    session: str | None = None,
+    status: str | None = None,
+) -> list[dict[str, object]]:
+    """List claw tasks."""
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    await db.connect()
+    return await db.list_session_tasks(session, status=status)
+
+
+@mcp.tool(
+    name="get_claw_task",
+    description="Get details of a specific claw task by ID.",
+    annotations={"readOnlyHint": True},
+)
+async def get_claw_task_tool(task_id: int) -> dict[str, object]:
+    """Get a claw task by ID."""
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    await db.connect()
+    task = await db.get_claw_task(task_id)
+    if task is None:
+        raise ToolError(f"Claw task not found: {task_id}")
+    return task
+
+
+@mcp.tool(
+    name="cancel_claw_task",
+    description=(
+        "Cancel a pending claw task by ID. Only pending tasks can be "
+        "cancelled; running or completed tasks are unaffected."
+    ),
+)
+async def cancel_claw_task_tool(task_id: int) -> dict[str, object]:
+    """Cancel a pending claw task."""
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    await db.connect()
+    cancelled = await db.cancel_claw_task(task_id)
+    if not cancelled:
+        raise ToolError(
+            f"Cannot cancel task {task_id}: not found or not in pending status"
+        )
+    task = await db.get_claw_task(task_id)
+    return task or {"id": task_id, "status": "cancelled"}
+
+
+@mcp.tool(
+    name="watch_claw_tasks",
+    description=(
+        "Watch for due claw tasks, returning when at least one is ready "
+        "or timeout_seconds elapses. Uses the same poll-based watch pattern "
+        "as watch_session_messages."
+    ),
+)
+async def watch_claw_tasks_tool(
+    timeout_seconds: float = 30.0,
+    poll_interval: float = 1.0,
+) -> list[dict[str, object]]:
+    """Block until a due task appears or timeout."""
+    import asyncio
+    from datetime import UTC, datetime
+
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    await db.connect()
+    elapsed = 0.0
+    while elapsed < timeout_seconds:
+        now = datetime.now(UTC).isoformat()
+        due = await db.list_due_tasks(now, limit=10)
+        if due:
+            return due
+        await asyncio.sleep(poll_interval)
+        elapsed += poll_interval
+    return []
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

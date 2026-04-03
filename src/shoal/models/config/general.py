@@ -121,6 +121,20 @@ class ProactiveConfig(BaseModel):
     """How long to retain failure context packets before expiry."""
 
 
+class ClawSchedulerConfig(BaseModel):
+    """Claw scheduler configuration - maps to [claw_scheduler] in config.toml."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    tick_seconds: float = 5.0
+    max_retries: int = 3
+    purge_messages_after_days: int = 7
+    journal_summary_interval_hours: float = 4.0
+    summary_model: str = "amazon.nova-lite-v1:0"
+    summary_budget: str = "paragraph"
+
+
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
 
@@ -136,3 +150,4 @@ class ShoalConfig(BaseModel):
     dreamer: DreamerConfig = Field(default_factory=DreamerConfig)
     claw: ClawConfig = Field(default_factory=ClawConfig)
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
+    claw_scheduler: ClawSchedulerConfig = Field(default_factory=ClawSchedulerConfig)

@@ -6,6 +6,7 @@ to work unchanged across the codebase.
 
 from shoal.models.config.claw import ClawConfig
 from shoal.models.config.general import (
+    ClawSchedulerConfig,
     DreamerAIConfig,
     DreamerConfig,
     GeneralConfig,
@@ -48,6 +49,7 @@ from shoal.models.config.workspace import (
 
 __all__ = [
     "ClawConfig",
+    "ClawSchedulerConfig",
     "CoordinatorConfig",
     "DetectionPatterns",
     "DreamerAIConfig",
