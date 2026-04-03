@@ -1,17 +1,15 @@
-# Project-level Shoal config for shoal-cli.
+# .shoal.toml — project-level Shoal defaults for shoal-cli.
+# Inherited by all sessions in this repo.
 # Precedence: project < template < CLI flags
 
-[general]
 default_tool = "pisces"
 default_template = "shoal-impl"
+setup_commands = [
+    "uv sync --extra dev --quiet",
+    "git fetch --quiet origin",
+]
 
 [env]
 # All sessions in this repo get these defaults.
 # SHOAL_AGENT=1 disables pre-commit hooks inside the worktree.
 SHOAL_AGENT = "1"
-
-[setup_commands]
-commands = [
-    "uv sync --extra dev --quiet",
-    "git fetch --quiet origin",
-]
