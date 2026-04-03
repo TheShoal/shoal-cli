@@ -61,6 +61,17 @@ def _examples_dir() -> Path:
     return installed  # fallback (will log warning in scaffold_defaults)
 
 
+@lru_cache(maxsize=1)
+def soul_text() -> str:
+    """Return SOUL.md content, or empty string if not found."""
+    pkg_root = Path(__file__).resolve().parent.parent
+    for base in (pkg_root.parent.parent, pkg_root):
+        path = base / "SOUL.md"
+        if path.is_file():
+            return path.read_text()
+    return ""
+
+
 def config_dir() -> Path:
     """Return Shoal config directory.
 

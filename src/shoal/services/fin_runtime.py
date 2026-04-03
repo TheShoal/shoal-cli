@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -124,11 +125,20 @@ def _build_env(
 ) -> dict[str, str]:
     env = dict(os.environ)
     env["SHOAL_FIN_ROOT"] = str(fin_root)
+    # Expose the running Python interpreter so fin scripts can use the same
+    # environment that shoal itself runs in (e.g. the active virtualenv).
+    env["SHOAL_PYTHON"] = sys.executable
     if config_path:
         env["SHOAL_FIN_CONFIG"] = str(Path(config_path).expanduser().resolve())
     else:
         env.pop("SHOAL_FIN_CONFIG", None)
     env["SHOAL_OUTPUT_FORMAT"] = output_format
+    # Inject SOUL.md so fin scripts can compose it into agent system prompts.
+    from shoal.core.config import soul_text
+
+    soul = soul_text()
+    if soul:
+        env["SHOAL_SOUL"] = soul
     if not env.get("SHOAL_LOG_LEVEL"):
         # Use getEffectiveLevel() — walks the logger hierarchy so root-inherited
         # levels (e.g. WARNING from the default root logger) are captured correctly.

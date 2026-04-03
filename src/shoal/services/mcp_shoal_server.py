@@ -70,13 +70,24 @@ async def _lifespan(server: Any) -> AsyncIterator[dict[str, Any]]:
 # Server instance
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP(
-    name="shoal-orchestrator",
-    instructions=(
+def _mcp_instructions() -> str:
+    """Build MCP server instructions, prepending SOUL.md if available."""
+    from shoal.core.config import soul_text
+
+    base = (
         "Shoal session orchestration tools. Use these to manage parallel "
         "AI coding agent sessions: list, create, kill, send keys, and "
         "check status. Sessions are identified by name."
-    ),
+    )
+    soul = soul_text()
+    if soul:
+        return f"{soul}\n\n---\n\n{base}"
+    return base
+
+
+mcp = FastMCP(
+    name="shoal-orchestrator",
+    instructions=_mcp_instructions(),
     version=shoal.__version__,
     lifespan=_lifespan,
 )
