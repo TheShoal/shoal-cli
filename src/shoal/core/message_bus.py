@@ -221,6 +221,38 @@ async def watch_messages(
         await asyncio.sleep(min(poll_interval, remaining))
 
 
+
+async def get_workflow_messages(
+    correlation_id: str,
+    *,
+    kind: str | None = None,
+    limit: int = 50,
+    after_id: int | None = None,
+) -> list[dict[str, object]]:
+    """Return all messages sharing a correlation ID, across all sessions.
+
+    Useful for reconstructing a complete workflow trace regardless of which
+    sessions sent or received each message.
+
+    Args:
+        correlation_id: Workflow or request correlation identifier.
+        kind: Optional message kind filter.
+        limit: Maximum messages to return.
+        after_id: Only return messages with id > after_id.
+
+    Returns:
+        Matching messages in chronological order.
+    """
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    messages = await db.get_workflow_messages(
+        correlation_id, kind=kind, limit=limit, after_id=after_id
+    )
+    logger.debug(
+        "AgentBus: workflow %s returned %d messages", correlation_id, len(messages)
+    )
+    return messages
 async def purge_old_messages(older_than_seconds: int = 86_400) -> int:
     """Purge consumed messages older than the given age.
 

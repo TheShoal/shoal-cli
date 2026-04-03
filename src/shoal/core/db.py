@@ -781,6 +781,57 @@ class ShoalDB:
             for row in rows
         ]
 
+    async def get_workflow_messages(
+        self,
+        correlation_id: str,
+        *,
+        kind: str | None = None,
+        limit: int = 50,
+        after_id: int | None = None,
+    ) -> list[dict[str, object]]:
+        """Fetch all messages sharing a correlation ID, across all sessions."""
+        parts = [
+            "SELECT id, from_session, to_session, topic, kind, payload,"
+            "       correlation_id, reply_to_message_id, priority, requires_ack,"
+            "       metadata_json, expires_at, created_at, consumed_at, acked_at"
+        ]
+        parts.append("FROM messages WHERE correlation_id = ?")
+        params: list[object] = [correlation_id]
+        if kind is not None:
+            parts.append("AND kind = ?")
+            params.append(kind)
+        if after_id is not None:
+            parts.append("AND id > ?")
+            params.append(after_id)
+        parts.append("ORDER BY created_at ASC LIMIT ?")
+        params.append(limit)
+        sql = " ".join(parts)
+        async with (
+            self._connection() as conn,
+            conn.execute(sql, params) as cursor,
+        ):
+            rows = await cursor.fetchall()
+        return [
+            {
+                "id": row[0],
+                "from_session": row[1],
+                "to_session": row[2],
+                "topic": row[3],
+                "kind": row[4],
+                "payload": row[5],
+                "correlation_id": row[6],
+                "reply_to_message_id": row[7],
+                "priority": row[8],
+                "requires_ack": bool(row[9]),
+                "metadata_json": row[10],
+                "expires_at": row[11],
+                "created_at": row[12],
+                "consumed_at": row[13],
+                "acked_at": row[14],
+            }
+            for row in rows
+        ]
+
     async def mark_message_consumed(self, message_id: int) -> None:
         """Mark a message as consumed."""
         from datetime import UTC, datetime

@@ -189,3 +189,45 @@ async def deny_action(
             action.correlation_id,
         )
     return action
+
+
+
+async def watch_pending_actions(
+    *,
+    target_session: str | None = None,
+    target_role: str | None = None,
+    correlation_id: str | None = None,
+    timeout_seconds: float = 30.0,
+    poll_interval: float = 0.5,
+) -> list[SessionAction]:
+    """Poll for pending action requests until at least one appears or the timeout elapses.
+
+    Internally polls the SQLite queue at ``poll_interval`` intervals.  Callers
+    can treat the result as an event-like surface even though the transport is
+    purely poll-based.
+
+    Args:
+        target_session: Optional filter by target session.
+        target_role: Optional filter by target role.
+        correlation_id: Optional filter by correlation ID.
+        timeout_seconds: How long to poll before returning an empty list.
+        poll_interval: Seconds between polls.
+
+    Returns:
+        Pending actions found, or an empty list if none arrived before timeout.
+    """
+    import asyncio
+
+    deadline = asyncio.get_event_loop().time() + timeout_seconds
+    while True:
+        actions = await list_pending_actions(
+            target_session=target_session,
+            target_role=target_role,
+            correlation_id=correlation_id,
+        )
+        if actions:
+            return actions
+        remaining = deadline - asyncio.get_event_loop().time()
+        if remaining <= 0:
+            return []
+        await asyncio.sleep(min(poll_interval, remaining))

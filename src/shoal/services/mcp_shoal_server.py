@@ -628,7 +628,10 @@ async def read_journal_tool(session: str, limit: int = 10) -> list[dict[str, obj
 )
 async def session_summary_tool(session: str) -> dict[str, object]:
     """Return the latest Dreamer summary for a session."""
+    import asyncio
+
     from shoal.core.journal import read_journal
+    from shoal.core.message_bus import receive_messages as _recv_msgs
     from shoal.core.state import find_by_name, get_session
     from shoal.services.dreamer import get_dreamer
 
@@ -640,22 +643,44 @@ async def session_summary_tool(session: str) -> dict[str, object]:
     if s is None:
         raise ToolError(f"Session not found: {session}")
 
+    # Collect active workflow IDs from unconsumed messages.
+    try:
+        recent = await _recv_msgs(s.name, limit=100, unconsumed_only=True)
+        active_workflow_ids: list[str] = sorted(
+            {m["correlation_id"] for m in recent if m.get("correlation_id")}
+        )
+    except Exception:
+        active_workflow_ids = []
+
     # 1. Try in-process Dreamer singleton (fastest path).
     dreamer = get_dreamer()
     if dreamer is not None:
         summary = dreamer.get_summary(s.id)
         if summary:
-            return {"session": s.name, "summary": summary, "source": "dreamer"}
+            return {
+                "session": s.name,
+                "summary": summary,
+                "source": "dreamer",
+                "active_workflow_ids": active_workflow_ids,
+            }
 
     # 2. Fall back to the most recent dreamer journal entry.
-    import asyncio
-
     entries = await asyncio.to_thread(read_journal, s.id, limit=50)
     for entry in reversed(entries):
         if entry.source == "dreamer":
-            return {"session": s.name, "summary": entry.content, "source": "journal"}
+            return {
+                "session": s.name,
+                "summary": entry.content,
+                "source": "journal",
+                "active_workflow_ids": active_workflow_ids,
+            }
 
-    return {"session": s.name, "summary": None, "source": None}
+    return {
+        "session": s.name,
+        "summary": None,
+        "source": None,
+        "active_workflow_ids": active_workflow_ids,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -883,6 +908,101 @@ async def deny_session_action_tool(
     if action is None:
         return {"error": f"action {action_id} not found"}
     return action.model_dump(mode="json")
+
+
+# ---------------------------------------------------------------------------
+# Tool: watch_session_messages
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="watch_session_messages",
+    description=(
+        "Watch for new Agent Bus messages, returning when at least one arrives "
+        "or timeout_seconds elapses. Internally polls; callers get event-like "
+        "semantics. Supports the same filters as receive_session_messages "
+        "(topic, kind, correlation_id, after_id) plus a timeout."
+    ),
+)
+async def watch_session_messages_tool(
+    session: str,
+    topic: str | None = None,
+    kind: str | None = None,
+    correlation_id: str | None = None,
+    after_id: int | None = None,
+    timeout_seconds: float = 30.0,
+) -> list[dict[str, object]]:
+    """Block until a matching message arrives or timeout."""
+    from shoal.core.message_bus import watch_messages
+
+    return await watch_messages(
+        session,
+        topic=topic,
+        kind=kind,
+        correlation_id=correlation_id,
+        after_id=after_id,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool: get_workflow_messages
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="get_workflow_messages",
+    description=(
+        "Retrieve all messages sharing a correlation ID, across all sessions. "
+        "Use to reconstruct a complete workflow trace regardless of which "
+        "sessions sent or received each message."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def get_workflow_messages_tool(
+    correlation_id: str,
+    kind: str | None = None,
+    limit: int = 50,
+    after_id: int | None = None,
+) -> list[dict[str, object]]:
+    """Return all messages for a workflow correlation ID."""
+    from shoal.core.message_bus import get_workflow_messages
+
+    return await get_workflow_messages(
+        correlation_id, kind=kind, limit=limit, after_id=after_id
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool: watch_session_actions
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="watch_session_actions",
+    description=(
+        "Watch for pending action requests targeting a session or role, returning "
+        "when at least one appears or timeout_seconds elapses. Supports "
+        "correlation_id filter for workflow-scoped approval gating."
+    ),
+)
+async def watch_session_actions_tool(
+    target_session: str | None = None,
+    target_role: str | None = None,
+    correlation_id: str | None = None,
+    timeout_seconds: float = 30.0,
+) -> list[dict[str, object]]:
+    """Block until a pending action request appears or timeout."""
+    from shoal.core.action_bus import watch_pending_actions
+
+    actions = await watch_pending_actions(
+        target_session=target_session,
+        target_role=target_role,
+        correlation_id=correlation_id,
+        timeout_seconds=timeout_seconds,
+    )
+    return [a.model_dump(mode="json") for a in actions]
+
 
 # ---------------------------------------------------------------------------
 # Tool: get_failure_context
