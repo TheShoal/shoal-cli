@@ -30,7 +30,11 @@ htmlcov/
 
 # Claude settings
 .claude/worktrees
+.claude/skills/
 settings.local.json
+.pisces/skills/
+.omp/skills/
+.shoal/context/
 
 # Workflow
 .worktrees

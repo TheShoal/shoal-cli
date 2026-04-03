@@ -28,10 +28,8 @@ if command -v claude >/dev/null 2>&1; then
     for skill_dir in "$SKILLS_SRC"/*/; do
         [ -d "$skill_dir" ] || continue
         name="$(basename "$skill_dir")"
-        if [ ! -e "$WT/.claude/skills/$name" ]; then
-            ln -sfn "$skill_dir" "$WT/.claude/skills/$name"
-            echo "  [claude] linked $name"
-        fi
+        ln -sfn "$skill_dir" "$WT/.claude/skills/$name"
+        echo "  [claude] linked $name"
     done
 fi
 
@@ -65,28 +63,30 @@ if command -v opencode >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# omp: concatenate skills into a context file for @file injection
+# pisces: symlink each skill directory into .pisces/skills/
+# (requires: pisces config set skills.customDirectories '[".pisces/skills"]')
+# ---------------------------------------------------------------------------
+if command -v pisces >/dev/null 2>&1; then
+    mkdir -p "$WT/.pisces/skills"
+    for skill_dir in "$SKILLS_SRC"/*/; do
+        [ -d "$skill_dir" ] || continue
+        name="$(basename "$skill_dir")"
+        ln -sfn "$skill_dir" "$WT/.pisces/skills/$name"
+        echo "  [pisces] linked $name"
+    done
+fi
+
+# ---------------------------------------------------------------------------
+# omp: symlink each skill directory into .omp/skills/
 # ---------------------------------------------------------------------------
 if command -v omp >/dev/null 2>&1; then
-    context_dir="$WT/.shoal/context"
-    mkdir -p "$context_dir"
-    context_file="$context_dir/skills.md"
-
-    {
-        echo "# Shoal Skills"
-        echo ""
-        echo "The following skills are available. Use them when relevant."
-        echo ""
-        for skill_dir in "$SKILLS_SRC"/*/; do
-            [ -d "$skill_dir" ] || continue
-            [ -f "$skill_dir/SKILL.md" ] || continue
-            echo "---"
-            echo ""
-            cat "$skill_dir/SKILL.md"
-            echo ""
-        done
-    } > "$context_file"
-    echo "  [omp] wrote $context_file"
+    mkdir -p "$WT/.omp/skills"
+    for skill_dir in "$SKILLS_SRC"/*/; do
+        [ -d "$skill_dir" ] || continue
+        name="$(basename "$skill_dir")"
+        ln -sfn "$skill_dir" "$WT/.omp/skills/$name"
+        echo "  [omp] linked $name"
+    done
 fi
 
 echo "[shoal-skill-sync] Done"
