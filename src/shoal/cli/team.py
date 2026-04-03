@@ -8,8 +8,17 @@ from rich.table import Table
 from shoal.cli._console import get_console
 from shoal.core import git
 from shoal.core.config import load_workspace_config
+from shoal.models.config.workspace import TeamConfig
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def _format_report_target(team: TeamConfig) -> str:
+    """Render a configured report target for CLI output."""
+    if team.report is None:
+        return "[dim]--[/dim]"
+    selector = team.report.id or team.report.slug or team.report.name
+    return f"{team.report.type}:{selector}"
 
 
 @app.command("ls")
@@ -30,6 +39,7 @@ def team_ls() -> None:
     table.add_column("Linear")
     table.add_column("Template")
     table.add_column("Worktree Dir")
+    table.add_column("Report")
 
     for slug, team in sorted(ws_cfg.teams.items()):
         table.add_row(
@@ -38,6 +48,7 @@ def team_ls() -> None:
             team.linear_slug,
             team.default_template or "[dim]--[/dim]",
             team.worktree_dir or "[dim]--[/dim]",
+            _format_report_target(team),
         )
 
     console.print(table)

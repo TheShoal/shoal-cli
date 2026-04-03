@@ -305,6 +305,20 @@ order = "backend/order"
 web-app = "frontend/web-app"
 ```
 
+Teams can also live in the same file and drive `shoal team`, `shoal ticket`, and `shoal report`:
+
+```toml
+[teams.be]
+name = "Backend Engineering"
+linear_slug = "BE"
+default_template = "be-agent"
+worktree_dir = "backend"
+
+[teams.be.report]
+type = "project"
+slug = "backend-roadmap"
+```
+
 Then from the meta-repo root:
 
 ```bash

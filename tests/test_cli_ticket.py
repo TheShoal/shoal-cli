@@ -29,12 +29,21 @@ class TestTeamLs:
 
     def test_with_teams(self, mock_dirs):
         """Displays team table when teams are configured."""
-        from shoal.models.config.workspace import TeamConfig, WorkspaceConfig
+        from shoal.models.config.workspace import (
+            TeamConfig,
+            TeamReportTargetConfig,
+            WorkspaceConfig,
+        )
 
         ws = WorkspaceConfig(
             name="test",
             teams={
-                "be": TeamConfig(name="Backend", linear_slug="BE", default_template="be-agent"),
+                "be": TeamConfig(
+                    name="Backend",
+                    linear_slug="BE",
+                    default_template="be-agent",
+                    report=TeamReportTargetConfig(type="project", slug="backend-roadmap"),
+                ),
                 "fe": TeamConfig(name="Frontend", linear_slug="FE"),
             },
         )
@@ -45,6 +54,7 @@ class TestTeamLs:
                 assert "BE" in result.output
                 assert "FE" in result.output
                 assert "Backend" in result.output
+                assert "project:backend-roadmap" in result.output
 
 
 class TestTicketStatus:
