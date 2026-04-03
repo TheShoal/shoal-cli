@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, Discriminator, Field, Tag, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SessionStatus(StrEnum):
@@ -35,7 +35,6 @@ class LifecycleEvent(StrEnum):
 
 class RuntimeKind(StrEnum):
     tmux = "tmux"
-    lobster = "lobster"
 
 
 class RuntimeCapability(StrEnum):
@@ -58,22 +57,8 @@ class TmuxRuntimeState(BaseModel):
     nvim_socket: str = ""
 
 
-class LobsterRuntimeState(BaseModel):
-    kind: Literal[RuntimeKind.lobster] = RuntimeKind.lobster
-    lobster_id: str
-    endpoint: str = ""
-    employee_id: str = ""
-
-
-# Default type alias — used by code that only handles tmux sessions.
-# Lobster-aware code should use the discriminated union directly.
 RuntimeState = TmuxRuntimeState
-
-# Discriminated union for Pydantic (de)serialization — handles both runtime kinds.
-AnyRuntimeState = Annotated[
-    Annotated[TmuxRuntimeState, Tag("tmux")] | Annotated[LobsterRuntimeState, Tag("lobster")],
-    Discriminator("kind"),
-]
+AnyRuntimeState = TmuxRuntimeState
 
 
 class SessionState(BaseModel):

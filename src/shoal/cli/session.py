@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from datetime import UTC, datetime
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -197,94 +195,3 @@ def session_done(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from e
     typer.echo(f"Session '{name}' marked complete.")
-
-
-def sync(
-    session: Annotated[str, typer.Argument(help="Session name or ID")],
-    direction: Annotated[
-        str,
-        typer.Option("--direction", "-d", help="Sync direction: import, export, or both"),
-    ] = "import",
-    since: Annotated[
-        str | None,
-        typer.Option("--since", help="Only import turns after this ISO timestamp"),
-    ] = None,
-    conversations_dir: Annotated[
-        str | None,
-        typer.Option("--conversations-dir", "-c", help="Path to QMD conversations directory"),
-    ] = None,
-) -> None:
-    """Sync conversations between Shoal journal and Lobster Party QMD format."""
-
-    asyncio.run(with_db(_sync_impl(session, direction, since, conversations_dir)))
-
-
-async def _sync_impl(
-    session_name_or_id: str,
-    direction: str,
-    since: str | None,
-    conversations_dir: str | None,
-) -> None:
-    """Implementation of sync command."""
-    from shoal.core.journal import journal_path
-    from shoal.core.qmd import export_journal_to_qmd, import_qmd_to_journal
-    from shoal.core.state import resolve_session
-
-    ensure_dirs()
-
-    # Resolve session
-    sid = await resolve_session(session_name_or_id)
-    if not sid:
-        get_console().print(f"[red]Session not found: {session_name_or_id}[/red]")
-        raise typer.Exit(1)
-
-    s = await get_session(sid)
-    if not s:
-        raise typer.Exit(1)
-
-    # Parse since timestamp if provided
-    since_dt: datetime | None = None
-    if since:
-        try:
-            since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
-            if since_dt.tzinfo is None:
-                since_dt = since_dt.replace(tzinfo=UTC)
-        except ValueError as e:
-            get_console().print(f"[red]Invalid timestamp format: {e}[/red]")
-            raise typer.Exit(1) from e
-
-    # Resolve conversations directory
-    if conversations_dir is None:
-        # Default to Lobster Party conventions: ~/conversations
-        import os
-
-        home = os.path.expanduser("~")
-        conversations_dir = str(Path(home) / "conversations")
-
-    conv_dir = Path(conversations_dir)
-    jpath = journal_path(s.id)
-
-    imported = 0
-    exported = 0
-
-    if direction in ("import", "both"):
-        imported = import_qmd_to_journal(
-            conversations_dir=conv_dir,
-            journal_path=jpath,
-            session_id=s.id,
-            since=since_dt,
-        )
-        get_console().print(f"[green]Imported {imported} turns into session {s.name}[/green]")
-
-    if direction in ("export", "both"):
-        export_dir = conv_dir / "shoal-exports" / s.name
-        exported = export_journal_to_qmd(
-            journal_path=jpath,
-            output_dir=export_dir,
-            session_id=s.id,
-            session_name=s.name,
-        )
-        get_console().print(f"[green]Exported {exported} turns to {export_dir}[/green]")
-
-    if imported == 0 and exported == 0:
-        get_console().print("[yellow]No turns synced[/yellow]")

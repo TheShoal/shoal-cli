@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from shoal.models.config.lobster import LobsterConfig
-
 
 class GeneralConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -121,20 +119,6 @@ class ProactiveConfig(BaseModel):
     """How long to retain failure context packets before expiry."""
 
 
-class ClawSchedulerConfig(BaseModel):
-    """Claw scheduler configuration - maps to [claw_scheduler] in config.toml."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    enabled: bool = False
-    tick_seconds: float = 5.0
-    max_retries: int = 3
-    purge_messages_after_days: int = 7
-    journal_summary_interval_hours: float = 4.0
-    summary_model: str = "amazon.nova-lite-v1:0"
-    summary_budget: str = "paragraph"
-
-
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
 
@@ -148,6 +132,4 @@ class ShoalConfig(BaseModel):
     remote: dict[str, RemoteHostConfig] = Field(default_factory=dict)
     operator: OperatorConfig = Field(default_factory=OperatorConfig)
     dreamer: DreamerConfig = Field(default_factory=DreamerConfig)
-    lobster: LobsterConfig = Field(default_factory=LobsterConfig)
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
-    claw_scheduler: ClawSchedulerConfig = Field(default_factory=ClawSchedulerConfig)

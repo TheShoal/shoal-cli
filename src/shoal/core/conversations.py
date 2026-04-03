@@ -72,58 +72,6 @@ class QmdTurnLike(Protocol):
     def metadata(self) -> dict[str, Any]: ...
 
 
-class LobsterTurnLike(Protocol):
-    """Structural type for Lobster/Claw-compatible QMD turns."""
-
-    @property
-    def id(self) -> str: ...
-
-    @property
-    def timestamp(self) -> datetime: ...
-
-    @property
-    def claw_id(self) -> str: ...
-
-    @property
-    def event_id(self) -> str: ...
-
-    @property
-    def prompt(self) -> str: ...
-
-    @property
-    def response(self) -> str: ...
-
-    @property
-    def model(self) -> str: ...
-
-    @property
-    def tokens(self) -> int | None: ...
-
-    @property
-    def prompt_tokens(self) -> int | None: ...
-
-    @property
-    def response_tokens(self) -> int | None: ...
-
-    @property
-    def cost_usd(self) -> float | None: ...
-
-    @property
-    def thinking(self) -> str | None: ...
-
-    @property
-    def prompt_summary(self) -> str | None: ...
-
-    @property
-    def response_summary(self) -> str | None: ...
-
-    @property
-    def thinking_summary(self) -> str | None: ...
-
-    @property
-    def metadata(self) -> dict[str, Any]: ...
-
-
 @dataclass(frozen=True)
 class ConversationEvent:
     """Canonical Shoal-native event persisted across conversation artifacts."""
@@ -454,48 +402,6 @@ def qmd_turn_to_event(turn: QmdTurnLike, session_name: str | None = None) -> Con
         tokens=turn.tokens,
         prompt_tokens=turn.prompt_tokens or _coerce_int(metadata.get("prompt_tokens")),
         response_tokens=turn.response_tokens or _coerce_int(metadata.get("response_tokens")),
-        cost_usd=turn.cost_usd,
-    )
-
-
-def claw_turn_to_event(
-    turn: LobsterTurnLike,
-    *,
-    session_id: str = "",
-    session_name: str = "",
-) -> ConversationEvent:
-    """Convert a Lobster/Claw-compatible turn into the canonical event model."""
-    metadata = dict(turn.metadata)
-    return ConversationEvent(
-        id=turn.id
-        or generate_event_id(
-            kind="chat_turn",
-            timestamp=turn.timestamp,
-            session_id=session_id,
-            source=_coerce_str(metadata.get("source")) or "claw-qmd",
-            event_id=_coerce_str(turn.event_id),
-            prompt=turn.prompt,
-            response=turn.response,
-        ),
-        timestamp=turn.timestamp,
-        session_id=session_id,
-        session_name=session_name,
-        source=_coerce_str(metadata.get("source")) or "claw-qmd",
-        kind="chat_turn",
-        event_id=_coerce_str(turn.event_id),
-        correlation_id=_coerce_str(metadata.get("correlation_id")),
-        model=_coerce_str(turn.model),
-        tags=("chat", "claw"),
-        metadata={**metadata, "claw_id": turn.claw_id},
-        prompt=turn.prompt,
-        response=turn.response,
-        thinking=turn.thinking,
-        prompt_summary=turn.prompt_summary or summarize_text(turn.prompt),
-        response_summary=turn.response_summary or summarize_text(turn.response),
-        thinking_summary=turn.thinking_summary,
-        tokens=turn.tokens,
-        prompt_tokens=turn.prompt_tokens,
-        response_tokens=turn.response_tokens,
         cost_usd=turn.cost_usd,
     )
 

@@ -95,8 +95,6 @@ nav:
       - Claude Code Setup: CLAUDE_CODE_SETUP.md
       - OpenCode Setup: OPENCODE_SETUP.md
       - OMP Setup: OMP_SETUP.md
-      - Lobster Party Integration: lobster-integration.md
-      - Quick Reference: lobster-quickref.md
   - Design the Loop:
       - Terminal Interaction Design: terminal-interaction-design.md
       - Architecture: architecture.md

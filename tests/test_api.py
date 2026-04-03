@@ -7,29 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from shoal.core.state import create_session
-from shoal.models.state import LobsterRuntimeState, SessionState, SessionStatus
-
-
-def _make_claw_session(session_id: str = "claw123") -> SessionState:
-    now = datetime.now(UTC)
-    return SessionState(
-        id=session_id,
-        name="demo-claw-session",
-        tool="claw",
-        path="/tmp/repo",
-        worktree="",
-        branch="",
-        runtime=LobsterRuntimeState(
-            lobster_id="demo",
-            endpoint="grpc://localhost:50071",
-            employee_id="dogfood-emp",
-        ),
-        status=SessionStatus.idle,
-        mcp_servers=[],
-        created_at=now,
-        last_activity=now,
-        status_since=now,
-    )
+from shoal.models.state import SessionState, SessionStatus
 
 
 @pytest.mark.asyncio
@@ -103,7 +81,6 @@ class TestSessions:
 
     async def test_list_sessions_filter_by_path(self, async_client, tmp_path):
         """GET /sessions?path=... returns only sessions whose git root matches."""
-        from datetime import UTC, datetime
 
         from shoal.models.state import SessionState, SessionStatus
 
@@ -199,25 +176,6 @@ class TestSessions:
                 s.tmux_runtime.session_name, "echo hello", enter=True
             )
 
-    async def test_send_keys_claw_uses_runtime_provider(self, async_client):
-        """Test POST /sessions/{id}/send routes Claw input through the runtime provider."""
-        session = _make_claw_session()
-        mock_provider = MagicMock()
-        mock_provider.async_send_input = AsyncMock()
-
-        with (
-            patch("shoal.api.server.get_session", new=AsyncMock(return_value=session)),
-            patch("shoal.api.server.provider_for_session", return_value=mock_provider),
-        ):
-            response = await async_client.post(
-                f"/sessions/{session.id}/send",
-                json={"keys": "hello claw"},
-            )
-
-        assert response.status_code == 200
-        assert response.json()["message"] == "Keys sent"
-        mock_provider.async_send_input.assert_awaited_once_with(session, "hello claw")
-
     async def test_send_keys_session_not_found(self, async_client):
         """Test POST /sessions/{id}/send with non-existent session."""
         response = await async_client.post(
@@ -244,7 +202,6 @@ class TestSessions:
     async def test_get_status_with_unknown(self, async_client):
         """Test GET /status correctly counts unknown sessions."""
         from shoal.core.state import update_session
-        from shoal.models.state import SessionStatus
 
         # Create a session and mark it as unknown
         s = await create_session("unknown-test", "claude", "/tmp/test")
@@ -322,41 +279,6 @@ class TestSessions:
 
         assert response.status_code == 409  # Conflict
         assert "already exists" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-class TestDashboardClawUi:
-    """Tests for claw-specific dashboard behavior."""
-
-    async def test_session_detail_hides_tmux_approve_for_claw(self, async_client):
-        session = _make_claw_session()
-
-        with patch("shoal.dashboard.routes.get_session", new=AsyncMock(return_value=session)):
-            response = await async_client.get(f"/ui/sessions/{session.id}")
-
-        assert response.status_code == 200
-        assert 'name="keys"' in response.text
-        assert "Send message to Claw…" in response.text
-        assert "✓ Approve" not in response.text
-        assert "A2A/gRPC bridge" in response.text
-
-    async def test_claw_pane_partial_uses_runtime_provider(self, async_client):
-        session = _make_claw_session()
-        mock_provider = MagicMock()
-        mock_provider.async_capture_output = AsyncMock(
-            return_value="Claw: demo\nHealth: healthy | ok\nTasks: none"
-        )
-
-        with (
-            patch("shoal.dashboard.routes.get_session", new=AsyncMock(return_value=session)),
-            patch("shoal.dashboard.routes.provider_for_session", return_value=mock_provider),
-        ):
-            response = await async_client.get(f"/ui/partials/pane/{session.id}?lines=50")
-
-        assert response.status_code == 200
-        assert "Claw: demo" in response.text
-        assert "Tasks: none" in response.text
-        mock_provider.async_capture_output.assert_awaited_once_with(session, lines=50)
 
 
 @pytest.mark.asyncio
@@ -555,40 +477,6 @@ class TestDeleteSession:
             data = response.json()
             assert "dirty_files" in data["detail"]
             assert "M file.txt" in data["detail"]["dirty_files"]
-
-    async def test_delete_claw_session_success(self, async_client):
-        """Test DELETE /sessions/{id} handles Claw sessions without tmux metadata."""
-        session = _make_claw_session()
-
-        with (
-            patch(
-                "shoal.api.server.get_session",
-                new=AsyncMock(return_value=session),
-            ),
-            patch(
-                "shoal.api.server.kill_session_lifecycle",
-                new_callable=AsyncMock,
-                return_value={
-                    "tmux_killed": False,
-                    "worktree_removed": False,
-                    "branch_deleted": False,
-                    "db_deleted": True,
-                    "mcp_stopped": [],
-                },
-            ) as mock_kill,
-        ):
-            response = await async_client.delete(f"/sessions/{session.id}")
-
-        assert response.status_code == 204
-        mock_kill.assert_awaited_once_with(
-            session_id=session.id,
-            tmux_session="",
-            worktree=session.worktree,
-            git_root=session.path,
-            branch=session.branch,
-            remove_worktree=False,
-            force=False,
-        )
 
 
 @pytest.mark.asyncio
@@ -851,16 +739,6 @@ class TestAttachSession:
         assert response.status_code == 200
         assert "Attached" in response.json()["message"]
         mock_switch.assert_called_once_with(s.tmux_runtime.session_name)
-
-    async def test_attach_claw_not_supported(self, async_client):
-        """Test POST /sessions/{id}/attach rejects Claw sessions cleanly."""
-        session = _make_claw_session()
-
-        with patch("shoal.api.server.get_session", new=AsyncMock(return_value=session)):
-            response = await async_client.post(f"/sessions/{session.id}/attach")
-
-        assert response.status_code == 400
-        assert "only supported for tmux sessions" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -1301,7 +1179,7 @@ class TestIncidents:
 
     async def test_spawn_incident_lane(self, async_client, tmp_path):
         from shoal.models.incident import IncidentIngestRequest
-        from shoal.models.state import SessionState, TmuxRuntimeState
+        from shoal.models.state import TmuxRuntimeState
         from shoal.services.incident import ingest_incident
 
         incident = await ingest_incident(

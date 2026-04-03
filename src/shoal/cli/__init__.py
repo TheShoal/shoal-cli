@@ -15,7 +15,6 @@ from shoal.cli.fin import app as fin_app
 from shoal.cli.incident import app as incident_app
 
 # Sub-group Typer apps — these are lightweight and needed at import time for add_typer.
-from shoal.cli.lobster import app as lobster_app
 from shoal.cli.mcp import app as mcp_app
 from shoal.cli.mode_cmd import app as mode_app
 from shoal.cli.nvim import app as nvim_app
@@ -253,37 +252,6 @@ def _prune_cmd(
     from shoal.cli.session import prune
 
     prune(force)
-
-
-@app.command("sync")
-def _sync_cmd(
-    session: Annotated[str, typer.Argument(help="Session name or ID")],
-    direction: Annotated[
-        str,
-        typer.Option("--direction", "-d", help="Sync direction: import, export, or both"),
-    ] = "import",
-    since: Annotated[
-        str | None,
-        typer.Option("--since", help="Only import turns after this ISO timestamp"),
-    ] = None,
-    conversations_dir: Annotated[
-        str | None,
-        typer.Option(
-            "--conversations-dir",
-            "-c",
-            help="Path to QMD conversations directory",
-        ),
-    ] = None,
-) -> None:
-    """Sync conversations between Shoal journal and Lobster Party QMD format."""
-    from shoal.cli.session import sync
-
-    sync(
-        session=session,
-        direction=direction,
-        since=since,
-        conversations_dir=conversations_dir,
-    )
 
 
 @app.command("status")
@@ -527,9 +495,6 @@ app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
 app.add_typer(mode_app, name="mode", help="Operating modes.")
 app.add_typer(skill_app, name="skill", help="Cross-agent skills.")
 app.add_typer(proactive_app, name="proactive", help="Proactive monitoring and filesystem watching.")
-app.add_typer(
-    lobster_app, name="lobster", help="Lobster runtime operations (requires shoal[lobster])."
-)
 app.add_typer(session_app, name="session", help="Session management commands.")
 
 

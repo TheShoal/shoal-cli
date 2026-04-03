@@ -10,7 +10,6 @@ from unittest.mock import patch
 import pytest
 
 from shoal.core.conversations import (
-    claw_turn_to_event,
     generate_event_id,
     journal_entry_to_event,
     qmd_turn_to_event,
@@ -18,7 +17,6 @@ from shoal.core.conversations import (
     summary_to_event,
 )
 from shoal.core.journal import JournalEntry, append_entry, journal_path
-from shoal.core.lobster_conversations import LobsterTurn
 from shoal.core.qmd import event_to_qmd_turn, export_journal_to_qmd, read_qmd_turns
 
 
@@ -132,28 +130,6 @@ class TestQmdRoundTrip:
         assert restored.response is None
         assert restored.metadata["kind"] == "journal_entry"
         assert render_event_as_journal_content(restored) == entry.content
-
-
-class TestClawTurnConversion:
-    """Test conversion from Lobster-compatible turns into canonical events."""
-
-    def test_preserves_structured_fields_from_fixture(self, qmd_fixtures_dir: Path) -> None:
-        record = json.loads((qmd_fixtures_dir / "2025-W03" / "turn-001.json").read_text())
-        turn = LobsterTurn.from_json_record(record)
-
-        event = claw_turn_to_event(turn, session_id="sess-123", session_name="alpha")
-
-        assert event.kind == "chat_turn"
-        assert event.session_id == "sess-123"
-        assert event.metadata["claw_id"] == "claw-alpha"
-        assert event.thinking == (
-            "User is asking a simple geography question. Provide direct answer with context."
-        )
-        assert event.prompt_summary == "What is the capital of France?"
-        assert event.response_summary == "The capital of France is Paris."
-        assert event.prompt_tokens == 15
-        assert event.response_tokens == 42
-        assert event.cost_usd == pytest.approx(0.0003)
 
 
 class TestSummaryEvent:

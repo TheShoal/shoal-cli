@@ -5,7 +5,6 @@ to work unchanged across the codebase.
 """
 
 from shoal.models.config.general import (
-    ClawSchedulerConfig,
     DreamerAIConfig,
     DreamerConfig,
     GeneralConfig,
@@ -19,7 +18,6 @@ from shoal.models.config.general import (
     TmuxConfig,
 )
 from shoal.models.config.hooks import ProjectHookEntry
-from shoal.models.config.lobster import LobsterConfig
 from shoal.models.config.robo import (
     EscalationConfig,
     MonitoringConfig,
@@ -48,14 +46,12 @@ from shoal.models.config.workspace import (
 )
 
 __all__ = [
-    "ClawSchedulerConfig",
     "CoordinatorConfig",
     "DetectionPatterns",
     "DreamerAIConfig",
     "DreamerConfig",
     "EscalationConfig",
     "GeneralConfig",
-    "LobsterConfig",
     "MCPToolConfig",
     "MonitoringConfig",
     "NotificationsConfig",

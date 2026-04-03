@@ -981,23 +981,6 @@ async def create_session_lifecycle(
     if coordinator_config and coordinator_config.context_injection:
         session_env.update(coordinator_config.context_injection)
 
-    # Start delegation proxy if we have secure env vars
-    delegation_socket = ""
-    if secure_env:
-        from shoal.integrations.lobster.delegation_wrapper import (
-            delegation_socket_path,
-            start_delegation_proxy,
-        )
-
-        start_delegation_proxy(session.id, secure_env)
-        delegation_socket = str(delegation_socket_path(session.id))
-        # Set socket path as environment variable for the agent to use
-        session_env["SHOAL_DELEGATION_SOCKET"] = delegation_socket
-        logger.info(
-            "[%s] Started delegation proxy with %d secure env vars",
-            session.id,
-            len(secure_env),
-        )
     if session_env:
         for key, value in session_env.items():
             await tmux.async_set_environment(tmux_session, key, value)
@@ -1127,114 +1110,6 @@ async def create_session_lifecycle(
     await update_session(session.id, **updates)
 
     logger.info("[%s] create: complete (tmux=%s)", session.id, tmux_session)
-
-    # Re-fetch to return fully-updated state
-    result = await get_session(session.id)
-    assert result is not None
-
-    await emit(LifecycleEvent.session_created, session=result)
-
-    return result
-
-
-async def create_claw_session_lifecycle(
-    *,
-    session_name: str,
-    claw_id: str,
-    endpoint: str,
-    employee_id: str = "",
-    tool: str = "claw",
-    git_root: str = "",
-    wt_path: str = "",
-    branch_name: str = "",
-    mcp_servers: list[str] | None = None,
-    tags: list[str] | None = None,
-) -> SessionState:
-    """Create a Claw session with full lifecycle management.
-
-    Unlike tmux sessions, Claw sessions are remote gRPC-based agents
-    managed by the Lobster Party Clawplexer. This function creates
-    the local database record and validates connectivity to the Claw.
-
-    Args:
-        session_name: Human-readable session name.
-        claw_id: The Claw identifier in Lobster Party.
-        endpoint: gRPC endpoint URL for the Claw.
-        employee_id: Employee ID for audit/auth.
-        tool: Tool name (default: "claw").
-        git_root: Git root path for the session.
-        wt_path: Worktree path (optional).
-        branch_name: Git branch name (optional).
-        mcp_servers: List of MCP servers to provision.
-        tags: Session tags.
-
-    Returns:
-        The created SessionState.
-
-    Raises:
-        SessionExistsError: If session name already exists.
-        RuntimeError: If Claw connectivity check fails.
-    """
-    from shoal.models.state import LobsterRuntimeState
-
-    logger.info("[%s] claw create: starting (claw_id=%s)", session_name, claw_id)
-
-    # 1. Create DB row
-    try:
-        session = await create_session(
-            session_name,
-            tool,
-            git_root,
-            wt_path,
-            branch_name,
-            tags=tags or [],
-        )
-    except ValueError as exc:
-        if "already exists" in str(exc) or "collides" in str(exc):
-            raise SessionExistsError(str(exc), session_id="", operation="create") from exc
-        raise
-
-    from shoal.core.context import set_session_id
-
-    set_session_id(session.id)
-
-    # 2. Update runtime state with Claw-specific info
-    runtime = LobsterRuntimeState(
-        lobster_id=claw_id,
-        endpoint=endpoint,
-        employee_id=employee_id,
-    )
-    await update_session(session.id, runtime=runtime)
-
-    logger.info("[%s] claw create: DB row created (id=%s)", session_name, session.id)
-
-    # 3. Validate Claw connectivity
-    try:
-        from shoal.services.runtime_providers.lobster import LobsterRuntimeProvider
-
-        provider = LobsterRuntimeProvider()
-        # Create a temporary session state for the connectivity check
-        temp_session = session.model_copy(update={"runtime": runtime})
-        ready = await provider.async_exists(temp_session)
-        if not ready:
-            raise RuntimeError(f"Claw {claw_id} is not healthy or reachable")
-    except ImportError:
-        logger.warning(
-            "[%s] claw create: grpcio not available, skipping connectivity check", session.id
-        )
-    except Exception as exc:
-        logger.warning("[%s] claw create: connectivity check failed: %s", session.id, exc)
-        # Don't fail creation - allow lazy connectivity
-
-    # 4. Provision MCP servers (failures warn, don't block)
-    if mcp_servers:
-        provisioned = await _provision_mcp_servers(
-            mcp_servers, session.id, tool, git_root or wt_path
-        )
-        if provisioned:
-            logger.info("[%s] claw create: MCP provisioned: %s", session.id, provisioned)
-
-    logger.info("[%s] claw create: complete (claw_id=%s)", session.id, claw_id)
 
     # Re-fetch to return fully-updated state
     result = await get_session(session.id)

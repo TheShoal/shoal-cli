@@ -633,59 +633,31 @@ def import_qmd_to_journal(
     journal_path: Path,
     session_id: str,
     since: datetime | None = None,
-    *,
-    allow_lobster_fallback: bool = True,
 ) -> int:
-    """Import QMD turns into a Shoal journal.
-
-    Reads generic Shoal QMD turn files first. If none match and fallback is enabled,
-    also accepts Lobster-style Claw QMD records via the compatibility adapter.
-    """
+    """Import QMD turns into a Shoal journal."""
     from shoal.core.journal import append_entry
 
     turns = read_qmd_turns(conversations_dir, since=since, session_id=session_id)
-
-    if turns:
-        imported = 0
-        for turn in turns:
-            event = qmd_turn_to_event(turn)
-            append_entry(
-                session_id,
-                render_event_as_journal_content(event, actor=event.model),
-                source="qmd-sync",
-            )
-            imported += 1
-
-        logger.info("Imported %d QMD turns to journal %s", imported, journal_path)
-        return imported
-
-    if not allow_lobster_fallback:
+    if not turns:
         logger.debug(
-            "No Shoal QMD turns found for session %s in %s",
+            "No QMD turns found for session %s in %s",
             session_id,
             conversations_dir,
         )
         return 0
 
-    from shoal.core.lobster_conversations import read_qmd_turns as read_lobster_qmd_turns
-    from shoal.core.lobster_conversations import turns_to_journal_entries
+    imported = 0
+    for turn in turns:
+        event = qmd_turn_to_event(turn)
+        append_entry(
+            session_id,
+            render_event_as_journal_content(event, actor=event.model),
+            source="qmd-sync",
+        )
+        imported += 1
 
-    claw_turns = read_lobster_qmd_turns(conversations_dir, since=since)
-    if not claw_turns:
-        logger.debug("No QMD turns found to import")
-        return 0
-
-    append_entry(
-        session_id,
-        turns_to_journal_entries(claw_turns),
-        source="claw-sync",
-    )
-    logger.info(
-        "Imported %d Lobster-compatible QMD turns to journal %s",
-        len(claw_turns),
-        journal_path,
-    )
-    return len(claw_turns)
+    logger.info("Imported %d QMD turns to journal %s", imported, journal_path)
+    return imported
 
 
 def sync_journal_with_qmd(
