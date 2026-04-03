@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.37.1] - 2026-04-03
+
+### Fixed
+- **`_handle_command_failed` missing `event` positional parameter** (`services/proactive_supervisor.py`):
+  The inner hook callback passed to `lifecycle.on()` was declared as `(**kwargs)`, but
+  `lifecycle.emit()` calls hooks as `cb(event, **kwargs)`. The missing `event` parameter caused
+  `command_failed` events to be silently swallowed (hook raised `TypeError`, caught by emit's
+  exception guard). Fixed to `(event: LifecycleEvent, **kwargs: object)`.
+
+### Added
+- **Tests for `FsWatcher`** (`tests/test_fs_watcher.py`): 20 tests covering singleton helpers,
+  path add/remove/replace, start/stop idempotency, `_should_ignore`, `_WatchFilter`,
+  `_dispatch_changes` event emission and error isolation.
+- **Tests for `ProactiveSupervisor`** (`tests/test_proactive_supervisor.py`): 18 tests covering
+  `on_command_failed`, `get_failure_context` (consumed/unconsumed), `consume_failure_context`,
+  TTL expiry dispatch, singleton lifecycle, `register_proactive_hook` wiring, and
+  `_init_proactive_hooks` enabled/disabled/idempotent paths.
+
+
 ## [0.37.0] - 2026-04-03
 
 ### Added

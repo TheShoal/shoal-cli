@@ -115,7 +115,7 @@ def register_proactive_hook(supervisor: ProactiveSupervisor) -> None:
     from shoal.models.state import LifecycleEvent
     from shoal.services.lifecycle import on
 
-    async def _handle_command_failed(**kwargs: object) -> None:
+    async def _handle_command_failed(event: LifecycleEvent, **kwargs: object) -> None:
         session = kwargs.get("session")
         pane_snapshot = str(kwargs.get("pane_snapshot", ""))
         old_status = kwargs.get("old_status")
