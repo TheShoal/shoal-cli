@@ -668,7 +668,10 @@ async def session_summary_tool(session: str) -> dict[str, object]:
     name="send_session_message",
     description=(
         "Post a message from the current session to another session via the Agent Bus. "
-        "Messages are stored in SQLite and can be polled with receive_session_messages."
+        "Supports typed envelopes: kind (event/request/response/handoff/approval_request/"
+        "approval_decision/error), correlation_id for workflow tracing, priority (1-5), "
+        "and optional metadata. Backward-compatible: omitting new fields defaults to "
+        "kind='event', priority=3."
     ),
 )
 async def send_session_message_tool(
@@ -676,8 +679,14 @@ async def send_session_message_tool(
     topic: str,
     payload: str,
     from_session: str = "",
+    kind: str = "event",
+    correlation_id: str | None = None,
+    reply_to_message_id: int | None = None,
+    priority: int = 3,
+    requires_ack: bool = False,
+    metadata_json: str | None = None,
 ) -> dict[str, object]:
-    """Post a message to another session."""
+    """Post a typed message to another session."""
     from shoal.core.message_bus import send_message
 
     msg_id = await send_message(
@@ -685,8 +694,14 @@ async def send_session_message_tool(
         to_session=to,
         topic=topic,
         payload=payload,
+        kind=kind,
+        correlation_id=correlation_id,
+        reply_to_message_id=reply_to_message_id,
+        priority=priority,
+        requires_ack=requires_ack,
+        metadata_json=metadata_json,
     )
-    return {"id": msg_id, "to": to, "topic": topic}
+    return {"id": msg_id, "to": to, "topic": topic, "kind": kind, "correlation_id": correlation_id}
 
 
 # ---------------------------------------------------------------------------
@@ -697,8 +712,9 @@ async def send_session_message_tool(
 @mcp.tool(
     name="receive_session_messages",
     description=(
-        "Fetch pending messages for a session from the Agent Bus. "
-        "By default returns only unconsumed messages. "
+        "Fetch messages for a session from the Agent Bus. "
+        "Supports filtering by topic, kind, correlation_id, and after_id for incremental "
+        "polling. By default returns only unconsumed messages. "
         "Call send_session_message to post messages."
     ),
     annotations={"readOnlyHint": True},
@@ -706,13 +722,24 @@ async def send_session_message_tool(
 async def receive_session_messages_tool(
     session: str,
     topic: str | None = None,
+    kind: str | None = None,
+    correlation_id: str | None = None,
     unconsumed_only: bool = True,
     limit: int = 50,
+    after_id: int | None = None,
 ) -> list[dict[str, object]]:
     """Fetch messages for a session."""
     from shoal.core.message_bus import receive_messages
 
-    return await receive_messages(session, topic, unconsumed_only=unconsumed_only, limit=limit)
+    return await receive_messages(
+        session,
+        topic,
+        kind=kind,
+        correlation_id=correlation_id,
+        unconsumed_only=unconsumed_only,
+        limit=limit,
+        after_id=after_id,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -731,6 +758,131 @@ async def mark_session_message_consumed_tool(message_id: int) -> dict[str, objec
     await mark_consumed(message_id)
     return {"id": message_id, "consumed": True}
 
+
+
+# ---------------------------------------------------------------------------
+# Tool: mark_session_message_acked
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="mark_session_message_acked",
+    description=(
+        "Acknowledge an Agent Bus message after the described action has been completed. "
+        "Distinct from mark_session_message_consumed: consumed removes from the pending "
+        "queue; acked signals the described work is done."
+    ),
+)
+async def mark_session_message_acked_tool(message_id: int) -> dict[str, object]:
+    """Acknowledge a message."""
+    from shoal.core.message_bus import mark_acked
+
+    await mark_acked(message_id)
+    return {"id": message_id, "acked": True}
+
+
+# ---------------------------------------------------------------------------
+# Tools: session actions (request / list / approve / deny)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="request_session_action",
+    description=(
+        "Request a privileged action requiring approval from a target session or role. "
+        "Actions are separate from ordinary messages and carry an explicit approval "
+        "lifecycle (pending → approved/denied). Returns the action ID."
+    ),
+)
+async def request_session_action_tool(
+    requester_session: str,
+    action_type: str,
+    payload_json: str,
+    target_session: str | None = None,
+    target_role: str | None = None,
+    correlation_id: str | None = None,
+    metadata_json: str | None = None,
+) -> dict[str, object]:
+    """Submit an action request."""
+    from shoal.core.action_bus import request_action
+
+    action_id = await request_action(
+        requester_session,
+        action_type,
+        payload_json,
+        target_session=target_session,
+        target_role=target_role,
+        correlation_id=correlation_id,
+        metadata_json=metadata_json,
+    )
+    return {
+        "id": action_id,
+        "action_type": action_type,
+        "status": "pending",
+        "correlation_id": correlation_id,
+    }
+
+
+@mcp.tool(
+    name="list_pending_session_actions",
+    description=(
+        "List pending action requests visible to the current session. "
+        "Filter by target_session, target_role, or correlation_id."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def list_pending_session_actions_tool(
+    target_session: str | None = None,
+    target_role: str | None = None,
+    correlation_id: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, object]]:
+    """List pending action requests."""
+    from shoal.core.action_bus import list_pending_actions
+
+    actions = await list_pending_actions(
+        target_session=target_session,
+        target_role=target_role,
+        correlation_id=correlation_id,
+        limit=limit,
+    )
+    return [a.model_dump(mode="json") for a in actions]
+
+
+@mcp.tool(
+    name="approve_session_action",
+    description="Approve a pending session action request.",
+)
+async def approve_session_action_tool(
+    action_id: int,
+    resolved_by: str,
+    reason: str | None = None,
+) -> dict[str, object]:
+    """Approve an action."""
+    from shoal.core.action_bus import approve_action
+
+    action = await approve_action(action_id, resolved_by, reason)
+    if action is None:
+        return {"error": f"action {action_id} not found"}
+    return action.model_dump(mode="json")
+
+
+@mcp.tool(
+    name="deny_session_action",
+    description="Deny a pending session action request.",
+)
+async def deny_session_action_tool(
+    action_id: int,
+    resolved_by: str,
+    reason: str | None = None,
+) -> dict[str, object]:
+    """Deny an action."""
+    from shoal.core.action_bus import deny_action
+
+    action = await deny_action(action_id, resolved_by, reason)
+    if action is None:
+        return {"error": f"action {action_id} not found"}
+    return action.model_dump(mode="json")
 
 # ---------------------------------------------------------------------------
 # Tool: get_failure_context

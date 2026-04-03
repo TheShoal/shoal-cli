@@ -11,6 +11,7 @@ from typing import Any, cast
 
 import aiosqlite
 
+from shoal.models.action import ActionStatus, SessionAction
 from shoal.models.incident import IncidentRecord
 from shoal.models.state import RoboState, SessionState
 
@@ -146,14 +147,68 @@ class ShoalDB:
                 from_session TEXT NOT NULL,
                 to_session TEXT NOT NULL,
                 topic TEXT NOT NULL,
+                kind TEXT NOT NULL DEFAULT 'event',
                 payload TEXT NOT NULL,
+                correlation_id TEXT,
+                reply_to_message_id INTEGER,
+                priority INTEGER NOT NULL DEFAULT 3,
+                requires_ack INTEGER NOT NULL DEFAULT 0,
+                metadata_json TEXT,
+                expires_at TEXT,
                 created_at TEXT NOT NULL,
-                consumed_at TEXT
+                consumed_at TEXT,
+                acked_at TEXT,
+                FOREIGN KEY(reply_to_message_id) REFERENCES messages(id)
             )
         """)
         await self._conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_messages_to_session
+            CREATE INDEX IF NOT EXISTS idx_messages_to_session_created
+            ON messages(to_session, created_at)
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_to_session_unconsumed
             ON messages(to_session, consumed_at, created_at)
+        """)
+        # Migrate existing messages table to add new columns before creating
+        # indexes that reference those columns.
+        await self._migrate_messages_schema()
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_correlation
+            ON messages(correlation_id, created_at)
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_reply_to
+            ON messages(reply_to_message_id)
+        """)
+        # Agent Bus: session action requests and approval lifecycle.
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS session_actions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                requester_session TEXT NOT NULL,
+                target_session TEXT,
+                target_role TEXT,
+                action_type TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                correlation_id TEXT,
+                status TEXT NOT NULL DEFAULT 'pending',
+                requested_at TEXT NOT NULL,
+                resolved_at TEXT,
+                resolved_by TEXT,
+                decision_reason TEXT,
+                metadata_json TEXT
+            )
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_actions_requester
+            ON session_actions(requester_session, status)
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_actions_correlation
+            ON session_actions(correlation_id)
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_actions_pending
+            ON session_actions(status, requested_at)
         """)
         # Failure context packets for proactive supervisor.
         await self._conn.execute("""
@@ -178,6 +233,37 @@ class ShoalDB:
         await self._backfill_status_since()
         await self._backfill_runtime_state()
         await self._conn.commit()
+
+
+    async def _migrate_messages_schema(self) -> None:
+
+        """Add new columns to the messages table for existing databases.
+
+        Uses ALTER TABLE ADD COLUMN which is safe to call repeatedly — SQLite
+        silently ignores columns that already exist (via the try/except guard).
+        """
+        if self._conn is None:
+            return
+
+        new_columns = [
+            ("kind", "TEXT NOT NULL DEFAULT 'event'"),
+            ("correlation_id", "TEXT"),
+            ("reply_to_message_id", "INTEGER"),
+            ("priority", "INTEGER NOT NULL DEFAULT 3"),
+            ("requires_ack", "INTEGER NOT NULL DEFAULT 0"),
+            ("metadata_json", "TEXT"),
+            ("expires_at", "TEXT"),
+            ("acked_at", "TEXT"),
+        ]
+        for col_name, col_def in new_columns:
+            try:
+                await self._conn.execute(
+                    f"ALTER TABLE messages ADD COLUMN {col_name} {col_def}"  # noqa: S608
+                )
+            except Exception:  # noqa: BLE001
+                # Column already exists — safe to ignore.
+                pass
+        logger.debug("_migrate_messages_schema: checked %d column(s)", len(new_columns))
 
     async def _backfill_status_since(self) -> None:
         """Backfill status_since for sessions created before the field existed."""
@@ -603,6 +689,14 @@ class ShoalDB:
         to_session: str,
         topic: str,
         payload: str,
+        *,
+        kind: str = "event",
+        correlation_id: str | None = None,
+        reply_to_message_id: int | None = None,
+        priority: int = 3,
+        requires_ack: bool = False,
+        metadata_json: str | None = None,
+        expires_at: str | None = None,
     ) -> int:
         """Insert a message and return its auto-assigned ID."""
         from datetime import UTC, datetime
@@ -610,9 +704,16 @@ class ShoalDB:
         now = datetime.now(UTC).isoformat()
         async with self._connection() as conn:
             cursor = await conn.execute(
-                "INSERT INTO messages (from_session, to_session, topic, payload, created_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (from_session, to_session, topic, payload, now),
+                "INSERT INTO messages"
+                " (from_session, to_session, topic, kind, payload,"
+                "  correlation_id, reply_to_message_id, priority, requires_ack,"
+                "  metadata_json, expires_at, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    from_session, to_session, topic, kind, payload,
+                    correlation_id, reply_to_message_id, priority,
+                    int(requires_ack), metadata_json, expires_at, now,
+                ),
             )
             await conn.commit()
         return cursor.lastrowid or 0
@@ -622,11 +723,18 @@ class ShoalDB:
         to_session: str,
         topic: str | None = None,
         *,
+        kind: str | None = None,
+        correlation_id: str | None = None,
         unconsumed_only: bool = True,
         limit: int = 50,
+        after_id: int | None = None,
     ) -> list[dict[str, object]]:
         """Fetch messages addressed to a session."""
-        parts = ["SELECT id, from_session, to_session, topic, payload, created_at, consumed_at"]
+        parts = [
+            "SELECT id, from_session, to_session, topic, kind, payload,"
+            "       correlation_id, reply_to_message_id, priority, requires_ack,"
+            "       metadata_json, expires_at, created_at, consumed_at, acked_at"
+        ]
         parts.append("FROM messages WHERE to_session = ?")
         params: list[object] = [to_session]
         if unconsumed_only:
@@ -634,6 +742,15 @@ class ShoalDB:
         if topic is not None:
             parts.append("AND topic = ?")
             params.append(topic)
+        if kind is not None:
+            parts.append("AND kind = ?")
+            params.append(kind)
+        if correlation_id is not None:
+            parts.append("AND correlation_id = ?")
+            params.append(correlation_id)
+        if after_id is not None:
+            parts.append("AND id > ?")
+            params.append(after_id)
         parts.append("ORDER BY created_at ASC LIMIT ?")
         params.append(limit)
         sql = " ".join(parts)
@@ -649,9 +766,17 @@ class ShoalDB:
                 "from_session": row[1],
                 "to_session": row[2],
                 "topic": row[3],
-                "payload": row[4],
-                "created_at": row[5],
-                "consumed_at": row[6],
+                "kind": row[4],
+                "payload": row[5],
+                "correlation_id": row[6],
+                "reply_to_message_id": row[7],
+                "priority": row[8],
+                "requires_ack": bool(row[9]),
+                "metadata_json": row[10],
+                "expires_at": row[11],
+                "created_at": row[12],
+                "consumed_at": row[13],
+                "acked_at": row[14],
             }
             for row in rows
         ]
@@ -664,6 +789,19 @@ class ShoalDB:
         async with self._connection() as conn:
             await conn.execute(
                 "UPDATE messages SET consumed_at = ? WHERE id = ?",
+                (now, message_id),
+            )
+            await conn.commit()
+
+
+    async def mark_message_acked(self, message_id: int) -> None:
+        """Mark a message as acknowledged by its recipient."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            await conn.execute(
+                "UPDATE messages SET acked_at = ? WHERE id = ?",
                 (now, message_id),
             )
             await conn.commit()
@@ -763,6 +901,143 @@ class ShoalDB:
                 (now, session_id, cutoff),
             )
             await conn.commit()
+
+
+    # -----------------------------------------------------------------------
+    # Agent Bus: session action requests and approval lifecycle
+    # -----------------------------------------------------------------------
+
+    async def create_session_action(
+        self,
+        requester_session: str,
+        action_type: str,
+        payload_json: str,
+        *,
+        target_session: str | None = None,
+        target_role: str | None = None,
+        correlation_id: str | None = None,
+        metadata_json: str | None = None,
+    ) -> int:
+        """Insert an action request and return its auto-assigned ID."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            cursor = await conn.execute(
+                "INSERT INTO session_actions"
+                " (requester_session, target_session, target_role, action_type,"
+                "  payload_json, correlation_id, status, requested_at, metadata_json)"
+                " VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
+                (
+                    requester_session, target_session, target_role, action_type,
+                    payload_json, correlation_id, now, metadata_json,
+                ),
+            )
+            await conn.commit()
+        return cursor.lastrowid or 0
+
+    async def get_session_action(self, action_id: int) -> SessionAction | None:
+        """Get an action by ID."""
+        async with (
+            self._connection() as conn,
+            conn.execute(
+                "SELECT id, requester_session, target_session, target_role, action_type,"
+                "       payload_json, correlation_id, status, requested_at,"
+                "       resolved_at, resolved_by, decision_reason, metadata_json"
+                " FROM session_actions WHERE id = ?",
+                (action_id,),
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return _row_to_action(row)
+
+    async def list_pending_session_actions(
+        self,
+        *,
+        target_session: str | None = None,
+        target_role: str | None = None,
+        correlation_id: str | None = None,
+        limit: int = 50,
+    ) -> list[SessionAction]:
+        """List pending action requests, optionally filtered."""
+        parts = [
+            "SELECT id, requester_session, target_session, target_role, action_type,"
+            "       payload_json, correlation_id, status, requested_at,"
+            "       resolved_at, resolved_by, decision_reason, metadata_json"
+            " FROM session_actions WHERE status = 'pending'"
+        ]
+        params: list[object] = []
+        if target_session is not None:
+            parts.append("AND target_session = ?")
+            params.append(target_session)
+        if target_role is not None:
+            parts.append("AND target_role = ?")
+            params.append(target_role)
+        if correlation_id is not None:
+            parts.append("AND correlation_id = ?")
+            params.append(correlation_id)
+        parts.append("ORDER BY requested_at ASC LIMIT ?")
+        params.append(limit)
+        sql = " ".join(parts)
+
+        async with (
+            self._connection() as conn,
+            conn.execute(sql, params) as cursor,
+        ):
+            rows = await cursor.fetchall()
+        return [_row_to_action(r) for r in rows]
+
+    async def resolve_session_action(
+        self,
+        action_id: int,
+        status: ActionStatus,
+        resolved_by: str,
+        reason: str | None = None,
+    ) -> SessionAction | None:
+        """Resolve (approve, deny, etc.) an action request."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        async with self._connection() as conn:
+            await conn.execute(
+                "UPDATE session_actions"
+                " SET status = ?, resolved_at = ?, resolved_by = ?, decision_reason = ?"
+                " WHERE id = ?",
+                (status.value, now, resolved_by, reason, action_id),
+            )
+            await conn.commit()
+        return await self.get_session_action(action_id)
+
+
+def _row_to_action(row: Any) -> SessionAction:
+    """Convert a DB row tuple to a SessionAction model."""
+    from datetime import UTC, datetime
+
+    def _dt(val: Any) -> datetime | None:
+        if val is None:
+            return None
+        return datetime.fromisoformat(str(val)).replace(tzinfo=UTC)
+
+    def _str(val: Any) -> str | None:
+        return str(val) if val is not None else None
+
+    return SessionAction(
+        id=int(row[0]),
+        requester_session=str(row[1]),
+        target_session=_str(row[2]),
+        target_role=_str(row[3]),
+        action_type=str(row[4]),
+        payload_json=str(row[5]),
+        correlation_id=_str(row[6]),
+        status=ActionStatus(str(row[7])),
+        requested_at=_dt(row[8]),
+        resolved_at=_dt(row[9]),
+        resolved_by=_str(row[10]),
+        decision_reason=_str(row[11]),
+        metadata_json=_str(row[12]),
+    )
 
 
 async def get_db() -> ShoalDB:
