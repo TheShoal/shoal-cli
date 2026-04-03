@@ -36,9 +36,7 @@ _SYSTEM_PROMPT = "Return only the summary text. Do not add commentary or markdow
 class Summarizer(Protocol):
     """Protocol for text summarization backends."""
 
-    async def summarize(
-        self, text: str, budget: SummaryBudget, context: str = ""
-    ) -> str:
+    async def summarize(self, text: str, budget: SummaryBudget, context: str = "") -> str:
         """Summarize *text* within the given *budget*.
 
         Args:
@@ -67,9 +65,7 @@ class LLMSummarizer:
     def __init__(self, model: str = "amazon.nova-lite-v1:0") -> None:
         self._model = model
 
-    async def summarize(
-        self, text: str, budget: SummaryBudget, context: str = ""
-    ) -> str:
+    async def summarize(self, text: str, budget: SummaryBudget, context: str = "") -> str:
         """Summarize text using the configured LLM.
 
         Args:
@@ -80,17 +76,10 @@ class LLMSummarizer:
         Returns:
             Summary text from the LLM.
         """
-        max_tokens, hint = _BUDGET_HINTS.get(
-            budget, _BUDGET_HINTS[SummaryBudget.paragraph]
-        )
+        max_tokens, hint = _BUDGET_HINTS.get(budget, _BUDGET_HINTS[SummaryBudget.paragraph])
 
         context_line = f"Context: {context}\n\n" if context else ""
-        prompt = (
-            f"{_SYSTEM_PROMPT}\n\n"
-            f"{hint}\n\n"
-            f"{context_line}"
-            f"Text to summarize:\n{text}"
-        )
+        prompt = f"{_SYSTEM_PROMPT}\n\n{hint}\n\n{context_line}Text to summarize:\n{text}"
 
         try:
             from shoal.services.ai_client import call_llm
@@ -114,9 +103,7 @@ class LLMSummarizer:
 class StubSummarizer:
     """Truncation fallback for tests and environments without LLM access."""
 
-    async def summarize(
-        self, text: str, budget: SummaryBudget, context: str = ""
-    ) -> str:
+    async def summarize(self, text: str, budget: SummaryBudget, context: str = "") -> str:
         """Truncate text to approximate the budget.
 
         Args:

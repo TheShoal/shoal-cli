@@ -19,7 +19,6 @@ from shoal.core.message_bus import (
     watch_messages,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -46,8 +45,12 @@ async def fresh_db(tmp_path):
 async def test_watch_messages_returns_existing():
     """watch_messages returns quickly when messages already exist."""
     await send_message(
-        "session-a", "inbox", "hello", "world",
-        kind="event", correlation_id="wf-1",
+        "session-a",
+        "inbox",
+        "hello",
+        "world",
+        kind="event",
+        correlation_id="wf-1",
     )
     results = await watch_messages(
         "inbox", kind="event", correlation_id="wf-1", timeout_seconds=5.0
@@ -61,9 +64,7 @@ async def test_watch_messages_returns_existing():
 @pytest.mark.asyncio
 async def test_watch_messages_timeout_empty():
     """watch_messages returns [] when no messages arrive before the deadline."""
-    results = await watch_messages(
-        "no-messages", timeout_seconds=0.1, poll_interval=0.05
-    )
+    results = await watch_messages("no-messages", timeout_seconds=0.1, poll_interval=0.05)
     assert results == []
 
 

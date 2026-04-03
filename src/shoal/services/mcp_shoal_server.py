@@ -665,7 +665,7 @@ async def session_summary_tool(session: str) -> dict[str, object]:
     try:
         recent = await _recv_msgs(s.name, limit=100, unconsumed_only=True)
         active_workflow_ids: list[str] = sorted(
-            {m["correlation_id"] for m in recent if m.get("correlation_id")}
+            {str(m["correlation_id"]) for m in recent if m.get("correlation_id")}
         )
     except Exception:
         active_workflow_ids = []

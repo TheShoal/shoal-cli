@@ -7,7 +7,6 @@ import pytest
 from shoal.core.claw_summarizer import LLMSummarizer, StubSummarizer, Summarizer
 from shoal.models.claw import SummaryBudget
 
-
 # ---------------------------------------------------------------------------
 # StubSummarizer
 # ---------------------------------------------------------------------------

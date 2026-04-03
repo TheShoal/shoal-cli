@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 import pytest
 
-from shoal.core.lobster_conversations import LobsterTurn
 from shoal.core.conversations import (
     claw_turn_to_event,
     generate_event_id,
@@ -19,6 +18,7 @@ from shoal.core.conversations import (
     summary_to_event,
 )
 from shoal.core.journal import JournalEntry, append_entry, journal_path
+from shoal.core.lobster_conversations import LobsterTurn
 from shoal.core.qmd import event_to_qmd_turn, export_journal_to_qmd, read_qmd_turns
 
 

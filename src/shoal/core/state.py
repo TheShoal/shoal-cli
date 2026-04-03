@@ -10,9 +10,8 @@ import subprocess
 import sys
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
-from typing import Any
-
 from pathlib import Path
+from typing import Any
 
 from shoal.core.config import load_tool_config
 from shoal.core.db import get_db

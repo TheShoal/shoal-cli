@@ -64,6 +64,7 @@ class LobsterRuntimeState(BaseModel):
     endpoint: str = ""
     employee_id: str = ""
 
+
 # Default type alias — used by code that only handles tmux sessions.
 # Lobster-aware code should use the discriminated union directly.
 RuntimeState = TmuxRuntimeState

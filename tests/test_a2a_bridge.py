@@ -82,7 +82,9 @@ def test_proto_to_agent_card_basic() -> None:
 def test_proto_to_agent_card_empty_name_uses_claw_id() -> None:
     """Falls back to claw_id when proto name is empty."""
     proto_card = _make_proto_card(name="")
-    result = proto_to_agent_card(proto_card, lobster_id="fallback-claw", endpoint="grpc://host:50051")
+    result = proto_to_agent_card(
+        proto_card, lobster_id="fallback-claw", endpoint="grpc://host:50051"
+    )
     assert result.name == "fallback-claw"
 
 

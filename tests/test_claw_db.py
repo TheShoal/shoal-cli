@@ -8,7 +8,6 @@ import pytest
 
 from shoal.core.db import ShoalDB
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -226,9 +225,7 @@ async def test_complete_task_sets_done(db: ShoalDB):
 
 @pytest.mark.asyncio
 async def test_fail_task_retryable_resets_to_pending(db: ShoalDB):
-    tid = await db.create_claw_task(
-        name="t", handler="h", run_at=_now_iso(), max_retries=3
-    )
+    tid = await db.create_claw_task(name="t", handler="h", run_at=_now_iso(), max_retries=3)
     await db.claim_claw_task(tid)
     await db.fail_claw_task(tid, "oops")
 
@@ -243,9 +240,7 @@ async def test_fail_task_retryable_resets_to_pending(db: ShoalDB):
 
 @pytest.mark.asyncio
 async def test_fail_task_exhausted_retries_dead_letters(db: ShoalDB):
-    tid = await db.create_claw_task(
-        name="t", handler="h", run_at=_now_iso(), max_retries=1
-    )
+    tid = await db.create_claw_task(name="t", handler="h", run_at=_now_iso(), max_retries=1)
     await db.claim_claw_task(tid)
     await db.fail_claw_task(tid, "fatal")
 
@@ -257,9 +252,7 @@ async def test_fail_task_exhausted_retries_dead_letters(db: ShoalDB):
 
 @pytest.mark.asyncio
 async def test_fail_task_permanent_dead_letters_immediately(db: ShoalDB):
-    tid = await db.create_claw_task(
-        name="t", handler="h", run_at=_now_iso(), max_retries=5
-    )
+    tid = await db.create_claw_task(name="t", handler="h", run_at=_now_iso(), max_retries=5)
     await db.claim_claw_task(tid)
     await db.fail_claw_task(tid, "permanent", permanent=True)
 
@@ -325,9 +318,7 @@ async def test_reschedule_recurring_creates_new_task(db: ShoalDB):
 
 @pytest.mark.asyncio
 async def test_reschedule_once_returns_none(db: ShoalDB):
-    tid = await db.create_claw_task(
-        name="once-t", handler="h", run_at=_now_iso(), task_type="once"
-    )
+    tid = await db.create_claw_task(name="once-t", handler="h", run_at=_now_iso(), task_type="once")
     assert await db.reschedule_recurring_task(tid) is None
 
 

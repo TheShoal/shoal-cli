@@ -1,12 +1,11 @@
 """Agent Bus message envelope model."""
 
 from __future__ import annotations
-from typing import ClassVar, Literal
 
 from datetime import datetime
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 MessageKind = Literal[
     "event",

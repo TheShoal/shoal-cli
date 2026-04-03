@@ -1169,7 +1169,7 @@ async def create_claw_session_lifecycle(
 
     # 2. Update runtime state with Claw-specific info
     runtime = LobsterRuntimeState(
-        claw_id=claw_id,
+        lobster_id=claw_id,
         endpoint=endpoint,
         employee_id=employee_id,
     )

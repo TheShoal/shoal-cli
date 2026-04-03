@@ -8,7 +8,6 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-
 ActionType = Literal[
     "merge_branch",
     "run_release",

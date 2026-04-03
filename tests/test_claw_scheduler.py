@@ -11,7 +11,6 @@ from shoal.core.claw_scheduler import ClawScheduler
 from shoal.core.db import ShoalDB
 from shoal.models.claw import ClawTask, TaskResult
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

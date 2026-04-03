@@ -20,7 +20,6 @@ from shoal.core.db import ShoalDB
 from shoal.models.action import ActionStatus, SessionAction
 from shoal.models.message import DEFAULT_KIND, DEFAULT_PRIORITY, MessageEnvelope, MessageKind
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -75,8 +74,10 @@ def test_message_envelope_all_fields():
     assert env.correlation_id == "wf_123"
 
 
-@pytest.mark.parametrize("kind", ["event", "request", "response", "handoff",
-                                   "approval_request", "approval_decision", "error"])
+@pytest.mark.parametrize(
+    "kind",
+    ["event", "request", "response", "handoff", "approval_request", "approval_decision", "error"],
+)
 def test_message_kind_all_values(kind: MessageKind):
     env = MessageEnvelope(from_session="a", to_session="b", topic="t", payload="{}", kind=kind)
     assert env.kind == kind
@@ -304,9 +305,7 @@ async def test_list_pending_session_actions_filter_correlation(db):
 
 @pytest.mark.asyncio
 async def test_resolve_session_action_approved(db):
-    action_id = await db.create_session_action(
-        "worker", "merge_branch", "{}", target_session="sup"
-    )
+    action_id = await db.create_session_action("worker", "merge_branch", "{}", target_session="sup")
 
     resolved = await db.resolve_session_action(
         action_id, ActionStatus.approved, "supervisor", "LGTM"
@@ -320,9 +319,7 @@ async def test_resolve_session_action_approved(db):
 
 @pytest.mark.asyncio
 async def test_resolve_session_action_denied(db):
-    action_id = await db.create_session_action(
-        "worker", "merge_branch", "{}", target_session="sup"
-    )
+    action_id = await db.create_session_action("worker", "merge_branch", "{}", target_session="sup")
 
     resolved = await db.resolve_session_action(
         action_id, ActionStatus.denied, "supervisor", "Not ready"
@@ -362,6 +359,7 @@ async def test_action_bus_request_approve(tmp_path):
 
     # Patch get_db to use our isolated instance
     import shoal.core.db as db_module
+
     orig = db_module.ShoalDB._instance
     db_module.ShoalDB._instance = db
 
@@ -395,9 +393,9 @@ async def test_action_bus_request_approve(tmp_path):
 
 @pytest.mark.asyncio
 async def test_action_bus_deny(tmp_path):
+    import shoal.core.db as db_module
     from shoal.core.action_bus import deny_action, request_action
     from shoal.core.db import ShoalDB
-    import shoal.core.db as db_module
 
     ShoalDB._initialized = False
     db = ShoalDB(tmp_path / "shoal2.db")

@@ -68,7 +68,7 @@ class LobsterClient:
         """
         if not GRPC_AVAILABLE:
             raise ImportError(
-                "grpcio is required for Lobster client. Install with: pip install grpcio grpcio-tools"
+                "grpcio is required for Lobster client. Install with: uv add grpcio grpcio-tools"
             )
 
         self.lobster_id = lobster_id
@@ -77,7 +77,7 @@ class LobsterClient:
         self.config = config
 
         self._channel: Channel | None = None
-        self._stub: lobster_loop_pb2_grpc.LobsterLoopStub | None = None  # type: ignore[name-defined]
+        self._stub: lobster_loop_pb2_grpc.LobsterLoopStub | None = None
         self._lock = asyncio.Lock()
 
     async def _ensure_channel(self) -> None:
@@ -91,16 +91,16 @@ class LobsterClient:
 
             # Determine if we need secure or insecure channel
             if self.endpoint.startswith("grpcs://"):
-                self._channel = secure_channel(  # type: ignore[assignment]
+                self._channel = secure_channel(
                     self.endpoint[8:],
-                    credentials=grpc.ssl_channel_credentials(),  # type: ignore[attr-defined]
+                    credentials=grpc.ssl_channel_credentials(),
                 )
             else:
                 # Strip grpc:// prefix if present
                 target = self.endpoint[7:] if self.endpoint.startswith("grpc://") else self.endpoint
-                self._channel = insecure_channel(target)  # type: ignore[assignment]
+                self._channel = insecure_channel(target)
 
-            self._stub = lobster_loop_pb2_grpc.LobsterLoopStub(self._channel)  # type: ignore[name-defined]
+            self._stub = lobster_loop_pb2_grpc.LobsterLoopStub(self._channel)  # type: ignore[no-untyped-call]
 
     async def close(self) -> None:
         """Close the gRPC channel."""
@@ -148,7 +148,7 @@ class LobsterClient:
                 if response.usage
                 else {},
             }
-        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+        except grpc.aio.AioRpcError as exc:
             logger.error("Lobster %s status RPC failed: %s", self.lobster_id, exc)
             raise RuntimeError(f"Lobster status failed: {exc.details()}") from exc
 
@@ -174,7 +174,7 @@ class LobsterClient:
                 "issues": list(response.issues),
                 "state": response.state,
             }
-        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+        except grpc.aio.AioRpcError as exc:
             logger.error("Lobster %s health RPC failed: %s", self.lobster_id, exc)
             raise RuntimeError(f"Lobster health failed: {exc.details()}") from exc
 
@@ -224,7 +224,7 @@ class LobsterClient:
                     result = item.response.result
 
             return success, message, result
-        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+        except grpc.aio.AioRpcError as exc:
             logger.error("Lobster %s turn RPC failed: %s", self.lobster_id, exc)
             raise RuntimeError(f"Lobster turn failed: {exc.details()}") from exc
 
@@ -261,7 +261,7 @@ class LobsterClient:
                     "state": event.state,
                     "timestamp": event.timestamp,
                 }
-        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+        except grpc.aio.AioRpcError as exc:
             logger.error("Lobster %s subscribe RPC failed: %s", self.lobster_id, exc)
             raise RuntimeError(f"Lobster subscribe failed: {exc.details()}") from exc
 
@@ -303,6 +303,6 @@ class LobsterClient:
 
             response = await self._stub.InterClaw(request)
             return response.success, response.message, response.result
-        except grpc.aio.AioRpcError as exc:  # type: ignore[attr-defined]
+        except grpc.aio.AioRpcError as exc:
             logger.error("InterClaw RPC failed: %s", exc)
             raise RuntimeError(f"InterClaw failed: {exc.details()}") from exc

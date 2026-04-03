@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from shoal.core.conversations import (
     claw_turn_to_event,
@@ -82,8 +82,8 @@ class LobsterTurn:
             timestamp = timestamp.replace(tzinfo=UTC)
 
         # Calculate total tokens if separate counts provided
-        prompt_tokens = int(record.get("prompt_tokens", 0) or 0)
-        response_tokens = int(record.get("response_tokens", 0) or 0)
+        prompt_tokens = cast(int, record.get("prompt_tokens", 0) or 0)
+        response_tokens = cast(int, record.get("response_tokens", 0) or 0)
         tokens = record.get("tokens")
         if tokens is None and (prompt_tokens or response_tokens):
             tokens = prompt_tokens + response_tokens
@@ -98,15 +98,15 @@ class LobsterTurn:
             prompt=str(record.get("prompt", "")),
             response=str(record.get("response", "")),
             model=str(record.get("model", "")),
-            tokens=int(tokens) if tokens is not None else None,
+            tokens=cast(int, tokens) if tokens is not None else None,
             prompt_tokens=prompt_tokens or None,
             response_tokens=response_tokens or None,
-            cost_usd=float(cost_usd) if cost_usd is not None else None,
+            cost_usd=cast(float, cost_usd) if cost_usd is not None else None,
             thinking=str(record.get("thinking", "")) or None,
             prompt_summary=str(record.get("prompt_summary", "")) or None,
             response_summary=str(record.get("response_summary", "")) or None,
             thinking_summary=str(record.get("thinking_summary", "")) or None,
-            metadata=dict(record.get("metadata", {})),
+            metadata=cast("dict[str, Any]", record.get("metadata") or {}),
         )
 
 
