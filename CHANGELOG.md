@@ -8,6 +8,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.37.0] - 2026-04-03
+
+### Added
+- **Agent Bus — watch and workflow surfaces** (`core/message_bus.py`, `core/action_bus.py`):
+  `watch_messages` and `watch_pending_actions` async generators for event-like polling;
+  `get_workflow_messages` cross-session workflow trace by `correlation_id`.
+- **Agent Bus — enriched message envelope** (`models/message.py`, `models/action.py`):
+  Typed `kind` (event/request/response/handoff/approval_request/approval_decision/error),
+  `priority` (1–5), `correlation_id`, `reply_to_message_id`, `requires_ack`; action approval
+  lifecycle (`pending → approved/denied`); `mark_session_message_acked` MCP tool.
+- **Claw/Lobster scheduler subsystem** (`core/claw_scheduler.py`, `core/db.py`,
+  `services/claw_bootstrap.py`): Fair-scheduling async tick loop for background and
+  agent-scheduled tasks. One task per tick cycle; recurring and cron task types;
+  `TaskHandler` protocol; `ClawScheduler.signal()` for immediate wake.
+- **SOUL.md integration** (`services/mcp_shoal_server.py`, fins): Auto-loads `SOUL.md`
+  from the repo root into MCP `instructions` and fin environment on session start.
+- **Conversation memory — dual-plane QMD** (`core/qmd.py`, `core/conversations.py`,
+  `core/conversation_index.py`, `core/claw_conversations.py`, `core/lobster_conversations.py`,
+  `cli/handoff.py`): Structured QMD turn format with Markdown full-text plane and JSON
+  sidecar; `ConversationIndex` for fast lookup; `generate_handoff` narrative builder;
+  `--sync-claw` CLI flag on `shoal handoff`; 3-tier summary chain (Dreamer → index → prose).
+- **MCP `list_sessions` path filter**: New `path` parameter scopes session discovery to a
+  git root or worktree subtree.
+
+### Changed
+- **Claw → Lobster rename** completed across all user-visible surfaces: help text, error
+  messages, install hints (`shoal[lobster]`, `uv add`), log prefixes (`[lobster]`),
+  `LobsterClient` kwarg (`lobster_id=`), `LobsterRuntimeState` field (`lobster_id`),
+  CLI `shoal lobster` help strings, `a2a_bridge` docstrings.
+- **`ClawTask` model hardened**: Added `model_config = ConfigDict(extra="forbid")`,
+  consistent with all other bus models.
+- **`asyncio.get_event_loop()` → `get_running_loop()`** in `action_bus.py` and
+  `message_bus.py` (deprecated in Python 3.10+).
+- **Blocking I/O wrapped in `asyncio.to_thread`**: `import_qmd_to_journal` and
+  `export_journal_to_qmd` inside `sync_lobster_conversations_tool`.
+- **`cast()` over `int(x)` for object-typed DB dict values** in `claw_scheduler.py`,
+  `lobster_conversations.py`, and `db.py` — eliminates mypy `call-overload` errors.
+
+### Fixed
+- **`ConversationIndex._initialized` was class-level** (caused `no such table` errors on
+  second instance); corrected to per-instance flag.
+- **`db.py` stale `type: ignore` casts**: Replaced `int(obj)` / `float(obj)` on
+  `object`-typed dict values with `cast(int, ...)` / `cast(float, ...)`.
+- **All mypy --strict errors** in new post-v0.36.0 code: stale `type: ignore` codes on
+  gRPC stub lines, import-sort violations, line-length violation in `lobster_client.py`.
+
+### Stats
+- 1673 tests collected, 1669 passed, 4 skipped
+
 ## [0.36.0] - 2026-04-02
 
 ### Added
