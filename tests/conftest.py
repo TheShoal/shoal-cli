@@ -231,8 +231,10 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path) -> tuple[Pat
         # Guards against tests that bypass mock_dirs via the MCP orchestrator.
         _cleanup_logger = logging.getLogger(__name__)
         try:
-            db_path = str(tmp_state.parent.parent / "shoal" / "shoal.db")
-            conn = sqlite3.connect(db_path)
+            import shoal.core.config as _cfg
+
+            real_db = _cfg.data_dir() / "shoal.db"
+            conn = sqlite3.connect(real_db)
             cursor = conn.cursor()
             cursor.execute(
                 "DELETE FROM sessions WHERE json_extract(data, '$.name') LIKE 'test%'",
