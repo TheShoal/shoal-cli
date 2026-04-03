@@ -133,12 +133,6 @@ def _build_env(
     else:
         env.pop("SHOAL_FIN_CONFIG", None)
     env["SHOAL_OUTPUT_FORMAT"] = output_format
-    # Inject SOUL.md so fin scripts can compose it into agent system prompts.
-    from shoal.core.config import soul_text
-
-    soul = soul_text()
-    if soul:
-        env["SHOAL_SOUL"] = soul
     if not env.get("SHOAL_LOG_LEVEL"):
         # Use getEffectiveLevel() — walks the logger hierarchy so root-inherited
         # levels (e.g. WARNING from the default root logger) are captured correctly.
