@@ -24,7 +24,7 @@ shoal new feat-auth -w feat-auth -b          # worktree + branch
 shoal new feat-auth -w feat-auth -b --mode impl  # + mode preset
 ```
 
-`shoal wt ls / finish / cleanup` — manage worktrees directly. See [Worktrees](#git--worktrees).
+`shoal wt ls / finish / cleanup` — manage worktrees directly. See [Worktrees](#git-worktrees).
 
 ### Branch Naming
 
@@ -153,6 +153,52 @@ setup_commands = ["uv sync"]
 [env]
 MYAPP_ENV = "dev"
 ```
+
+## Linear ticket routing and PM reports
+
+Shoal can treat Linear as the source of truth for team work while keeping execution inside Shoal sessions.
+Team metadata lives in `.shoal/workspace.toml` and is shared by `shoal team`, `shoal ticket`, and `shoal report`.
+
+```toml
+[teams.be]
+name = "Backend Engineering"
+linear_slug = "BE"
+default_template = "be-agent"
+worktree_dir = "backend"
+
+[teams.be.report]
+type = "project"
+slug = "backend-roadmap"
+```
+
+### Team config
+
++ Use `shoal team ls` to inspect configured teams, including the Linear key, default template, worktree dir, and report target.
++ `linear_slug` maps a Shoal team slug like `be` to a Linear team key like `BE`.
++ `default_template` and `worktree_dir` let `shoal ticket start` route work into the right template and repo path.
++ `[teams.<slug>.report]` configures where `shoal report sprint --post` publishes updates in Linear.
+
+### Ticket workflow
+
+```bash
+shoal ticket ls --team be
+shoal ticket start BE-1234
+shoal ticket done BE-1234
+shoal ticket status
+```
+
+`shoal ticket start` resolves the team from the issue prefix, creates a tagged session, and moves the Linear issue into active work. `shoal ticket done` reuses Shoal's handoff flow so the Linear issue gets a PM-readable completion note instead of a raw terminal transcript.
+
+### PM-readable reports
+
+```bash
+shoal report session feat-auth
+shoal report team --team be
+shoal report sprint --team be
+shoal report sprint --team be --post
+```
+
+Reports compose existing Shoal state instead of introducing a second tracking system: session journals, handoff artifacts, Dreamer summaries, and Linear issue data. When a report target is configured, `--post` publishes the rendered sprint summary as a Linear project or initiative update.
 
 ---
 

@@ -25,6 +25,9 @@ subcommand groups.
 | `shoal init` | Scaffold config and state directories (`--refresh-tools` to re-copy bundled profiles) |
 | `shoal check` | Re-run dependency and environment checks |
 | `shoal serve` | Start the FastAPI server for HTTP access |
+| `shoal team` | Show configured team mappings loaded from `.shoal/workspace.toml` |
+| `shoal ticket` | Bind Linear issues to Shoal sessions and track active ticket/session links |
+| `shoal report` | Generate PM-readable session, team, and sprint summaries; optionally post sprint updates to Linear |
 
 Hidden aliases exist for speed, including `a` for `attach`, `rm` for `kill`, and `pop` for `popup`.
 
@@ -49,6 +52,21 @@ and `prune` to clear stopped sessions from the database after cleanup.
 | `shoal wt finish` | Merge, optionally open a PR, and clean up a worktree |
 | `shoal wt cleanup` | Remove stale Shoal worktrees |
 
+## Linear and PM workflows
+
+| Command | Purpose |
+| ------- | ------- |
+| `shoal team ls` | List configured teams, their Linear keys, templates, worktree dirs, and report targets |
+| `shoal ticket ls --team <slug>` | Query Linear for issues in a configured team |
+| `shoal ticket start <ISSUE-ID>` | Create a session from a Linear issue and tag it for status sync |
+| `shoal ticket done [ISSUE-ID]` | Generate a handoff, update Linear, and finish the linked session workflow |
+| `shoal ticket status` | Show active Linear-to-session bindings from session tags |
+| `shoal report session <name>` | Summarize one session using journals, handoff context, and Dreamer summaries |
+| `shoal report team --team <slug>` | Summarize active work across a configured team |
+| `shoal report sprint --team <slug>` | Build a sprint summary from session state and Linear issue data |
+| `shoal report sprint --team <slug> --post` | Publish the sprint report to the team's configured Linear project or initiative |
+
+`shoal ticket` and `shoal report` both resolve team metadata from `[teams.<slug>]` blocks in `.shoal/workspace.toml`. To enable `--post`, add a `[teams.<slug>.report]` block with `type = "project" | "initiative"` and exactly one selector: `id`, `slug`, or `name`.
 ## MCP pool
 
 | Command | Purpose |
