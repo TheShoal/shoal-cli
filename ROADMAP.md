@@ -221,7 +221,7 @@ Released 2026-04-01
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when FastMCP adds UDS transport or robo needs unified cross-session MCP.
 - ~~**`branch_prefix` enforcement in `shoal new`**~~ — shipped v0.37.0 (`infer_branch_name` + `[template.git]` wired through `session_create.py` and MCP server).
 - **direnv/mise integration** (deferred): Opt-in `env_manager` field on templates. Explicit opt-in only, never auto-detect.
-- **Pre-commit hook profile** (low priority): `[template.git]` extension — specify a `.pre-commit-config.yaml` path to symlink into the worktree.
+- ~~**Pre-commit hook profile** (low priority): `[template.git]` extension — `.pre-commit-config.yaml` path symlinked into worktree. Shipped v0.37.2.
 
 ---
 
@@ -410,10 +410,59 @@ Released 2026-04-01
 - Branch: `main`, tag `v0.37.0`, pushed to `origin/main`
 - Working tree: clean
 - 47 MCP tools total in `shoal-orchestrator`
-- `proactive_supervisor.py` and `init_fs_watcher` not yet wired into lifecycle bootstrap (intentional — avoids unconditional DB access at import time; opt-in `cfg.proactive.enabled` pattern ready)
+- `proactive_supervisor.py` and `init_fs_watcher` wired into lifecycle bootstrap via `_init_proactive_hooks()` (called from `register_builtin_hooks()`, gated on `cfg.proactive.enabled`; avoids unconditional DB access at import time).
 
 **What to do next:**
 
-- **Wire `register_proactive_hook` + `init_fs_watcher` into lifecycle bootstrap**: gate on `cfg.proactive.enabled`; thread `cfg` into lifecycle module at startup
+- ~~**Wire `register_proactive_hook` + `init_fs_watcher` into lifecycle bootstrap**~~: shipped v0.37.1 (`_init_proactive_hooks()` gated on `cfg.proactive.enabled`)
 - **Live Lobster gRPC validation**: smoke test `get_agent_card()` + `send_message()` against a real Lobster orchestrator (requires endpoint access)
-- **Pre-commit hook profile** (low priority): `[template.git]` extension — `.pre-commit-config.yaml` path symlinked into worktree on session create
+- ~~**Pre-commit hook profile**~~: shipped v0.37.2 (`[template.git].pre_commit_config` symlinks `.pre-commit-config.yaml` into worktree)
+
+### Session: 2026-04-03 (v2) — Bug fixes, FsWatcher/ProactiveSupervisor tests, pre-commit hook profile
+
+**What we did:**
+
+- **`command_failed` hook bug fixed** (`services/proactive_supervisor.py`):
+  `_handle_command_failed(**kwargs)` was missing the leading `event` positional
+  argument. `lifecycle.emit()` calls hooks as `cb(event, **kwargs)`, so every
+  `command_failed` event raised `TypeError` (silently caught by emit's guard). The
+  KAIROS proactive supervisor was effectively dead since v0.36.x.
+  Fixed to `(event: LifecycleEvent, **kwargs: object)`. Tagged and shipped v0.37.1.
+
+- **Tests for `FsWatcher`** (`tests/test_fs_watcher.py`): 20 tests covering singleton,
+  path add/remove/replace, start/stop idempotency, `_should_ignore`,
+  `_WatchFilter`, `_dispatch_changes` (emit wiring via `shoal.services.lifecycle.emit`,
+  ignore filter, error isolation).
+
+- **Tests for `ProactiveSupervisor`** (`tests/test_proactive_supervisor.py`): 18 tests:
+  `on_command_failed`, `get/consume_failure_context`, TTL expiry dispatch,
+  singleton lifecycle, `register_proactive_hook` wiring,
+  `_init_proactive_hooks` enabled/disabled/idempotent (patch targets at source
+  modules, not `shoal.services.lifecycle.*` since functions are locally imported).
+  Fix patch paths: `shoal.core.config.load_config`,
+  `shoal.services.fs_watcher.get_fs_watcher`,
+  `shoal.services.proactive_supervisor.get_proactive_supervisor`,
+  `shoal.services.proactive_supervisor.init_proactive_supervisor`,
+  `shoal.services.lifecycle.emit`.
+  Total CI: 1728 passed, 4 skipped.
+
+- **Pre-commit hook profile** (`models/config/templates.py`, `services/lifecycle.py`):
+  New `[template.git].pre_commit_config` field.  At session creation time,
+  `<work_dir>/.pre-commit-config.yaml -> <src>` symlink is created so
+  `pre-commit` picks it up automatically.  Silently no-ops if source is absent.
+  `_symlink_pre_commit_config` helper: idempotent (replaces existing symlink),
+  expanduser() on source, exists() guard; all filesystem ops via
+  `asyncio.to_thread()`.  Early-exit guard updated to include `pre_commit_config`.
+  7 new tests; examples in `base-dev.toml` and `git-identity.toml` mixin.
+  Tagged and shipped v0.37.2.
+
+**Current state:**
+
+- Branch: `main`, tag `v0.37.2`, pushed to `origin/main`
+- Working tree: clean
+- 1728 tests, 4 skipped
+
+**What to do next:**
+
+- **Live Lobster gRPC validation**: smoke test `get_agent_card()` +
+  `send_message()` against a real Lobster orchestrator (requires endpoint access)
