@@ -217,10 +217,10 @@ Released 2026-04-01
 - ~~**FsWatcher + command failure events**~~: `fs_watcher.py` (watchfiles, now core dep); `file_changed`/`command_failed` lifecycle events; `shoal proactive fs-watch` CLI. Shipped this session.
 - ~~**Agent Bus**~~: `messages` + `failure_contexts` SQLite tables; `message_bus.py`; `send_session_message`, `receive_session_messages`, `mark_session_message_consumed` MCP tools; `shoal proactive message` CLI. Shipped this session.
 - ~~**Proactive Supervisor (KAIROS)**~~: `proactive_supervisor.py` subscribes to `command_failed`, stores failure context packets; `get_failure_context` MCP tool with `consume` flag; `ProactiveSupervisorConfig` in `RoboProfileConfig`. Shipped this session.
-- **Live Claw gRPC validation**: End-to-end smoke test against a real Claw endpoint — `get_agent_card()` then `send_message()`. `shoal[claw]` extra and proto stubs are in place (v0.30.0); this is pure integration validation. Unblocked.
+- **Live Lobster gRPC validation**: End-to-end smoke test against a real Lobster endpoint — `get_agent_card()` then `send_message()`. `shoal[lobster]` extra and proto stubs are in place (v0.30.0); this is pure integration validation against a running Lobster orchestrator. Requires prod endpoint access.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when FastMCP adds UDS transport or robo needs unified cross-session MCP.
+- ~~**`branch_prefix` enforcement in `shoal new`**~~ — shipped v0.37.0 (`infer_branch_name` + `[template.git]` wired through `session_create.py` and MCP server).
 - **direnv/mise integration** (deferred): Opt-in `env_manager` field on templates. Explicit opt-in only, never auto-detect.
-- **`branch_prefix` enforcement in `shoal new`**: `infer_branch_name` gains optional `branch_prefix` param threaded from `template_cfg.git.branch_prefix`. Low-effort follow-up to `[template.git]`.
 - **Pre-commit hook profile** (low priority): `[template.git]` extension — specify a `.pre-commit-config.yaml` path to symlink into the worktree.
 
 ---
@@ -383,5 +383,37 @@ Released 2026-04-01
 
 - **Wire `register_proactive_hook` into startup**: call from `services/lifecycle.py` bootstrap when `cfg.proactive.enabled` is True (requires passing `cfg` to the lifecycle module or using lazy init)
 - **Wire `init_fs_watcher` into lifecycle startup**: similar pattern — start watching session worktrees when a session is created, stop on kill
-- **Live Claw gRPC validation**: `get_agent_card()` + `send_message()` smoke test against production endpoint (unblocked)
-- **`branch_prefix` enforcement**: `infer_branch_name` gains optional `branch_prefix` param from `template_cfg.git.branch_prefix`
+- ~~**Live Claw gRPC validation**~~ — renamed Lobster; validation remains pending (requires live endpoint)
+- ~~**`branch_prefix` enforcement**~~ — shipped v0.37.0
+
+### Session: 2026-04-03 — QMD memory, Agent Bus enrichment, Lobster rename, v0.37.0
+
+**What we did:**
+
+- `src/shoal/core/qmd.py`: dual-plane conversation memory — Markdown full-text + JSON sidecar (`schema_version`, structured metadata); `SyncResult`, `ImportResult` dataclasses; backward-compatible readers
+- `src/shoal/core/conversation_index.py`: `ConversationIndex` for fast handoff retrieval; indexed by week bucket
+- `src/shoal/core/conversations.py` / `lobster_conversations.py`: QMD import/export surface; `cast()` for type-safe DB dict access
+- `src/shoal/core/journal.py` + `handoff.py`: structured handoff packets pull from conversation index
+- SOUL.md auto-load: fin env and MCP context both receive SOUL content at startup
+- Claw scheduler subsystem: `claw_scheduler.py` — SQLite-backed, fair round-robin, dead-letter queue
+- Agent Bus enrichment: typed message envelopes (`kind`, `correlation_id`, `priority`, `requires_ack`); `watch_session_messages`, `get_workflow_messages`, `watch_session_actions` MCP tools
+- Action/approval lifecycle: `request_session_action`, `list_pending_session_actions`, `approve/deny_session_action` MCP tools
+- Full claw→lobster rename: `LobsterClient`, `LobsterRuntimeState`, `LobsterA2AClient`, `LobsterConfig`, `shoal[lobster]` extra; all user-visible strings updated
+- Simplification pass: `get_running_loop()`, `asyncio.to_thread()` for blocking QMD calls, `ConfigDict(extra="forbid")` on `ClawTask`
+- mypy --strict clean across all 128 source files; `cast(int/float, ...)` for object-typed dict values
+- `just ci` green: 1673 tests, 1669 passed, 4 skipped
+- Docs pass: `lobster-quickref.md` rewritten, `lobster-integration.md` stale refs fixed, `cli-reference.md` gains `shoal lobster` section, nav adds Features Overview + Fleet Doctrine + Flows Design
+- Tagged and pushed `v0.37.0`
+
+**Current state:**
+
+- Branch: `main`, tag `v0.37.0`, pushed to `origin/main`
+- Working tree: clean
+- 47 MCP tools total in `shoal-orchestrator`
+- `proactive_supervisor.py` and `init_fs_watcher` not yet wired into lifecycle bootstrap (intentional — avoids unconditional DB access at import time; opt-in `cfg.proactive.enabled` pattern ready)
+
+**What to do next:**
+
+- **Wire `register_proactive_hook` + `init_fs_watcher` into lifecycle bootstrap**: gate on `cfg.proactive.enabled`; thread `cfg` into lifecycle module at startup
+- **Live Lobster gRPC validation**: smoke test `get_agent_card()` + `send_message()` against a real Lobster orchestrator (requires endpoint access)
+- **Pre-commit hook profile** (low priority): `[template.git]` extension — `.pre-commit-config.yaml` path symlinked into worktree on session create
