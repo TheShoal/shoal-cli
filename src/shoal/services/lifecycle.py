@@ -1710,6 +1710,16 @@ async def _hook_journal_on_status_change(event: LifecycleEvent, **kwargs: Any) -
     )
 
 
+def _init_linear_hooks() -> None:
+    """Register Linear integration hook if API key is available (idempotent)."""
+    if "linear" in _registered:
+        return
+    _registered.add("linear")
+    from shoal.services.linear_bridge import hook_linear_on_complete
+
+    on(LifecycleEvent.session_completed, hook_linear_on_complete)
+
+
 def _init_proactive_hooks() -> None:
     """Initialise the FsWatcher and ProactiveSupervisor if enabled (idempotent)."""
     if "proactive" in _registered:
@@ -1825,6 +1835,7 @@ def register_builtin_hooks() -> None:
     on(LifecycleEvent.status_changed, _hook_record_status_transition)
     on(LifecycleEvent.status_changed, _hook_journal_on_status_change)
     on(LifecycleEvent.session_completed, _hook_coordinator_on_complete)
+    _init_linear_hooks()
     for evt in LifecycleEvent:
         on(evt, _hook_fish_event)
     _init_proactive_hooks()

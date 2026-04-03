@@ -8,10 +8,11 @@ It follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format and [
 
 | Version | Date | Highlight |
 |---------|------|-----------|
+| v0.38.0 | 2026-04-03 | Agentic teams (`fork_session`, `spawn_team`, `wait_for_team`), worker completion signals to coordinator |
 | v0.37.2 | 2026-04-03 | Pre-commit hook profile (`[template.git].pre_commit_config`), FsWatcher + ProactiveSupervisor tests |
 | v0.37.1 | 2026-04-03 | Fix `command_failed` hook missing `event` parameter; 38 new proactive tests |
 | v0.37.0 | 2026-04-03 | Agent Bus enrichment, QMD conversation memory, Lobster rename, 47 MCP tools |
-| v0.36.0 | 2026-04-02 | Dreamer LLM, FsWatcher, Agent Bus, KAIROS proactive supervisor |
+| v0.36.0 | 2026-04-02 | Dreamer LLM, FsWatcher, Agent Bus, Scout proactive supervisor |
 | v0.35.0 | 2026-04-02 | Dashboard JSON API, Pisces tool, MCP socket env injection |
 | v0.34.0 | 2026-04-02 | Web dashboard at `/ui`, Lobster conversation sync |
 | v0.30.0 | 2026-04-01 | Lobster/Claw gRPC runtime provider, A2A bridge, 5 new MCP tools |

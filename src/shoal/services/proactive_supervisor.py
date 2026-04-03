@@ -1,4 +1,4 @@
-"""Proactive Supervisor (KAIROS loop) — detects failures and pre-fetches context.
+"""Proactive Supervisor (Scout loop) — detects failures and pre-fetches context.
 
 Subscribes to :attr:`LifecycleEvent.command_failed` events emitted by the
 :class:`~shoal.services.watcher.Watcher`.  On each failure event it captures

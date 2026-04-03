@@ -48,6 +48,17 @@ class SkillConfig(BaseModel):
     path: str = ""
 
 
+class TeamConfig(BaseModel):
+    """Team configuration for Linear integration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = ""
+    linear_slug: str
+    default_template: str = ""
+    worktree_dir: str = ""
+
+
 class WorkspaceConfig(BaseModel):
     """Meta-repo workspace manifest — maps to ``.shoal/workspace.toml``.
 
@@ -60,6 +71,8 @@ class WorkspaceConfig(BaseModel):
     name: str = ""
     repos: dict[str, str] = Field(default_factory=dict)
     """Logical name → relative path (e.g. ``emailservice = "backend/emailservice"``)."""
+    teams: dict[str, TeamConfig] = Field(default_factory=dict)
+    """Team slug → TeamConfig (e.g. ``be = TeamConfig(name="Backend", linear_slug="BE")``)."""
 
     @field_validator("repos")
     @classmethod

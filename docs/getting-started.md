@@ -131,8 +131,8 @@ interactive shell integration on top of that baseline.
 
 ```bash
 shoal new -t claude -w auth -b
-shoal new -t codex -w api-refactor -b
-shoal new -t gemini -w docs-refresh -b
+shoal new -t omp -w api-refactor -b
+shoal new -t omp -w docs-refresh -b
 ```
 
 What those flags do:

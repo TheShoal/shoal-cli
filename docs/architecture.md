@@ -23,16 +23,17 @@ flowchart LR
     Lifecycle --> Pool["MCP pool / proxy"]
     Lifecycle --> DB["SQLite state"]
 
-    Tmux --> Watcher["status watcher"]
+    Runtime --> Watcher["status watcher"]
     Watcher --> DB
 
     DB --> Status["shoal status / popup / info"]
     DB --> API
     DB --> MCP
 
-    Pool --> AgentTools["agent MCP clients"]
-    Tmux --> AgentTools["Claude / Pi / Codex / OpenCode"]
+    Pool --> AgentMCP["agent MCP clients"]
+    Runtime --> Agents["Claude / omp / Codex / OpenCode"]
 ```
+
 ## Core components
 
 ### Session manager

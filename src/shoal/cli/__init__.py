@@ -25,7 +25,9 @@ from shoal.cli.session_cmd import app as session_app
 from shoal.cli.setup import app as setup_app
 from shoal.cli.skill import app as skill_app
 from shoal.cli.tag import app as tag_app
+from shoal.cli.team import app as team_app
 from shoal.cli.template import app as template_app
+from shoal.cli.ticket import app as ticket_app
 from shoal.cli.watcher import app as watcher_app
 from shoal.cli.worktree import app as wt_app
 
@@ -488,7 +490,9 @@ app.add_typer(demo_app, name="demo", help="Demo environment.")
 app.add_typer(remote_app, name="remote", help="Remote session management.")
 app.add_typer(setup_app, name="setup", help="Setup shell integrations.")
 app.add_typer(tag_app, name="tag", help="Session tags.")
+app.add_typer(team_app, name="team", help="Team configuration.")
 app.add_typer(template_app, name="template", help="Session templates.")
+app.add_typer(ticket_app, name="ticket", help="Linear ticket workflow.")
 app.add_typer(config_app, name="config", help="Configuration inspection.")
 app.add_typer(incident_app, name="incident", help="Incident supervision workflow.")
 app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")

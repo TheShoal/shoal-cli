@@ -109,7 +109,7 @@ Starts the FastAPI server (default: `http://localhost:8080`). Navigate to `http:
 | `shoal proactive message send <src> <dst> <text>` | Send a message via the Agent Bus |
 | `shoal proactive message list <session>` | List messages for a session |
 
-!!! note "Enable KAIROS"
+!!! note "Enable Scout"
     Proactive supervision requires `[proactive] enabled = true` in `~/.config/shoal/config.toml` and a robo profile with `[robo.proactive] auto_enqueue = true`.
 
 ## Operating modes
@@ -208,7 +208,7 @@ Key tools exposed by `shoal-orchestrator` beyond what `shoal mcp ls` shows:
 | `merge_branch` | git | Merge session branch into main |
 | `branch_status` | git | Branch, ahead/behind, dirty state |
 | `session_summary` | dreamer | Dreamer LLM summary |
-| `get_failure_context` | proactive | KAIROS failure context packet (`consume` flag) |
+| `get_failure_context` | proactive | Scout failure context packet (`consume` flag) |
 | `send_session_message` | messaging | Agent Bus send |
 | `receive_session_messages` | messaging | Poll unread messages |
 | `get_workflow_messages` | messaging | Trace by `correlation_id` |

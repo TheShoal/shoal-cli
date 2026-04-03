@@ -174,9 +174,9 @@ flowchart LR
 ### Planner, implementer, closer
 
 ```bash
-shoal new -t pi -w plan/release-cut -b
-shoal new -t codex -w feat/release-automation -b --template codex-dev
-shoal new -t gemini -w docs/release-notes -b
+shoal new -t omp -w plan/release-cut -b
+shoal new -t omp -w feat/release-automation -b --template omp-dev
+shoal new -t claude -w docs/release-notes -b
 ```
 
 Use this when the bottleneck is orchestration, not raw coding.
@@ -256,7 +256,7 @@ Use this loop:
 
 1. Keep `shoal popup` nearby.
 2. Treat `waiting` as a first-class queue, not an annoyance.
-3. Use `shoal logs &lt;name&gt;` or `capture_pane` immediately.
+3. Use `shoal journal <name>` or `capture_pane` immediately.
 4. Approve or redirect fast.
 
 The point is not endless autonomy. The point is low-latency intervention.

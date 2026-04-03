@@ -68,36 +68,64 @@ shoal attach
 
 ## Robo Workflow Patterns
 
-### Pattern 0: Template-Based Worker Fleet
+### Pattern 0: Agentic Fan-Out (spawn_team)
 
-**Use case**: You want predictable worker layouts so the robo can coordinate sessions with the same pane/window structure.
+**Use case**: A coordinator session spawns parallel workers without human involvement, waits for them all to finish, then acts on results.
+
+This is the preferred approach when agents can self-organize. The coordinator drives the whole loop via MCP tools — no manual `shoal new` calls needed.
+
+**Coordinator prompt** (sent to the supervisor session):
+```
+You are a supervisor. Use Shoal MCP tools to coordinate work.
+
+1. Call spawn_team with a list of worker specs to fan out parallel workers.
+   Each worker gets its own worktree and branch.
+2. Call wait_for_team to block until all workers complete.
+3. For each worker, call read_worktree_file or capture_pane to collect results.
+4. Merge or summarise results, then call mark_complete.
+```
+
+**What the MCP tools do**:
+```
+spawn_team(workers=[
+  {"name": "feat/auth-ui",  "prompt": "Implement login form"},
+  {"name": "feat/auth-api", "prompt": "Implement JWT endpoint"},
+  {"name": "docs/auth",     "prompt": "Write auth guide"},
+], template="feature-dev")
+# → returns correlation_id, spawned list, any failed
+
+wait_for_team(correlation_id="…")
+# → blocks until completed / error / stopped
+```
+
+Workers signal done via `mark_complete`. The coordinator receives a `worker_completed` Agent Bus message automatically.
+
+**Result**: The robo drives the full fan-out loop. You never need to create or monitor individual sessions manually.
+
+---
+
+### Pattern 0b: Template-Based Fleet (manual setup)
+
+**Use case**: You want to pre-create sessions with a consistent layout so the robo can coordinate a predictable structure.
 
 **Setup**:
 ```bash
-# Verify global templates
-shoal template ls
-shoal template validate feature-dev
-
-# Start workers with a shared template + valid category/slug branches
 shoal new -t claude -w feat/auth-ui -b --template feature-dev
-shoal new -t opencode -w feat/auth-api -b --template feature-dev
-shoal new -t gemini -w docs/auth-guide -b --template feature-dev
-
-# Start robo supervisor
+shoal new -t omp -w feat/auth-api -b --template feature-dev
+shoal new -t omp -w docs/auth-guide -b --template feature-dev
 shoal robo start default
 ```
 
 **Robo instructions**:
 ```
-Treat worker sessions as template-driven environments.
+Supervise all active sessions.
 For each waiting/idle session:
 1. Check status with `shoal status`
-2. Send follow-up commands with `shoal robo send <session> <keys>`
-3. Assume pane roles are consistent because workers use the same template
-4. Log routing decisions in task-log.md
+2. Send follow-up with `shoal robo send <session> <keys>`
+3. Log routing decisions in task-log.md
 ```
 
-**Result**: The robo supervises a uniform fleet, reducing ambiguity when routing and approvals happen in parallel.
+**Result**: Robo supervises a uniform fleet. Use this when you want to control session setup yourself before handing off to robo.
 
 ### Pattern 1: Passive Monitoring
 
@@ -138,7 +166,7 @@ Log findings in task-log.md.
 # Start 3 sessions
 shoal new -t claude -w feat/auth -b --template feature-dev
 shoal new -t opencode -w feat/api -b --template feature-dev
-shoal new -t gemini -w fix/cache -b --template feature-dev
+shoal new -t omp -w fix/cache -b --template feature-dev
 
 # Start robo
 shoal robo start approval-bot
@@ -147,7 +175,7 @@ shoal robo start approval-bot
 **Robo instructions**:
 ```
 Monitor all sessions. When a session enters "waiting" state:
-1. Check what it's waiting for: `shoal logs <name>`
+1. Check what it's waiting for: `shoal logs <name>` or `capture_pane`
 2. If it's a safe operation (tests, linting), approve: `shoal robo approve <name>`
 3. If it's risky (force push, delete production), escalate to user
 4. Log every approval in task-log.md
@@ -226,7 +254,7 @@ auto_respond = false
 ```
 Check `shoal status` every minute.
 If any session is "error" or "crashed":
-1. Check logs: `shoal logs <name>`
+1. Check logs: `shoal logs <name>` or use `capture_pane` MCP tool
 2. Send macOS notification to user
 3. Log the error in task-log.md with timestamp
 4. Do NOT auto-retry without user confirmation
@@ -283,7 +311,7 @@ Otherwise Shoal inserts `_` between prefix and session name.
 
 [robo]
 name = "default"
-tool = "opencode"  # AI tool to run (opencode, claude, codex, pi, gemini)
+tool = "omp"  # AI tool to run (omp, claude, opencode, codex)
 auto_approve = false  # Auto-approve safe operations?
 
 [monitoring]
@@ -326,7 +354,7 @@ Each robo monitors its repo's sessions independently.
 Have a "meta-robo" that monitors other robos:
 
 ```bash
-shoal robo setup meta --tool gemini
+shoal robo setup meta --tool omp
 ```
 
 Edit `~/.local/share/shoal/robo/meta/AGENTS.md`:
@@ -342,20 +370,50 @@ You are the meta-robo. Monitor all robo sessions:
 
 Robo supervisors with the `shoal-orchestrator` MCP server can use these tools to coordinate workers:
 
+**Observation and control**
+
 | Tool | Purpose |
 |------|---------|
 | `list_sessions` | Discover active workers |
 | `session_status` | Fleet health at a glance |
 | `capture_pane` | See what a worker is doing |
 | `send_keys` | Send instructions or approvals |
+| `session_snapshot` | Status + last 50 pane lines in one call |
+
+**Team coordination (v0.38.0+)**
+
+| Tool | Purpose |
+|------|---------|
+| `fork_session` | Spawn a single worker with its own worktree and branch |
+| `spawn_team` | Fan-out N worker sessions with prompts and a shared `correlation_id` |
+| `wait_for_team` | Block until all team workers reach a terminal state |
+
+**Completion and handoff**
+
+| Tool | Purpose |
+|------|---------|
 | `mark_complete` | Workers signal "I'm done" |
+| `wait_for_completion` | Block until a worker finishes |
 | `read_worktree_file` | Read output files from worker worktrees |
 | `list_worktree_files` | See what a worker produced |
 | `read_journal` / `append_journal` | Cross-session journal communication |
-| `wait_for_completion` | Block until a worker finishes |
 | `branch_status` / `merge_branch` | Git operations without raw `send_keys` |
 
-See [Handoffs & Modes](handoffs-and-modes.md) for the full handoff workflow.
+**Agent Bus messaging**
+
+| Tool | Purpose |
+|------|---------|
+| `send_session_message` | Send a typed message to another session |
+| `receive_session_messages` | Poll unread messages |
+| `get_workflow_messages` | Trace all messages by `correlation_id` |
+
+**Proactive (Scout)**
+
+| Tool | Purpose |
+|------|---------|
+| `get_failure_context` | Read failure context packets captured by Scout; `consume=true` deletes after read |
+
+See [Handoffs & Modes](handoffs-and-modes.md) for the full handoff workflow and [Features Overview](features.md) for Scout and Agent Bus configuration.
 
 ---
 
@@ -432,8 +490,8 @@ shoal robo setup <name>
 ```bash
 # Create three sessions
 shoal new -t claude -w feat/auth-ui -b --template feature-dev
-shoal new -t opencode -w feat/auth-api -b --template feature-dev
-shoal new -t gemini -w docs/auth-docs -b --template feature-dev
+shoal new -t omp -w feat/auth-api -b --template feature-dev
+shoal new -t omp -w docs/auth-docs -b --template feature-dev
 
 # Start robo to coordinate
 shoal robo start feature-auth-coordinator
@@ -454,8 +512,8 @@ Monitor these three sessions. When all three are "idle":
 ```bash
 # Create 4 worker sessions
 shoal new -t claude -w chore/worker-1 -b --template feature-dev
-shoal new -t opencode -w chore/worker-2 -b --template feature-dev
-shoal new -t gemini -w chore/worker-3 -b --template feature-dev
+shoal new -t omp -w chore/worker-2 -b --template feature-dev
+shoal new -t omp -w chore/worker-3 -b --template feature-dev
 shoal new -t claude -w chore/worker-4 -b --template feature-dev
 
 # Start robo

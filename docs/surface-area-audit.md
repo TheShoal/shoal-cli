@@ -62,7 +62,7 @@ class TasksConfig(BaseModel):
 - **Docs gap**: No "Prerequisites" section on any Dreamer-related docs.
 - **Action**: Either add a `shoal dreamer` CLI sub-group (enable/disable/status), or add a prominent callout in relevant docs showing the required config.
 
-### `ProactiveSupervisor` (KAIROS) — gated, undiscoverable
+### `ProactiveSupervisor` (Scout) — gated, undiscoverable
 
 Wired into lifecycle bootstrap (v0.37.1 fix), but guarded by `cfg.proactive.enabled`. No CLI command to check or manage proactive state beyond `shoal proactive fs-watch start/status` and `shoal proactive message send/list`. The config path to enable it is undocumented in any user-facing doc.
 
@@ -212,7 +212,7 @@ v0.29.0 changed the default tool from `pi` to `omp`. Several docs still referenc
 
 - **Action**: Either generate the reference from typer introspection, or add a quarterly "sync CLI reference" task.
 
-### `ROBO_GUIDE.md` predates KAIROS and Agent Bus
+### `ROBO_GUIDE.md` predates Scout and Agent Bus
 
 `ROBO_GUIDE.md` covers the basic supervision loop but doesn't mention:
 
@@ -221,7 +221,7 @@ v0.29.0 changed the default tool from `pi` to `omp`. Several docs still referenc
 - `FsWatcher` and `file_changed` events
 - `get_failure_context` MCP tool
 
-- **Action**: Add a "Proactive Supervision" section to `ROBO_GUIDE.md` covering KAIROS configuration and the failure-context workflow.
+- **Action**: Add a "Proactive Supervision" section to `ROBO_GUIDE.md` covering Scout configuration and the failure-context workflow.
 
 ---
 

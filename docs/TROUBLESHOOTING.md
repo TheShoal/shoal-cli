@@ -24,7 +24,7 @@ This will output DEBUG-level logs to stderr, which can help identify where a pro
 1. Check if the watcher is running: `shoal watcher status`
 2. Start it if needed: `shoal watcher start`
 3. Verify tool configuration in `~/.config/shoal/tools/<tool>.toml`. Ensure the `busy_patterns`, `waiting_patterns`, and `error_patterns` match the actual text output by your tool.
-4. Run `shoal logs <session>` to see what the watcher is seeing in the pane.
+4. Run `shoal logs <session>` to see recent pane output, or `shoal diag` to check the watcher's health.
 
 **Compatibility note:**
 - OpenCode uses the `opencode_compat` status provider (best effort regex matching).

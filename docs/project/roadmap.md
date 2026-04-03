@@ -24,9 +24,10 @@ The canonical roadmap lives in [ROADMAP.md](https://github.com/TheShoal/shoal-cl
 | v0.30.0 | Lobster/Claw runtime provider, A2A bridge | Released |
 | v0.34.0 | Web dashboard (`/ui`) | Released |
 | v0.35.0 | Dashboard JSON API, Pisces tool support | Released |
-| v0.36.0 | Proactive assistance (Dreamer, FsWatcher, Agent Bus, KAIROS) | Released |
+| v0.36.0 | Proactive assistance (Dreamer, FsWatcher, Agent Bus, Scout) | Released |
 | v0.37.0 | Agent Bus enrichment, QMD memory, Lobster rename | Released |
 | v0.37.2 | FsWatcher+ProactiveSupervisor tests, pre-commit hook profile | Released |
+| v0.38.0 | Agentic teams (`fork_session`, `spawn_team`, `wait_for_team`), worker completion signals | Released |
 | v1.0.0 | Stable public surface for personal-first workflows | Planned |
 
 ## Active backlog

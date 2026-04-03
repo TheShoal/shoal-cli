@@ -216,7 +216,7 @@ Released 2026-04-01
 - ~~**Dreamer LLM + session summary MCP**~~: `ai_client.py` wraps Bedrock/HTTP-gateway/stub; `session_summary` MCP tool; summaries persisted to journal; `shoal-status --extended`. Shipped this session.
 - ~~**FsWatcher + command failure events**~~: `fs_watcher.py` (watchfiles, now core dep); `file_changed`/`command_failed` lifecycle events; `shoal proactive fs-watch` CLI. Shipped this session.
 - ~~**Agent Bus**~~: `messages` + `failure_contexts` SQLite tables; `message_bus.py`; `send_session_message`, `receive_session_messages`, `mark_session_message_consumed` MCP tools; `shoal proactive message` CLI. Shipped this session.
-- ~~**Proactive Supervisor (KAIROS)**~~: `proactive_supervisor.py` subscribes to `command_failed`, stores failure context packets; `get_failure_context` MCP tool with `consume` flag; `ProactiveSupervisorConfig` in `RoboProfileConfig`. Shipped this session.
+- ~~**Proactive Supervisor (Scout)**~~: `proactive_supervisor.py` subscribes to `command_failed`, stores failure context packets; `get_failure_context` MCP tool with `consume` flag; `ProactiveSupervisorConfig` in `RoboProfileConfig`. Shipped this session.
 - **Live Lobster gRPC validation**: End-to-end smoke test against a real Lobster endpoint — `get_agent_card()` then `send_message()`. `shoal[lobster]` extra and proto stubs are in place (v0.30.0); this is pure integration validation against a running Lobster orchestrator. Requires prod endpoint access.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when FastMCP adds UDS transport or robo needs unified cross-session MCP.
 - ~~**`branch_prefix` enforcement in `shoal new`**~~ — shipped v0.37.0 (`infer_branch_name` + `[template.git]` wired through `session_create.py` and MCP server).
@@ -351,7 +351,7 @@ Released 2026-04-01
 - P0.5 (lobster-party): update `grpc.rs` to invoke `pisces` instead of `opencode`, parse pisces event schema — unblocked once lobster-party repo is accessible
 - Live Claw gRPC validation (pre-existing next step): `get_agent_card()` + `send_message()` smoke test against production endpoint
 
-### Session: 2026-04-02 — Proactive agent assistance (Dreamer LLM, FsWatcher, Agent Bus, KAIROS)
+### Session: 2026-04-02 — Proactive agent assistance (Dreamer LLM, FsWatcher, Agent Bus, Scout)
 
 **What we did:**
 
@@ -426,7 +426,7 @@ Released 2026-04-01
   `_handle_command_failed(**kwargs)` was missing the leading `event` positional
   argument. `lifecycle.emit()` calls hooks as `cb(event, **kwargs)`, so every
   `command_failed` event raised `TypeError` (silently caught by emit's guard). The
-  KAIROS proactive supervisor was effectively dead since v0.36.x.
+  Scout proactive supervisor was effectively dead since v0.36.x.
   Fixed to `(event: LifecycleEvent, **kwargs: object)`. Tagged and shipped v0.37.1.
 
 - **Tests for `FsWatcher`** (`tests/test_fs_watcher.py`): 20 tests covering singleton,

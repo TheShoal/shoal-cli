@@ -98,7 +98,6 @@ nav:
   - Design the Loop:
       - Terminal Interaction Design: terminal-interaction-design.md
       - Architecture: architecture.md
-      - Flows Design: flows-design.md
       - Implementation Audit: implementation-audit.md
   - Reference:
       - Python API: reference/python-api.md
@@ -114,6 +113,7 @@ nav:
           - Security Policy: project/security.md
       - Design Notes:
           - Architecture Guide: project/architecture-guide.md
+          - Flows Design (proposal): flows-design.md
           - Worktree Environment Init: WORKTREE_ENV_INIT.md
           - Composition Gateway: composition-gateway.md
           - Transport Spike: transport-spike.md

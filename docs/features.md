@@ -229,7 +229,7 @@ shoal mcp registry       # show registered servers and transport
 
 | Tool | Description |
 |------|-------------|
-| `get_failure_context` | Retrieve failure context packets stored by KAIROS; `consume=true` deletes after read |
+| `get_failure_context` | Retrieve failure context packets stored by Scout; `consume=true` deletes after read |
 
 See [Robo Supervisor](ROBO_GUIDE.md) for orchestration patterns.
 
@@ -319,9 +319,12 @@ See [Robo Guide](ROBO_GUIDE.md) for full config reference and patterns.
 
 ---
 
-## Proactive Supervision (KAIROS)
+## Proactive Supervision (Scout)
 
-KAIROS listens for `command_failed` lifecycle events emitted by the Watcher and stores failure context packets that agents can query.
+Scout listens for `command_failed` lifecycle events emitted by the Watcher and stores failure context packets that agents can query.
+
+!!! note "Scout is opt-in"
+    Scout does nothing unless `[proactive] enabled = true` is set in `~/.config/shoal/config.toml`. The config key is **not** created by `shoal init` — add it manually to activate.
 
 ### Enable
 
@@ -332,21 +335,29 @@ enabled = true
 ```
 
 ```toml
-# robo profile
+# ~/.config/shoal/robo/<profile>.toml — add to an existing robo profile
 [robo.proactive]
 auto_enqueue = true
-failure_ttl_seconds = 3600
+failure_ttl_seconds = 3600   # how long to keep failure packets (default 1h)
 trigger_topics = ["command_failed"]
 ```
 
 ### Usage
 
 ```bash
-shoal proactive fs-watch start   # watch all session worktrees for file changes
-shoal proactive fs-watch status
+shoal proactive fs-watch start   # start watching session worktrees for file changes
+shoal proactive fs-watch status  # check watcher state
+shoal proactive message send <src> <dst> <text>   # send via Agent Bus
+shoal proactive message list <session>            # read messages for a session
 ```
 
-Agents query failure context via the `get_failure_context` MCP tool (with optional `consume=true`).
+Agents query failure context via the `get_failure_context` MCP tool (`consume=true` deletes the packet after read).
+
+```python
+# Example agent workflow
+ctx = get_failure_context(session="feat/auth", consume=True)
+# ctx contains: pane_snapshot, old_status, timestamp, session metadata
+```
 
 ---
 

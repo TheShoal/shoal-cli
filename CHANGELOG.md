@@ -69,8 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### v0.37.2 — Pre-Commit Hook Profile
 - **`[template.git].pre_commit_config`**: Symlinks `.pre-commit-config.yaml` into worktrees at session creation
 
-### v0.37.1 — KAIROS Hotfix + Test Coverage
-- Fixed `_handle_command_failed` missing `event` parameter (KAIROS was silently broken)
+### v0.37.1 — Scout Hotfix + Test Coverage
+- Fixed `_handle_command_failed` missing `event` parameter (Scout was silently broken)
 - Added 20 `FsWatcher` tests, 18 `ProactiveSupervisor` tests
 
 ### v0.37.0 — Agent Bus, Memory, Scheduler
@@ -81,15 +81,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Claw → Lobster rename**: Completed across all user surfaces
 - 1673 tests (1669 passed, 4 skipped)
 
-## [0.36.0] "KAIROS" (2026-04-02)
+## [0.36.0] "Scout" (2026-04-02)
 
-**Proactive Agent Assistance** — full autonomous monitoring stack with Dreamer LLM, FsWatcher, Agent Bus, and KAIROS supervisor.
+**Proactive Agent Assistance** — full autonomous monitoring stack with Dreamer LLM, FsWatcher, Agent Bus, and Scout supervisor.
 
 ### Added
 - **Dreamer LLM**: AWS Bedrock/HTTP gateway wrapper, persists session summaries to journal
 - **FsWatcher**: `watchfiles`-backed async watcher, `file_changed` lifecycle events, `shoal proactive fs-watch`
 - **Agent Bus**: Session-to-session SQLite messaging, `messages` + `failure_contexts` tables, 3 new MCP tools
-- **KAIROS Supervisor**: Subscribes to `command_failed`, stores failure contexts, `get_failure_context` MCP tool
+- **Scout Supervisor**: Subscribes to `command_failed`, stores failure contexts, `get_failure_context` MCP tool
 - **`shoal session` subcommand**: Ergonomic aliases (list/info/logs/status/attach/detach/kill/prune)
 - **`branch_prefix` in MCP**: `create_session_tool` now honors `template_cfg.git.branch_prefix`
 - **`--extended` status**: Emits `dreamer_summaries` dict

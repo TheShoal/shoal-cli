@@ -694,7 +694,7 @@ def load_workspace_config(git_root: str) -> WorkspaceConfig | None:
     """
     from pydantic import ValidationError
 
-    from shoal.models.config import WorkspaceConfig
+    from shoal.models.config import TeamConfig, WorkspaceConfig
 
     ws_path = Path(git_root) / ".shoal" / "workspace.toml"
     if not ws_path.exists():
@@ -707,6 +707,14 @@ def load_workspace_config(git_root: str) -> WorkspaceConfig | None:
         raise ConfigLoadError(ws_path, f"TOML parse error: {exc}") from exc
 
     ws_data = data.get("workspace", {})
+
+    # Parse [teams.*] section (top-level, not nested under [workspace])
+    teams_data = data.get("teams", {})
+    teams: dict[str, TeamConfig] = {}
+    for slug, team_values in teams_data.items():
+        teams[slug] = TeamConfig.model_validate(team_values)
+    ws_data["teams"] = teams
+
     try:
         return WorkspaceConfig.model_validate(ws_data)
     except ValidationError as exc:

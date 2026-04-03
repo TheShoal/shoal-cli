@@ -42,6 +42,7 @@ from shoal.models.config.workspace import (
     CoordinatorConfig,
     ProjectConfig,
     SkillConfig,
+    TeamConfig,
     WorkspaceConfig,
 )
 
@@ -68,6 +69,7 @@ __all__ = [
     "SkillConfig",
     "StatusBarConfig",
     "TasksConfig",
+    "TeamConfig",
     "TemplateGitConfig",
     "TemplateMixinConfig",
     "TemplatePaneConfig",

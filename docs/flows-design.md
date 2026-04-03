@@ -1,5 +1,8 @@
 # Flows: Declarative Multi-Agent Coordination
 
+!!! warning "Proposal — not yet implemented"
+    This is a design document, not a shipped feature. None of the `shoal flow` commands described here exist yet. For the current multi-agent coordination primitives see [Agent Teams](features.md#agent-teams) and [Robo Supervisor](ROBO_GUIDE.md).
+
 **Date**: 2026-03-31
 **Status**: Design (not yet implemented)
 
