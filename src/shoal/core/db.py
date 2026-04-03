@@ -5,7 +5,7 @@ import json
 import logging
 import time
 from collections.abc import AsyncIterator, Coroutine
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any, cast
 
@@ -256,13 +256,10 @@ class ShoalDB:
             ("acked_at", "TEXT"),
         ]
         for col_name, col_def in new_columns:
-            try:
+            with suppress(Exception):
                 await self._conn.execute(
-                    f"ALTER TABLE messages ADD COLUMN {col_name} {col_def}"  # noqa: S608
+                    f"ALTER TABLE messages ADD COLUMN {col_name} {col_def}"
                 )
-            except Exception:  # noqa: BLE001
-                # Column already exists — safe to ignore.
-                pass
         logger.debug("_migrate_messages_schema: checked %d column(s)", len(new_columns))
 
     async def _backfill_status_since(self) -> None:

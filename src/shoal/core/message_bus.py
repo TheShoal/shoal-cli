@@ -66,7 +66,7 @@ async def send_message(
         correlation_id: Optional workflow/correlation identifier for
             multi-step workflow tracing.
         reply_to_message_id: ID of a prior message this replies to.
-        priority: 1 (highest) – 5 (lowest).  Defaults to 3.
+        priority: 1 (highest) - 5 (lowest).  Defaults to 3.
         requires_ack: If True, the recipient should call mark_acked after
             processing.
         metadata_json: Optional JSON string for additional metadata
