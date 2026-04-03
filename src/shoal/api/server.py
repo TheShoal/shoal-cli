@@ -27,6 +27,7 @@ from shoal.core.db import ShoalDB, get_db
 from shoal.core.session_names import validate_session_name
 from shoal.core.state import (
     add_mcp_to_session,
+    filter_sessions_by_path,
     find_by_name,
     get_session,
     list_sessions,
@@ -427,9 +428,11 @@ async def record_claude_hook_api(data: IncidentHookEnvelope) -> dict[str, object
 
 
 @app.get("/sessions", response_model=list[SessionResponse])
-async def list_sessions_api() -> list[SessionResponse]:
+async def list_sessions_api(path: str | None = None) -> list[SessionResponse]:
     ensure_dirs()
     sessions = await list_sessions()
+    if path is not None:
+        sessions = filter_sessions_by_path(sessions, path)
     return [_session_to_response(s) for s in sessions]
 
 

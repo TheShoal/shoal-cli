@@ -89,14 +89,20 @@ mcp = FastMCP(
 
 @mcp.tool(
     name="list_sessions",
-    description="List all Shoal sessions with their current status.",
+    description=(
+        "List all Shoal sessions with their current status. "
+        "Pass `path` to return only sessions whose git root matches that "
+        "directory or whose worktree falls under it."
+    ),
     annotations={"readOnlyHint": True},
 )
-async def list_sessions_tool() -> list[dict[str, Any]]:
-    """List all active Shoal sessions."""
-    from shoal.core.state import list_sessions
+async def list_sessions_tool(path: str | None = None) -> list[dict[str, Any]]:
+    """List all active Shoal sessions, optionally filtered to a repo path."""
+    from shoal.core.state import filter_sessions_by_path, list_sessions
 
     sessions = await list_sessions()
+    if path is not None:
+        sessions = filter_sessions_by_path(sessions, path)
     return [
         {
             "id": s.id,
@@ -784,7 +790,6 @@ async def mark_session_message_consumed_tool(message_id: int) -> dict[str, objec
     return {"id": message_id, "consumed": True}
 
 
-
 # ---------------------------------------------------------------------------
 # Tool: mark_session_message_acked
 # ---------------------------------------------------------------------------
@@ -968,9 +973,7 @@ async def get_workflow_messages_tool(
     """Return all messages for a workflow correlation ID."""
     from shoal.core.message_bus import get_workflow_messages
 
-    return await get_workflow_messages(
-        correlation_id, kind=kind, limit=limit, after_id=after_id
-    )
+    return await get_workflow_messages(correlation_id, kind=kind, limit=limit, after_id=after_id)
 
 
 # ---------------------------------------------------------------------------
@@ -1684,7 +1687,6 @@ async def sync_claw_conversations_tool(
     }
 
 
-
 # ---------------------------------------------------------------------------
 # Claw scheduler tools
 # ---------------------------------------------------------------------------
@@ -1788,9 +1790,7 @@ async def cancel_claw_task_tool(task_id: int) -> dict[str, object]:
     await db.connect()
     cancelled = await db.cancel_claw_task(task_id)
     if not cancelled:
-        raise ToolError(
-            f"Cannot cancel task {task_id}: not found or not in pending status"
-        )
+        raise ToolError(f"Cannot cancel task {task_id}: not found or not in pending status")
     task = await db.get_claw_task(task_id)
     return task or {"id": task_id, "status": "cancelled"}
 
@@ -1824,6 +1824,8 @@ async def watch_claw_tasks_tool(
         await asyncio.sleep(poll_interval)
         elapsed += poll_interval
     return []
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

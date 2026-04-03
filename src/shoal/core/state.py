@@ -8,9 +8,11 @@ import os
 import secrets
 import subprocess
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any
+
+from pathlib import Path
 
 from shoal.core.config import load_tool_config
 from shoal.core.db import get_db
@@ -318,3 +320,18 @@ def _get_tool_icon(tool: str) -> str:
         return cfg.icon
     except FileNotFoundError:
         return Symbols.BULLET_FILLED
+
+
+def filter_sessions_by_path(sessions: Sequence[SessionState], path: str) -> list[SessionState]:
+    """Filter sessions whose git root or worktree matches a repo path.
+
+    A session matches when its ``path`` equals the resolved filter path, or its
+    ``worktree`` falls under it (starts with ``resolved + "/"``).
+    """
+    resolved = str(Path(path).resolve())
+    return [
+        s
+        for s in sessions
+        if str(Path(s.path).resolve()) == resolved
+        or (s.worktree and str(Path(s.worktree).resolve()).startswith(resolved + "/"))
+    ]

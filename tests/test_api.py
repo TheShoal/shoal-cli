@@ -77,6 +77,46 @@ class TestSessions:
         assert response.status_code == 200
         assert response.json() == []
 
+    async def test_list_sessions_filter_by_path(self, async_client, tmp_path):
+        """GET /sessions?path=... returns only sessions whose git root matches."""
+        from shoal.models.state import SessionState, SessionStatus
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
+        repo = str(tmp_path / "myrepo")
+
+        def _make(sid, name, path, worktree=""):
+            return SessionState(
+                id=sid,
+                name=name,
+                tool="claude",
+                path=path,
+                worktree=worktree,
+                branch="main",
+                tmux_session=f"_{name}",
+                tmux_session_id="$1",
+                tmux_window="@0",
+                nvim_socket="",
+                status=SessionStatus.running,
+                pid=None,
+                mcp_servers=[],
+                created_at=now,
+                last_activity=now,
+            )
+
+        sessions = [
+            _make("aaa", "match", repo),
+            _make("bbb", "other", str(tmp_path / "other")),
+        ]
+
+        with patch("shoal.api.server.list_sessions", new_callable=AsyncMock, return_value=sessions):
+            response = await async_client.get(f"/sessions?path={repo}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["name"] == "match"
+
     async def test_get_session_not_found(self, async_client):
         response = await async_client.get("/sessions/nonexistent")
         assert response.status_code == 404

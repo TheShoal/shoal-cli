@@ -20,6 +20,7 @@ def _make_session(
     tool: str = "claude",
     status: SessionStatus = SessionStatus.running,
     session_id: str = "abc12345",
+    path: str = "/tmp/project",
     worktree: str = "",
     branch: str = "main",
     mcp_servers: list[str] | None = None,
@@ -30,7 +31,7 @@ def _make_session(
         id=session_id,
         name=name,
         tool=tool,
-        path="/tmp/project",
+        path=path,
         worktree=worktree,
         branch=branch,
         tmux_session=f"_{name}",
@@ -139,6 +140,69 @@ async def test_list_sessions_fields() -> None:
     }
     assert item["mcp_servers"] == ["memory", "github"]
     assert item["branch"] == "feat/test"
+
+
+async def test_list_sessions_filter_by_path(tmp_path) -> None:
+    """Sessions with matching path are returned; others are excluded."""
+    from shoal.services.mcp_shoal_server import list_sessions_tool
+
+    repo = str(tmp_path / "myrepo")
+    sessions = [
+        _make_session(name="match", session_id="aaa", path=repo),
+        _make_session(name="other", session_id="bbb", path=str(tmp_path / "other")),
+        _make_session(name="nested", session_id="ccc", path=str(tmp_path / "third")),
+    ]
+    with patch("shoal.core.state.list_sessions", new_callable=AsyncMock, return_value=sessions):
+        result = await list_sessions_tool(path=repo)
+
+    assert len(result) == 1
+    assert result[0]["name"] == "match"
+
+
+async def test_list_sessions_filter_by_path_worktree(tmp_path) -> None:
+    """Session whose worktree falls under the filter path is included."""
+    from shoal.services.mcp_shoal_server import list_sessions_tool
+
+    repo = str(tmp_path / "myrepo")
+    worktree = str(tmp_path / "myrepo" / ".worktrees" / "feat")
+    sessions = [
+        # Session lives at a different git root but its worktree is under repo
+        _make_session(name="wt-session", session_id="aaa", path="/other", worktree=worktree),
+        _make_session(name="no-match", session_id="bbb", path="/unrelated"),
+    ]
+    with patch("shoal.core.state.list_sessions", new_callable=AsyncMock, return_value=sessions):
+        result = await list_sessions_tool(path=repo)
+
+    assert len(result) == 1
+    assert result[0]["name"] == "wt-session"
+
+
+async def test_list_sessions_filter_by_path_no_match(tmp_path) -> None:
+    """Filter with no matching sessions returns empty list."""
+    from shoal.services.mcp_shoal_server import list_sessions_tool
+
+    sessions = [
+        _make_session(name="s1", session_id="aaa", path=str(tmp_path / "a")),
+        _make_session(name="s2", session_id="bbb", path=str(tmp_path / "b")),
+    ]
+    with patch("shoal.core.state.list_sessions", new_callable=AsyncMock, return_value=sessions):
+        result = await list_sessions_tool(path=str(tmp_path / "nowhere"))
+
+    assert result == []
+
+
+async def test_list_sessions_filter_by_path_none() -> None:
+    """No filter returns all sessions (regression guard)."""
+    from shoal.services.mcp_shoal_server import list_sessions_tool
+
+    sessions = [
+        _make_session(name="s1", session_id="aaa", path="/repo/a"),
+        _make_session(name="s2", session_id="bbb", path="/repo/b"),
+    ]
+    with patch("shoal.core.state.list_sessions", new_callable=AsyncMock, return_value=sessions):
+        result = await list_sessions_tool()
+
+    assert len(result) == 2
 
 
 # ---------------------------------------------------------------------------
