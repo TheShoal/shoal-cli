@@ -74,9 +74,11 @@ nav:
       - Getting Started: getting-started.md
       - CLI Reference: cli-reference.md
   - Operate Shoal:
+      - Features Overview: features.md
       - Flow-State Workflows: flow-state-workflows.md
       - Operator Playbooks: operator-playbooks.md
       - Team Doctrine: team-doctrine.md
+      - Fleet Doctrine: SHOAL_TEAM.md
       - Review Checklist: review-checklist.md
       - Robo Supervisor: ROBO_GUIDE.md
       - Remote Sessions: REMOTE_GUIDE.md
@@ -98,6 +100,7 @@ nav:
   - Design the Loop:
       - Terminal Interaction Design: terminal-interaction-design.md
       - Architecture: architecture.md
+      - Flows Design: flows-design.md
       - Implementation Audit: implementation-audit.md
   - Reference:
       - Python API: reference/python-api.md

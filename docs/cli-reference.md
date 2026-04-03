@@ -79,6 +79,19 @@ and `prune` to clear stopped sessions from the database after cleanup.
 
 For patterns and safety rules, read [Robo Supervisor](ROBO_GUIDE.md).
 
+## Lobster runtime commands
+
+`shoal lobster` requires `grpcio` to be installed (`uv add 'shoal[lobster]'`).
+
+| Command | Description |
+|---|---|
+| `shoal lobster ping <id>` | Fetch AgentCard — agent discovery smoke-test (`--json`) |
+| `shoal lobster send <id> <msg>` | Send a message and print the response (`--task-id`, `--json`) |
+| `shoal lobster tasks <id>` | List tasks (`--context`, `--status`, `--json`) |
+
+Lobster identifiers are configured in `[lobster] known_lobsters` in `~/.config/shoal/config.toml`.
+See [Lobster Party Integration](lobster-integration.md) for setup details.
+
 ## Remote control
 
 | Command | Purpose |
