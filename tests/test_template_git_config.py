@@ -52,6 +52,7 @@ class TestTemplateGitConfigDefaults:
         assert cfg.user_email == ""
         assert cfg.commit_template == ""
         assert cfg.branch_prefix == ""
+        assert cfg.pre_commit_config == ""
 
     def test_session_template_git_defaults_to_empty(self) -> None:
         t = _minimal_template()
@@ -326,3 +327,129 @@ class TestApplyTemplateGitConfigAsync:
 
         # branch_prefix alone should not trigger any git config calls
         mock_tmux.async_send_keys.assert_not_called()
+
+
+# -- _symlink_pre_commit_config ---------------------------------------------
+
+
+class TestSymlinkPreCommitConfig:
+    @pytest.mark.asyncio
+    async def test_creates_symlink_when_source_exists(self, tmp_path: Path) -> None:
+        """Symlink is created at <work_dir>/.pre-commit-config.yaml pointing at src."""
+        from shoal.services.lifecycle import _symlink_pre_commit_config
+
+        src = tmp_path / "shared-pre-commit.yaml"
+        src.write_text("repos: []\n")
+        work_dir = tmp_path / "worktree"
+        work_dir.mkdir()
+
+        await _symlink_pre_commit_config(str(src), str(work_dir))
+
+        dest = work_dir / ".pre-commit-config.yaml"
+        assert dest.is_symlink()
+        assert dest.resolve() == src.resolve()
+
+    @pytest.mark.asyncio
+    async def test_noop_when_source_missing(self, tmp_path: Path) -> None:
+        """No error and no symlink if the source path does not exist."""
+        from shoal.services.lifecycle import _symlink_pre_commit_config
+
+        work_dir = tmp_path / "worktree"
+        work_dir.mkdir()
+
+        await _symlink_pre_commit_config(str(tmp_path / "nonexistent.yaml"), str(work_dir))
+
+        assert not (work_dir / ".pre-commit-config.yaml").exists()
+
+    @pytest.mark.asyncio
+    async def test_replaces_existing_symlink(self, tmp_path: Path) -> None:
+        """An existing symlink at the destination is replaced (idempotent)."""
+        from shoal.services.lifecycle import _symlink_pre_commit_config
+
+        src1 = tmp_path / "config-v1.yaml"
+        src1.write_text("repos: []\n")
+        src2 = tmp_path / "config-v2.yaml"
+        src2.write_text("repos: [x]\n")
+        work_dir = tmp_path / "worktree"
+        work_dir.mkdir()
+        dest = work_dir / ".pre-commit-config.yaml"
+
+        # First call
+        await _symlink_pre_commit_config(str(src1), str(work_dir))
+        assert dest.resolve() == src1.resolve()
+
+        # Second call — replaces
+        await _symlink_pre_commit_config(str(src2), str(work_dir))
+        assert dest.resolve() == src2.resolve()
+
+    @pytest.mark.asyncio
+    async def test_expands_tilde(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """~ in the source path is expanded before stat."""
+        from shoal.services.lifecycle import _symlink_pre_commit_config
+
+        # Redirect ~ to tmp_path so test is hermetic
+        monkeypatch.setenv("HOME", str(tmp_path))
+        src = tmp_path / "pc.yaml"
+        src.write_text("repos: []\n")
+        work_dir = tmp_path / "worktree"
+        work_dir.mkdir()
+
+        await _symlink_pre_commit_config("~/pc.yaml", str(work_dir))
+
+        dest = work_dir / ".pre-commit-config.yaml"
+        assert dest.is_symlink()
+
+
+# -- pre_commit_config field + lifecycle integration -------------------------
+
+
+class TestPreCommitConfigField:
+    def test_defaults_empty(self) -> None:
+        assert TemplateGitConfig().pre_commit_config == ""
+
+    def test_toml_parsing(self, mock_dirs: tuple[Path, Path]) -> None:
+        tmp_config, _ = mock_dirs
+        _write_template(
+            tmp_config / "templates",
+            "with-pc",
+            """\
+[template]
+name = "with-pc"
+
+[template.git]
+user_name = "Bot"
+pre_commit_config = "/shared/hooks.yaml"
+
+[[windows]]
+name = "editor"
+
+[[windows.panes]]
+split = "root"
+command = "{tool_command}"
+""",
+        )
+        t = load_template("with-pc")
+        assert t.git.pre_commit_config == "/shared/hooks.yaml"
+
+    @pytest.mark.asyncio
+    async def test_pre_commit_config_only_does_not_call_send_keys(self, tmp_path: Path) -> None:
+        """pre_commit_config alone must not emit any tmux send_keys calls."""
+        from shoal.services.lifecycle import _apply_template_git_config_async
+
+        src = tmp_path / "pc.yaml"
+        src.write_text("repos: []\n")
+        work_dir = tmp_path / "worktree"
+        work_dir.mkdir()
+
+        template = _minimal_template()
+        template = template.model_copy(
+            update={"git": TemplateGitConfig(pre_commit_config=str(src))}
+        )
+
+        with patch("shoal.services.lifecycle.tmux") as mock_tmux:
+            mock_tmux.async_first_pane = AsyncMock(return_value="shoal:sess.0")
+            mock_tmux.async_send_keys = AsyncMock()
+            await _apply_template_git_config_async(template, "shoal:sess", str(work_dir))
+
+        mock_tmux.async_send_keys.assert_not_called()
+        assert (work_dir / ".pre-commit-config.yaml").is_symlink()

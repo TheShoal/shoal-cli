@@ -25,6 +25,7 @@ create_branch = true
 # user_email   = "robo@yourorg.example"  # git config user.email
 # commit_template = "~/.gitmessage"      # git config commit.template
 # branch_prefix = "feat/"               # convention hint for branch names
+# pre_commit_config = "~/.config/shoal/pre-commit-config.yaml"  # symlinked into worktree
 
 # Window definitions. Each [[windows]] block creates a tmux window.
 # The first pane in each window must have split = "root".

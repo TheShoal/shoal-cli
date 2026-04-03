@@ -25,7 +25,19 @@ class TemplateGitConfig(BaseModel):
     commit_template: str = ""
     """Path to a commit message template file (git config commit.template)."""
     branch_prefix: str = ""
-    """Conventional prefix prepended when auto-naming branches, e.g. 'feat/' or 'fix/'."""
+    """Conventional prefix prepended when auto-naming branches, e.g. 'feat/' or 'fix/'.
+
+    Applied during ``shoal new`` when a branch is auto-named from the session name.
+    """
+    pre_commit_config: str = ""
+    """Path to a ``.pre-commit-config.yaml`` file to symlink into the session worktree.
+
+    When set, ``_apply_template_git_config_async`` creates a symlink at
+    ``<worktree>/.pre-commit-config.yaml -> <pre_commit_config>`` so that
+    ``pre-commit`` picks up the shared config automatically.  The source path
+    may be absolute or relative to the git root of the host repo.
+    Silently skipped if the source path does not exist.
+    """
 
 
 class TemplateWorktreeConfig(BaseModel):

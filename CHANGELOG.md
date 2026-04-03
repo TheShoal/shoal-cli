@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+
+## [0.37.2] - 2026-04-03
+
+### Added
+- **Pre-commit hook profile** (`models/config/templates.py`, `services/lifecycle.py`):
+  New `[template.git].pre_commit_config` field accepts a path to a
+  ``.pre-commit-config.yaml`` file.  At session creation time the path is
+  symlinked as ``<worktree>/.pre-commit-config.yaml`` so ``pre-commit`` picks it
+  up automatically.  Silently skipped if the source path does not exist.
+  Added ``_symlink_pre_commit_config`` helper; example commented in
+  ``examples/config/templates/base-dev.toml`` and ``mixins/git-identity.toml``.
+  7 new tests: symlink creation, noop-on-missing-source, idempotent-replace,
+  tilde expansion, field defaults, TOML parsing, no tmux calls when pre_commit_config
+  is the only git field set.
+
+
 ## [0.37.1] - 2026-04-03
 
 ### Fixed

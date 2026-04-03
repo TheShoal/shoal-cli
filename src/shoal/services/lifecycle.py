@@ -760,6 +760,29 @@ async def _inject_mcp_socket_env_async(
     )
 
 
+async def _symlink_pre_commit_config(src: str, work_dir: str) -> None:
+    """Symlink a shared pre-commit config into the session worktree.
+
+    Creates ``<work_dir>/.pre-commit-config.yaml -> <src>`` so that
+    ``pre-commit`` picks up the shared config automatically.
+    Silently no-ops if *src* does not exist.  If a symlink already exists at
+    the target it is replaced (idempotent for re-used worktrees).
+    The path expansion and filesystem operations are run in a thread to
+    stay async-safe.
+    """
+
+    def _do_symlink() -> None:
+        src_path = Path(src).expanduser().resolve()
+        if not src_path.exists():
+            return
+        dest = Path(work_dir) / ".pre-commit-config.yaml"
+        if dest.is_symlink():
+            dest.unlink()
+        dest.symlink_to(src_path)
+
+    await asyncio.to_thread(_do_symlink)
+
+
 async def _apply_template_git_config_async(
     template_cfg: SessionTemplateConfig,
     tmux_session: str,
@@ -775,7 +798,12 @@ async def _apply_template_git_config_async(
     git_cfg = template_cfg.git
     if git_cfg is None:
         return
-    if not (git_cfg.user_name or git_cfg.user_email or git_cfg.commit_template):
+    if not (
+        git_cfg.user_name
+        or git_cfg.user_email
+        or git_cfg.commit_template
+        or git_cfg.pre_commit_config
+    ):
         return
 
     initial_pane = await tmux.async_first_pane(tmux_session)
@@ -826,6 +854,9 @@ async def _apply_template_git_config_async(
             f"git -C {work_q} config --local commit.template {tmpl_q}",
             enter=True,
         )
+
+    if git_cfg.pre_commit_config:
+        await _symlink_pre_commit_config(git_cfg.pre_commit_config, work_dir)
 
 
 # ---------------------------------------------------------------------------

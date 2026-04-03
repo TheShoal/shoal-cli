@@ -22,3 +22,5 @@ user_email = "agent@shoal.local"
 # commit_template = "~/.config/shoal/gitmessage"
 # Uncomment to document the expected branch prefix convention:
 # branch_prefix = "feat/"
+# Uncomment to symlink a shared pre-commit config into the worktree:
+# pre_commit_config = "~/.config/shoal/pre-commit-config.yaml"

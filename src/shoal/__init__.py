@@ -1,4 +1,4 @@
 # SPDX-License-Identifier: MIT
 """Terminal-first orchestration for parallel AI coding agents."""
 
-__version__ = "0.37.1"
+__version__ = "0.37.2"
