@@ -265,9 +265,7 @@ class ShoalDB:
         await self._backfill_runtime_state()
         await self._conn.commit()
 
-
     async def _migrate_messages_schema(self) -> None:
-
         """Add new columns to the messages table for existing databases.
 
         Uses ALTER TABLE ADD COLUMN which is safe to call repeatedly — SQLite
@@ -288,9 +286,7 @@ class ShoalDB:
         ]
         for col_name, col_def in new_columns:
             with suppress(Exception):
-                await self._conn.execute(
-                    f"ALTER TABLE messages ADD COLUMN {col_name} {col_def}"
-                )
+                await self._conn.execute(f"ALTER TABLE messages ADD COLUMN {col_name} {col_def}")
         logger.debug("_migrate_messages_schema: checked %d column(s)", len(new_columns))
 
     async def _backfill_status_since(self) -> None:
@@ -738,9 +734,18 @@ class ShoalDB:
                 "  metadata_json, expires_at, created_at)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
-                    from_session, to_session, topic, kind, payload,
-                    correlation_id, reply_to_message_id, priority,
-                    int(requires_ack), metadata_json, expires_at, now,
+                    from_session,
+                    to_session,
+                    topic,
+                    kind,
+                    payload,
+                    correlation_id,
+                    reply_to_message_id,
+                    priority,
+                    int(requires_ack),
+                    metadata_json,
+                    expires_at,
+                    now,
                 ),
             )
             await conn.commit()
@@ -872,7 +877,6 @@ class ShoalDB:
             )
             await conn.commit()
 
-
     async def mark_message_acked(self, message_id: int) -> None:
         """Mark a message as acknowledged by its recipient."""
         from datetime import UTC, datetime
@@ -981,7 +985,6 @@ class ShoalDB:
             )
             await conn.commit()
 
-
     # -----------------------------------------------------------------------
     # Agent Bus: session action requests and approval lifecycle
     # -----------------------------------------------------------------------
@@ -1008,8 +1011,14 @@ class ShoalDB:
                 "  payload_json, correlation_id, status, requested_at, metadata_json)"
                 " VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
                 (
-                    requester_session, target_session, target_role, action_type,
-                    payload_json, correlation_id, now, metadata_json,
+                    requester_session,
+                    target_session,
+                    target_role,
+                    action_type,
+                    payload_json,
+                    correlation_id,
+                    now,
+                    metadata_json,
                 ),
             )
             await conn.commit()
@@ -1088,7 +1097,6 @@ class ShoalDB:
             )
             await conn.commit()
         return await self.get_session_action(action_id)
-
 
     # -----------------------------------------------------------------------
     # Claw scheduler: task queue
@@ -1223,9 +1231,7 @@ class ShoalDB:
             )
             await conn.commit()
 
-    async def fail_claw_task(
-        self, task_id: int, error: str, *, permanent: bool = False
-    ) -> None:
+    async def fail_claw_task(self, task_id: int, error: str, *, permanent: bool = False) -> None:
         """Record a task failure.
 
         Increments retry_count. Moves to dead_letter if *permanent* or retries
@@ -1237,8 +1243,8 @@ class ShoalDB:
         if task is None:
             return
 
-        retry_count = int(task["retry_count"]) + 1  # type: ignore[arg-type]
-        max_retries = int(task["max_retries"])  # type: ignore[arg-type]
+        retry_count = cast(int, task["retry_count"]) + 1
+        max_retries = cast(int, task["max_retries"])
         now = datetime.now(UTC)
 
         if permanent or retry_count >= max_retries:
@@ -1246,7 +1252,7 @@ class ShoalDB:
             run_at = str(task["run_at"])
         else:
             new_status = "pending"
-            backoff = timedelta(seconds=min(60 * (2 ** retry_count), 3600))
+            backoff = timedelta(seconds=min(60 * (2**retry_count), 3600))
             run_at = (now + backoff).isoformat()
 
         async with self._connection() as conn:
@@ -1286,7 +1292,7 @@ class ShoalDB:
                 return None
             from datetime import UTC, datetime, timedelta
 
-            next_run = (datetime.now(UTC) + timedelta(seconds=float(interval))).isoformat()
+            next_run = (datetime.now(UTC) + timedelta(seconds=cast(float, interval))).isoformat()
         elif task_type == "cron":
             # Cron scheduling deferred — for now, treat as recurring with default 1h
             from datetime import UTC, datetime, timedelta
@@ -1304,7 +1310,7 @@ class ShoalDB:
             cron_expr=task["cron_expr"],  # type: ignore[arg-type]
             interval_seconds=task["interval_seconds"],  # type: ignore[arg-type]
             payload_json=str(task["payload_json"]),
-            max_retries=int(task["max_retries"]),  # type: ignore[arg-type]
+            max_retries=cast(int, task["max_retries"]),
             correlation_id=task["correlation_id"],  # type: ignore[arg-type]
             metadata_json=task["metadata_json"],  # type: ignore[arg-type]
         )
@@ -1332,6 +1338,7 @@ def _row_to_claw_task(row: Any) -> dict[str, object]:
         "error": row[16],
         "metadata_json": row[17],
     }
+
 
 def _row_to_action(row: Any) -> SessionAction:
     """Convert a DB row tuple to a SessionAction model."""
