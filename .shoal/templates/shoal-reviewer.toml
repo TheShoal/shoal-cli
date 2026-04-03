@@ -1,0 +1,35 @@
+# shoal-reviewer — Code reviewer template for shoal-cli.
+#
+# Fast, cheap. Uses pisces with the `smol` model role
+# (google-gemini-cli/gemini-3-flash-preview) for diff review and CI checks.
+# Read-oriented: does not write implementation code.
+#
+# Review doctrine (ordered by priority):
+#   1. Behavioral regressions
+#   2. Config/deployment risk
+#   3. Test coverage gaps
+#   4. Contract drift vs ARCHITECTURE.md
+#   5. Style (last — never outranks correctness)
+#
+# Usage:
+#   shoal new review/my-feature --template shoal-reviewer --branch \
+#     --prompt "/shoal-review — review feat/my-feature vs main"
+
+[template]
+name        = "shoal-reviewer"
+description = "Shoal code reviewer — pisces smol model, diff-review doctrine"
+extends     = "base-dev"
+tool        = "pisces"
+mcp         = ["shoal-orchestrator"]
+mode        = "reviewer"
+tags        = ["dogfood", "reviewer", "review-ready"]
+
+[template.env]
+SHOAL_TOOL  = "pisces"
+SHOAL_AGENT = "1"
+# Route to the `smol` model role: google-gemini-cli/gemini-3-flash-preview
+PISCES_LAUNCH_ARGS = "--model google-gemini-cli/gemini-3-flash-preview"
+
+[template.git]
+user_name  = "Shoal Review Agent"
+user_email = "review@shoal.local"

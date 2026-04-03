@@ -1,0 +1,29 @@
+# shoal-planner — Milestone planner/architect template for shoal-cli.
+#
+# Uses pisces with the `plan` model role (openrouter/z-ai/glm-5).
+# Purpose: scope new milestones, write ROADMAP entries, decompose large
+# features into parallelizable workstreams. Does not write implementation code.
+#
+# Usage:
+#   shoal new plan/v0-38-scope --template shoal-planner --branch \
+#     --prompt "/shoal-handoff — then scope the next milestone and update ROADMAP.md"
+
+[template]
+name        = "shoal-planner"
+description = "Shoal planner — pisces plan model, ROADMAP and milestone scoping"
+extends     = "base-dev"
+tool        = "pisces"
+mcp         = ["shoal-orchestrator", "memory"]
+mode        = "planner"
+tags        = ["dogfood", "planner"]
+
+[template.env]
+SHOAL_TOOL  = "pisces"
+SHOAL_AGENT = "1"
+# Route to the `plan` model role: openrouter/z-ai/glm-5
+PISCES_LAUNCH_ARGS = "--model openrouter/z-ai/glm-5"
+
+[template.git]
+user_name     = "Shoal Plan Agent"
+user_email    = "plan@shoal.local"
+branch_prefix = "plan/"

@@ -1,0 +1,59 @@
+# Robo supervisor profile for shoal-cli development.
+#
+# Usage:
+#   shoal robo setup shoal-dev --tool pisces
+#   shoal robo start shoal-dev
+#
+# This creates the __shoal-dev tmux session running pisces with robo AGENTS.md.
+# The robo uses the `default` model role (github-copilot/claude-sonnet-4.6)
+# via its standard pisces config — no model override needed for supervision.
+
+[robo]
+name         = "shoal-dev"
+tool         = "pisces"
+auto_approve = false
+
+[monitoring]
+# Poll interval in seconds. 30s is appropriate for a focused single-repo fleet.
+poll_interval   = 30
+# Escalate to human after this many seconds in waiting state.
+waiting_timeout = 300
+
+[escalation]
+# Fire macOS notifications for waiting/error states.
+notify       = true
+auto_respond = false
+
+[tasks]
+log_file = "task-log.md"
+
+[proactive]
+enabled = true
+
+# ── Robo operating doctrine ───────────────────────────────────────────────────
+#
+# AUTO-APPROVE (safe to send Enter without reading):
+#   - "just lint" / ruff / mypy prompts
+#   - "just test" / pytest run confirmations
+#   - "uv sync" dependency install
+#   - "git fetch" / "git log" read-only operations
+#   - File read confirmations
+#
+# MUST ESCALATE (human decision required):
+#   - git push (any form)
+#   - Merge to main
+#   - Version bump in pyproject.toml
+#   - CHANGELOG.md release section writes
+#   - git tag creation
+#   - Destructive file operations (rm -rf, git reset --hard)
+#   - Any operation on .github/ CI config
+#
+# TASK ROUTING (on idle impl session):
+#   1. Check ROADMAP.md ## Backlog → ## Remaining section
+#   2. Assign next unchecked item without an active impl/ session
+#   3. Log routing decision in task-log.md with timestamp
+#
+# REVIEW PAIRING:
+#   - When an impl session marks_complete, spawn review/<branch> with shoal-reviewer
+#   - Use: shoal new review/<branch> --template shoal-reviewer --branch \
+#       --prompt "/shoal-review — review <branch> vs main"
