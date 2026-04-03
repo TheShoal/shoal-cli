@@ -19,6 +19,13 @@ from shoal.models.state import SessionStatus
 from shoal.services.robo_supervisor import RoboSupervisor
 
 
+@pytest.fixture(autouse=True)
+def _mock_tmux_has_session() -> object:
+    """Keep robo supervisor tests independent of real tmux sessions."""
+    with patch("shoal.core.tmux.has_session", return_value=False) as mock_has_session:
+        yield mock_has_session
+
+
 def _make_profile(
     *,
     auto_approve: bool = False,
