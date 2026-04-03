@@ -1388,3 +1388,6 @@ async def with_db[T](coro: Coroutine[Any, Any, T]) -> T:
         return await coro
     finally:
         await ShoalDB.reset_instance()
+        from shoal.core.conversation_index import ConversationIndex
+
+        await ConversationIndex.reset_instance()

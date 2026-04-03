@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from shoal.core.state import create_session
-from shoal.models.state import ClawRuntimeState, SessionState, SessionStatus
+from shoal.models.state import LobsterRuntimeState, SessionState, SessionStatus
 
 
 def _make_claw_session(session_id: str = "claw123") -> SessionState:
@@ -19,8 +19,8 @@ def _make_claw_session(session_id: str = "claw123") -> SessionState:
         path="/tmp/repo",
         worktree="",
         branch="",
-        runtime=ClawRuntimeState(
-            claw_id="demo",
+        runtime=LobsterRuntimeState(
+            lobster_id="demo",
             endpoint="grpc://localhost:50071",
             employee_id="dogfood-emp",
         ),

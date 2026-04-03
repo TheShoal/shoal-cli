@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from shoal.core.claw_conversations import ClawTurn
+from shoal.core.lobster_conversations import LobsterTurn
 from shoal.core.conversations import (
     claw_turn_to_event,
     generate_event_id,
@@ -139,7 +139,7 @@ class TestClawTurnConversion:
 
     def test_preserves_structured_fields_from_fixture(self, qmd_fixtures_dir: Path) -> None:
         record = json.loads((qmd_fixtures_dir / "2025-W03" / "turn-001.json").read_text())
-        turn = ClawTurn.from_json_record(record)
+        turn = LobsterTurn.from_json_record(record)
 
         event = claw_turn_to_event(turn, session_id="sess-123", session_name="alpha")
 

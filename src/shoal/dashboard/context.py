@@ -11,7 +11,7 @@ from collections import Counter
 from datetime import UTC, datetime
 
 from shoal.core.urgency import UrgencyTier, derive_urgency
-from shoal.models.state import ClawRuntimeState, SessionState, SessionStatus, TmuxRuntimeState
+from shoal.models.state import LobsterRuntimeState, SessionState, SessionStatus, TmuxRuntimeState
 
 # ---------------------------------------------------------------------------
 # Urgency tier → CSS class name
@@ -211,8 +211,8 @@ def session_detail_context(
     runtime_detail: dict[str, str] = {}
     if isinstance(session.runtime, TmuxRuntimeState):
         runtime_detail["tmux_session"] = session.runtime.session_name
-    elif isinstance(session.runtime, ClawRuntimeState):
-        runtime_detail["claw_id"] = session.runtime.claw_id
+    elif isinstance(session.runtime, LobsterRuntimeState):
+        runtime_detail["lobster_id"] = session.runtime.lobster_id
         runtime_detail["endpoint"] = session.runtime.endpoint
 
     completed_at: str | None = None

@@ -12,7 +12,7 @@ from shoal.dashboard.context import (
     session_card_context,
     session_detail_context,
 )
-from shoal.models.state import ClawRuntimeState, SessionState, SessionStatus, TmuxRuntimeState
+from shoal.models.state import LobsterRuntimeState, SessionState, SessionStatus, TmuxRuntimeState
 
 
 def _make_session(
@@ -54,7 +54,7 @@ def _make_claw_session(
         path="/tmp/repo",
         worktree="",
         branch="",
-        runtime=ClawRuntimeState(claw_id="demo", endpoint="grpc://localhost:50071"),
+        runtime=LobsterRuntimeState(lobster_id="demo", endpoint="grpc://localhost:50071"),
         status=SessionStatus.idle,
         mcp_servers=[],
         tags=[],
@@ -143,7 +143,7 @@ class TestSessionCardContext:
     def test_claw_session_hides_approve_action(self) -> None:
         now = datetime(2024, 6, 1, 12, 0, 0, tzinfo=UTC)
         ctx = session_card_context(_make_claw_session(), now=now)
-        assert ctx["runtime_kind"] == "claw"
+        assert ctx["runtime_kind"] == "lobster"
         assert ctx["show_approve_action"] is False
 
 
@@ -211,12 +211,12 @@ class TestSessionDetailContext:
         now = datetime(2024, 6, 1, 12, 0, 0, tzinfo=UTC)
         ctx = session_detail_context(_make_claw_session(), now=now)
 
-        assert ctx["runtime_kind"] == "claw"
+        assert ctx["runtime_kind"] == "lobster"
         assert ctx["show_approve_action"] is False
         assert ctx["send_placeholder"] == "Send message to Claw…"
         detail = ctx["runtime_detail"]
         assert isinstance(detail, dict)
-        assert detail["claw_id"] == "demo"
+        assert detail["lobster_id"] == "demo"
         assert detail["endpoint"] == "grpc://localhost:50071"
 
 

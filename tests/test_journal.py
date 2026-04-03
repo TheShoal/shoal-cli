@@ -131,9 +131,9 @@ class TestCoreJournal:
                 new_callable=AsyncMock,
                 return_value="sess-import",
             ),
-            patch("shoal.core.claw_conversations.read_qmd_turns", return_value=[object()]),
+            patch("shoal.core.lobster_conversations.read_qmd_turns", return_value=[object()]),
             patch(
-                "shoal.core.claw_conversations.turns_to_journal_entries",
+                "shoal.core.lobster_conversations.turns_to_journal_entries",
                 return_value="converted turns",
             ),
             patch("shoal.core.journal.append_entry") as mock_append,

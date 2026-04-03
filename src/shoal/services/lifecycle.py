@@ -1144,7 +1144,7 @@ async def create_claw_session_lifecycle(
         SessionExistsError: If session name already exists.
         RuntimeError: If Claw connectivity check fails.
     """
-    from shoal.models.state import ClawRuntimeState
+    from shoal.models.state import LobsterRuntimeState
 
     logger.info("[%s] claw create: starting (claw_id=%s)", session_name, claw_id)
 
@@ -1168,7 +1168,7 @@ async def create_claw_session_lifecycle(
     set_session_id(session.id)
 
     # 2. Update runtime state with Claw-specific info
-    runtime = ClawRuntimeState(
+    runtime = LobsterRuntimeState(
         claw_id=claw_id,
         endpoint=endpoint,
         employee_id=employee_id,

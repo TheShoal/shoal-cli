@@ -9,9 +9,9 @@ import os
 
 import pytest
 
-from shoal.core.claw_client import ClawClient
+from shoal.core.lobster_client import LobsterClient
 from shoal.integrations.lobster import a2a_bridge as _bridge
-from shoal.models.config.claw import ClawConfig
+from shoal.models.config.lobster import LobsterConfig
 
 LIVE_ENDPOINT = os.environ.get("SHOAL_CLAW_LIVE_ENDPOINT")
 LIVE_ID = os.environ.get("SHOAL_CLAW_LIVE_ID")
@@ -30,8 +30,8 @@ pytestmark = [
 async def test_live_get_agent_card() -> None:
     """Fetch AgentCard from a live Claw."""
     assert LIVE_ENDPOINT and LIVE_ID
-    config = ClawConfig()
-    async with ClawClient(
+    config = LobsterConfig()
+    async with LobsterClient(
         claw_id=LIVE_ID,
         endpoint=LIVE_ENDPOINT,
         employee_id=EMPLOYEE_ID,
@@ -48,8 +48,8 @@ async def test_live_get_agent_card() -> None:
 async def test_live_send_message_and_list_tasks() -> None:
     """Send a message to a live Claw and verify task creation."""
     assert LIVE_ENDPOINT and LIVE_ID
-    config = ClawConfig()
-    async with ClawClient(
+    config = LobsterConfig()
+    async with LobsterClient(
         claw_id=LIVE_ID,
         endpoint=LIVE_ENDPOINT,
         employee_id=EMPLOYEE_ID,
