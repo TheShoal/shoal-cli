@@ -4,12 +4,24 @@ from __future__ import annotations
 
 import os
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
 
-from shoal.services.linear_bridge import LinearBridge, LinearIssue, get_linear_bridge
+from shoal.services.linear_bridge import (
+    LinearBridge,
+    LinearIssue,
+    LinearNamedTarget,
+    get_linear_bridge,
+)
+
+
+def _mock_response(payload: dict[str, Any]) -> Mock:
+    response = Mock(spec=httpx.Response)
+    response.json.return_value = payload
+    response.raise_for_status = Mock()
+    return response
 
 
 class TestLinearIssueModel:
@@ -118,9 +130,7 @@ class TestLinearBridgeListTeamIssues:
                 }
             }
         }
-        mock_response = AsyncMock(spec=httpx.Response)
-        mock_response.json.return_value = response_data
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = _mock_response(response_data)
 
         with patch.object(bridge, "_ensure_client") as mock_client:
             client = AsyncMock()
@@ -134,10 +144,7 @@ class TestLinearBridgeListTeamIssues:
     @pytest.mark.asyncio
     async def test_list_empty(self) -> None:
         bridge = LinearBridge(api_key="test")
-        response_data: dict[str, Any] = {"data": {"issues": {"nodes": []}}}
-        mock_response = AsyncMock(spec=httpx.Response)
-        mock_response.json.return_value = response_data
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = _mock_response({"data": {"issues": {"nodes": []}}})
 
         with patch.object(bridge, "_ensure_client") as mock_client:
             client = AsyncMock()
@@ -150,10 +157,7 @@ class TestLinearBridgeListTeamIssues:
     @pytest.mark.asyncio
     async def test_graphql_error_raises(self) -> None:
         bridge = LinearBridge(api_key="test")
-        response_data: dict[str, Any] = {"errors": [{"message": "Team not found"}]}
-        mock_response = AsyncMock(spec=httpx.Response)
-        mock_response.json.return_value = response_data
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = _mock_response({"errors": [{"message": "Team not found"}]})
 
         with patch.object(bridge, "_ensure_client") as mock_client:
             client = AsyncMock()
@@ -164,6 +168,77 @@ class TestLinearBridgeListTeamIssues:
                 await bridge.list_team_issues("INVALID")
 
 
+class TestLinearBridgeStatusUpdates:
+    @pytest.mark.asyncio
+    async def test_resolve_project_target_by_slug(self) -> None:
+        bridge = LinearBridge(api_key="test")
+        mock_response = _mock_response(
+            {
+                "data": {
+                    "projects": {
+                        "nodes": [
+                            {
+                                "id": "proj-1",
+                                "name": "Backend Platform",
+                                "slugId": "backend-platform",
+                                "url": "https://linear.app/project/backend-platform",
+                            }
+                        ]
+                    }
+                }
+            }
+        )
+
+        with patch.object(bridge, "_ensure_client") as mock_client:
+            client = AsyncMock()
+            client.post.return_value = mock_response
+            mock_client.return_value = client
+
+            target = await bridge.resolve_target(kind="project", slug="backend-platform")
+
+        assert target == LinearNamedTarget(
+            kind="project",
+            id="proj-1",
+            name="Backend Platform",
+            slug="backend-platform",
+            url="https://linear.app/project/backend-platform",
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_project_status_update(self) -> None:
+        bridge = LinearBridge(api_key="test")
+        mock_response = _mock_response(
+            {
+                "data": {
+                    "projectUpdateCreate": {
+                        "success": True,
+                        "projectUpdate": {
+                            "id": "upd-1",
+                            "url": "https://linear.app/update/upd-1",
+                        },
+                    }
+                }
+            }
+        )
+
+        with patch.object(bridge, "_ensure_client") as mock_client:
+            client = AsyncMock()
+            client.post.return_value = mock_response
+            mock_client.return_value = client
+
+            update = await bridge.create_status_update(
+                kind="project",
+                target_id="proj-1",
+                body="# Sprint Summary",
+                health="onTrack",
+            )
+
+        assert update.kind == "project"
+        assert update.id == "upd-1"
+        assert update.url == "https://linear.app/update/upd-1"
+        assert update.health == "onTrack"
+
+
 class TestHookLinearOnComplete:
     @pytest.mark.asyncio
     async def test_skips_without_api_key(self) -> None:
@@ -172,7 +247,6 @@ class TestHookLinearOnComplete:
 
         session = type("FakeSession", (), {"tags": ["linear:BE-42"]})()
         with patch.dict(os.environ, {"SHOAL_LINEAR_API_KEY": ""}):
-            # Should not raise
             await hook_linear_on_complete(session=session)
 
     @pytest.mark.asyncio

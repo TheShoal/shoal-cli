@@ -6,15 +6,24 @@ Provides async client for Linear REST/GraphQL operations used by the CLI.
 from __future__ import annotations
 
 import os
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-__all__ = ["LinearBridge", "LinearIssue", "get_linear_bridge"]
-
+__all__ = [
+    "LinearBridge",
+    "LinearIssue",
+    "LinearNamedTarget",
+    "LinearPostedUpdate",
+    "get_linear_bridge",
+]
 
 _ENDPOINT = "https://api.linear.app/graphql"
+
+LinearTargetKind = Literal["project", "initiative"]
+LinearUpdateHealth = Literal["onTrack", "atRisk", "offTrack"]
 
 _QUERY_TEAM_ISSUES = """
 query TeamIssues($teamKey: String!, $first: Int, $stateType: String) {
@@ -56,6 +65,80 @@ query Issue($identifier: String!) {
 }
 """
 
+_QUERY_PROJECT_BY_ID = """
+query Project($id: String!) {
+  project(id: $id) {
+    id
+    name
+    slugId
+    url
+  }
+}
+"""
+
+_QUERY_PROJECTS_BY_SLUG = """
+query ProjectsBySlug($slug: String!) {
+  projects(filter: { slugId: { eq: $slug } }, first: 2) {
+    nodes {
+      id
+      name
+      slugId
+      url
+    }
+  }
+}
+"""
+
+_QUERY_PROJECTS_BY_NAME = """
+query ProjectsByName($name: String!) {
+  projects(filter: { name: { eq: $name } }, first: 2) {
+    nodes {
+      id
+      name
+      slugId
+      url
+    }
+  }
+}
+"""
+
+_QUERY_INITIATIVE_BY_ID = """
+query Initiative($id: String!) {
+  initiative(id: $id) {
+    id
+    name
+    slugId
+    url
+  }
+}
+"""
+
+_QUERY_INITIATIVES_BY_SLUG = """
+query InitiativesBySlug($slug: String!) {
+  initiatives(filter: { slugId: { eq: $slug } }, first: 2) {
+    nodes {
+      id
+      name
+      slugId
+      url
+    }
+  }
+}
+"""
+
+_QUERY_INITIATIVES_BY_NAME = """
+query InitiativesByName($name: String!) {
+  initiatives(filter: { name: { eq: $name } }, first: 2) {
+    nodes {
+      id
+      name
+      slugId
+      url
+    }
+  }
+}
+"""
+
 _MUTATION_UPDATE_STATE = """
 mutation UpdateIssue($id: String!, $stateId: String!) {
   issueUpdate(id: $id, input: { stateId: $stateId }) {
@@ -68,6 +151,30 @@ _MUTATION_ADD_COMMENT = """
 mutation CreateComment($issueId: String!, $body: String!) {
   commentCreate(input: { issueId: $issueId, body: $body }) {
     success
+  }
+}
+"""
+
+_MUTATION_CREATE_PROJECT_UPDATE = """
+mutation CreateProjectUpdate($input: ProjectUpdateCreateInput!) {
+  projectUpdateCreate(input: $input) {
+    success
+    projectUpdate {
+      id
+      url
+    }
+  }
+}
+"""
+
+_MUTATION_CREATE_INITIATIVE_UPDATE = """
+mutation CreateInitiativeUpdate($input: InitiativeUpdateCreateInput!) {
+  initiativeUpdateCreate(input: $input) {
+    success
+    initiativeUpdate {
+      id
+      url
+    }
   }
 }
 """
@@ -89,6 +196,27 @@ class LinearIssue(BaseModel):
     branch_name: str = ""
     url: str = ""
     labels: list[str] = Field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class LinearNamedTarget:
+    """Resolved Linear project/initiative target for status updates."""
+
+    kind: LinearTargetKind
+    id: str
+    name: str
+    slug: str
+    url: str
+
+
+@dataclass(frozen=True)
+class LinearPostedUpdate:
+    """Created Linear project/initiative status update."""
+
+    kind: LinearTargetKind
+    id: str
+    url: str
+    health: LinearUpdateHealth
 
 
 class LinearBridge:
@@ -156,6 +284,18 @@ class LinearBridge:
             branch_name=node.get("branchName", ""),
             url=node.get("url", ""),
             labels=[label.get("name", "") for label in labels_nodes],
+        )
+
+    def _parse_named_target(
+        self, node: dict[str, Any], *, kind: LinearTargetKind
+    ) -> LinearNamedTarget:
+        """Convert a GraphQL node into a named status-update target."""
+        return LinearNamedTarget(
+            kind=kind,
+            id=node.get("id", ""),
+            name=node.get("name", ""),
+            slug=node.get("slugId", ""),
+            url=node.get("url", ""),
         )
 
     async def list_team_issues(
@@ -249,6 +389,126 @@ class LinearBridge:
         """
         variables = {"issueId": issue_id, "body": body}
         await self._post(_MUTATION_ADD_COMMENT, variables)
+
+    async def resolve_target(
+        self,
+        *,
+        kind: LinearTargetKind,
+        id: str = "",
+        slug: str = "",
+        name: str = "",
+    ) -> LinearNamedTarget:
+        """Resolve a project/initiative target by id, slug, or exact name."""
+        selectors = {
+            "id": id.strip(),
+            "slug": slug.strip(),
+            "name": name.strip(),
+        }
+        provided = [selector_name for selector_name, value in selectors.items() if value]
+        if len(provided) != 1:
+            raise ValueError("Exactly one of id, slug, or name must be provided")
+
+        selector_name = provided[0]
+        selector_value = selectors[selector_name]
+        if kind == "project":
+            return await self._resolve_project_target(
+                selector_name=selector_name,
+                selector_value=selector_value,
+            )
+        return await self._resolve_initiative_target(
+            selector_name=selector_name,
+            selector_value=selector_value,
+        )
+
+    async def create_status_update(
+        self,
+        *,
+        kind: LinearTargetKind,
+        target_id: str,
+        body: str,
+        health: LinearUpdateHealth,
+        is_diff_hidden: bool = False,
+    ) -> LinearPostedUpdate:
+        """Create a Linear project or initiative update."""
+        input_data: dict[str, Any] = {
+            "body": body,
+            "health": health,
+            "isDiffHidden": is_diff_hidden,
+        }
+        if kind == "project":
+            input_data["projectId"] = target_id
+            data = await self._post(_MUTATION_CREATE_PROJECT_UPDATE, {"input": input_data})
+            payload = data.get("projectUpdateCreate") or {}
+            node = payload.get("projectUpdate") or {}
+        else:
+            input_data["initiativeId"] = target_id
+            data = await self._post(_MUTATION_CREATE_INITIATIVE_UPDATE, {"input": input_data})
+            payload = data.get("initiativeUpdateCreate") or {}
+            node = payload.get("initiativeUpdate") or {}
+
+        if not payload.get("success"):
+            raise RuntimeError(f"Failed to create Linear {kind} update")
+
+        return LinearPostedUpdate(
+            kind=kind,
+            id=node.get("id", ""),
+            url=node.get("url", ""),
+            health=health,
+        )
+
+    async def _resolve_project_target(
+        self, *, selector_name: str, selector_value: str
+    ) -> LinearNamedTarget:
+        """Resolve a project target using one selector."""
+        if selector_name == "id":
+            data = await self._post(_QUERY_PROJECT_BY_ID, {"id": selector_value})
+            node = data.get("project")
+            if not node:
+                raise RuntimeError(f"Linear project not found for id '{selector_value}'")
+            return self._parse_named_target(node, kind="project")
+
+        if selector_name == "slug":
+            data = await self._post(_QUERY_PROJECTS_BY_SLUG, {"slug": selector_value})
+        else:
+            data = await self._post(_QUERY_PROJECTS_BY_NAME, {"name": selector_value})
+
+        nodes: list[dict[str, Any]] = data.get("projects", {}).get("nodes") or []
+        if not nodes:
+            raise RuntimeError(f"Linear project not found for {selector_name} '{selector_value}'")
+        if len(nodes) > 1:
+            raise RuntimeError(
+                "Multiple Linear projects matched "
+                f"{selector_name} '{selector_value}'. Use id instead."
+            )
+        return self._parse_named_target(nodes[0], kind="project")
+
+    async def _resolve_initiative_target(
+        self, *, selector_name: str, selector_value: str
+    ) -> LinearNamedTarget:
+        """Resolve an initiative target using one selector."""
+        if selector_name == "id":
+            data = await self._post(_QUERY_INITIATIVE_BY_ID, {"id": selector_value})
+            node = data.get("initiative")
+            if not node:
+                raise RuntimeError(f"Linear initiative not found for id '{selector_value}'")
+            return self._parse_named_target(node, kind="initiative")
+
+        if selector_name == "slug":
+            data = await self._post(_QUERY_INITIATIVES_BY_SLUG, {"slug": selector_value})
+        else:
+            data = await self._post(_QUERY_INITIATIVES_BY_NAME, {"name": selector_value})
+
+        nodes: list[dict[str, Any]] = data.get("initiatives", {}).get("nodes") or []
+        if not nodes:
+            raise RuntimeError(
+                f"Linear initiative not found for {selector_name} '{selector_value}'"
+            )
+        if len(nodes) > 1:
+            raise RuntimeError(
+                "Multiple Linear initiatives matched "
+                f"{selector_name} '{selector_value}'. Use id instead."
+            )
+        return self._parse_named_target(nodes[0], kind="initiative")
 
 
 def get_linear_bridge() -> LinearBridge:

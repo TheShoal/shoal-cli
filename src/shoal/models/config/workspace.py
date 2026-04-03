@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Literal, Self
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class CoordinatorConfig(BaseModel):
@@ -48,6 +50,26 @@ class SkillConfig(BaseModel):
     path: str = ""
 
 
+class TeamReportTargetConfig(BaseModel):
+    """Linear destination for posted team/sprint reports."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["project", "initiative"]
+    id: str = ""
+    slug: str = ""
+    name: str = ""
+
+    @model_validator(mode="after")
+    def validate_selector(self) -> Self:
+        selectors = [
+            value for value in (self.id.strip(), self.slug.strip(), self.name.strip()) if value
+        ]
+        if len(selectors) != 1:
+            raise ValueError("exactly one of id, slug, or name must be set")
+        return self
+
+
 class TeamConfig(BaseModel):
     """Team configuration for Linear integration."""
 
@@ -57,6 +79,7 @@ class TeamConfig(BaseModel):
     linear_slug: str
     default_template: str = ""
     worktree_dir: str = ""
+    report: TeamReportTargetConfig | None = None
 
 
 class WorkspaceConfig(BaseModel):

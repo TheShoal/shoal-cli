@@ -20,6 +20,7 @@ from shoal.cli.mode_cmd import app as mode_app
 from shoal.cli.nvim import app as nvim_app
 from shoal.cli.proactive import app as proactive_app
 from shoal.cli.remote import app as remote_app
+from shoal.cli.report import app as report_app
 from shoal.cli.robo import app as robo_app
 from shoal.cli.session_cmd import app as session_app
 from shoal.cli.setup import app as setup_app
@@ -493,6 +494,7 @@ app.add_typer(tag_app, name="tag", help="Session tags.")
 app.add_typer(team_app, name="team", help="Team configuration.")
 app.add_typer(template_app, name="template", help="Session templates.")
 app.add_typer(ticket_app, name="ticket", help="Linear ticket workflow.")
+app.add_typer(report_app, name="report", help="PM-facing reports.")
 app.add_typer(config_app, name="config", help="Configuration inspection.")
 app.add_typer(incident_app, name="incident", help="Incident supervision workflow.")
 app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")

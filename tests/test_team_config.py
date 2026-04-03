@@ -8,7 +8,25 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from shoal.models.config.workspace import TeamConfig, WorkspaceConfig
+from shoal.models.config.workspace import (
+    TeamConfig,
+    TeamReportTargetConfig,
+    WorkspaceConfig,
+)
+
+
+class TestTeamReportTargetConfig:
+    def test_slug_selector(self) -> None:
+        cfg = TeamReportTargetConfig(type="project", slug="backend-platform")
+        assert cfg.type == "project"
+        assert cfg.slug == "backend-platform"
+
+    def test_requires_exactly_one_selector(self) -> None:
+        with pytest.raises(ValidationError, match="exactly one of id, slug, or name"):
+            TeamReportTargetConfig(type="project")
+
+        with pytest.raises(ValidationError, match="exactly one of id, slug, or name"):
+            TeamReportTargetConfig(type="project", id="proj-1", slug="backend")
 
 
 class TestTeamConfig:
@@ -18,6 +36,7 @@ class TestTeamConfig:
         assert cfg.name == ""
         assert cfg.default_template == ""
         assert cfg.worktree_dir == ""
+        assert cfg.report is None
 
     def test_full(self) -> None:
         cfg = TeamConfig(
@@ -25,11 +44,14 @@ class TestTeamConfig:
             linear_slug="BE",
             default_template="usm-be-agent",
             worktree_dir="backend",
+            report=TeamReportTargetConfig(type="project", slug="backend-platform"),
         )
         assert cfg.name == "Backend Engineering"
         assert cfg.linear_slug == "BE"
         assert cfg.default_template == "usm-be-agent"
         assert cfg.worktree_dir == "backend"
+        assert cfg.report is not None
+        assert cfg.report.slug == "backend-platform"
 
     def test_missing_linear_slug_raises(self) -> None:
         with pytest.raises(ValidationError, match="linear_slug"):
@@ -85,6 +107,10 @@ class TestLoadWorkspaceConfigTeams:
                 default_template = "usm-be-agent"
                 worktree_dir = "backend"
 
+                [teams.be.report]
+                type = "project"
+                slug = "backend-platform"
+
                 [teams.fe]
                 linear_slug = "FE"
             """)
@@ -96,6 +122,8 @@ class TestLoadWorkspaceConfigTeams:
         assert ws.teams["be"].name == "Backend"
         assert ws.teams["be"].linear_slug == "BE"
         assert ws.teams["be"].default_template == "usm-be-agent"
+        assert ws.teams["be"].report is not None
+        assert ws.teams["be"].report.slug == "backend-platform"
         assert ws.teams["fe"].linear_slug == "FE"
         assert ws.teams["fe"].name == ""
 
