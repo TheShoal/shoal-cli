@@ -222,6 +222,9 @@ def mock_dirs(tmp_config: Path, tmp_state: Path, tmp_runtime: Path) -> tuple[Pat
         patch("shoal.services.mcp_pool.data_dir", return_value=tmp_state),
         patch("shoal.services.mcp_proxy.data_dir", return_value=tmp_state),
         patch("shoal.core.journal.data_dir", return_value=tmp_state),
+        # project_templates_dir() calls git.git_root(".") which resolves to the real
+        # repo root and leaks .shoal/templates/ into tests that expect a clean slate.
+        patch("shoal.core.config.project_templates_dir", return_value=None),
     ):
         yield tmp_config, tmp_state
         load_config.cache_clear()

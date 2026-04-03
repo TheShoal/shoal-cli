@@ -415,15 +415,14 @@ async def step_mcp_orchestration() -> TourResult:
             "sync_claw_conversations",
             "wait_for_completion",
         ]
-        ok = tool_names == expected_tools
+        ok = set(expected_tools).issubset(set(tool_names))
         if ok:
             get_console().print(
                 f"   [green]{Symbols.CHECK}[/green] {len(tools)} MCP tools registered"
             )
         else:
-            get_console().print(
-                f"   [red]{Symbols.CROSS}[/red] Expected {expected_tools}, got {tool_names}"
-            )
+            missing = sorted(set(expected_tools) - set(tool_names))
+            get_console().print(f"   [red]{Symbols.CROSS}[/red] Missing tools: {missing}")
 
         for tool_obj in sorted(tools, key=lambda t: t.name):
             annotations = tool_obj.annotations
