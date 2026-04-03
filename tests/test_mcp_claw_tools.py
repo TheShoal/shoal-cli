@@ -87,7 +87,7 @@ async def test_list_lobsters_not_available() -> None:
     from shoal.services.mcp_shoal_server import list_lobsters_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
-        with pytest.raises(ToolError, match="Claw tools require grpcio"):
+        with pytest.raises(ToolError, match="Lobster tools require grpcio"):
             await list_lobsters_tool()
 
 
@@ -162,7 +162,7 @@ async def test_lobster_status_not_available() -> None:
     from shoal.services.mcp_shoal_server import lobster_status_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
-        with pytest.raises(ToolError, match="Claw tools require grpcio"):
+        with pytest.raises(ToolError, match="Lobster tools require grpcio"):
             await lobster_status_tool(lobster_id="claw-1")
 
 
@@ -236,7 +236,7 @@ async def test_lobster_health_not_available() -> None:
     from shoal.services.mcp_shoal_server import lobster_health_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
-        with pytest.raises(ToolError, match="Claw tools require grpcio"):
+        with pytest.raises(ToolError, match="Lobster tools require grpcio"):
             await lobster_health_tool(lobster_id="claw-1")
 
 
@@ -290,7 +290,7 @@ async def test_send_to_claw_not_available() -> None:
     from shoal.services.mcp_shoal_server import send_to_claw_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
-        with pytest.raises(ToolError, match="Claw tools require grpcio"):
+        with pytest.raises(ToolError, match="Lobster tools require grpcio"):
             await send_to_claw_tool(claw_id="claw-1", message="Test")
 
 
@@ -339,7 +339,7 @@ async def test_get_agent_card_not_available() -> None:
     from shoal.services.mcp_shoal_server import get_agent_card_tool
 
     with patch.object(lobster_a2a, "GRPC_AVAILABLE", False):
-        with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
+        with pytest.raises(ToolError, match="Lobster A2A bridge requires grpcio"):
             await get_agent_card_tool(lobster_id="claw-1")
 
 
@@ -427,7 +427,7 @@ async def test_send_a2a_message_not_available() -> None:
     from shoal.services.mcp_shoal_server import send_a2a_message_tool
 
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", False):
-        with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
+        with pytest.raises(ToolError, match="Lobster A2A bridge requires grpcio"):
             await send_a2a_message_tool(lobster_id="claw-1", message="Test")
 
 
@@ -484,7 +484,7 @@ async def test_list_a2a_tasks_not_available() -> None:
     from shoal.services.mcp_shoal_server import list_a2a_tasks_tool
 
     with patch("shoal.integrations.lobster.lobster_a2a.GRPC_AVAILABLE", False):
-        with pytest.raises(ToolError, match="Claw A2A bridge requires grpcio"):
+        with pytest.raises(ToolError, match="Lobster A2A bridge requires grpcio"):
             await list_a2a_tasks_tool(lobster_id="claw-1")
 
 

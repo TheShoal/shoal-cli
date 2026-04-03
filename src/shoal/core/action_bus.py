@@ -24,6 +24,7 @@ Usage::
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from shoal.models.action import ActionStatus, SessionAction
@@ -191,7 +192,6 @@ async def deny_action(
     return action
 
 
-
 async def watch_pending_actions(
     *,
     target_session: str | None = None,
@@ -216,9 +216,7 @@ async def watch_pending_actions(
     Returns:
         Pending actions found, or an empty list if none arrived before timeout.
     """
-    import asyncio
-
-    deadline = asyncio.get_event_loop().time() + timeout_seconds
+    deadline = asyncio.get_running_loop().time() + timeout_seconds
     while True:
         actions = await list_pending_actions(
             target_session=target_session,
@@ -227,7 +225,7 @@ async def watch_pending_actions(
         )
         if actions:
             return actions
-        remaining = deadline - asyncio.get_event_loop().time()
+        remaining = deadline - asyncio.get_running_loop().time()
         if remaining <= 0:
             return []
         await asyncio.sleep(min(poll_interval, remaining))

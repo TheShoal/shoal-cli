@@ -1365,7 +1365,7 @@ async def list_lobsters_tool() -> list[dict[str, str]]:
     from shoal.integrations.lobster import lobster_a2a
 
     if not lobster_a2a.GRPC_AVAILABLE:
-        raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
+        raise ToolError("Lobster tools require grpcio. Install with: pip install shoal[lobster]")
 
     cfg = load_config()
     known_lobsters = cfg.lobster.known_lobsters if hasattr(cfg, "lobster") else {}
@@ -1388,7 +1388,7 @@ async def lobster_status_tool(lobster_id: str | list[str]) -> dict[str, object]:
     from shoal.integrations.lobster import lobster_a2a
 
     if not lobster_a2a.GRPC_AVAILABLE:
-        raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
+        raise ToolError("Lobster tools require grpcio. Install with: pip install shoal[lobster]")
 
     cfg = load_config()
     known_lobsters = cfg.lobster.known_lobsters if hasattr(cfg, "lobster") else {}
@@ -1443,7 +1443,7 @@ async def lobster_health_tool(lobster_id: str) -> dict[str, object]:
     from shoal.integrations.lobster import lobster_a2a
 
     if not lobster_a2a.GRPC_AVAILABLE:
-        raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
+        raise ToolError("Lobster tools require grpcio. Install with: pip install shoal[lobster]")
 
     cfg = load_config()
     grpc_addr = cfg.lobster.known_lobsters.get(lobster_id, cfg.lobster.grpc_addr)
@@ -1480,7 +1480,7 @@ async def send_to_claw_tool(claw_id: str, message: str, employee_id: str = "") -
     from shoal.integrations.lobster import lobster_a2a
 
     if not lobster_a2a.GRPC_AVAILABLE:
-        raise ToolError("Claw tools require grpcio. Install with: pip install shoal[claw]")
+        raise ToolError("Lobster tools require grpcio. Install with: pip install shoal[lobster]")
 
     return await lobster_a2a.send_a2a_message_tool(
         lobster_id=claw_id,
@@ -1526,7 +1526,9 @@ async def get_agent_card_tool(lobster_id: str) -> dict[str, object]:
     from shoal.integrations.lobster import lobster_a2a
 
     if not lobster_a2a.GRPC_AVAILABLE:
-        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+        raise ToolError(
+            "Lobster A2A bridge requires grpcio. Install with: pip install shoal[lobster]"
+        )
 
     return cast(dict[str, object], await lobster_a2a.get_agent_card_tool(lobster_id))
 
@@ -1571,7 +1573,9 @@ async def send_a2a_message_tool(
     from shoal.integrations.lobster import lobster_a2a
 
     if not lobster_a2a.GRPC_AVAILABLE:
-        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+        raise ToolError(
+            "Lobster A2A bridge requires grpcio. Install with: pip install shoal[lobster]"
+        )
 
     return await lobster_a2a.send_a2a_message_tool(
         lobster_id=lobster_id,
@@ -1616,7 +1620,9 @@ async def list_a2a_tasks_tool(
     from shoal.integrations.lobster import lobster_a2a
 
     if not lobster_a2a.GRPC_AVAILABLE:
-        raise ToolError("Claw A2A bridge requires grpcio. Install with: pip install shoal[claw]")
+        raise ToolError(
+            "Lobster A2A bridge requires grpcio. Install with: pip install shoal[lobster]"
+        )
 
     return cast(
         dict[str, object],
@@ -1658,6 +1664,7 @@ async def sync_lobster_conversations_tool(
     Returns:
         Dict with imported and exported counts.
     """
+    import asyncio
     from datetime import UTC, datetime
 
     from shoal.core.config import load_config
@@ -1702,7 +1709,8 @@ async def sync_lobster_conversations_tool(
     exported = 0
 
     if direction in ("import", "both"):
-        imported = import_qmd_to_journal(
+        imported = await asyncio.to_thread(
+            import_qmd_to_journal,
             conversations_dir=conv_dir,
             journal_path=jpath,
             session_id=s.id,
@@ -1711,7 +1719,8 @@ async def sync_lobster_conversations_tool(
 
     if direction in ("export", "both"):
         export_dir = conv_dir / "shoal-exports" / s.name
-        exported = export_journal_to_qmd(
+        exported = await asyncio.to_thread(
+            export_journal_to_qmd,
             journal_path=jpath,
             output_dir=export_dir,
             session_id=s.id,

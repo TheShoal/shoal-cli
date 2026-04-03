@@ -31,10 +31,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger("shoal.message_bus")
 
@@ -203,7 +199,7 @@ async def watch_messages(
         All matching messages found within the timeout, oldest-first.
         Returns an empty list if no messages arrive before the timeout.
     """
-    deadline = asyncio.get_event_loop().time() + timeout_seconds
+    deadline = asyncio.get_running_loop().time() + timeout_seconds
     while True:
         messages = await receive_messages(
             session,
@@ -215,11 +211,10 @@ async def watch_messages(
         )
         if messages:
             return messages
-        remaining = deadline - asyncio.get_event_loop().time()
+        remaining = deadline - asyncio.get_running_loop().time()
         if remaining <= 0:
             return []
         await asyncio.sleep(min(poll_interval, remaining))
-
 
 
 async def get_workflow_messages(
@@ -249,10 +244,10 @@ async def get_workflow_messages(
     messages = await db.get_workflow_messages(
         correlation_id, kind=kind, limit=limit, after_id=after_id
     )
-    logger.debug(
-        "AgentBus: workflow %s returned %d messages", correlation_id, len(messages)
-    )
+    logger.debug("AgentBus: workflow %s returned %d messages", correlation_id, len(messages))
     return messages
+
+
 async def purge_old_messages(older_than_seconds: int = 86_400) -> int:
     """Purge consumed messages older than the given age.
 

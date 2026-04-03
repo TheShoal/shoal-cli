@@ -1,4 +1,4 @@
-"""A2A gRPC bridge — translates proto messages to/from Pydantic and patches ClawClient.
+"""A2A gRPC bridge — translates proto messages to/from Pydantic and patches LobsterClient.
 
 All gRPC-touching code is guarded behind ``try/except ImportError`` so this module
 is safely importable when grpcio is not installed.
@@ -6,7 +6,7 @@ is safely importable when grpcio is not installed.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from shoal.models.config.agent_card import (
     AgentCapabilities,
@@ -14,9 +14,6 @@ from shoal.models.config.agent_card import (
     AgentProvider,
     AgentSkill,
 )
-
-if TYPE_CHECKING:
-    pass
 
 # ---------------------------------------------------------------------------
 # Optional gRPC imports
@@ -112,10 +109,10 @@ def proto_to_agent_card(
 if GRPC_AVAILABLE:
 
     async def _get_agent_card_impl(self: Any) -> AgentCard:
-        """Fetch this Claw's AgentCard via the A2A GetAgentCard RPC.
+        """Fetch this Lobster's AgentCard via the A2A GetAgentCard RPC.
 
         Returns:
-            Populated :class:`AgentCard` describing the remote Claw.
+            Populated :class:`AgentCard` describing the remote Lobster.
 
         Raises:
             RuntimeError: If the RPC call fails.
@@ -138,7 +135,7 @@ if GRPC_AVAILABLE:
         task_id: str | None = None,
         metadata: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        """Send a message to this Claw via the A2A SendMessage RPC.
+        """Send a message to this Lobster via the A2A SendMessage RPC.
 
         Args:
             message: The text content to send.
@@ -225,7 +222,7 @@ if GRPC_AVAILABLE:
         status: str | None = None,
         page_size: int = 50,
     ) -> list[dict[str, Any]]:
-        """List tasks on this Claw via the A2A ListTasks RPC.
+        """List tasks on this Lobster via the A2A ListTasks RPC.
 
         Args:
             context_id: Optional context ID filter.

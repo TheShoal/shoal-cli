@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ClawTaskStatus(StrEnum):
@@ -44,6 +44,8 @@ class SummaryBudget(StrEnum):
 
 class ClawTask(BaseModel):
     """A scheduled task in the claw subsystem."""
+
+    model_config = ConfigDict(extra="forbid")
 
     id: int
     session: str | None = None
