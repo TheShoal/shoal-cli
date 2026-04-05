@@ -119,6 +119,19 @@ class ProactiveConfig(BaseModel):
     """How long to retain failure context packets before expiry."""
 
 
+class ClawConfig(BaseModel):
+    """Claw scheduling daemon configuration — maps to [claw] in config.toml."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    poll_interval: int = 30
+    """Seconds between cron/timer trigger checks."""
+    default_template: str = ""
+    """Fallback template when a trigger doesn't specify one."""
+    log_file: str = "claw.log"
+
+
 class ShoalConfig(BaseModel):
     """Root config — maps to ~/.config/shoal/config.toml."""
 
@@ -133,3 +146,4 @@ class ShoalConfig(BaseModel):
     operator: OperatorConfig = Field(default_factory=OperatorConfig)
     dreamer: DreamerConfig = Field(default_factory=DreamerConfig)
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
+    claw: ClawConfig = Field(default_factory=ClawConfig)

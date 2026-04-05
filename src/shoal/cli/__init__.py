@@ -9,6 +9,7 @@ from typing import Annotated
 import typer
 
 import shoal
+from shoal.cli.claw import app as claw_app
 from shoal.cli.config_cmd import app as config_app
 from shoal.cli.demo import app as demo_app
 from shoal.cli.fin import app as fin_app
@@ -481,6 +482,7 @@ def _popup_alias() -> None:
 
 
 # Sub-groups
+app.add_typer(claw_app, name="claw", help="Autonomous scheduling and triggers.")
 app.add_typer(wt_app, name="wt", help="Worktree management.")
 app.add_typer(wt_app, name="worktree", hidden=True)
 app.add_typer(mcp_app, name="mcp", help="MCP server pool.")

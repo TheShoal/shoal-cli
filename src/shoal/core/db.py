@@ -7,7 +7,10 @@ import time
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from shoal.models.claw import ExecutionStatus, TriggerDef, TriggerExecution
 
 import aiosqlite
 
@@ -225,6 +228,39 @@ class ShoalDB:
         await self._conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_fc_session
             ON failure_contexts(session_id, consumed_at)
+        """)
+        # Claw: trigger definitions.
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS claw_triggers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                data TEXT NOT NULL
+            )
+        """)
+        await self._conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_claw_triggers_name
+            ON claw_triggers(name)
+        """)
+        # Claw: trigger execution history.
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS claw_executions (
+                id TEXT PRIMARY KEY,
+                trigger_id TEXT NOT NULL,
+                trigger_name TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                session_name TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'running',
+                started_at TEXT NOT NULL,
+                completed_at TEXT
+            )
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_claw_exec_trigger
+            ON claw_executions(trigger_id)
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_claw_exec_status
+            ON claw_executions(status)
         """)
         # Backfill status_since for existing sessions that predate the field.
         # For each session whose serialised JSON lacks status_since, set it to
@@ -1066,6 +1102,126 @@ class ShoalDB:
             )
             await conn.commit()
         return await self.get_session_action(action_id)
+
+    # ------------------------------------------------------------------
+    # Claw triggers
+    # ------------------------------------------------------------------
+
+    async def save_trigger(self, trigger: "TriggerDef") -> None:
+        """Save or update a claw trigger definition."""
+        async with self._connection() as conn:
+            await conn.execute(
+                "INSERT OR REPLACE INTO claw_triggers (id, name, data) VALUES (?, ?, ?)",
+                (trigger.id, trigger.name, trigger.model_dump_json()),
+            )
+            await conn.commit()
+
+    async def get_trigger(self, name: str) -> "TriggerDef | None":
+        """Get a trigger by name."""
+        from shoal.models.claw import TriggerDef
+
+        async with (
+            self._connection() as conn,
+            conn.execute("SELECT data FROM claw_triggers WHERE name = ?", (name,)) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return TriggerDef.model_validate_json(row[0])
+        return None
+
+    async def list_triggers(self) -> "list[TriggerDef]":
+        """List all claw triggers."""
+        from shoal.models.claw import TriggerDef
+
+        async with (
+            self._connection() as conn,
+            conn.execute("SELECT data FROM claw_triggers ORDER BY name") as cursor,
+        ):
+            rows = await cursor.fetchall()
+            return [TriggerDef.model_validate_json(row[0]) for row in rows]
+
+    async def delete_trigger(self, name: str) -> None:
+        """Delete a trigger by name."""
+        async with self._connection() as conn:
+            await conn.execute("DELETE FROM claw_triggers WHERE name = ?", (name,))
+            await conn.commit()
+
+    async def save_execution(self, execution: "TriggerExecution") -> None:
+        """Record a trigger execution."""
+        async with self._connection() as conn:
+            await conn.execute(
+                "INSERT INTO claw_executions"
+                " (id, trigger_id, trigger_name, session_id, session_name,"
+                "  status, started_at, completed_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    execution.id,
+                    execution.trigger_id,
+                    execution.trigger_name,
+                    execution.session_id,
+                    execution.session_name,
+                    execution.status,
+                    execution.started_at,
+                    execution.completed_at,
+                ),
+            )
+            await conn.commit()
+
+    async def list_executions(
+        self, trigger_id: str | None = None, *, limit: int = 50
+    ) -> "list[TriggerExecution]":
+        """List trigger executions, optionally filtered by trigger."""
+        from shoal.models.claw import ExecutionStatus, TriggerExecution
+
+        query = (
+            "SELECT id, trigger_id, trigger_name, session_id,"
+            " session_name, status, started_at, completed_at"
+            " FROM claw_executions"
+        )
+        params: tuple[object, ...] = ()
+        if trigger_id is not None:
+            query += " WHERE trigger_id = ?"
+            params = (trigger_id,)
+        query += " ORDER BY started_at DESC LIMIT ?"
+        params = (*params, limit)
+        async with self._connection() as conn, conn.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [
+                TriggerExecution(
+                    id=str(row[0]),
+                    trigger_id=str(row[1]),
+                    trigger_name=str(row[2]),
+                    session_id=str(row[3]),
+                    session_name=str(row[4]),
+                    status=ExecutionStatus(str(row[5])),
+                    started_at=str(row[6]),
+                    completed_at=str(row[7]) if row[7] else "",
+                )
+                for row in rows
+            ]
+
+    async def update_execution_status(
+        self, execution_id: str, status: "ExecutionStatus", completed_at: str = ""
+    ) -> None:
+        """Update an execution's status and optional completion timestamp."""
+        async with self._connection() as conn:
+            await conn.execute(
+                "UPDATE claw_executions SET status = ?, completed_at = ? WHERE id = ?",
+                (status.value, completed_at, execution_id),
+            )
+            await conn.commit()
+
+    async def count_active_executions(self, trigger_id: str) -> int:
+        """Count running executions for a trigger (for max_concurrent enforcement)."""
+        async with (
+            self._connection() as conn,
+            conn.execute(
+                "SELECT COUNT(*) FROM claw_executions WHERE trigger_id = ? AND status = 'running'",
+                (trigger_id,),
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            return int(row[0]) if row else 0
 
 
 def _row_to_action(row: Any) -> SessionAction:

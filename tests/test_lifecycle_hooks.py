@@ -34,7 +34,7 @@ class TestLifecycleEvent:
         assert LifecycleEvent.status_changed == "status_changed"
 
     def test_member_count(self) -> None:
-        assert len(LifecycleEvent) == 7
+        assert len(LifecycleEvent) == 8
 
     def test_is_strenum(self) -> None:
         assert isinstance(LifecycleEvent.session_created, str)

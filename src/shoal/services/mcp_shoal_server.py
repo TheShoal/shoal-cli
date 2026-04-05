@@ -1686,6 +1686,137 @@ async def list_worktree_files_tool(
 
 
 # ---------------------------------------------------------------------------
+# Claw triggers
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="claw_add_trigger",
+    description="Create a claw trigger for autonomous scheduled/event-driven session spawning.",
+)
+async def claw_add_trigger_tool(
+    name: str,
+    kind: str,
+    template: str,
+    cron_expr: str = "",
+    event_name: str = "",
+    event_filter: dict[str, str] | None = None,
+    file_pattern: str = "",
+    fire_at: str = "",
+    prompt: str = "",
+    session_name_prefix: str = "",
+    max_concurrent: int = 1,
+    cooldown_seconds: int = 60,
+    tags: list[str] | None = None,
+) -> dict[str, Any]:
+    """Create a claw trigger for autonomous session spawning.
+
+    Args:
+        name: Unique trigger name.
+        kind: Trigger kind (cron, event, file, timer, webhook).
+        template: Template name for spawned sessions.
+        cron_expr: 5-field cron expression (for kind=cron).
+        event_name: Lifecycle event name (for kind=event).
+        event_filter: Exact-match filter on event kwargs (for kind=event).
+        file_pattern: fnmatch glob (for kind=file).
+        fire_at: ISO timestamp (for kind=timer).
+        prompt: Initial prompt for spawned sessions.
+        session_name_prefix: Prefix for auto-generated session names.
+        max_concurrent: Max active sessions from this trigger.
+        cooldown_seconds: Min seconds between firings.
+        tags: Tags applied to spawned sessions.
+    """
+    import uuid
+    from datetime import UTC, datetime
+
+    from shoal.core.db import get_db
+    from shoal.models.claw import TriggerDef, TriggerKind
+
+    try:
+        trigger_kind = TriggerKind(kind)
+    except ValueError:
+        valid = "cron, event, file, timer, webhook"
+        raise ToolError(f"Invalid trigger kind: {kind}. Must be: {valid}") from None
+
+    db = await get_db()
+    await db.connect()
+    existing = await db.get_trigger(name)
+    if existing:
+        raise ToolError(f"Trigger '{name}' already exists")
+
+    trigger = TriggerDef(
+        id=uuid.uuid4().hex[:8],
+        name=name,
+        kind=trigger_kind,
+        template=template,
+        cron_expr=cron_expr,
+        event_name=event_name,
+        event_filter=event_filter or {},
+        file_pattern=file_pattern,
+        fire_at=fire_at,
+        prompt=prompt,
+        session_name_prefix=session_name_prefix or name,
+        max_concurrent=max_concurrent,
+        cooldown_seconds=cooldown_seconds,
+        tags=tags or [],
+        created_at=datetime.now(UTC).isoformat(),
+    )
+    await db.save_trigger(trigger)
+    return {"name": name, "kind": kind, "template": template, "enabled": True}
+
+
+@mcp.tool(
+    name="claw_list_triggers",
+    description="List all claw triggers.",
+)
+async def claw_list_triggers_tool() -> dict[str, Any]:
+    """List all configured claw triggers."""
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    await db.connect()
+    triggers = await db.list_triggers()
+    return {
+        "triggers": [
+            {
+                "name": t.name,
+                "kind": t.kind.value,
+                "enabled": t.enabled,
+                "template": t.template,
+                "fire_count": t.fire_count,
+                "last_fired_at": t.last_fired_at,
+            }
+            for t in triggers
+        ],
+        "count": len(triggers),
+    }
+
+
+@mcp.tool(
+    name="claw_fire_trigger",
+    description="Manually fire a claw trigger, spawning its configured session.",
+)
+async def claw_fire_trigger_tool(name: str) -> dict[str, str]:
+    """Manually fire a claw trigger by name.
+
+    Args:
+        name: Trigger name to fire.
+    """
+    from shoal.core.config import load_config
+    from shoal.core.db import get_db
+    from shoal.services.claw_daemon import fire_trigger
+
+    db = await get_db()
+    await db.connect()
+    trigger = await db.get_trigger(name)
+    if not trigger:
+        raise ToolError(f"Trigger '{name}' not found")
+
+    await fire_trigger(trigger, load_config().claw)
+    return {"status": "fired", "trigger": name}
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
