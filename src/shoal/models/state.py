@@ -32,7 +32,7 @@ class LifecycleEvent(StrEnum):
     command_failed = "command_failed"
     """Fired by Watcher when a shell command exits with a non-zero code."""
     trigger_fired = "trigger_fired"
-    """Fired by ClawDaemon when a trigger spawns a session."""
+    """Legacy event emitted when automation spawns a session."""
 
 
 class RuntimeKind(StrEnum):

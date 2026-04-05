@@ -1,5 +1,6 @@
 """Tests for core/config.py — TOML loading and path helpers."""
 
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -55,6 +56,31 @@ enabled = false
         )
         cfg = load_config()
         assert cfg.general.use_nerd_fonts is False
+        load_config.cache_clear()
+
+    def test_legacy_claw_section_is_ignored_with_warning(
+        self, mock_dirs: tuple[Path, Path], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        tmp_config, _ = mock_dirs
+        load_config.cache_clear()
+        (tmp_config / "config.toml").write_text(
+            """
+[general]
+default_tool = "opencode"
+
+[notifications]
+enabled = false
+
+[claw]
+enabled = true
+poll_interval = 5
+"""
+        )
+        with caplog.at_level(logging.WARNING, logger="shoal.config"):
+            cfg = load_config()
+        assert cfg.general.default_tool == "opencode"
+        assert cfg.notifications.enabled is False
+        assert "deprecated [claw]" in caplog.text
         load_config.cache_clear()
 
 
@@ -555,6 +581,27 @@ data_dir = "~/.local/share/shoal"
             """
 [general]
 default_tool = "opencode"
+
+[bogus_section]
+foo = "bar"
+"""
+        )
+        with pytest.raises(ConfigLoadError, match="invalid config"):
+            load_config()
+        load_config.cache_clear()
+
+    def test_unknown_top_level_section_still_fails_with_legacy_claw(
+        self, mock_dirs: tuple[Path, Path]
+    ) -> None:
+        tmp_config, _ = mock_dirs
+        load_config.cache_clear()
+        (tmp_config / "config.toml").write_text(
+            """
+[general]
+default_tool = "opencode"
+
+[claw]
+enabled = true
 
 [bogus_section]
 foo = "bar"

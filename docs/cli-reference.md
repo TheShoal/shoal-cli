@@ -185,26 +185,6 @@ Templates can declare a `[template.git]` block that Shoal applies to the worktre
 
 See [Local Templates — Per-Session Git Identity](LOCAL_TEMPLATES.md#per-session-git-identity).
 
-## Lobster Party Integration
-
-`shoal lobster` requires the `lobster` optional extra:
-
-```bash
-uv add 'shoal-cli[lobster]'
-```
-
-| Command | Description |
-|---------|-------------|
-| `shoal lobster ping <id>` | Fetch AgentCard — agent discovery smoke-test (`--json`) |
-| `shoal lobster send <id> <msg>` | Send a message and print the response (`--task-id`, `--json`) |
-| `shoal lobster tasks <id>` | List tasks (`--context`, `--status`, `--json`) |
-
-Lobster identifiers are configured in `[lobster] known_lobsters` in `~/.config/shoal/config.toml`.
-
-```bash
-shoal sync <session>     # sync session journal with a Lobster QMD conversation file
-```
-
 ## MCP Tools reference
 
 Key tools exposed by `shoal-orchestrator` beyond what `shoal mcp ls` shows:

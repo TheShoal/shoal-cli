@@ -5,7 +5,6 @@ to work unchanged across the codebase.
 """
 
 from shoal.models.config.general import (
-    ClawConfig,
     DreamerAIConfig,
     DreamerConfig,
     GeneralConfig,
@@ -49,7 +48,6 @@ from shoal.models.config.workspace import (
 )
 
 __all__ = [
-    "ClawConfig",
     "CoordinatorConfig",
     "DetectionPatterns",
     "DreamerAIConfig",

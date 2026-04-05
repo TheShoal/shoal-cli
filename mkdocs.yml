@@ -117,6 +117,7 @@ nav:
           - Worktree Environment Init: WORKTREE_ENV_INIT.md
           - Composition Gateway: composition-gateway.md
           - Transport Spike: transport-spike.md
+          - Lobster Boundary ADR: project/lobster-boundary-adr.md
       - Archive:
           - Overview: archive/README.md
           - Phase 2 Handoff: archive/PHASE_2_HANDOFF.md

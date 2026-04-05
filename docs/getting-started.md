@@ -17,7 +17,6 @@ Before you start, understand the pieces Shoal connects:
 - **Worktree**: A Git worktree. Shoal gives each agent its own isolated branch and filesystem so they can work in parallel without overwriting your current checked-out state.
 - **Pane/Session**: A tmux construct. Shoal uses tmux to persist agent shells. You can attach, detach, and survive network drops.
 - **MCP (Model Context Protocol)**: The standard that lets Shoal expose context and tools to agents. The `shoal-orchestrator` MCP server lets one agent inspect or control others.
-- **Claw**: The orchestration service component within Shoal architecture that handles agent topologies, routing, and concurrent lifecycles (distinct from the CLI frontend).
 - **Template**: A declarative configuration for a session (which shell to use, which tools to attach, what to run on startup).
 - **Fin**: A lightweight protocol for passing initialization data or contracts to an agent when it starts.
 

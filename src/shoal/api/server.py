@@ -826,29 +826,6 @@ async def detach_mcp_from_session(session_id: str, mcp_name: str) -> None:
     await remove_mcp_from_session(session_id, mcp_name)
 
 
-@app.post("/claw/trigger/{name}")
-async def fire_claw_trigger(name: str) -> dict[str, str]:
-    """Fire a webhook-type claw trigger via HTTP."""
-    from shoal.core.config import load_config
-    from shoal.core.db import get_db
-    from shoal.services.claw_daemon import fire_trigger
-
-    db = await get_db()
-    trigger = await db.get_trigger(name)
-    if not trigger:
-        raise HTTPException(status_code=404, detail=f"Trigger '{name}' not found")
-    if not trigger.enabled:
-        raise HTTPException(status_code=400, detail=f"Trigger '{name}' is disabled")
-    if trigger.kind.value != "webhook":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Trigger '{name}' is not a webhook trigger",
-        )
-
-    await fire_trigger(trigger, load_config().claw)
-    return {"status": "fired", "trigger": name}
-
-
 app.mount("/ui", create_dashboard_app())
 
 

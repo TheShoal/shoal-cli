@@ -153,6 +153,19 @@ def scaffold_defaults() -> list[str]:
     return created
 
 
+def _normalize_legacy_root_config(data: dict[str, Any], path: Path) -> dict[str, Any]:
+    """Strip deprecated top-level config sections before schema validation."""
+    normalized = dict(data)
+    if "claw" in normalized:
+        logger.warning(
+            "Ignoring deprecated [claw] config section in %s; "
+            "built-in Claw scheduler has been removed",
+            path,
+        )
+        normalized.pop("claw", None)
+    return normalized
+
+
 @lru_cache(maxsize=1)
 def load_config() -> ShoalConfig:
     """Load and cache the main config.toml."""
@@ -168,7 +181,8 @@ def load_config() -> ShoalConfig:
     except tomllib.TOMLDecodeError as e:
         raise ConfigLoadError(path, f"malformed TOML: {e}") from e
     try:
-        return ShoalConfig.model_validate(data)
+        normalized = _normalize_legacy_root_config(data, path)
+        return ShoalConfig.model_validate(normalized)
     except ValidationError as e:
         raise ConfigLoadError(path, f"invalid config: {e}") from e
 

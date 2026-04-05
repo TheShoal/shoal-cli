@@ -63,4 +63,4 @@ uv tool install shoal-cli          # latest
 uv tool install shoal-cli==0.37.2  # pinned
 ```
 
-Optional extras: `shoal-cli[mcp]`, `shoal-cli[lobster]`
+Optional extras: `shoal-cli[mcp]`
