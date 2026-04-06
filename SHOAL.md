@@ -9,6 +9,7 @@ Shoal is the operator control plane above agent runtimes. It coordinates paralle
 - Maturity: high (feature-rich, production-like workflow coverage)
 - Reality: core UX and architecture are strong, but tool status fidelity varies by backend
 - Risk: capability sprawl without clear boundary docs for what belongs in Shoal vs external plugins/frameworks
+- Experimental autonomy path: Hermes-over-Shoal works locally for read-only cron digests and bounded team supervision, but it remains in development and should stay behind a strict MCP whitelist.
 
 ## Tool strategy (2026 direction)
 
@@ -16,6 +17,7 @@ Shoal is the operator control plane above agent runtimes. It coordinates paralle
 - OpenCode remains supported for compatibility and migration, but status detection is best-effort.
 - OpenShell-class runtimes fit under Shoal as optional secure worker substrates; they own sandboxing and execution policy while Shoal owns session topology, lifecycle, and observability.
 - Fins/plugins are the preferred path for exposing additional agent runtimes and custom orchestration behavior.
+- External autonomy belongs above Shoal: Hermes-style schedulers can connect over HTTP MCP, but Shoal should remain the execution control plane.
 - Goal: move status/lifecycle toward explicit tool event contracts (when available) and minimize regex-only scraping.
 
 ## Medium-term outcomes
@@ -45,6 +47,7 @@ Shoal is the operator control plane above agent runtimes. It coordinates paralle
 - Add lifecycle hook package loading for fins with clear isolation boundaries.
 - Validate Fin/Pisces interoperability through concrete adapter examples.
 - Keep Pisces compatibility stable while extension boundaries are clarified.
+- Harden the Hermes-over-Shoal path before broader rollout: reconcile spawn retries, keep worker prompts read-only by default, and package the local-only operator setup.
 
 ## Recently completed (2026-02-25)
 

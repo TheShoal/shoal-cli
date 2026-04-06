@@ -217,7 +217,7 @@ Released 2026-04-01
 - ~~**FsWatcher + command failure events**~~: `fs_watcher.py` (watchfiles, now core dep); `file_changed`/`command_failed` lifecycle events; `shoal proactive fs-watch` CLI. Shipped this session.
 - ~~**Agent Bus**~~: `messages` + `failure_contexts` SQLite tables; `message_bus.py`; `send_session_message`, `receive_session_messages`, `mark_session_message_consumed` MCP tools; `shoal proactive message` CLI. Shipped this session.
 - ~~**Proactive Supervisor (Scout)**~~: `proactive_supervisor.py` subscribes to `command_failed`, stores failure context packets; `get_failure_context` MCP tool with `consume` flag; `ProactiveSupervisorConfig` in `RoboProfileConfig`. Shipped this session.
-- **Live Lobster gRPC validation**: End-to-end smoke test against a real Lobster endpoint — `get_agent_card()` then `send_message()`. `shoal[lobster]` extra and proto stubs are in place (v0.30.0); this is pure integration validation against a running Lobster orchestrator. Requires prod endpoint access.
+- **Experimental Hermes-over-Shoal autonomy**: Keep the local-only HTTP/MCP supervisor path in development — strict whitelist, read-first fleet digests, bounded team spawning, and retry reconciliation before broader rollout.
 - **Server Composition Gateway**: Per-session MCP aggregation via FastMCP `mount()` — investigated, no-go for now ([spike findings](docs/composition-gateway.md)). Revisit when FastMCP adds UDS transport or robo needs unified cross-session MCP.
 - ~~**`branch_prefix` enforcement in `shoal new`**~~ — shipped v0.37.0 (`infer_branch_name` + `[template.git]` wired through `session_create.py` and MCP server).
 - **direnv/mise integration** (deferred): Opt-in `env_manager` field on templates. Explicit opt-in only, never auto-detect.

@@ -214,6 +214,14 @@ shoal mcp doctor         # protocol-level health check
 shoal mcp registry       # show registered servers and transport
 ```
 
+!!! note "Experimental external autonomy"
+    Hermes can drive Shoal over HTTP MCP as an external scheduler/supervisor.
+    This path is documented and locally verified for read-only fleet-health
+    cron runs, but it remains in development. Keep it local-only, use a
+    strict tool whitelist, prefer `session_snapshot` for fleet reads, and
+    treat Shoal as the execution control plane rather than the scheduler.
+
+
 ### MCP Tool Reference
 
 #### Session lifecycle

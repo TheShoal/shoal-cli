@@ -88,6 +88,13 @@ permission model; Shoal operates above it as the operator surface.
 - **Not a desktop app.** The control plane runs in your terminal and survives SSH, overnight
   runs, and remote fleets without changing the UX.
 
+!!! note "Experimental external supervisors"
+    Shoal can now be driven by external schedulers such as Hermes over HTTP
+    MCP. That path is real but still in development: keep it local-only,
+    start with read-only fleet digests, and use a strict whitelist until the
+    operator loop is proven.
+
+
 The move Shoal makes: give serious developers a way to operate multiple coding agents as a
 coherent system instead of a growing pile of chat threads.
 

@@ -14,7 +14,7 @@ Version is declared in `src/shoal/__init__.py` as `__version__`. Update it befor
 
 ```python
 # src/shoal/__init__.py
-__version__ = "0.38.0"
+__version__ = "0.39.0"
 ```
 
 `pyproject.toml` reads this via `hatch.version` dynamic versioning — no dual update required.
@@ -60,7 +60,7 @@ Package name: **`shoal-cli`**
 
 ```bash
 uv tool install shoal-cli          # latest
-uv tool install shoal-cli==0.37.2  # pinned
+uv tool install shoal-cli==0.39.0  # pinned
 ```
 
 Optional extras: `shoal-cli[mcp]`

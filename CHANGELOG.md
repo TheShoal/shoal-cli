@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.0] "Reports & Experimental Autonomy" - 2026-04-06
+
+**Team reporting, ticket routing, and a documented Hermes-over-Shoal experimental supervisor path.**
+
+### Added
+- **`shoal ticket` workflows**: Start, inspect, and finish Linear-linked sessions from the CLI.
+- **`shoal report` workflows**: Generate session, team, and sprint summaries; optionally post sprint updates to Linear.
+- **Team report-target visibility**: `shoal team ls` now surfaces configured report destinations from `.shoal/workspace.toml`.
+
+### Changed
+- **Experimental Hermes-over-Shoal path**: Documented a local-only HTTP/MCP profile where Hermes owns scheduling and cron while Shoal remains the execution control plane. Read-only fleet health checks are verified; bounded team spawning remains experimental and in development.
+- **Claw scheduler removal**: Removed the built-in Claw scheduler from Shoal core, kept legacy `[claw]` config as a warning-only compatibility shim, and moved future autonomy guidance toward external supervisors over MCP.
+- **Supervisor profile split**: Separated general robo profiles from dedicated supervisor templates to clarify setup and defaults.
+
+### Fixed
+- **Project defaults**: Aligned project-local defaults with the current config schema to avoid invalid `.shoal.toml` surprises.
+- **Skill link refresh**: Hardened generated skill-link updates so local skill docs stay in sync without clobbering paths.
+
+### Docs
+- **Operator docs**: Expanded the docs site for team/ticket/report workflows and documented the experimental Hermes-over-Shoal HTTP transport profile.
+
+### Stats
+- 1620 tests, 1 skipped
+
+
 ## [0.38.0] "Agentic Teams" - 2026-04-03
 
 **Agents can now spawn and coordinate worker teams from within a session.**

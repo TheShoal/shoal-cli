@@ -40,7 +40,7 @@ The doctor probes HTTP servers using FastMCP's `StreamableHttpTransport` and rep
 ┌────────────────────┬──────────┬──────┬─────────┬─────────┐
 │ NAME               │ PROTOCOL │ TOOLS│ VERSION │ LATENCY │
 ├────────────────────┼──────────┼──────┼─────────┼─────────┤
-│ shoal-orchestrator │ http     │ 18   │ 0.28.0  │ 12ms    │
+│ shoal-orchestrator │ http     │ 34   │ 0.39.0  │ 12ms    │
 └────────────────────┴──────────┴──────┴─────────┴─────────┘
 ```
 
@@ -134,6 +134,50 @@ shoal-mcp-proxy shoal-orchestrator
 ```
 
 The proxy detects the server's transport mode and connects via HTTP or socket accordingly. It is a bridge, not a second Shoal MCP server.
+
+### Hermes Agent (experimental)
+
+Hermes can connect directly to `shoal-orchestrator` over HTTP MCP. This path is
+experimental and still in development. The verified rollout today is local-only
+on `127.0.0.1`, with a strict allow-list and read-first workflows.
+
+```yaml
+approvals:
+  mode: manual
+
+mcp_servers:
+  shoal:
+    url: "http://127.0.0.1:8390/mcp/"
+    tools:
+      include:
+        - list_sessions
+        - session_info
+        - session_snapshot
+        - capture_pane
+        - read_journal
+        - session_summary
+        - append_journal
+        - create_session
+        - spawn_team
+        - wait_for_team
+      prompts: false
+      resources: false
+```
+
+Start with `session_snapshot` for fleet inspection. Treat `kill_session`, merge
+tools, and other destructive mutations as opt-in only after you have proven the
+whitelist and operator loop locally.
+
+!!! tip
+    If `shoal mcp start shoal-orchestrator` fails because your environment
+    cannot resolve the server command from the MCP pool, override it
+    explicitly:
+
+    ```bash
+    shoal mcp start shoal-orchestrator --http --port 8390 \
+      --command "uv run shoal-mcp-server"
+    ```
+
 
 ## Application-level batching
 
