@@ -45,9 +45,21 @@ fish: command substitutions not allowed in command position. Try var=(your-cmd) 
 
 ---
 
+## Issue 4: No model enforcement in create_session
+
+**Problem:** User requested `z-ai/glm-5` from OpenRouter, but pisces used:
+- First session: Claude Sonnet 4.6 (github-copilot)
+- Second session: Google Gemma 4 26B A4B then MiniMax M2.7
+
+**Impact:** Cannot guarantee which model is used for code reviews.
+
+**Suggested Fix:** Add `model` parameter to `CreateSessionParams` that gets passed to the tool profile environment.
+
+---
+
 ## Session Info
 
 - Shoal version: v0.39.0
 - Shell: fish 4.6.0
 - Terminal: tmux 3.6a
-- Sessions tested: `review-prefetch-fix`, `review-dlq-alerting`
+- Sessions tested: `review-prefetch-fix`, `review-dlq-alerting` (failed), `review-prefetch-v2`, `review-dlq-v2` (succeeded)
