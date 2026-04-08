@@ -386,7 +386,7 @@ def _heartbeat_cmd(
     session: Annotated[str, typer.Argument(help="Session name or ID")],
     status: Annotated[str, typer.Argument(help="Session status")],
     summary: Annotated[
-        str | None, typer.Option("--summary", "-s", help="One-line description of current state")
+        str, typer.Option("--summary", "-s", help="One-line description of current state")
     ] = "",
     turn_number: Annotated[
         int | None, typer.Option("--turn-number", help="Turn counter (Pisces)")
@@ -396,9 +396,67 @@ def _heartbeat_cmd(
     ] = None,
 ) -> None:
     """Push a status heartbeat for a session."""
-    from shoal.cli.heartbeat import heartbeat_cli
+    from datetime import UTC, datetime
 
-    heartbeat_cli(session, status, summary, turn_number, tool_name)
+    from rich.console import Console
+
+    from shoal.core.state import find_by_name, get_session, update_session
+    from shoal.models.state import SessionStatus, StatusSource
+
+    console = Console()
+
+    async def _run() -> None:
+        session_id = await find_by_name(session)
+        if not session_id:
+            s = await get_session(session)
+            if not s:
+                console.print(f"[red]Session not found:[/red] {session}")
+                raise SystemExit(1)
+            session_id = s.id
+
+        try:
+            parsed = SessionStatus(status)
+        except ValueError:
+            valid = [s.value for s in SessionStatus]
+            console.print(f"[red]Invalid status '{status}'.[/red] Valid: {valid}")
+            raise SystemExit(1) from None
+
+        now = datetime.now(UTC)
+        await update_session(
+            session_id,
+            status=parsed,
+            status_source=StatusSource.hook,
+            last_heartbeat=now,
+        )
+
+        if summary:
+            import asyncio
+
+            from shoal.core.journal import append_entry
+
+            await asyncio.to_thread(
+                append_entry,
+                session_id,
+                f"[heartbeat] {summary}",
+                "agent-hook",
+            )
+
+        console.print(f"[green]✓[/green] {session}: {parsed.value} (source: hook)")
+
+    import asyncio
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            pool.submit(asyncio.run, _run()).result()
+    else:
+        asyncio.run(_run())
 
 
 # Aliases (hidden)
