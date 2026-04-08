@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "command": "~/.shoal/hooks/claude_heartbeat.sh"
+      }
+    ]
+  }
+}
