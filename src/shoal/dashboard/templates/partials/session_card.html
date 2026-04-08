@@ -43,6 +43,11 @@
       <span
         {% if last_activity_iso %}data-abs-time="{{ last_activity_iso }}"{% endif %}
       >{{ last_activity }}</span>
+      {% if status_source == 'hook' %}
+        <span class="status-source-badge live" title="Agent pushing heartbeats">🟢 Live</span>
+      {% elif status_source == 'watcher' %}
+        <span class="status-source-badge polled" title="Tmux-based observation">🟡 Polled</span>
+      {% endif %}
     </div>
   </div>
 

@@ -232,6 +232,29 @@ code, pre { font-family: var(--font-mono); }
     flex-shrink: 0;
 }
 
+.status-source-badge {
+    padding: 1px 5px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+.status-source-badge.live {
+    background: color-mix(in srgb, #22c55e 15%, transparent);
+    color: #22c55e;
+    border: 1px solid color-mix(in srgb, #22c55e 30%, transparent);
+}
+
+.status-source-badge.polled {
+    background: color-mix(in srgb, #eab308 15%, transparent);
+    color: #eab308;
+    border: 1px solid color-mix(in srgb, #eab308 30%, transparent);
+}
+
 /* Tier color bindings */
 .tier-error    { --status-color: var(--tier-error); }
 .tier-blocked  { --status-color: var(--tier-blocked); }

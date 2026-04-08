@@ -119,6 +119,7 @@ def session_card_context(
         "status_label": urgency_label,
         "tier_css": _TIER_CSS.get(tier, "tier-unknown"),
         "tier_name": tier.name,
+        "status_source": session.status_source.value if session.status_source else "watcher",
         "runtime_kind": runtime_kind,
         "show_approve_action": runtime_kind == "tmux",
         "branch": session.branch or "",
