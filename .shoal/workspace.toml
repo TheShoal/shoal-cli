@@ -1,0 +1,24 @@
+# Shoal workspace configuration
+# For testing Linear sync features
+
+name = "shoal-cli"
+
+[teams.be]
+name = "Backend Engineering"
+linear_slug = "BE"
+repos = [
+    "backend/free-trial",
+    "backend/user-service",
+    "backend/usmobile-gateway",
+    "backend/carriers-monorepo",
+]
+worktree_dir = "backend"
+
+[teams.fe]
+name = "Frontend Engineering"
+linear_slug = "FE"
+repos = [
+    "frontend/web-app",
+    "frontend/usm-ui-monorepo",
+]
+worktree_dir = "frontend"

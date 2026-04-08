@@ -226,6 +226,33 @@ class ShoalDB:
             CREATE INDEX IF NOT EXISTS idx_fc_session
             ON failure_contexts(session_id, consumed_at)
         """)
+        # Linear issue cache for fast local queries.
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS linear_issues (
+                id TEXT PRIMARY KEY,
+                identifier TEXT UNIQUE NOT NULL,
+                team_key TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                state_name TEXT,
+                state_type TEXT,
+                priority INTEGER DEFAULT 0,
+                assignee_name TEXT,
+                branch_name TEXT,
+                url TEXT,
+                labels TEXT,
+                synced_at TEXT NOT NULL,
+                updated_at TEXT
+            )
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_linear_issues_team
+            ON linear_issues(team_key)
+        """)
+        await self._conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_linear_issues_state
+            ON linear_issues(state_type)
+        """)
         # Backfill status_since for existing sessions that predate the field.
         # For each session whose serialised JSON lacks status_since, set it to
         # the timestamp of the most recent status_transitions row, or to

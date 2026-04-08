@@ -26,11 +26,32 @@ LinearTargetKind = Literal["project", "initiative"]
 LinearUpdateHealth = Literal["onTrack", "atRisk", "offTrack"]
 
 _QUERY_TEAM_ISSUES = """
-query TeamIssues($teamKey: String!, $first: Int, $stateType: String) {
+query TeamIssues($teamKey: String!, $first: Int) {
+  issues(
+    filter: { team: { key: { eq: $teamKey } } },
+    first: $first
+  ) {
+    nodes {
+      id
+      identifier
+      title
+      description
+      url
+      priority
+      branchName
+      state { name type }
+      assignee { name }
+      labels { nodes { name } }
+    }
+  }
+}
+"""
+
+_QUERY_TEAM_ISSUES_BY_STATE = """
+query TeamIssuesByState($teamKey: String!, $first: Int, $stateType: String!) {
   issues(
     filter: { team: { key: { eq: $teamKey } }, state: { type: { eq: $stateType } } },
-    first: $first,
-    orderBy: priority
+    first: $first
   ) {
     nodes {
       id
@@ -273,17 +294,17 @@ class LinearBridge:
         assignee = node.get("assignee") or {}
         labels_nodes = node.get("labels", {}).get("nodes") or []
         return LinearIssue(
-            id=node.get("id", ""),
-            identifier=node.get("identifier", ""),
-            title=node.get("title", ""),
-            description=node.get("description", ""),
-            state_name=state.get("name", ""),
-            state_type=state.get("type", ""),
+            id=node.get("id") or "",
+            identifier=node.get("identifier") or "",
+            title=node.get("title") or "",
+            description=node.get("description") or "",
+            state_name=state.get("name") or "",
+            state_type=state.get("type") or "",
             priority=node.get("priority") or 0,
-            assignee_name=assignee.get("name", ""),
-            branch_name=node.get("branchName", ""),
-            url=node.get("url", ""),
-            labels=[label.get("name", "") for label in labels_nodes],
+            assignee_name=assignee.get("name") or "",
+            branch_name=node.get("branchName") or "",
+            url=node.get("url") or "",
+            labels=[label.get("name") or "" for label in labels_nodes],
         )
 
     def _parse_named_target(
@@ -313,11 +334,13 @@ class LinearBridge:
             mine_only: If True, filter to issues assigned to the current user.
                 Note: requires the API token to belong to that user.
         """
-        state_type: str | None = "unstarted" if ready_only else None
         variables: dict[str, Any] = {"teamKey": team_key, "first": 50}
-        if state_type:
-            variables["stateType"] = state_type
-        data = await self._post(_QUERY_TEAM_ISSUES, variables)
+        if ready_only:
+            query = _QUERY_TEAM_ISSUES_BY_STATE
+            variables["stateType"] = "unstarted"
+        else:
+            query = _QUERY_TEAM_ISSUES
+        data = await self._post(query, variables)
         nodes: list[dict[str, Any]] = data.get("issues", {}).get("nodes") or []
         return [self._parse_issue(n) for n in nodes]
 

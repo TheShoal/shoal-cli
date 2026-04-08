@@ -79,6 +79,8 @@ class TeamConfig(BaseModel):
     linear_slug: str
     default_template: str = ""
     worktree_dir: str = ""
+    repos: list[str] = []
+    """Repository paths for this team (e.g. ["backend/user-service", "backend/gateway"])."""
     report: TeamReportTargetConfig | None = None
 
 

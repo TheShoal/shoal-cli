@@ -310,3 +310,137 @@ async def _ticket_status_impl() -> None:
         return
 
     console.print(table)
+
+
+@app.command("sync")
+def ticket_sync(
+    team: Annotated[
+        str | None, typer.Option("--team", "-t", help="Team slug to sync (e.g. be, fe)")
+    ] = None,
+    all_teams: bool = typer.Option(False, "--all", help="Sync all configured teams"),
+) -> None:
+    """Sync Linear issues to local cache for fast queries."""
+    asyncio.run(with_db(_ticket_sync_impl(team=team, all_teams=all_teams)))
+
+
+async def _ticket_sync_impl(*, team: str | None, all_teams: bool) -> None:
+    from shoal.services.linear_cache import get_linear_cache
+
+    console = get_console()
+    cache = get_linear_cache()
+
+    # Resolve teams to sync
+    teams_to_sync: list[str] = []
+    if all_teams:
+        root = git.git_root(".")
+        ws_cfg = load_workspace_config(root)
+        if ws_cfg and ws_cfg.teams:
+            teams_to_sync = [t.linear_slug for t in ws_cfg.teams.values()]
+    elif team:
+        _root, team_cfg = _resolve_team_config(team)
+        teams_to_sync = [team_cfg.linear_slug]
+    else:
+        console.print("[red]Specify --team <slug> or --all[/red]")
+        raise typer.Exit(1)
+
+    if not teams_to_sync:
+        console.print("[yellow]No teams to sync.[/yellow]")
+        return
+
+    for team_slug in teams_to_sync:
+        console.print(f"[dim]Syncing {team_slug}...[/dim]")
+        count = await cache.sync_team_issues(team_slug)
+        console.print(f"[green]Synced {count} issues for {team_slug}[/green]")
+
+
+@app.command("pick")
+def ticket_pick(
+    team: Annotated[
+        list[str], typer.Option("--team", "-t", help="Team slug (can specify multiple)")
+    ] = [],
+    mine: bool = typer.Option(False, "--mine", help="Only my assigned issues"),
+    ready: bool = typer.Option(False, "--ready", help="Only unstarted issues"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+) -> None:
+    """Interactively pick a ticket from one or more teams.
+
+    Uses cached issues - run 'shoal ticket sync' first if cache is empty.
+    """
+    asyncio.run(with_db(_ticket_pick_impl(teams=team, mine=mine, ready=ready, json_output=json_output)))
+
+
+async def _ticket_pick_impl(*, teams: list[str], mine: bool, ready: bool, json_output: bool) -> None:
+    import subprocess
+
+    from shoal.services.linear_cache import get_linear_cache
+
+    console = get_console()
+    cache = get_linear_cache()
+
+    # Default to all configured teams if none specified
+    team_keys: list[str] = teams
+    if not team_keys:
+        root = git.git_root(".")
+        ws_cfg = load_workspace_config(root)
+        if ws_cfg and ws_cfg.teams:
+            team_keys = [t.linear_slug for t in ws_cfg.teams.values()]
+
+    if not team_keys:
+        console.print("[red]No teams configured. Add teams to .shoal/workspace.toml[/red]")
+        raise typer.Exit(1)
+
+    # Collect issues from all teams
+    all_issues: list[tuple[str, object]] = []  # (team_key, issue)
+    for team_key in team_keys:
+        issues = await cache.get_cached_issues(team_key, ready_only=ready)
+        for issue in issues:
+            all_issues.append((team_key, issue))
+
+    if not all_issues:
+        console.print("[yellow]No cached issues. Run 'shoal ticket sync' first.[/yellow]")
+        raise typer.Exit(1)
+
+    if json_output:
+        import json
+
+        data = [
+            {
+                "id": issue.id,
+                "identifier": issue.identifier,
+                "title": issue.title,
+                "team": team_key,
+                "state": issue.state_name,
+                "priority": issue.priority,
+                "url": issue.url,
+            }
+            for team_key, issue in all_issues
+        ]
+        console.print(json.dumps(data, indent=2))
+        return
+
+    # Build fzf input
+    lines = []
+    for team_key, issue in all_issues:
+        lines.append(f"{issue.identifier}\t{issue.title}\t{team_key}\t{issue.state_name}")
+
+    # Use fzf for selection
+    try:
+        result = subprocess.run(
+            ["fzf", "--tac", "--header=ID\tTitle\tTeam\tState", "--with-nth=1..4"],
+            input="\n".join(lines),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        selected = result.stdout.strip().split("\t")
+        if selected:
+            selected_id = selected[0]
+            console.print(f"[green]Selected: {selected_id}[/green]")
+            # Could auto-call ticket start here if desired
+            console.print(f"[dim]Run: shoal ticket start {selected_id}[/dim]")
+    except FileNotFoundError:
+        console.print("[red]fzf not found. Install with: brew install fzf[/red]")
+        raise typer.Exit(1)
+    except subprocess.CalledProcessError:
+        # User cancelled fzf
+        pass
