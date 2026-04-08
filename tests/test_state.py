@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from shoal.core.session_names import build_tmux_session_name
 from shoal.core.state import (
     add_mcp_to_session,
     create_session,
@@ -113,7 +114,7 @@ class TestSessionCRUD:
         assert session.name == "test"
         assert session.tool == "claude"
         assert session.status == SessionStatus.idle
-        assert session.runtime.session_name.startswith("_")
+        assert session.runtime.session_name == build_tmux_session_name("test")
 
         loaded = await get_session(session.id)
         assert loaded is not None
