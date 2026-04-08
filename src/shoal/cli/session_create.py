@@ -35,6 +35,7 @@ from shoal.services.lifecycle import (
     SessionExistsError,
     StartupCommandError,
     TmuxSetupError,
+    _auto_install_deps,
     _preview_default_startup_commands,
     _preview_template_startup,
     _run_post_worktree_hook,
@@ -86,12 +87,19 @@ def add(
         str | None,
         typer.Option("--repo", help="Target sub-repo from .shoal/workspace.toml"),
     ] = None,
+    model: Annotated[
+        str | None,
+        typer.Option("--model", "-m", help="Model for the agent (e.g. 'z-ai/glm-5')"),
+    ] = None,
 ) -> None:
     """Create a new session."""
     mcp_list = [s.strip() for s in mcp.split(",") if s.strip()] if mcp else []
     asyncio.run(
         with_db(
-            _add_impl(path, tool, template, mode, worktree, branch, dry_run, name, mcp_list, repo)
+            _add_impl(
+                path, tool, template, mode, worktree,
+                branch, dry_run, name, mcp_list, repo, model,
+            )
         )
     )
 
@@ -107,6 +115,7 @@ async def _add_impl(
     name: str | None,
     mcp_servers: list[str] | None = None,
     repo: str | None = None,
+    model: str | None = None,
 ) -> None:
     ensure_dirs()
     cfg = load_config()
@@ -350,12 +359,45 @@ async def _add_impl(
         return
 
     if worktree:
+        # S4: Warn if working tree is dirty or has an in-progress merge/rebase
+        if git.worktree_is_dirty(str(resolved_path)):
+            get_console().print(
+                "[yellow]⚠ Working tree has uncommitted changes.[/yellow]"
+            )
+            get_console().print(
+                "[dim]Worktrees will be created from HEAD, not from dirty state.[/dim]"
+            )
+            get_console().print(
+                "[dim]Stash or commit changes first for a clean copy.[/dim]"
+            )
+        if git.is_merging(str(resolved_path)):
+            get_console().print(
+                "[red]Error: Working tree has an in-progress merge.[/red]"
+            )
+            get_console().print(
+                "[dim]Resolve or abort the merge before creating a worktree.[/dim]"
+            )
+            get_console().print("[dim]Run: git merge --abort[/dim]")
+            raise typer.Exit(1)
+        if git.is_rebasing(str(resolved_path)):
+            get_console().print(
+                "[red]Error: Working tree has an in-progress rebase.[/red]"
+            )
+            get_console().print(
+                "[dim]Resolve or abort the rebase before creating a worktree.[/dim]"
+            )
+            get_console().print("[dim]Run: git rebase --abort[/dim]")
+            raise typer.Exit(1)
+
         Path(root, ".worktrees").mkdir(parents=True, exist_ok=True)
         if branch:
             git.worktree_add(root, wt_path, branch=branch_name)
         else:
             git.worktree_add(root, wt_path)
             branch_name = git.current_branch(wt_path)
+
+        # S1: Auto-install dependencies in new worktree
+        await asyncio.to_thread(_auto_install_deps, wt_path, root)
         await asyncio.to_thread(_run_post_worktree_hook, template_cfg, wt_path, root)
 
     # Collect auto-tags from mode + template
@@ -383,6 +425,7 @@ async def _add_impl(
             mcp_servers=mcp_servers or None,
             tags=auto_tags or None,
             dreamer_config=cfg.dreamer,
+            model=model,
         )
     except SessionExistsError as e:
         get_console().print(f"[red]Error: {e}[/red]")

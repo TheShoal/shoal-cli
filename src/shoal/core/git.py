@@ -62,6 +62,27 @@ def worktree_add(
     _run(args, cwd=repo)
 
 
+def is_merging(path: str) -> bool:
+    """Return True if the working tree has an in-progress merge."""
+    git_dir = _run(["rev-parse", "--git-dir"], cwd=path, check=False).stdout.strip()
+    if not git_dir:
+        return False
+    # git_dir may be relative or absolute; resolve it against the working tree
+    gd = Path(git_dir)
+    if not gd.is_absolute():
+        gd = Path(path) / gd
+    return (gd / "MERGE_HEAD").exists()
+
+
+def is_rebasing(path: str) -> bool:
+    """Return True if the working tree has an in-progress rebase."""
+    git_dir = _run(["rev-parse", "--git-dir"], cwd=path, check=False).stdout.strip()
+    if not git_dir:
+        return False
+    gd = Path(git_dir)
+    return any((gd / f).exists() for f in ("rebase-merge", "rebase-apply"))
+
+
 def worktree_remove(repo: str, path: str, *, force: bool = False) -> bool:
     args = ["worktree", "remove", path]
     if force:

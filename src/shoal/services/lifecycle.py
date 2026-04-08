@@ -193,6 +193,75 @@ def _run_post_worktree_hook(
 
 
 # ---------------------------------------------------------------------------
+# Auto-install dependencies in new worktrees
+# ---------------------------------------------------------------------------
+
+_PACKAGE_MANAGER_FILES: list[tuple[str, str]] = [
+    ("bun.lock", "bun install"),
+    ("bun.lockb", "bun install"),
+    ("pnpm-lock.yaml", "pnpm install"),
+    ("yarn.lock", "yarn install"),
+    ("package-lock.json", "npm install"),
+    ("uv.lock", "uv sync"),
+    ("Pipfile.lock", "pipenv install"),
+    ("poetry.lock", "poetry install"),
+]
+
+
+def _detect_package_manager(git_root: str) -> str | None:
+    """Detect the package manager for a project based on lock files.
+
+    Scans the git root (not the worktree, since lock files aren't in git).
+    Returns the install command string or None.
+    """
+    root = Path(git_root)
+    for lock_file, install_cmd in _PACKAGE_MANAGER_FILES:
+        if (root / lock_file).exists():
+            return install_cmd
+    return None
+
+
+def _auto_install_deps(wt_path: str, git_root: str) -> None:
+    """Auto-detect and run package install in a new worktree.
+
+    Worktrees don't carry node_modules (or other dependency directories)
+    since they aren't tracked by git. This function detects the package
+    manager and runs install automatically.
+
+    Errors are logged as warnings and do not propagate — a failing install
+    must not abort session creation.
+    """
+    install_cmd = _detect_package_manager(git_root)
+    if not install_cmd:
+        logger.debug("No package manager lock file found in %s; skipping auto-install", git_root)
+        return
+
+    logger.info("Auto-installing dependencies in worktree: %s (%s)", wt_path, install_cmd)
+    try:
+        result = subprocess.run(
+            install_cmd.split(),
+            cwd=wt_path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,  # 5-minute timeout for large installs
+        )
+        if result.returncode != 0:
+            logger.warning(
+                "Auto-install failed (exit %d) in %s: %s",
+                result.returncode,
+                wt_path,
+                result.stderr[:500] if result.stderr else "(no stderr)",
+            )
+        else:
+            logger.info("Auto-install completed successfully in %s", wt_path)
+    except subprocess.TimeoutExpired:
+        logger.warning("Auto-install timed out in %s (5min limit)", wt_path)
+    except Exception:
+        logger.warning("Auto-install raised an exception in %s", wt_path, exc_info=True)
+
+
+# ---------------------------------------------------------------------------
 # Rollback helper
 # ---------------------------------------------------------------------------
 

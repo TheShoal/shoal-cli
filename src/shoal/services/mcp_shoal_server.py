@@ -14,6 +14,7 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -38,6 +39,8 @@ from shoal.models.batch import (
     SessionStatusBatchOp,
     SnapshotField,
 )
+from shoal.models.heartbeat import HeartbeatRequest
+from shoal.models.state import SessionStatus, StatusSource
 from shoal.services import git_tools
 from shoal.services.batch import AUTO_ENTER_TOOLS, execute_batch
 from shoal.services.batch import session_snapshot as build_session_snapshot
@@ -550,6 +553,19 @@ async def create_session_tool(
         wt_dir_name = worktree.replace("/", "-")
         wt_path = f"{root}/.worktrees/{wt_dir_name}"
         Path(root, ".worktrees").mkdir(parents=True, exist_ok=True)
+
+        # Check for in-progress merge/rebase before creating worktree
+        if git.is_merging(path):
+            raise ToolError(
+                "Working tree has an in-progress merge. "
+                "Resolve or abort (git merge --abort) before creating a worktree."
+            )
+        if git.is_rebasing(path):
+            raise ToolError(
+                "Working tree has an in-progress rebase. "
+                "Resolve or abort (git rebase --abort) before creating a worktree."
+            )
+
         if branch:
             branch_prefix = template_cfg.git.branch_prefix if template_cfg else ""
             branch_name = git.infer_branch_name(worktree, branch_prefix)
@@ -557,6 +573,11 @@ async def create_session_tool(
         else:
             git.worktree_add(root, wt_path)
             branch_name = git.current_branch(wt_path)
+
+        # Auto-install dependencies in new worktree
+        from shoal.services.lifecycle import _auto_install_deps
+        await asyncio.to_thread(_auto_install_deps, wt_path, root)
+
         work_dir = wt_path
     else:
         branch_name = git.current_branch(path)
