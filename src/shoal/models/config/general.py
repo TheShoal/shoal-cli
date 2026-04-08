@@ -14,6 +14,9 @@ class GeneralConfig(BaseModel):
     auto_commit: bool = False
     """Automatically commit dirty worktrees when a session is killed."""
 
+    heartbeat_stale_seconds: float = 60.0
+    """Seconds before a hook-instrumented session falls back to watcher polling."""
+
 
 class TmuxConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")

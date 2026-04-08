@@ -13,12 +13,13 @@ from shoal.core.config import ensure_dirs, load_tool_config, state_dir
 from shoal.core.detection import detect_status
 from shoal.core.notify import notify
 from shoal.core.state import list_sessions, update_session
-from shoal.models.state import SessionStatus
+from shoal.models.state import SessionStatus, StatusSource
 from shoal.services.runtime_provider import provider_for_session
 
 logger = logging.getLogger("shoal.watcher")
 
 _MAX_BACKOFF = 300.0  # seconds — cap for exponential backoff on consecutive errors
+HEARTBEAT_STALE_SECONDS = 60.0  # Consider hook-instrumented sessions stale after 60s
 
 
 class Watcher:
@@ -106,6 +107,23 @@ class Watcher:
         for session in sessions:
             if session.status.value == "stopped":
                 continue
+
+            # Skip polling if session has a recent heartbeat
+            if session.status_source == StatusSource.hook and session.last_heartbeat:
+                elapsed = (datetime.now(UTC) - session.last_heartbeat).total_seconds()
+                if elapsed < HEARTBEAT_STALE_SECONDS:
+                    logger.debug(
+                        "Skipping %s: hook heartbeat %.0fs ago",
+                        session.name,
+                        elapsed,
+                    )
+                    continue
+                logger.warning(
+                    "Hook heartbeat stale for %s (%.0fs), falling back to watcher",
+                    session.name,
+                    elapsed,
+                )
+                await update_session(session.id, status_source=StatusSource.watcher)
 
             provider = provider_for_session(session)
 
