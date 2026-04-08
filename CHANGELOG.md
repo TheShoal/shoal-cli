@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] "Ticket Workflow & MCP Hardening" - 2026-04-08
+
+**Linear ticket workflows from the CLI and critical MCP dogfooding fixes for production use.**
+
+### Added
+- **`shoal ticket sync`**: Sync Linear issues to local SQLite cache for fast offline queries.
+- **`shoal ticket pick`**: Interactive multi-team ticket picker using fzf. Supports `--json` for scripting.
+- **Linear cache service** (`services/linear_cache.py`): SQLite-backed issue cache with `get_cached_issues()`, `get_issue()`, `invalidate()`, `last_sync_at()`.
+- **`TeamConfig.repos` field**: Repository routing per team in `workspace.toml`, replacing repos.txt manifest concept.
+- **`model` parameter on `create_session` MCP tool**: Pass a model identifier through to sessions; sets `OMP_MODEL` env var.
+- **Fish shell prompt escaping** (`integrations/fish/prompt.py`): `escape_for_fish()` escapes special chars (`? & $ ( ) \ " ' ; | < >`) before sending to tmux.
+- **Long prompt file-based delivery**: Prompts >500 chars are written to a temp file and sourced in fish, preventing tmux line mangling.
+
+### Fixed
+- **Undefined `db_backfill` fixture**: Removed from `test_linear_cache.py`; tests rewritten as proper model validation.
+- **Hardcoded tmux prefix in tests**: `test_state.py` now uses `build_tmux_session_name()` instead of asserting `startswith("_")`, respecting the configurable prefix.
+- **GraphQL `orderBy` enum**: Removed invalid `orderBy` clause from Linear team issues query.
+
+### Docs
+- **MCP dogfooding findings**: Documented Issues 1–3 from live Hermes-over-Shoal session.
+
+### Stats
+- 1615 tests, 2 skipped
+
 ## [0.39.0] "Reports & Experimental Autonomy" - 2026-04-06
 
 **Team reporting, ticket routing, and a documented Hermes-over-Shoal experimental supervisor path.**
