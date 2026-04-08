@@ -896,7 +896,11 @@ async def create_session_lifecycle(
         ValueError: invalid session name.
     """
     template_name = template_cfg.name if template_cfg else ""
-    logger.info("[%s] create: starting (tool=%s)", session_name, tool)
+    logger.info("[%s] create: starting (tool=%s, model=%s)", session_name, tool, model or "default")
+
+    # 0b. Inject --model into tool_command if model is specified and not already present
+    if model and "--model" not in tool_command:
+        tool_command = f"{tool_command} --model {model}"
 
     # 1. Create DB row
     try:
@@ -1137,6 +1141,7 @@ async def fork_session_lifecycle(
     worktree_name: str = "",
     mcp_servers: list[str] | None = None,
     parent_id: str = "",
+    model: str = "",
 ) -> SessionState:
     """Fork a session with full rollback on failure.
 
@@ -1146,7 +1151,13 @@ async def fork_session_lifecycle(
     Raises:
         SessionExistsError, TmuxSetupError, StartupCommandError, ValueError.
     """
-    logger.info("[%s] fork: starting (tool=%s)", session_name, source_tool)
+    logger.info(
+        "[%s] fork: starting (tool=%s, model=%s)", session_name, source_tool, model or "default"
+    )
+
+    # Inject --model into tool_command if model is specified and not already present
+    if model and "--model" not in tool_command:
+        tool_command = f"{tool_command} --model {model}"
 
     # 1. Create DB row
     try:

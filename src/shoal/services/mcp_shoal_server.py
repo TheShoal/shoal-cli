@@ -633,6 +633,7 @@ async def fork_session_tool(
     prompt: str | None = None,
     template: str | None = None,
     mcp_servers: list[str] | None = None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     """Fork a session into a new worker.
 
@@ -642,6 +643,7 @@ async def fork_session_tool(
         prompt: Initial prompt to send to the worker after startup.
         template: Template name to apply to the worker session.
         mcp_servers: MCP servers to provision for the worker.
+        model: Model to use for the forked session (e.g., "z-ai/glm-5"). Overrides tool default.
     """
     from shoal.core.config import ensure_dirs, load_config, load_tool_config
     from shoal.core.state import find_by_name, get_session
@@ -685,6 +687,7 @@ async def fork_session_tool(
             worktree_name=name,
             mcp_servers=mcp_servers,
             parent_id=source_session.id,
+            model=model or "",
         )
     except SessionExistsError as e:
         raise ToolError(str(e)) from e
@@ -730,6 +733,7 @@ async def spawn_team_tool(
     workers: list[dict[str, Any]],
     template: str | None = None,
     mcp_servers: list[str] | None = None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     """Spawn multiple worker sessions.
 
@@ -739,6 +743,7 @@ async def spawn_team_tool(
                  'prompt' (str) to send after startup.
         template: Template to apply to all workers.
         mcp_servers: MCP servers to provision for all workers.
+        model: Model to use for all workers (e.g., "z-ai/glm-5"). Overrides tool default.
     """
     from shoal.core.config import ensure_dirs, load_config, load_tool_config
     from shoal.core.message_bus import send_message
@@ -796,6 +801,7 @@ async def spawn_team_tool(
                 worktree_name=worker_name,
                 mcp_servers=resolved_mcp,
                 parent_id=source_session.id,
+                model=model or "",
             )
         except (SessionExistsError, TmuxSetupError, StartupCommandError, ValueError) as e:
             logger.warning("[spawn_team] worker %s failed: %s", worker_name, e)
