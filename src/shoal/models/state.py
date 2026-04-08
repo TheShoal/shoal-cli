@@ -89,6 +89,7 @@ class SessionState(BaseModel):
     parent_id: str = ""
     tags: list[str] = Field(default_factory=list)
     template_name: str = ""
+    model: str = ""  # Override default model (e.g., for OMP/Claude CLI)
     created_at: datetime = Field(default_factory=_utcnow)
     last_activity: datetime = Field(default_factory=_utcnow)
     status_since: datetime = Field(default_factory=_utcnow)

@@ -480,6 +480,7 @@ async def create_session_tool(
     template: str | None = None,
     mcp_servers: list[str] | None = None,
     prompt: str | None = None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     """Create a new agent session.
 
@@ -492,6 +493,7 @@ async def create_session_tool(
         template: Session template name to apply.
         mcp_servers: MCP servers to provision (e.g. ["memory", "github"]).
         prompt: Initial prompt to send to the agent after startup. Enter is pressed automatically.
+        model: Model to use for the session (e.g., "z-ai/glm-5"). Overrides tool default.
     """
     from shoal.core import git
     from shoal.core.config import ensure_dirs, load_config, load_template, load_tool_config
@@ -580,6 +582,7 @@ async def create_session_tool(
             template_cfg=template_cfg,
             worktree_name=worktree or "",
             mcp_servers=mcp_servers,
+            model=model or "",
         )
     except SessionExistsError as e:
         raise ToolError(str(e)) from e
