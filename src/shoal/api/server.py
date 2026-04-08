@@ -7,7 +7,7 @@ import logging
 import subprocess
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
@@ -41,6 +41,7 @@ from shoal.models.batch import (
     SessionSnapshotRequest,
     SessionSnapshotResponse,
 )
+from shoal.models.heartbeat import HeartbeatRequest
 from shoal.models.incident import (
     IncidentHookEnvelope,
     IncidentIngestRequest,
@@ -48,7 +49,7 @@ from shoal.models.incident import (
     IncidentSpawnRequest,
     IncidentStatus,
 )
-from shoal.models.state import RuntimeKind, SessionState, SessionStatus
+from shoal.models.state import RuntimeKind, SessionState, SessionStatus, StatusSource
 from shoal.services.batch import execute_batch
 from shoal.services.batch import session_snapshot as build_session_snapshot
 from shoal.services.incident import (
@@ -624,6 +625,44 @@ async def send_keys_api(session_id: str, body: SendKeysRequest) -> dict[str, str
         raise HTTPException(status_code=404, detail="Session not found")
     await provider_for_session(s).async_send_input(s, body.keys)
     return {"message": "Keys sent"}
+
+
+@app.post("/sessions/{session_ref}/heartbeat")
+async def heartbeat_api(session_ref: str, data: HeartbeatRequest) -> dict[str, object]:
+    """Receive a status push from an agent hook."""
+    # Resolve by name first, then by ID
+    session_id = await find_by_name(session_ref)
+    if not session_id:
+        s = await get_session(session_ref)
+        if not s:
+            raise HTTPException(status_code=404, detail="Session not found")
+        session_id = s.id
+
+    now = datetime.now(UTC)
+
+    await update_session(
+        session_id,
+        status=data.status,
+        status_source=StatusSource.hook,
+        last_heartbeat=now,
+    )
+
+    if data.summary:
+        from shoal.core.journal import append_entry
+
+        await asyncio.to_thread(
+            append_entry,
+            session_id,
+            f"[heartbeat] {data.summary}",
+            "agent-hook",
+        )
+
+    return {
+        "ok": True,
+        "session": session_ref,
+        "status": data.status.value,
+        "status_source": "hook",
+    }
 
 
 @app.websocket("/ws")
