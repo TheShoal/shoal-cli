@@ -18,6 +18,13 @@ class SessionStatus(StrEnum):
     unknown = "unknown"
 
 
+class StatusSource(StrEnum):
+    """Tracks how the current status was determined."""
+
+    hook = "hook"  # Agent pushed via heartbeat endpoint
+    watcher = "watcher"  # Watcher detected via tmux scrape
+
+
 class LifecycleEvent(StrEnum):
     """Events emitted by the lifecycle service."""
 
@@ -94,6 +101,8 @@ class SessionState(BaseModel):
     last_activity: datetime = Field(default_factory=_utcnow)
     status_since: datetime = Field(default_factory=_utcnow)
     completed_at: datetime | None = None
+    status_source: StatusSource = StatusSource.watcher
+    last_heartbeat: datetime | None = None
 
     @model_validator(mode="before")
     @classmethod

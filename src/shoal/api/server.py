@@ -112,6 +112,8 @@ class SessionResponse(BaseModel):
     created_at: datetime
     last_activity: datetime
     status_since: datetime
+    status_source: str = "watcher"
+    last_heartbeat: datetime | None = None
 
 
 class StatusResponse(BaseModel):
@@ -289,6 +291,8 @@ def _session_to_response(s: SessionState) -> SessionResponse:
         created_at=s.created_at,
         last_activity=s.last_activity,
         status_since=s.status_since,
+        status_source=s.status_source.value,
+        last_heartbeat=s.last_heartbeat,
     )
 
 
