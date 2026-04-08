@@ -39,7 +39,6 @@ from shoal.models.batch import (
     SessionStatusBatchOp,
     SnapshotField,
 )
-from shoal.models.heartbeat import HeartbeatRequest
 from shoal.models.state import SessionStatus, StatusSource
 from shoal.services import git_tools
 from shoal.services.batch import AUTO_ENTER_TOOLS, execute_batch
@@ -576,6 +575,7 @@ async def create_session_tool(
 
         # Auto-install dependencies in new worktree
         from shoal.services.lifecycle import _auto_install_deps
+
         await asyncio.to_thread(_auto_install_deps, wt_path, root)
 
         work_dir = wt_path
@@ -1713,6 +1713,72 @@ async def list_worktree_files_tool(
 
     file_list = await asyncio.to_thread(_list)
     return {"worktree": work_dir, "files": file_list, "count": len(file_list)}
+
+
+# ---------------------------------------------------------------------------
+# Tool: heartbeat
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="heartbeat",
+    description=(
+        "Push session status to Shoal. Agents call this at end-of-turn "
+        "or after tool use to notify Shoal of their current state "
+        "without waiting for tmux polling. This makes status detection "
+        "instant and reliable."
+    ),
+)
+async def heartbeat_tool(
+    session: str,
+    status: str,
+    summary: str = "",
+    turn_number: int | None = None,
+    tool_name: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, object]:
+    """Push agent status to Shoal (replaces tmux polling for instrumented agents)."""
+    from shoal.core.state import find_by_name, get_session, update_session
+
+    try:
+        parsed_status = SessionStatus(status)
+    except ValueError:
+        valid = [s.value for s in SessionStatus]
+        raise ToolError(f"Invalid status '{status}'. Valid: {valid}") from None
+
+    # Resolve by name first, then by ID
+    session_id = await find_by_name(session)
+    if session_id is None:
+        s = await get_session(session)
+        if s is None:
+            raise ToolError(f"Session not found: {session}")
+        session_id = s.id
+
+    now = datetime.now(UTC)
+
+    await update_session(
+        session_id,
+        status=parsed_status,
+        status_source=StatusSource.hook,
+        last_heartbeat=now,
+    )
+
+    if summary:
+        from shoal.core.journal import append_entry
+
+        await asyncio.to_thread(
+            append_entry,
+            session_id,
+            f"[heartbeat] {summary}",
+            "agent-hook",
+        )
+
+    return {
+        "ok": True,
+        "session": session,
+        "status": parsed_status.value,
+        "status_source": "hook",
+    }
 
 
 # ---------------------------------------------------------------------------
