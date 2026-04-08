@@ -582,7 +582,7 @@ async def create_session_tool(
             template_cfg=template_cfg,
             worktree_name=worktree or "",
             mcp_servers=mcp_servers,
-            model=model or "",
+            model=model,
         )
     except SessionExistsError as e:
         raise ToolError(str(e)) from e
@@ -687,7 +687,7 @@ async def fork_session_tool(
             worktree_name=name,
             mcp_servers=mcp_servers,
             parent_id=source_session.id,
-            model=model or "",
+            model=model,
         )
     except SessionExistsError as e:
         raise ToolError(str(e)) from e
@@ -801,7 +801,7 @@ async def spawn_team_tool(
                 worktree_name=worker_name,
                 mcp_servers=resolved_mcp,
                 parent_id=source_session.id,
-                model=model or "",
+                model=model,
             )
         except (SessionExistsError, TmuxSetupError, StartupCommandError, ValueError) as e:
             logger.warning("[spawn_team] worker %s failed: %s", worker_name, e)

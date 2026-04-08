@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shlex
 import subprocess
 from collections import defaultdict
@@ -864,6 +865,34 @@ async def _apply_template_git_config_async(
 # ---------------------------------------------------------------------------
 
 
+def _inject_model_arg(command: str, model: str | None) -> str:
+    """Inject ``--model`` into a tool command string if not already present.
+
+    Uses :func:`shlex.quote` to prevent shell injection when the model
+    string is eventually typed into a tmux pane via ``send_keys``.
+
+    If *command* already contains ``--model`` as a standalone flag, the
+    explicit *model* parameter is **not** appended and a warning is logged
+    so that template-baked models take precedence without silent overrides.
+
+    Args:
+        command: The tool command string (e.g. ``"pisces"``).
+        model: Model identifier to inject (e.g. ``"z-ai/glm-5"``).
+
+    Returns:
+        The command with ``--model`` appended, or *command* unchanged.
+    """
+    if not model:
+        return command
+    # Check for --model as a standalone flag (not part of a longer flag like --model-path)
+    if re.search(r"(?:^|\s)--model(?:=|\s|$)", command):
+        logger.warning(
+            "tool_command already contains --model; skipping injection of model=%s", model
+        )
+        return command
+    return f"{command} --model {shlex.quote(model)}"
+
+
 async def create_session_lifecycle(
     *,
     session_name: str,
@@ -881,7 +910,7 @@ async def create_session_lifecycle(
     tags: list[str] | None = None,
     dreamer_config: DreamerConfig | None = None,
     coordinator_config: CoordinatorConfig | None = None,
-    model: str = "",
+    model: str | None = None,
 ) -> SessionState:
     """Create a session with full rollback on failure.
 
@@ -898,9 +927,8 @@ async def create_session_lifecycle(
     template_name = template_cfg.name if template_cfg else ""
     logger.info("[%s] create: starting (tool=%s, model=%s)", session_name, tool, model or "default")
 
-    # 0b. Inject --model into tool_command if model is specified and not already present
-    if model and "--model" not in tool_command:
-        tool_command = f"{tool_command} --model {model}"
+    # Inject --model flag into tool_command when model is specified
+    tool_command = _inject_model_arg(tool_command, model)
 
     # 1. Create DB row
     try:
@@ -912,7 +940,7 @@ async def create_session_lifecycle(
             branch_name,
             tags=tags or [],
             template_name=template_name,
-            model=model,
+            model=model or "",
         )
     except ValueError as exc:
         if "already exists" in str(exc) or "collides" in str(exc):
@@ -1141,12 +1169,28 @@ async def fork_session_lifecycle(
     worktree_name: str = "",
     mcp_servers: list[str] | None = None,
     parent_id: str = "",
-    model: str = "",
+    model: str | None = None,
 ) -> SessionState:
     """Fork a session with full rollback on failure.
 
     Same pattern as :func:`create_session_lifecycle` but for forks.
     Fixes the missing startup-command rollback in the previous fork path.
+
+    Args:
+        session_name: Name for the new session.
+        source_tool: Tool identifier from the source session.
+        source_path: Git root of the source session.
+        source_branch: Branch name in the source session.
+        wt_path: Path to the new git worktree.
+        work_dir: Working directory inside the worktree.
+        new_branch: Branch name for the fork.
+        tool_command: Command to launch the tool (e.g. ``"pisces"``).
+        startup_commands: Extra shell commands to run after tool launch.
+        template_cfg: Optional template configuration to apply.
+        worktree_name: Display name for the worktree.
+        mcp_servers: MCP servers to provision.
+        parent_id: ID of the parent session.
+        model: Model to inject into the tool command (e.g. ``"z-ai/glm-5"``).
 
     Raises:
         SessionExistsError, TmuxSetupError, StartupCommandError, ValueError.
@@ -1155,9 +1199,8 @@ async def fork_session_lifecycle(
         "[%s] fork: starting (tool=%s, model=%s)", session_name, source_tool, model or "default"
     )
 
-    # Inject --model into tool_command if model is specified and not already present
-    if model and "--model" not in tool_command:
-        tool_command = f"{tool_command} --model {model}"
+    # Inject --model flag into tool_command when model is specified
+    tool_command = _inject_model_arg(tool_command, model)
 
     # 1. Create DB row
     try:
