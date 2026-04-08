@@ -77,6 +77,7 @@ async def create_session(
     parent_id: str = "",
     tags: list[str] | None = None,
     template_name: str = "",
+    model: str = "",
 ) -> SessionState:
     """Create a new session state in DB and return the session.
 
@@ -112,6 +113,7 @@ async def create_session(
         parent_id=parent_id,
         tags=tags or [],
         template_name=template_name,
+        model=model,
         created_at=now,
         last_activity=now,
     )

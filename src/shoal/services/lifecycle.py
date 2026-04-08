@@ -881,6 +881,7 @@ async def create_session_lifecycle(
     tags: list[str] | None = None,
     dreamer_config: DreamerConfig | None = None,
     coordinator_config: CoordinatorConfig | None = None,
+    model: str = "",
 ) -> SessionState:
     """Create a session with full rollback on failure.
 
@@ -907,6 +908,7 @@ async def create_session_lifecycle(
             branch_name,
             tags=tags or [],
             template_name=template_name,
+            model=model,
         )
     except ValueError as exc:
         if "already exists" in str(exc) or "collides" in str(exc):

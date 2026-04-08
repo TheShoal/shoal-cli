@@ -5,9 +5,11 @@ from __future__ import annotations
 import asyncio
 import os
 import shlex
+import tempfile
 
 from shoal.core import tmux
 from shoal.core.session_names import build_tmux_session_name
+from shoal.integrations.fish.prompt import escape_for_fish
 from shoal.models.config import SessionTemplateConfig, ToolConfig
 from shoal.models.state import RuntimeKind, RuntimeState, SessionState, TmuxRuntimeState
 from shoal.services.runtime_models import RuntimeObservation
@@ -20,6 +22,31 @@ def _build_nvim_socket_path(session_id: str, window_id: str) -> str:
 
 def _runtime(session: SessionState) -> TmuxRuntimeState:
     return session.tmux_runtime
+
+# Threshold for long prompt handling (characters)
+# Above this length, use file-based delivery to avoid tmux mangling
+LONG_PROMPT_THRESHOLD = 500
+
+
+def _send_long_prompt_via_file(pane_target: str, text: str) -> None:
+    """Send a long prompt via a temporary file to avoid tmux mangling.
+
+    Writes the text to a temp file and sends a command to source/execute it.
+    """
+    # Write prompt to temp file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+        f.write(text)
+        temp_path = f.name
+
+    try:
+        # Send command to execute the file content
+        # Using 'fish -c' to execute in fish shell context
+        tmux.send_keys(pane_target, f"fish -c 'source {shlex.quote(temp_path)}'", enter=True)
+    finally:
+        # Clean up temp file asynchronously would be ideal,
+        # but tmux send_keys is synchronous so we leave it for gc
+        pass
+
 
 
 def _tool_executable(tool_command: str) -> str:
@@ -110,6 +137,30 @@ class TmuxRuntimeProvider:
     ) -> None:
         runtime = _runtime(session)
         pane_target = await tmux.async_preferred_pane(runtime.session_name, f"shoal:{session.id}")
+
+        # Detect shell type for proper escaping
+        panes = await tmux.async_list_panes(runtime.session_name)
+        pane_command = ""
+        for pane in panes:
+            if pane.get("id") == pane_target or pane.get("title") == f"shoal:{session.id}":
+                pane_command = pane.get("command", "")
+                break
+
+        is_fish = "fish" in pane_command.lower()
+
+        # Handle long prompts via file to avoid tmux mangling
+        if len(text) > LONG_PROMPT_THRESHOLD:
+            if is_fish:
+                text = escape_for_fish(text)
+            await asyncio.to_thread(_send_long_prompt_via_file, pane_target, text)
+            if enter:
+                await asyncio.to_thread(tmux.send_keys, pane_target, "Enter", enter=True)
+            return
+
+        # Apply fish escaping if needed
+        if is_fish:
+            text = escape_for_fish(text)
+
         await tmux.async_send_keys(pane_target, text, enter=enter, delay=delay)
 
     async def async_wait_for_ready(
