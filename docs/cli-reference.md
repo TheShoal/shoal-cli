@@ -7,7 +7,7 @@ subcommand groups.
 
 | Command | Purpose |
 | ------- | ------- |
-| `shoal new` | Create a new session, optionally with a worktree and branch (branch category uses `template.git.branch_prefix` when set) |
+|| `shoal new` | Create a new session, optionally with a worktree and branch (branch category uses `template.git.branch_prefix` when set). Supports `--model <<idid>` to override the tool default. |
 | `shoal ls` | List sessions, with filters like `--tree` and `--tag` |
 | `shoal info` | Show detailed metadata for one session |
 | `shoal attach` | Jump into a session |

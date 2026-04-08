@@ -10,7 +10,7 @@ Comprehensive reference for every major Shoal capability. For a narrative introd
 
 | Command | Notes |
 |---------|-------|
-| `shoal new <name>` | Create a new session. `-t <tool>`, `-w <worktree>`, `-b` (branch), `--template <name>`, `--mode <name>` |
+|| `shoal new` | Create a new session. `-t <tool<tool>`,>`, `-w <<workworktree>`, `-b` (branch), `--template <<namename>`, `--mode <<namename>`, `--model <<idid>` |
 | `shoal fork <src> <dst>` | Fork an existing session into a new worktree with lineage tracking |
 | `shoal kill <name>` | Tear down a session, archive its journal, optionally clean its worktree |
 | `shoal prune` | Remove stopped sessions from the database |

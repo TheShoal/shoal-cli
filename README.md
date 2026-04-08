@@ -290,9 +290,10 @@ See [docs/ROBO_GUIDE.md](docs/ROBO_GUIDE.md) for detailed patterns.
 
 ### Session Management
 
-| Command         | Alias | Description                                       |
-| --------------- | ----- | ------------------------------------------------- |
-| `shoal new`     | `add` | Create a new session (optionally with a worktree) |
+| Command         | Alias | Description                                       | Options |
+| --------------- | ----- | ------------------------------------------------- | --------- |
+| `shoal new`     | `add` | Create a new session (optionally with a worktree) | `--model <<idid>` |
+|| `shoal new`     | `add` | Create a new session (optionally with a worktree) | `--model <<idid>` |
 | `shoal ls`      |       | List sessions (`--tag`, `--tree` supported)       |
 | `shoal attach`  | `a`   | Attach to a session (fzf picker if no name)       |
 | `shoal kill`    | `rm`  | Stop a session and clean up worktrees             |
