@@ -381,6 +381,26 @@ def _done_cmd(
     session_done(name=name, summary=summary)
 
 
+@app.command("heartbeat")
+def _heartbeat_cmd(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    status: Annotated[str, typer.Argument(help="Session status")],
+    summary: Annotated[
+        str | None, typer.Option("--summary", "-s", help="One-line description of current state")
+    ] = "",
+    turn_number: Annotated[
+        int | None, typer.Option("--turn-number", help="Turn counter (Pisces)")
+    ] = None,
+    tool_name: Annotated[
+        str | None, typer.Option("--tool-name", help="Last tool called (PostToolUse)")
+    ] = None,
+) -> None:
+    """Push a status heartbeat for a session."""
+    from shoal.cli.heartbeat import heartbeat_cli
+
+    heartbeat_cli(session, status, summary, turn_number, tool_name)
+
+
 # Aliases (hidden)
 @app.command("i", hidden=True)
 def _info_alias(
