@@ -47,16 +47,16 @@ Shoal gives every session structural isolation. They don't block you, and they d
 
 ```mermaid
 flowchart LR
-    subgraph Operator Terminal
-      A[tmux pane 0<br>you, the human]
-      B[tmux pane 1<br>agent 'auth']
-      C[tmux pane 2<br>agent 'api']
+    subgraph OT["Operator Terminal"]
+      A["tmux pane 0<br/>you, the human"]
+      B["tmux pane 1<br/>agent 'auth'"]
+      C["tmux pane 2<br/>agent 'api'"]
     end
-    subgraph Filesystem
-      D[/project<br>main branch]
-      E[/project/.shoal/<br>status.db]
-      F[/project/.worktrees/auth/]
-      G[/project/.worktrees/api-refactor/]
+    subgraph FS["Filesystem"]
+      D[/"project<br/>main branch"/]
+      E[/"project/.shoal/<br/>status.db"/]
+      F[/"project/.worktrees/auth/"/]
+      G[/"project/.worktrees/api-refactor/"/]
     end
     A --> D
     B --> F
