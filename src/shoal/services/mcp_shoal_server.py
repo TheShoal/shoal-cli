@@ -1017,21 +1017,19 @@ async def read_journal_tool(session: str, limit: int = 10) -> list[dict[str, obj
 @mcp.tool(
     name="session_summary",
     description=(
-        "Return the latest Dreamer LLM summary for a session. "
-        "Dreamer must be enabled and have completed at least one summarization cycle. "
-        "Falls back to the most recent journal entry tagged [dreamer] when the "
-        "in-process Dreamer singleton is unavailable."
+        "Return the latest summary for a session from its journal. "
+        "Reads up to 50 recent journal entries and returns the most recent entry "
+        "tagged with source 'dreamer'."
     ),
     annotations={"readOnlyHint": True},
 )
 async def session_summary_tool(session: str) -> dict[str, object]:
-    """Return the latest Dreamer summary for a session."""
+    """Return the latest journal summary for a session."""
     import asyncio
 
     from shoal.core.journal import read_journal
     from shoal.core.message_bus import receive_messages as _recv_msgs
     from shoal.core.state import find_by_name, get_session
-    from shoal.services.dreamer import get_dreamer
 
     # Resolve session
     session_id = await find_by_name(session)
@@ -1050,35 +1048,6 @@ async def session_summary_tool(session: str) -> dict[str, object]:
     except Exception:
         active_workflow_ids = []
 
-    # 1. Try in-process Dreamer singleton (fastest path).
-    dreamer = get_dreamer()
-    if dreamer is not None:
-        summary = dreamer.get_summary(s.id)
-        if summary:
-            return {
-                "session": s.name,
-                "summary": summary,
-                "source": "dreamer",
-                "active_workflow_ids": active_workflow_ids,
-            }
-
-    # 2. Try structured QMD artifact index (persisted summaries, fastest cold path).
-    try:
-        from shoal.core.conversation_index import get_index
-
-        idx = await get_index()
-        row = await idx.latest_summary(s.id)
-        if row is not None and row.get("summary"):
-            return {
-                "session": s.name,
-                "summary": row["summary"],
-                "source": "index",
-                "active_workflow_ids": active_workflow_ids,
-            }
-    except Exception:  # noqa: S110
-        pass  # index unavailable; fall through to journal
-
-    # 3. Fall back to the most recent dreamer journal entry.
     entries = await asyncio.to_thread(read_journal, s.id, limit=50)
     for entry in reversed(entries):
         if entry.source == "dreamer":

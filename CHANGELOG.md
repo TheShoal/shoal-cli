@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.0] "Toolchain Consolidation" - 2026-04-09
+
+**Drop Pisces + Dreamer, adopt upstream omp + Hermes as the integration layer.**
+
+### Removed
+- **Dreamer LLM service** (`services/dreamer.py`, `services/ai_client.py`): Bedrock/HTTP LLM wrapper and background summarizer removed. Session summaries now read directly from journal entries with `source="dreamer"`. The `dreamer_summary` / `workflow_summary` fields on `HandoffArtifact` are kept as empty defaults for serialization compatibility.
+- **QMD / ConversationIndex** (`core/qmd.py`, `core/conversation_index.py`, `core/conversations.py`): Dual-plane markdown+JSON conversation memory removed. `ConversationIndex` teardown removed from `db.py` `with_db()`.
+- **Fin plugin system** (`cli/fin.py`, `models/fin.py`, `services/fin_runtime.py`, `services/fin_repo.py`): Entire extension lifecycle — install/configure/run, contract-v1 adapter, registry — removed. `fins_dir()` removed from `core/config.py`. `shoal fin` subcommand removed from CLI.
+- **`_normalize_legacy_root_config()`** (`core/config.py`): Legacy `[claw]` → `[lobster]` config translation shim removed. Configs with a `[claw]` key now raise `ConfigLoadError` via `extra="forbid"`.
+- **Dead mypy overrides** (`pyproject.toml`): Removed stale overrides for `boto3`, `botocore.*`; retained `shoal.services.ai_client` override for the lazy-import fallback pattern in `services/report.py`.
+- **Dead ruff rule** (`pyproject.toml`): Removed `[tool.ruff.lint.extend-per-file-ignores]` block that targeted the now-deleted `src/shoal/core/proto/*.py` files.
+
+### Added
+- **Hermes plugin** (`~/.hermes/plugins/shoal/`): Six tools registered via Hermes `PluginContext` — `shoal_list_sessions`, `shoal_session_status`, `shoal_create_session`, `shoal_kill_session`, `shoal_send_keys`, `shoal_heartbeat` — all gated behind `check_fn=_check_shoal_available` so they only appear when the Shoal API is reachable. `pre_llm_call` hook injects session name, tool, status, branch, and worktree into each turn when `SHOAL_SESSION` is set.
+- **omp heartbeat extension** (`integrations/hooks/omp_heartbeat.ts`): TypeScript omp Extension (default export `ShoalHeartbeatExtension` with `onTurnEnd` / `onAgentEnd`) plus backward-compatible named exports (`turnEnd`, `agentEnd`). Default port `8080` (Shoal API). Install via `~/.omp/agent/extensions/` or `~/.config/shoal/hooks/`.
+
+### Changed
+- **`omp.toml` tool profile**: `status_provider` corrected from `"pi"` to `"omp_compat"`.
+- **`pisces.toml` tool profile**: Deprecation header added — pisces is no longer the primary tool; use upstream omp.
+- **Demo tour**: Reduced from 9 to 8 feature areas (Journal Dreaming step removed).
+- **`services/report.py`**: `_latest_dreamer_summary()` replaced with `_latest_journal_summary()` (journal-only, no singleton). LLM calls remain as lazy imports inside `try/except` blocks — reports always use the text fallback now.
+- **`services/status_bar.py`**: `generate_status_extended()` simplified to journal-only summary lookup (single tier instead of three).
+- **`services/mcp_shoal_server.py`**: `session_summary` tool simplified to journal-only lookup.
+- **Hooks README**: Renamed from "Pisces Heartbeat Hook" to "Shoal Heartbeat Hooks"; documents omp and Claude Code hooks, `SHOAL_PORT` env var, and legacy pisces variant.
+
+### Stats
+- 1530 tests, 1 skipped
+
 ## [0.40.0] "Ticket Workflow & MCP Hardening" - 2026-04-08
 
 **Linear ticket workflows from the CLI and critical MCP dogfooding fixes for production use.**

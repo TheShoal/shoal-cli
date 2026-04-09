@@ -106,10 +106,6 @@ module = "shoal.services.mcp_shoal_server"
 disable_error_code = ["call-arg", "attr-defined", "arg-type"]
 
 [[tool.mypy.overrides]]
-module = ["boto3", "boto3.*", "botocore.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
 module = "shoal.services.ai_client"
 ignore_missing_imports = true
 
@@ -127,7 +123,7 @@ source = ["src/shoal"]
 omit = ["*/tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
-fail_under = 73  # lowered from 80: ai_client, fs_watcher, proactive_supervisor need tests (v0.36.0)
+fail_under = 73
 show_missing = true
 skip_covered = false
 
@@ -142,6 +138,3 @@ link-mode = "copy"
 dev = [
     "basedpyright>=1.38.1",
 ]
-
-[tool.ruff.lint.extend-per-file-ignores]
-"src/shoal/core/proto/*.py" = ["E501", "E402", "I001"]  # generated files

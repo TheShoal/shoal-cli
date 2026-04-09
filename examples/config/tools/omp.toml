@@ -15,7 +15,7 @@
 name = "omp"
 command = "omp"
 icon = "🥧"
-status_provider = "pi"
+status_provider = "omp_compat"
 # Prompt delivery: write prompt to a file and pass "@/path/to/file.md" as a
 # positional argument.  omp's native "@file" syntax expands the file contents
 # inline before the LLM sees it, giving clean multi-line delivery.

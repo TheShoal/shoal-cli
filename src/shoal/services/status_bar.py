@@ -43,22 +43,20 @@ async def generate_status() -> dict[str, int]:
 
 
 async def generate_status_extended() -> dict[str, object]:
-    """Generate status counts plus per-session Dreamer summaries.
+    """Generate status counts plus per-session journal summaries.
 
     Includes a ``dreamer_summaries`` dict mapping session name → latest summary
-    for all sessions where Dreamer has produced at least one summary.
+    from journal entries with ``source == "dreamer"``.
 
     Returns:
         Dict with counts (running/idle/waiting/error/inactive) and
         ``dreamer_summaries: {name: summary_text}``.
     """
     from shoal.core.journal import read_journal
-    from shoal.services.dreamer import get_dreamer
 
     sessions = await list_sessions()
     running = idle = waiting = error = inactive = 0
 
-    dreamer = get_dreamer()
     dreamer_summaries: dict[str, str] = {}
 
     for session in sessions:
@@ -74,26 +72,6 @@ async def generate_status_extended() -> dict[str, object]:
         else:
             inactive += 1
 
-        # 1. In-process singleton (fastest).
-        if dreamer is not None:
-            summary = dreamer.get_summary(session.id)
-            if summary:
-                dreamer_summaries[session.name] = summary
-                continue
-
-        # 2. Try structured QMD artifact index.
-        try:
-            from shoal.core.conversation_index import get_index
-
-            idx = await get_index()
-            row = await idx.latest_summary(session.id)
-            if row is not None and row.get("summary"):
-                dreamer_summaries[session.name] = row["summary"]
-                continue
-        except Exception:  # noqa: S110
-            pass  # index unavailable; fall through to journal
-
-        # 3. Fall back to latest dreamer journal entry.
         try:
             entries = await asyncio.to_thread(read_journal, session.id, limit=50)
             for entry in reversed(entries):

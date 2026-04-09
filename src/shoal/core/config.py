@@ -102,7 +102,7 @@ def state_dir() -> Path:
 def ensure_dirs() -> None:
     """Create all required data and state directories."""
     cfg = config_dir()
-    for subdir in ("templates", "templates/mixins", "fins"):
+    for subdir in ("templates", "templates/mixins"):
         (cfg / subdir).mkdir(parents=True, exist_ok=True)
 
     base = data_dir()
@@ -153,19 +153,6 @@ def scaffold_defaults() -> list[str]:
     return created
 
 
-def _normalize_legacy_root_config(data: dict[str, Any], path: Path) -> dict[str, Any]:
-    """Strip deprecated top-level config sections before schema validation."""
-    normalized = dict(data)
-    if "claw" in normalized:
-        logger.warning(
-            "Ignoring deprecated [claw] config section in %s; "
-            "built-in Claw scheduler has been removed",
-            path,
-        )
-        normalized.pop("claw", None)
-    return normalized
-
-
 @lru_cache(maxsize=1)
 def load_config() -> ShoalConfig:
     """Load and cache the main config.toml."""
@@ -181,8 +168,7 @@ def load_config() -> ShoalConfig:
     except tomllib.TOMLDecodeError as e:
         raise ConfigLoadError(path, f"malformed TOML: {e}") from e
     try:
-        normalized = _normalize_legacy_root_config(data, path)
-        return ShoalConfig.model_validate(normalized)
+        return ShoalConfig.model_validate(data)
     except ValidationError as e:
         raise ConfigLoadError(path, f"invalid config: {e}") from e
 
@@ -263,11 +249,6 @@ def available_tools() -> list[str]:
 def templates_dir() -> Path:
     """Return ~/.config/shoal/templates."""
     return config_dir() / "templates"
-
-
-def fins_dir() -> Path:
-    """Return ~/.config/shoal/fins — installed fins registry."""
-    return config_dir() / "fins"
 
 
 def project_templates_dir() -> Path | None:

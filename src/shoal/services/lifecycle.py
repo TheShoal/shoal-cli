@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from shoal.models.config import DreamerConfig, ProjectHookEntry
+    from shoal.models.config import ProjectHookEntry
 
 from shoal.core import git, tmux
 from shoal.core.config import load_config
@@ -33,7 +33,6 @@ from shoal.core.state import (
 )
 from shoal.models.config import (
     CoordinatorConfig,
-    DreamerConfig,
     ProjectHookEntry,
     SessionTemplateConfig,
 )
@@ -977,7 +976,6 @@ async def create_session_lifecycle(
     mcp_servers: list[str] | None = None,
     extra_env: dict[str, str] | None = None,
     tags: list[str] | None = None,
-    dreamer_config: DreamerConfig | None = None,
     coordinator_config: CoordinatorConfig | None = None,
     model: str | None = None,
 ) -> SessionState:
@@ -1073,6 +1071,12 @@ async def create_session_lifecycle(
                 secure_env[k] = v
             else:
                 session_env[k] = v
+        
+        # Inject model constraints from template
+        if template_cfg.preferred_model:
+            session_env["PI_PREFERRED_MODEL"] = template_cfg.preferred_model
+        if template_cfg.allowed_models:
+            session_env["PI_ALLOWED_MODELS"] = ",".join(template_cfg.allowed_models)
 
     if extra_env:
         for k, v in extra_env.items():
@@ -1104,6 +1108,9 @@ async def create_session_lifecycle(
     if template_cfg and template_cfg.setup_commands:
         initial_pane = await tmux.async_first_pane(tmux_session)
         for cmd in template_cfg.setup_commands:
+            # Templates often expect commands to be typed into a shell.
+            # If they don't end in Enter, they'll just sit in the prompt.
+            # We ensure they are sent as a sequence ending in Enter.
             await tmux.async_send_keys(initial_pane, cmd, enter=True)
 
     # 4. Run startup commands
@@ -1160,31 +1167,6 @@ async def create_session_lifecycle(
     agent_pane = await tmux.async_first_pane(tmux_session)
     await tmux.async_set_pane_title(agent_pane, f"shoal:{session.id}")
 
-    # 5.5. Spawn dreamer pane if enabled
-    dreamer_pane_id = ""
-    if dreamer_config and dreamer_config.enabled:
-        try:
-            # Split horizontally, detached, named 'dreamer'
-            dreamer_cmd = (
-                f"split-window -t {tmux_session} -h -d -n dreamer -c {shlex.quote(work_dir)}"
-            )
-            await tmux.async_run_command(dreamer_cmd)
-            # Get the new dreamer pane ID
-            panes = await tmux.async_list_panes(tmux_session)
-            for pane in panes:
-                if pane.get("title") == "dreamer":
-                    dreamer_pane_id = pane.get("id", "")
-                    break
-            if dreamer_pane_id:
-                await tmux.async_set_pane_title(
-                    f"{tmux_session}:{dreamer_pane_id}", f"dreamer:{session.id}"
-                )
-                logger.info(
-                    "[%s] create: dreamer pane spawned (id=%s)", session.id, dreamer_pane_id
-                )
-        except Exception as exc:
-            logger.warning("[%s] create: failed to spawn dreamer pane: %s", session.id, exc)
-
     # 6. Capture PID + tmux coordinates + nvim socket
 
     updates: dict[str, object] = {"status": SessionStatus.running}
@@ -1206,9 +1188,6 @@ async def create_session_lifecycle(
         )
     if updated_runtime != session.runtime:
         updates["runtime"] = updated_runtime
-
-    if dreamer_pane_id:
-        updates["dreamer_pane_id"] = dreamer_pane_id
 
     await update_session(session.id, **updates)
 
@@ -1334,6 +1313,9 @@ async def fork_session_lifecycle(
     if template_cfg and template_cfg.setup_commands:
         initial_pane = await tmux.async_first_pane(tmux_session)
         for cmd in template_cfg.setup_commands:
+            # Templates often expect commands to be typed into a shell.
+            # If they don't end in Enter, they'll just sit in the prompt.
+            # We ensure they are sent as a sequence ending in Enter.
             await tmux.async_send_keys(initial_pane, cmd, enter=True)
 
     # 4. Run startup commands — full rollback on failure (fixes previous gap)
@@ -1537,29 +1519,11 @@ async def kill_session_lifecycle(
             handoff_db = await get_db()
             transitions = await handoff_db.get_status_transitions(session_id, limit=5)
 
-            # Pull structured summaries from index when available.
-            dreamer_summary = ""
-            workflow_summary = ""
-            try:
-                from shoal.core.conversation_index import get_index
-
-                idx = await get_index()
-                ds = await idx.latest_summary(session_id, kind="summary")
-                if ds and ds.get("summary"):
-                    dreamer_summary = ds["summary"]
-                ws = await idx.latest_summary(session_id, kind="workflow_summary")
-                if ws and ws.get("summary"):
-                    workflow_summary = ws["summary"]
-            except Exception:  # noqa: S110
-                pass  # index unavailable; proceed without structured summaries
-
             artifact = await asyncio.to_thread(
                 generate_handoff,
                 session,
                 entries,
                 transitions,
-                dreamer_summary=dreamer_summary,
-                workflow_summary=workflow_summary,
             )
             await asyncio.to_thread(write_handoff_artifact, session_id, artifact)
             summary["handoff_generated"] = True

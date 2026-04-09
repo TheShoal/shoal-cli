@@ -96,6 +96,8 @@ class SessionTemplateConfig(BaseModel):
     tool: str = "pi"
     mode: str = ""
     tags: list[str] = Field(default_factory=list)
+    preferred_model: str | None = None
+    allowed_models: list[str] = Field(default_factory=list)
     worktree: TemplateWorktreeConfig = Field(default_factory=TemplateWorktreeConfig)
     git: TemplateGitConfig = Field(default_factory=TemplateGitConfig)
     env: dict[str, str] = Field(default_factory=dict)

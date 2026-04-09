@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
 
 from shoal.core.db import ShoalDB
 from shoal.services.linear_bridge import LinearIssue, get_linear_bridge
@@ -96,9 +95,8 @@ class LinearCache:
 
         query += " ORDER BY priority, identifier"
 
-        async with db._connection() as conn:
-            async with conn.execute(query, params) as cursor:
-                rows = await cursor.fetchall()
+        async with db._connection() as conn, conn.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
 
         issues: list[LinearIssue] = []
         for row in rows:
@@ -130,12 +128,11 @@ class LinearCache:
             LinearIssue or None if not in cache.
         """
         db = await ShoalDB.get_instance()
-        async with db._connection() as conn:
-            async with conn.execute(
-                "SELECT * FROM linear_issues WHERE identifier = ?",
-                (identifier.upper(),),
-            ) as cursor:
-                row = await cursor.fetchone()
+        async with db._connection() as conn, conn.execute(
+            "SELECT * FROM linear_issues WHERE identifier = ?",
+            (identifier.upper(),),
+        ) as cursor:
+            row = await cursor.fetchone()
 
         if not row:
             return None
@@ -168,12 +165,11 @@ class LinearCache:
     async def last_sync_at(self, team_key: str) -> datetime | None:
         """Get the timestamp of the last sync for a team."""
         db = await ShoalDB.get_instance()
-        async with db._connection() as conn:
-            async with conn.execute(
-                "SELECT MAX(synced_at) FROM linear_issues WHERE team_key = ?",
-                (team_key.upper(),),
-            ) as cursor:
-                row = await cursor.fetchone()
+        async with db._connection() as conn, conn.execute(
+            "SELECT MAX(synced_at) FROM linear_issues WHERE team_key = ?",
+            (team_key.upper(),),
+        ) as cursor:
+            row = await cursor.fetchone()
 
         if row and row[0]:
             return datetime.fromisoformat(row[0])

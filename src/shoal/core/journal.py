@@ -490,8 +490,6 @@ def generate_handoff(
     now: datetime | None = None,
     blocked_after_minutes: int = 5,
     stale_after_minutes: int = 30,
-    dreamer_summary: str = "",
-    workflow_summary: str = "",
 ) -> HandoffArtifact:
     """Build a HandoffArtifact from a session and its journal data.
 
@@ -617,6 +615,4 @@ def generate_handoff(
         worktree=wt,
         git_diff_summary=git_diff_summary,
         commit_count=commit_count,
-        dreamer_summary=dreamer_summary,
-        workflow_summary=workflow_summary,
     )

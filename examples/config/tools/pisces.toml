@@ -1,3 +1,7 @@
+# DEPRECATED: pisces is no longer the primary tool. Use omp (oh-my-pi) instead.
+# pisces remains supported for lobster-party workflows but is not maintained upstream.
+# See examples/config/tools/omp.toml for the current primary tool profile.
+#
 # Shoal — pisces coding agent tool definition
 # pisces is the lobster-party fork of oh-my-pi (omp).
 # Binary: pisces  (built from sanctum/opus/proprium/pisces)

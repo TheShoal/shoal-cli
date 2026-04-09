@@ -11,7 +11,6 @@ import typer
 import shoal
 from shoal.cli.config_cmd import app as config_app
 from shoal.cli.demo import app as demo_app
-from shoal.cli.fin import app as fin_app
 from shoal.cli.incident import app as incident_app
 
 # Sub-group Typer apps — these are lightweight and needed at import time for add_typer.
@@ -114,11 +113,15 @@ def _add_cmd(
         str | None,
         typer.Option("--repo", help="Target sub-repo from .shoal/workspace.toml"),
     ] = None,
+    model: Annotated[
+        str | None,
+        typer.Option("--model", "-m", help="Model for the agent (e.g. 'z-ai/glm-5')"),
+    ] = None,
 ) -> None:
     """Create a new session."""
     from shoal.cli.session_create import add
 
-    add(path, tool, template, mode, worktree, branch, dry_run, name, mcp, repo)
+    add(path, tool, template, mode, worktree, branch, dry_run, name, mcp, repo, model)
 
 
 @app.command("ls")
@@ -575,7 +578,6 @@ app.add_typer(ticket_app, name="ticket", help="Linear ticket workflow.")
 app.add_typer(report_app, name="report", help="PM-facing reports.")
 app.add_typer(config_app, name="config", help="Configuration inspection.")
 app.add_typer(incident_app, name="incident", help="Incident supervision workflow.")
-app.add_typer(fin_app, name="fin", help="Fin extension lifecycle.")
 app.add_typer(mode_app, name="mode", help="Operating modes.")
 app.add_typer(skill_app, name="skill", help="Cross-agent skills.")
 app.add_typer(proactive_app, name="proactive", help="Proactive monitoring and filesystem watching.")

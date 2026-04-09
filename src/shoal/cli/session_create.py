@@ -359,17 +359,16 @@ async def _add_impl(
         return
 
     if worktree:
-        # S4: Warn if working tree is dirty or has an in-progress merge/rebase
+        # S4: Block if working tree is dirty or has an in-progress merge/rebase
         if git.worktree_is_dirty(str(resolved_path)):
             get_console().print(
-                "[yellow]⚠ Working tree has uncommitted changes.[/yellow]"
+                "[red]Error: Working tree has uncommitted changes.[/red]"
             )
             get_console().print(
-                "[dim]Worktrees will be created from HEAD, not from dirty state.[/dim]"
+                "[dim]Worktrees must be created from a clean HEAD to ensure consistency.[/dim]"
             )
-            get_console().print(
-                "[dim]Stash or commit changes first for a clean copy.[/dim]"
-            )
+            get_console().print("[dim]Run: git stash or git commit first[/dim]")
+            raise typer.Exit(1)
         if git.is_merging(str(resolved_path)):
             get_console().print(
                 "[red]Error: Working tree has an in-progress merge.[/red]"
@@ -424,7 +423,6 @@ async def _add_impl(
             worktree_name=worktree or "",
             mcp_servers=mcp_servers or None,
             tags=auto_tags or None,
-            dreamer_config=cfg.dreamer,
             model=model,
         )
     except SessionExistsError as e:

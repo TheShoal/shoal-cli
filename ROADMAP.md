@@ -229,6 +229,32 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-04-09 — Toolchain consolidation (v0.41.0)
+
+**What we did:**
+
+- **Phase A** — Removed Dreamer + AI client: deleted `dreamer.py`, `ai_client.py`, `test_services_dreamer.py`; simplified `lifecycle.py`, `journal.py`, `handoff.py`, `status_bar.py`, `report.py` (lazy `call_llm` imports in `try/except`), `mcp_shoal_server.py`, `demo/tour.py` (8 steps); updated `pyproject.toml`; fixed `session_create.py` and `api/server.py` to drop `dreamer_config` arg
+- **Phase B** — Removed QMD/ConversationIndex: deleted `qmd.py`, `conversation_index.py`, `conversations.py` + their 2 test files; removed `ConversationIndex` teardown from `db.py`
+- **Phase C** — Removed Fin plugin system: deleted 4 source files + 5 test files; removed `fin_app` from `cli/__init__.py`; removed `fins_dir()` from `config.py`
+- **Phase D** — Dead code: removed `_normalize_legacy_root_config()`; removed dead proto ruff rule; fixed `omp.toml` status_provider → `"omp_compat"`; deprecated `pisces.toml`
+- **Phase E** — Hermes plugin: created `~/.hermes/plugins/shoal/plugin.yaml` + `__init__.py` with 6 tools and `pre_llm_call` hook
+- **Phase F** — omp heartbeat extension: created `integrations/hooks/omp_heartbeat.ts` with `onTurnEnd`/`onAgentEnd` + legacy named exports; updated hooks README
+- Docs: new `docs/hermes-plugin.md`, `docs/heartbeat-hooks.md`; updated `mkdocs.yml` nav; updated `index.md` with v0.41 integration layer section; CHANGELOG entry for v0.41.0; tagged `v0.41.0`
+
+**Current state:**
+
+- Branch: `main`, tag `v0.41.0`
+- 1530 tests, 1 skipped
+- `shoal.services.ai_client` mypy override retained (lazy-import fallback pattern in `report.py`)
+- Hermes plugin at `~/.hermes/plugins/shoal/` — not version-controlled (user home)
+- `price_oracle.py` has a pre-existing syntax error (untracked WIP file) — does not affect CI
+
+**What to do next:**
+
+- **Smoke test Hermes plugin**: `hermes tools` should list `shoal_*` tools when Shoal API is running; not list them when it is not
+- **Smoke test omp heartbeat**: launch a session with `SHOAL_SESSION` set, confirm `shoal ls` shows `status_source=hook` after the first turn
+- **Live Lobster/gRPC validation**: smoke test `get_agent_card()` + `send_message()` against a real endpoint (requires endpoint access — no blocker on Shoal side)
+
 ### Session: 2026-04-02 — [template.git] per-session git practices
 
 **What we did:**

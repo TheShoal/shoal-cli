@@ -493,26 +493,6 @@ async def step_agent_teams() -> TourResult:
     return TourResult(passed=True, label="Agent Teams")
 
 
-async def step_journal_dreaming() -> TourResult:
-    """Step 9: Journal Dreaming — background log tailer and LLM summarizer."""
-    from shoal.models.config import DreamerConfig
-
-    get_console().print("[bold]9. Journal Dreaming[/bold]")
-    get_console().print(
-        "[dim]   Dreamer logs passive events and builds LLM summaries in the background.[/dim]"
-    )
-    get_console().print()
-
-    config = DreamerConfig(enabled=True, model="gpt-oss-20b", log_lines=20)
-    get_console().print(
-        f"   [cyan]Dreamer Configured[/cyan]: model={config.model}, lines={config.log_lines}"
-    )
-
-    get_console().print(f"   [green]{Symbols.CHECK} Dreaming observer initialized[/green]")
-    get_console().print()
-    return TourResult(passed=True, label="Journal Dreaming")
-
-
 # ============================================================================
 # Tour runner
 # ============================================================================
@@ -526,7 +506,6 @@ TOUR_STEPS = [
     step_mcp_orchestration,
     step_theme_and_status,
     step_agent_teams,
-    step_journal_dreaming,
 ]
 
 
@@ -540,7 +519,7 @@ async def _demo_tour_impl() -> None:
 
     get_console().print()
     get_console().print(Rule("[bold cyan]SHOAL FEATURE TOUR[/bold cyan]", style="cyan"))
-    get_console().print("[dim]Showcasing what Shoal can do \u2014 9 feature areas.[/dim]")
+    get_console().print("[dim]Showcasing what Shoal can do \u2014 8 feature areas.[/dim]")
     get_console().print()
 
     results: list[TourResult] = []

@@ -149,7 +149,6 @@ async def generate_session_report(
         RuntimeError: If the session does not exist.
     """
     from shoal.core.state import find_by_name, get_session
-    from shoal.services.ai_client import call_llm
 
     session_id = await find_by_name(session_name)
     if session_id is None:
@@ -171,6 +170,8 @@ async def generate_session_report(
     )
 
     try:
+        from shoal.services.ai_client import call_llm
+
         body = await call_llm(model=model, prompt=prompt, max_tokens=500, temperature=0.3)
         return _format_report(
             title=f"Session Report: {data.session_name}",
@@ -205,7 +206,6 @@ async def generate_team_report(
         Markdown report.
     """
     from shoal.core.state import list_sessions
-    from shoal.services.ai_client import call_llm
 
     team_key = linear_team_key or team_slug.upper()
     sessions = await list_sessions()
@@ -230,6 +230,8 @@ async def generate_team_report(
     )
 
     try:
+        from shoal.services.ai_client import call_llm
+
         body = await call_llm(model=model, prompt=prompt, max_tokens=650, temperature=0.3)
         return _format_report(
             title=f"{team_name} Team Status",
@@ -363,8 +365,6 @@ async def _build_sprint_report_data(
 
 async def _render_sprint_report(data: SprintReportData, *, model: str) -> str:
     """Render a sprint report from collected report data."""
-    from shoal.services.ai_client import call_llm
-
     prompt = _SPRINT_PROMPT.format(
         team_name=data.team_name,
         team_slug=data.team_slug,
@@ -376,6 +376,8 @@ async def _render_sprint_report(data: SprintReportData, *, model: str) -> str:
     )
 
     try:
+        from shoal.services.ai_client import call_llm
+
         body = await call_llm(model=model, prompt=prompt, max_tokens=800, temperature=0.3)
         return _format_report(
             title=f"{data.cycle_name} — Sprint Summary",
@@ -404,7 +406,7 @@ async def _build_session_report_data(session: SessionState) -> SessionReportData
         status=_status_label(session),
         last_active=_format_dt(session.last_activity),
         journal_entries=journal_entries,
-        dreamer_summary=await _latest_dreamer_summary(session),
+        dreamer_summary=await _latest_journal_summary(session),
     )
 
 
@@ -421,22 +423,15 @@ async def _recent_journal_lines(
     return [f"[{entry.source or 'journal'}] {entry.content[:max_chars]}" for entry in entries]
 
 
-async def _latest_dreamer_summary(session: SessionState) -> str:
-    """Resolve the best available Dreamer summary for a session."""
+async def _latest_journal_summary(session: SessionState) -> str:
+    """Return the latest journal entry with source == 'dreamer', or a fallback message."""
     from shoal.core.journal import read_journal
-    from shoal.services.dreamer import get_dreamer
-
-    dreamer = get_dreamer()
-    if dreamer is not None:
-        summary = dreamer.get_summary(session.id)
-        if summary:
-            return summary
 
     entries = await asyncio.to_thread(read_journal, session.id, 50)
     for entry in reversed(entries):
         if entry.source == "dreamer":
             return entry.content
-    return "(no Dreamer summary yet)"
+    return "(no summary available)"
 
 
 def _belongs_to_team(session: SessionState, team_slug: str, linear_team_key: str) -> bool:

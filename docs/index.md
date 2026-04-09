@@ -77,7 +77,7 @@ Shoal is built for the point where "open another terminal" stops scaling.
 
 ## Shoal is not another coding agent
 
-Shoal does not compete with Claude Code, Codex, Pi, Gemini, or OpenCode. It is the layer
+Shoal does not compete with Claude Code, omp, Gemini, or OpenCode. It is the layer
 above the agent interface and runtime where supervision, state, topology, handoffs, and
 control live.
 
@@ -88,11 +88,24 @@ permission model; Shoal operates above it as the operator surface.
 - **Not a desktop app.** The control plane runs in your terminal and survives SSH, overnight
   runs, and remote fleets without changing the UX.
 
+## The integration layer (v0.41)
+
+Starting with v0.41, Shoal consolidates around **upstream omp** as the primary coding agent and **Hermes** as the optional external scheduler — dropping the custom Pisces fork and the built-in Dreamer LLM.
+
+```
+Hermes (optional scheduler)
+  └─ shoal_* tools over HTTP → Shoal control plane
+                                └─ omp / Claude Code / OpenCode sessions
+```
+
+- **[Hermes plugin](hermes-plugin.md)** — six tools + `pre_llm_call` context injection; tools gate themselves off when Shoal is not running.
+- **[omp heartbeat extension](heartbeat-hooks.md)** — TypeScript Extension pushing `waiting`/`stopped` to Shoal's two-source status model on every turn end.
+- **[Claude Code heartbeat hook](heartbeat-hooks.md#claude-code-heartbeat-hook-claude_heartbeat-sh)** — shell `PostToolUse` hook for Claude Code sessions.
+
 !!! note "Experimental external supervisors"
-    Shoal can now be driven by external schedulers such as Hermes over HTTP
-    MCP. That path is real but still in development: keep it local-only,
-    start with read-only fleet digests, and use a strict whitelist until the
-    operator loop is proven.
+    Hermes-over-Shoal scheduling is real but still in development. Start with
+    read-only fleet digests (`shoal_list_sessions`, `shoal_session_status`) and
+    validate the round-trip before enabling session creation or key injection.
 
 
 The move Shoal makes: give serious developers a way to operate multiple coding agents as a

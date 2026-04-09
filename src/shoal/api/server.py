@@ -526,7 +526,6 @@ async def create_session_api(data: SessionCreate) -> SessionResponse:
             tool_command=tool_cfg.command,
             startup_commands=cfg.tmux.startup_commands,
             mcp_servers=data.mcp,
-            dreamer_config=cfg.dreamer,
         )
     except SessionExistsError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
