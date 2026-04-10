@@ -132,14 +132,27 @@ def list_panes(target: str) -> list[dict[str, str]]:
 
 
 def preferred_pane(session: str, title: str | None = None) -> str:
+    """Find the preferred pane for interaction.
+
+    Looks for a pane with the given title. If not found, returns the first pane
+    (typically the agent pane) rather than the active pane, which may be a
+    terminal split.
+
+    Args:
+        session: Tmux session name.
+        title: Optional pane title to search for.
+
+    Returns:
+        Pane ID (e.g., "%1") or session name if no panes exist.
+    """
     panes = list_panes(session)
     if title:
         for pane in panes:
             if pane["title"] == title:
                 return pane["id"]
-    for pane in panes:
-        if pane["active"] == "1":
-            return pane["id"]
+    # Fall back to the first pane (agent pane), not the active pane
+    if panes:
+        return panes[0]["id"]
     return session
 
 

@@ -247,6 +247,53 @@ def test_popup_custom_size():
 
 
 # ---------------------------------------------------------------------------
+# preferred_pane — targeting logic
+# ---------------------------------------------------------------------------
+
+
+def test_preferred_pane_finds_by_title():
+    """preferred_pane returns the pane with matching title."""
+    with patch("shoal.core.tmux.list_panes") as mock_list:
+        mock_list.return_value = [
+            {"id": "%1", "title": "agent", "command": "omp", "active": "0"},
+            {"id": "%2", "title": "terminal", "command": "fish", "active": "1"},
+        ]
+        result = tmux.preferred_pane("test-session", title="agent")
+        assert result == "%1"
+
+
+def test_preferred_pane_falls_back_to_first_pane():
+    """preferred_pane returns first pane when title not found (agent pane)."""
+    with patch("shoal.core.tmux.list_panes") as mock_list:
+        mock_list.return_value = [
+            {"id": "%1", "title": "agent", "command": "omp", "active": "0"},
+            {"id": "%2", "title": "terminal", "command": "fish", "active": "1"},
+        ]
+        # Title not found, should return first pane (agent) not active pane (terminal)
+        result = tmux.preferred_pane("test-session", title="nonexistent")
+        assert result == "%1"
+
+
+def test_preferred_pane_no_title_returns_first():
+    """preferred_pane without title returns first pane."""
+    with patch("shoal.core.tmux.list_panes") as mock_list:
+        mock_list.return_value = [
+            {"id": "%1", "title": "", "command": "omp", "active": "0"},
+            {"id": "%2", "title": "", "command": "fish", "active": "1"},
+        ]
+        result = tmux.preferred_pane("test-session")
+        assert result == "%1"
+
+
+def test_preferred_pane_empty_list_returns_session():
+    """preferred_pane returns session name when no panes exist."""
+    with patch("shoal.core.tmux.list_panes") as mock_list:
+        mock_list.return_value = []
+        result = tmux.preferred_pane("test-session")
+        assert result == "test-session"
+
+
+# ---------------------------------------------------------------------------
 # async_send_keys — delay behaviour
 # ---------------------------------------------------------------------------
 
