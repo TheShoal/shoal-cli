@@ -83,17 +83,25 @@ class GitHubBridge:
         method: Literal["GET", "POST", "PATCH"],
         path: str,
         json_data: dict[str, Any] | None = None,
+        accept_header: str | None = None,
     ) -> Any:
         """Execute a GitHub API request."""
         client = await self._ensure_client()
+        headers = {}
+        if accept_header:
+            headers["Accept"] = accept_header
         response = await client.request(
             method,
             path,
             json=json_data,
+            headers=headers if headers else None,
         )
         response.raise_for_status()
         if response.status_code == 204:
             return None
+        # Handle text responses (like diff format)
+        if accept_header and "diff" in accept_header:
+            return response.text
         return response.json()
 
     async def list_prs(self, repo: str, state: str = "open") -> list[GitHubPR]:
@@ -145,6 +153,25 @@ class GitHubBridge:
         """Close a pull request."""
         payload = {"state": "closed"}
         await self._request("PATCH", f"/repos/{repo}/pulls/{number}", json_data=payload)
+
+    async def get_pr_diff(self, repo: str, number: int) -> str:
+        """Get the diff for a pull request."""
+        result = await self._request(
+            "GET",
+            f"/repos/{repo}/pulls/{number}",
+            accept_header="application/vnd.github.v3.diff",
+        )
+        return str(result) if result else ""
+
+    async def get_pr_comments(self, repo: str, number: int) -> list[dict[str, Any]]:
+        """Get review comments for a pull request."""
+        data = await self._request("GET", f"/repos/{repo}/pulls/{number}/comments")
+        return data if isinstance(data, list) else []
+
+    async def get_pr_reviews(self, repo: str, number: int) -> list[dict[str, Any]]:
+        """Get reviews for a pull request."""
+        data = await self._request("GET", f"/repos/{repo}/pulls/{number}/reviews")
+        return data if isinstance(data, list) else []
 
 
 def get_github_bridge() -> GitHubBridge:
