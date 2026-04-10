@@ -664,6 +664,69 @@ async def heartbeat_api(session_ref: str, data: HeartbeatRequest) -> dict[str, o
     }
 
 
+class SendMessageRequest(BaseModel):
+    """Request body for posting a message to the Agent Bus."""
+
+    from_session: str = ""
+    to: str
+    topic: str
+    payload: str
+    kind: str = "event"
+    correlation_id: str | None = None
+    priority: int = 3
+    requires_ack: bool = False
+
+
+class ReceiveMessagesRequest(BaseModel):
+    """Query parameters for receiving Agent Bus messages."""
+
+    topic: str | None = None
+    kind: str | None = None
+    correlation_id: str | None = None
+    unconsumed_only: bool = True
+    limit: int = 50
+
+
+@app.post("/sessions/{session_ref}/messages/send")
+async def send_message_api(session_ref: str, body: SendMessageRequest) -> dict[str, object]:
+    """Post a message from one session to another via the Agent Bus."""
+    from shoal.core.message_bus import send_message
+
+    msg_id = await send_message(
+        from_session=body.from_session or session_ref,
+        to_session=body.to,
+        topic=body.topic,
+        payload=body.payload,
+        kind=body.kind,
+        correlation_id=body.correlation_id,
+        priority=body.priority,
+        requires_ack=body.requires_ack,
+    )
+    return {"id": msg_id, "to": body.to, "topic": body.topic, "kind": body.kind}
+
+
+@app.get("/sessions/{session_ref}/messages")
+async def receive_messages_api(
+    session_ref: str,
+    topic: str | None = None,
+    kind: str | None = None,
+    correlation_id: str | None = None,
+    unconsumed_only: bool = True,
+    limit: int = 50,
+) -> list[dict[str, object]]:
+    """Fetch messages for a session from the Agent Bus."""
+    from shoal.core.message_bus import receive_messages
+
+    return await receive_messages(
+        session_ref,
+        topic,
+        kind=kind,
+        correlation_id=correlation_id,
+        unconsumed_only=unconsumed_only,
+        limit=limit,
+    )
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await manager.connect(websocket)
