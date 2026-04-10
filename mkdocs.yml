@@ -101,6 +101,8 @@ nav:
       - Terminal Interaction Design: terminal-interaction-design.md
       - Architecture: architecture.md
       - Implementation Audit: implementation-audit.md
+  - Patterns:
+      - Multi-Agent Coordination: patterns/multi-agent-coordination.md
   - Reference:
       - Python API: reference/python-api.md
       - Extensions: EXTENSIONS.md
