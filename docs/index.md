@@ -100,7 +100,7 @@ Hermes (optional scheduler)
 
 - **[Hermes plugin](hermes-plugin.md)** — six tools + `pre_llm_call` context injection; tools gate themselves off when Shoal is not running.
 - **[omp heartbeat extension](heartbeat-hooks.md)** — TypeScript Extension pushing `waiting`/`stopped` to Shoal's two-source status model on every turn end.
-- **[Claude Code heartbeat hook](heartbeat-hooks.md#claude-code-heartbeat-hook-claude_heartbeat-sh)** — shell `PostToolUse` hook for Claude Code sessions.
+- **[Claude Code heartbeat hook](heartbeat-hooks.md#claude-code-heartbeat-hook-claude_heartbeatsh)** — shell `PostToolUse` hook for Claude Code sessions.
 
 !!! note "Experimental external supervisors"
     Hermes-over-Shoal scheduling is real but still in development. Start with

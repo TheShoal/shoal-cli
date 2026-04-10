@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] "Strategic Investments" - 2026-04-10
+
+**Career-aligned automation: issue decomposition, review workflows, weekly digests, and daemon management.**
+
+### Added
+- **`shoal ticket decompose`**: Split parent Linear issues into child sub-issues with dry-run preview. `LinearBridge.create_issue()` mutation added.
+- **`shoal github review-pr`**: Spawn review sessions with full PR context (diff, comments). `GitHubBridge.get_pr_diff()`, `get_pr_comments()` added.
+- **`shoal github post-review`**: Post session review findings as GitHub PR comments.
+- **`shoal report weekly`**: Aggregate sessions, Linear issues, and GitHub PRs into weekly digest. Supports `--week` (ISO week), `--team` filter, `--post` to Linear.
+- **`shoal demo fleet --live`**: Real Linear/GitHub integration mode for fleet demo.
+- **`shoal demo fleet --interactive`**: Step-by-step pause mode with Rich explanations.
+- **`cli/_helpers.py`**: Shared helper module extracted from ticket/report/github commands.
+
+### Fixed
+- **`preferred_pane` fallback**: Falls back to first pane instead of active pane, fixing `send_keys` and `capture_pane` targeting in multi-pane layouts.
+- **`post_worktree_create`**: Non-path values (e.g. `"uv sync"`) now run as shell commands with `cwd=worktree` instead of failing path resolution.
+- **Branch categories**: Added `"ops"` to `ALLOWED_BRANCH_CATEGORIES`.
+
+### Stats
+- 1590 tests, 1 skipped
+
 ## [0.41.0] "Toolchain Consolidation" - 2026-04-09
 
 **Drop Pisces + Dreamer, adopt upstream omp + Hermes as the integration layer.**

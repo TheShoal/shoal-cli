@@ -80,6 +80,8 @@ nav:
       - Team Doctrine: team-doctrine.md
       - Fleet Doctrine: SHOAL_TEAM.md
       - Review Checklist: review-checklist.md
+      - Ticket Decompose: ticket-decompose.md
+      - GitHub Workflows: github-workflows.md
       - Robo Supervisor: ROBO_GUIDE.md
       - Remote Sessions: REMOTE_GUIDE.md
       - Fish Integration: FISH_INTEGRATION.md

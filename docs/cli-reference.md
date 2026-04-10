@@ -58,6 +58,9 @@ and `prune` to clear stopped sessions from the database after cleanup.
 | ------- | ------- |
 | `shoal team ls` | List configured teams, their Linear keys, templates, worktree dirs, and report targets |
 | `shoal ticket ls --team <slug>` | Query Linear for issues in a configured team |
+| `shoal ticket decompose ISSUE-ID` | Split a parent issue into child sub-issues (--dry-run to preview) |
+| `shoal ticket sync --team SLUG` | Cache Linear issues for offline queries |
+| `shoal ticket pick` | Interactive fzf ticket picker (multi-team) |
 | `shoal ticket start <ISSUE-ID>` | Create a session from a Linear issue and tag it for status sync |
 | `shoal ticket done [ISSUE-ID]` | Generate a handoff, update Linear, and finish the linked session workflow |
 | `shoal ticket status` | Show active Linear-to-session bindings from session tags |
@@ -65,8 +68,19 @@ and `prune` to clear stopped sessions from the database after cleanup.
 | `shoal report team --team <slug>` | Summarize active work across a configured team |
 | `shoal report sprint --team <slug>` | Build a sprint summary from session state and Linear issue data |
 | `shoal report sprint --team <slug> --post` | Publish the sprint report to the team's configured Linear project or initiative |
+| `shoal report weekly` | Aggregate sessions, Linear, GitHub into weekly digest (--week, --team, --post) |
 
 `shoal ticket` and `shoal report` both resolve team metadata from `[teams.<slug>]` blocks in `.shoal/workspace.toml`. To enable `--post`, add a `[teams.<slug>.report]` block with `type = "project" | "initiative"` and exactly one selector: `id`, `slug`, or `name`.
+
+## GitHub workflows
+
+| Command | Purpose |
+| ------- | ------- |
+| `shoal github ls-prs --repo OWNER/REPO` | List pull requests |
+| `shoal github start-pr REPO NUMBER` | Create session from a GitHub PR |
+| `shoal github review-pr REPO NUMBER` | Spawn a review session with full PR context (diff, comments) |
+| `shoal github post-review REPO NUMBER` | Post session review findings as GitHub comment |
+| `shoal github done-pr REPO NUMBER` | Post handoff and close PR |
 ## MCP pool
 
 | Command | Purpose |
@@ -207,9 +221,9 @@ Key tools exposed by `shoal-orchestrator` beyond what `shoal mcp ls` shows:
 | `branch_status` | git | Branch, ahead/behind, dirty state |
 | `session_summary` | dreamer | Dreamer LLM summary |
 | `get_failure_context` | proactive | Scout failure context packet (`consume` flag) |
-| `send_session_message` | messaging | Agent Bus send |
-| `receive_session_messages` | messaging | Poll unread messages |
-| `get_workflow_messages` | messaging | Trace by `correlation_id` |
+| `send_session_message` | bus | Post typed message to another session |
+| `receive_session_messages` | bus | Fetch messages with filtering |
+| `get_workflow_messages` | bus | Aggregate messages by correlation_id |
 | `request_session_action` | actions | Request approval |
 | `approve_session_action` | actions | Approve pending action |
 | `deny_session_action` | actions | Deny pending action |
@@ -229,6 +243,9 @@ Key tools exposed by `shoal-orchestrator` beyond what `shoal mcp ls` shows:
 | `shoal watcher start` | Start background status watcher |
 | `shoal watcher stop` | Stop watcher |
 | `shoal watcher status` | Check watcher status |
+| `shoal demo fleet` | Mock mode (default) fleet demo |
+| `shoal demo fleet --live` | Real Linear/GitHub integrations |
+| `shoal demo fleet --interactive` | Step-by-step with pauses |
 | `shoal demo ...` | Launch or step through the guided demo |
 
 ## Setup

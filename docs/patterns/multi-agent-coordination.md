@@ -448,14 +448,7 @@ messages = await watch_messages(
 
 ## Complete Example
 
-See [examples/multi_agent_workflow.py](../../examples/multi_agent_workflow.py) for a runnable demonstration of the complete planner-worker-reviewer pattern.
-
-Run it directly:
-
-```bash
-cd tools/shoal-cli
-python examples/multi_agent_workflow.py
-```
+A runnable demonstration of the complete planner-worker-reviewer pattern is available in the Shoal repository under `examples/multi_agent_workflow.py`.
 
 The example demonstrates:
 
@@ -627,6 +620,6 @@ for msg in messages:
 
 ## Further Reading
 
-- [Message Bus API](../reference/python-api.md#message-bus) - Full API documentation
+- [Python API Reference](../reference/python-api.md) - Full API documentation
 - [Handoffs & Modes](../handoffs-and-modes.md) - Session handoff patterns
-- [examples/multi_agent_workflow.py](../../examples/multi_agent_workflow.py) - Complete runnable example
+- [Team Doctrine](../team-doctrine.md) - Multi-agent team patterns
