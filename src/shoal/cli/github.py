@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -154,3 +156,217 @@ async def _pr_done_impl(repo: str, number: int) -> None:
         await bridge.close()
 
     console.print(f"[bold green]PR {number} marked done.[/bold green]")
+
+
+@app.command("review-pr")
+def pr_review(
+    repo: Annotated[str, typer.Argument(help="GitHub repository (owner/repo)")],
+    number: Annotated[int, typer.Argument(help="PR number")],
+    template: str = typer.Option("pantheon-review", "--template", help="Session template"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show review prompt without creating session"
+    ),
+) -> None:
+    """Create a review session for a GitHub PR with full context."""
+    asyncio.run(_pr_review_impl(repo, number, template=template, dry_run=dry_run))
+
+
+async def _pr_review_impl(repo: str, number: int, *, template: str, dry_run: bool) -> None:
+    from shoal.cli.session_create import _add_impl
+
+    console = get_console()
+    try:
+        bridge = get_github_bridge()
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from None
+
+    try:
+        # Fetch PR metadata, diff, and comments
+        console.print(f"[dim]Fetching PR #{number} from {repo}...[/dim]")
+        pr = await bridge.get_pr(repo, number)
+        diff = await bridge.get_pr_diff(repo, number)
+        comments = await bridge.get_pr_comments(repo, number)
+        reviews = await bridge.get_pr_reviews(repo, number)
+    finally:
+        await bridge.close()
+
+    # Truncate diff if too large (keep first 5000 chars)
+    diff_truncated = diff[:5000]
+    if len(diff) > 5000:
+        diff_truncated += f"\n\n... (truncated {len(diff) - 5000} chars)"
+
+    # Build structured review prompt
+    review_prompt = f"""# PR Review: {pr.title}
+
+**Repository**: {repo}
+**PR Number**: #{number}
+**Author**: {pr.user}
+**Base Branch**: {pr.base}
+**Head Branch**: {pr.head}
+**State**: {pr.state}
+
+## Description
+
+{pr.body or "(No description provided)"}
+
+## Diff
+
+```diff
+{diff_truncated}
+```
+
+## Existing Comments ({len(comments)})
+
+"""
+
+    if comments:
+        for comment in comments[:10]:  # Show first 10 comments
+            user = comment.get("user", {}).get("login", "unknown")
+            body = comment.get("body", "")
+            review_prompt += f"- **{user}**: {body}\n"
+        if len(comments) > 10:
+            review_prompt += f"\n... and {len(comments) - 10} more comments\n"
+    else:
+        review_prompt += "(No comments yet)\n"
+
+    review_prompt += f"\n## Reviews ({len(reviews)})\n\n"
+    if reviews:
+        for review in reviews[:5]:
+            user = review.get("user", {}).get("login", "unknown")
+            state = review.get("state", "unknown")
+            body = review.get("body", "")
+            review_prompt += f"- **{user}** ({state}): {body}\n"
+        if len(reviews) > 5:
+            review_prompt += f"\n... and {len(reviews) - 5} more reviews\n"
+    else:
+        review_prompt += "(No reviews yet)\n"
+
+    review_prompt += """
+
+---
+
+Please review this PR focusing on:
+1. Code quality and correctness
+2. Potential bugs or edge cases
+3. Security concerns
+4. Performance implications
+5. Test coverage
+6. Documentation completeness
+
+Provide actionable feedback in your review.
+"""
+
+    if dry_run:
+        console.print("\n[bold]Review Prompt (dry-run):[/bold]")
+        console.print(review_prompt)
+        return
+
+    # Create session
+    session_name = f"gh-review-{repo.replace('/', '-')}-{number}"
+    console.print(f"[bold]Creating review session:[/bold] {session_name}")
+    console.print(f"[dim]Template: {template}[/dim]")
+
+    await _add_impl(
+        path=None,
+        tool=None,
+        template=template,
+        mode=None,
+        worktree=None,
+        branch=False,
+        dry_run=False,
+        name=session_name,
+        mcp_servers=None,
+        repo=None,
+    )
+
+    # Tag session
+    sid = await resolve_session(session_name)
+    if sid:
+        await add_tag(sid, f"github:{repo}#{number}")
+
+    # Write prompt to a file in temp directory
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        f.write(review_prompt)
+        prompt_file = Path(f.name)
+
+    console.print(f"[green]Review session created: {session_name}[/green]")
+    console.print(f"[dim]Review context written to: {prompt_file}[/dim]")
+    console.print(f"[dim]Attach to the session and read the context with: cat {prompt_file}[/dim]")
+
+
+@app.command("post-review")
+def pr_post_review(
+    repo: Annotated[str, typer.Argument(help="GitHub repository (owner/repo)")],
+    number: Annotated[int, typer.Argument(help="PR number")],
+    session: str | None = typer.Option(
+        None, "--session", help="Session name (auto-detect if omitted)"
+    ),
+) -> None:
+    """Post review session journal to GitHub PR as a comment."""
+    asyncio.run(_pr_post_review_impl(repo, number, session=session))
+
+
+async def _pr_post_review_impl(repo: str, number: int, *, session: str | None) -> None:
+    from shoal.core.journal import read_journal
+    from shoal.core.state import list_sessions
+
+    console = get_console()
+
+    # Find the review session
+    if session:
+        sid = await resolve_session(session)
+        if not sid:
+            console.print(f"[red]Session '{session}' not found[/red]")
+            raise typer.Exit(1)
+        from shoal.core.state import get_session
+
+        target_session = await get_session(sid)
+    else:
+        # Auto-detect by tag
+        sessions = await list_sessions()
+        target_session = None
+        for s in sessions:
+            if f"github:{repo}#{number}" in s.tags:
+                target_session = s
+                break
+
+        if not target_session:
+            console.print(f"[red]No session found tagged with github:{repo}#{number}[/red]")
+            raise typer.Exit(1)
+
+    if not target_session:
+        console.print("[red]Session not found[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[dim]Reading journal from session: {target_session.name}[/dim]")
+
+    # Read journal entries
+    entries = read_journal(target_session.id)
+    if not entries:
+        console.print("[yellow]No journal entries found for this session[/yellow]")
+        raise typer.Exit(1)
+
+    # Format as structured review comment
+    review_body = f"## Code Review from Shoal Session: {target_session.name}\n\n"
+    review_body += f"**Session ID**: {target_session.id}\n"
+    review_body += f"**Tool**: {target_session.tool}\n\n"
+    review_body += "### Review Summary\n\n"
+
+    for entry in entries:
+        review_body += f"**{entry.timestamp.isoformat()}** (`{entry.source}`)\n\n"
+        review_body += f"{entry.content}\n\n---\n\n"
+
+    # Post to GitHub
+    try:
+        bridge = get_github_bridge()
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from None
+
+    try:
+        await bridge.add_comment(repo, number, review_body)
+        console.print(f"[green]Review posted to PR #{number}[/green]")
+        console.print(f"[dim]Session: {target_session.name}[/dim]")
+    finally:
+        await bridge.close()
