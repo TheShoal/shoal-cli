@@ -2394,7 +2394,7 @@ class TestRunPostWorktreeHook:
         assert call_args[1] == wt_path
 
     def test_warns_on_missing_script(self, tmp_path, caplog):
-        """Log a warning when the script file does not exist; no exception raised."""
+        """Log a warning when the script file does not exist; treated as shell command."""
         import logging
 
         from shoal.models.config import SessionTemplateConfig, TemplateWorktreeConfig
@@ -2406,11 +2406,16 @@ class TestRunPostWorktreeHook:
             worktree=TemplateWorktreeConfig(post_worktree_create="scripts/missing.sh"),
         )
 
+        # Create worktree directory so shell command can execute
+        wt_path = tmp_path / "worktree"
+        wt_path.mkdir()
+
         with caplog.at_level(logging.WARNING, logger="shoal.lifecycle"):
             # Must not raise
-            _run_post_worktree_hook(template_cfg, "/tmp/wt", str(tmp_path))
+            _run_post_worktree_hook(template_cfg, str(wt_path), str(tmp_path))
 
-        assert any("not found" in r.message for r in caplog.records)
+        # Since script doesn't exist, it's treated as a shell command and fails
+        assert any("command" in r.message and "exited" in r.message for r in caplog.records)
 
     def test_warns_on_nonzero_exit(self, tmp_path, caplog):
         """Log a warning when script exits non-zero; no exception raised."""
@@ -2436,3 +2441,31 @@ class TestRunPostWorktreeHook:
                 _run_post_worktree_hook(template_cfg, "/tmp/wt", str(tmp_path))
 
         assert any("exited" in r.message for r in caplog.records)
+
+    def test_executes_shell_command(self, tmp_path):
+        """Execute a shell command when value is not an existing file."""
+        from shoal.models.config import SessionTemplateConfig, TemplateWorktreeConfig
+        from shoal.services.lifecycle import _run_post_worktree_hook
+
+        wt_path = tmp_path / "worktree"
+        wt_path.mkdir()
+
+        # Create a marker file that the shell command will check
+        marker = wt_path / "marker.txt"
+
+        template_cfg = SessionTemplateConfig(
+            name="test-template",
+            extends="base",
+            worktree=TemplateWorktreeConfig(post_worktree_create="echo 'test' > marker.txt"),
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            _run_post_worktree_hook(template_cfg, str(wt_path), str(tmp_path))
+
+        # Verify shell command was called with correct parameters
+        mock_run.assert_called_once()
+        args, kwargs = mock_run.call_args
+        assert args[0] == "echo 'test' > marker.txt"
+        assert kwargs["shell"] is True
+        assert kwargs["cwd"] == str(wt_path)

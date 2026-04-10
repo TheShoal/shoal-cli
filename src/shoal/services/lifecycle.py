@@ -155,40 +155,67 @@ def _run_post_worktree_hook(
     wt_path: str,
     git_root: str,
 ) -> None:
-    """Execute post_worktree_create script synchronously, if configured.
+    """Execute post_worktree_create script or shell command, if configured.
+
+    Supports two modes:
+    1. **Script path**: If the value resolves to an existing file (absolute or
+       relative to git root), it's executed as a script with the worktree path
+       as the first argument.
+    2. **Shell command**: Otherwise, the value is executed as a shell command
+       with cwd set to the worktree directory.
 
     Errors are logged as warnings and do not propagate — a misconfigured or
     failing hook must not abort session creation.
     """
     if not template_cfg or not template_cfg.worktree.post_worktree_create:
         return
-    script_raw = template_cfg.worktree.post_worktree_create
-    # Resolve relative paths against the git root so scripts can live in the repo.
+    hook_value = template_cfg.worktree.post_worktree_create
+
+    # Try to resolve as a script path first
     script_path = (
-        Path(script_raw) if Path(script_raw).is_absolute() else Path(git_root) / script_raw
+        Path(hook_value) if Path(hook_value).is_absolute() else Path(git_root) / hook_value
     )
-    if not script_path.exists():
-        logger.warning(
-            "post_worktree_create script not found: %s (resolved from %s)",
-            script_path,
-            script_raw,
-        )
-        return
-    try:
-        result = subprocess.run(
-            [str(script_path), wt_path],
-            check=False,
-        )
-        if result.returncode != 0:
-            logger.warning(
-                "post_worktree_create script exited %d: %s",
-                result.returncode,
-                script_path,
+
+    if script_path.exists():
+        # Mode 1: Execute as script with worktree path as argument
+        try:
+            result = subprocess.run(
+                [str(script_path), wt_path],
+                check=False,
             )
-    except Exception:
-        logger.warning(
-            "post_worktree_create script raised an exception: %s", script_path, exc_info=True
-        )
+            if result.returncode != 0:
+                logger.warning(
+                    "post_worktree_create script exited %d: %s",
+                    result.returncode,
+                    script_path,
+                )
+        except Exception:
+            logger.warning(
+                "post_worktree_create script raised an exception: %s",
+                script_path,
+                exc_info=True,
+            )
+    else:
+        # Mode 2: Execute as shell command in worktree directory
+        try:
+            result = subprocess.run(
+                hook_value,
+                shell=True,
+                cwd=wt_path,
+                check=False,
+            )
+            if result.returncode != 0:
+                logger.warning(
+                    "post_worktree_create command exited %d: %s",
+                    result.returncode,
+                    hook_value,
+                )
+        except Exception:
+            logger.warning(
+                "post_worktree_create command raised an exception: %s",
+                hook_value,
+                exc_info=True,
+            )
 
 
 # ---------------------------------------------------------------------------

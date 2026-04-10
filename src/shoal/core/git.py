@@ -244,6 +244,7 @@ ALLOWED_BRANCH_CATEGORIES: tuple[str, ...] = (
     "impl",
     "review",
     "batch",
+    "ops",
 )
 
 
