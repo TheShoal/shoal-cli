@@ -79,6 +79,7 @@ query Issue($identifier: String!) {
     url
     priority
     branchName
+    teamId
     state { name type }
     assignee { name }
     labels { nodes { name } }
@@ -200,6 +201,20 @@ mutation CreateInitiativeUpdate($input: InitiativeUpdateCreateInput!) {
 }
 """
 
+_MUTATION_CREATE_ISSUE = """
+mutation CreateIssue($input: IssueCreateInput!) {
+  issueCreate(input: $input) {
+    success
+    issue {
+      id
+      identifier
+      title
+      url
+    }
+  }
+}
+"""
+
 
 class LinearIssue(BaseModel):
     """Linear issue data extracted from GraphQL response."""
@@ -210,6 +225,7 @@ class LinearIssue(BaseModel):
     identifier: str = ""
     title: str = ""
     description: str = ""
+    team_id: str = ""
     state_name: str = ""
     state_type: str = ""
     priority: int = 0
@@ -298,6 +314,7 @@ class LinearBridge:
             identifier=node.get("identifier") or "",
             title=node.get("title") or "",
             description=node.get("description") or "",
+            team_id=node.get("teamId") or "",
             state_name=state.get("name") or "",
             state_type=state.get("type") or "",
             priority=node.get("priority") or 0,
@@ -412,6 +429,49 @@ class LinearBridge:
         """
         variables = {"issueId": issue_id, "body": body}
         await self._post(_MUTATION_ADD_COMMENT, variables)
+
+    async def create_issue(
+        self,
+        team_id: str,
+        title: str,
+        description: str,
+        parent_id: str | None = None,
+        priority: int = 0,
+    ) -> dict[str, str]:
+        """Create a new Linear issue.
+
+        Args:
+            team_id: The Linear team ID (UUID).
+            title: Issue title.
+            description: Issue description as Markdown text.
+            parent_id: Optional parent issue ID (UUID) for sub-issues.
+            priority: Issue priority (0=None, 1=Urgent, 2=High, 3=Medium, 4=Low).
+
+        Returns:
+            Dict with keys: id, identifier, title, url.
+        """
+        input_data: dict[str, Any] = {
+            "teamId": team_id,
+            "title": title,
+            "description": description,
+        }
+        if parent_id:
+            input_data["parentId"] = parent_id
+        if priority:
+            input_data["priority"] = priority
+
+        data = await self._post(_MUTATION_CREATE_ISSUE, {"input": input_data})
+        payload = data.get("issueCreate") or {}
+        if not payload.get("success"):
+            raise RuntimeError(f"Failed to create Linear issue: {title}")
+
+        issue_node: dict[str, Any] = payload.get("issue") or {}
+        return {
+            "id": issue_node.get("id", ""),
+            "identifier": issue_node.get("identifier", ""),
+            "title": issue_node.get("title", ""),
+            "url": issue_node.get("url", ""),
+        }
 
     async def resolve_target(
         self,

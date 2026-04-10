@@ -356,8 +356,8 @@ async def _ticket_sync_impl(*, team: str | None, all_teams: bool) -> None:
 @app.command("pick")
 def ticket_pick(
     team: Annotated[
-        list[str], typer.Option("--team", "-t", help="Team slug (can specify multiple)")
-    ] = [],
+        list[str] | None, typer.Option("--team", "-t", help="Team slug (can specify multiple)")
+    ] = None,
     mine: bool = typer.Option(False, "--mine", help="Only my assigned issues"),
     ready: bool = typer.Option(False, "--ready", help="Only unstarted issues"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
@@ -366,12 +366,32 @@ def ticket_pick(
 
     Uses cached issues - run 'shoal ticket sync' first if cache is empty.
     """
-    asyncio.run(with_db(_ticket_pick_impl(teams=team, mine=mine, ready=ready, json_output=json_output)))
+    teams = team or []
+    asyncio.run(
+        with_db(_ticket_pick_impl(teams=teams, mine=mine, ready=ready, json_output=json_output))
+    )
 
 
-async def _ticket_pick_impl(*, teams: list[str], mine: bool, ready: bool, json_output: bool) -> None:
+@app.command("decompose")
+def ticket_decompose(
+    issue_id: Annotated[str, typer.Argument(help="Parent issue identifier (e.g. AIA-123)")],
+    count: Annotated[int, typer.Option("--count", "-n", help="Number of sub-issues")] = 3,
+    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Preview without creating"),
+) -> None:
+    """Break a parent Linear issue into child sub-issues.
+
+    In dry-run mode (default), displays proposed child issues.
+    Use --no-dry-run to create the child issues in Linear.
+    """
+    asyncio.run(with_db(_ticket_decompose_impl(issue_id, count=count, dry_run=dry_run)))
+
+
+async def _ticket_pick_impl(
+    *, teams: list[str], mine: bool, ready: bool, json_output: bool
+) -> None:
     import subprocess
 
+    from shoal.services.linear_bridge import LinearIssue
     from shoal.services.linear_cache import get_linear_cache
 
     console = get_console()
@@ -390,11 +410,10 @@ async def _ticket_pick_impl(*, teams: list[str], mine: bool, ready: bool, json_o
         raise typer.Exit(1)
 
     # Collect issues from all teams
-    all_issues: list[tuple[str, object]] = []  # (team_key, issue)
+    all_issues: list[tuple[str, LinearIssue]] = []  # (team_key, issue)
     for team_key in team_keys:
         issues = await cache.get_cached_issues(team_key, ready_only=ready)
-        for issue in issues:
-            all_issues.append((team_key, issue))
+        all_issues.extend((team_key, issue) for issue in issues)
 
     if not all_issues:
         console.print("[yellow]No cached issues. Run 'shoal ticket sync' first.[/yellow]")
@@ -425,7 +444,8 @@ async def _ticket_pick_impl(*, teams: list[str], mine: bool, ready: bool, json_o
 
     # Use fzf for selection
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["fzf", "--tac", "--header=ID\tTitle\tTeam\tState", "--with-nth=1..4"],
             input="\n".join(lines),
             capture_output=True,
@@ -440,7 +460,171 @@ async def _ticket_pick_impl(*, teams: list[str], mine: bool, ready: bool, json_o
             console.print(f"[dim]Run: shoal ticket start {selected_id}[/dim]")
     except FileNotFoundError:
         console.print("[red]fzf not found. Install with: brew install fzf[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except subprocess.CalledProcessError:
         # User cancelled fzf
         pass
+
+
+async def _ticket_decompose_impl(issue_id: str, *, count: int, dry_run: bool) -> None:
+    from shoal.services.linear_bridge import get_linear_bridge
+
+    console = get_console()
+
+    # Fetch parent issue
+    try:
+        bridge = get_linear_bridge()
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from None
+
+    try:
+        issue = await bridge.get_issue(issue_id)
+        if not issue:
+            console.print(f"[red]Issue not found: {issue_id}[/red]")
+            raise typer.Exit(1)
+
+        # Generate child issue proposals from description
+        proposals = _parse_child_proposals(issue.description, count=count, parent_title=issue.title)
+
+        if not proposals:
+            console.print("[yellow]No child issues could be generated from description.[/yellow]")
+            console.print(
+                "[dim]Try adding bullet points or numbered items to the description.[/dim]"
+            )
+            raise typer.Exit(0)
+
+        # Display proposals
+        console.print(f"[bold]Parent Issue:[/bold] {issue.identifier} — {issue.title}")
+        console.print()
+
+        table = Table(title="Proposed Child Issues")
+        table.add_column("#", style="dim", width=3)
+        table.add_column("Title", style="bold")
+        table.add_column("Description Preview", max_width=50)
+        table.add_column("Priority")
+
+        for idx, proposal in enumerate(proposals, start=1):
+            desc = proposal["description"]
+            if not isinstance(desc, str):
+                desc = str(desc)
+            preview = desc[:80] + "..." if len(desc) > 80 else desc
+            title = proposal["title"]
+            if not isinstance(title, str):
+                title = str(title)
+            priority = proposal["priority"]
+            if not isinstance(priority, int):
+                priority = 3
+            table.add_row(
+                str(idx),
+                title,
+                preview,
+                _priority_label(priority),
+            )
+
+        console.print(table)
+
+        # Create issues if not dry-run
+        if dry_run:
+            console.print()
+            console.print("[dim]Dry-run mode: use --no-dry-run to create these issues.[/dim]")
+        else:
+            console.print()
+            console.print("[bold]Creating child issues...[/bold]")
+            created: list[dict[str, str]] = []
+
+            for proposal in proposals:
+                try:
+                    title_obj = proposal["title"]
+                    title_str = title_obj if isinstance(title_obj, str) else str(title_obj)
+                    desc_obj = proposal["description"]
+                    desc_str = desc_obj if isinstance(desc_obj, str) else str(desc_obj)
+                    priority_obj = proposal["priority"]
+                    priority_int = priority_obj if isinstance(priority_obj, int) else 3
+
+                    result = await bridge.create_issue(
+                        team_id=issue.team_id,
+                        title=title_str,
+                        description=desc_str,
+                        parent_id=issue.id,
+                        priority=priority_int,
+                    )
+                    created.append(result)
+                    ident = result["identifier"]
+                    title = result["title"]
+                    console.print(f"[green]✓[/green] Created {ident}: {title}")
+                except RuntimeError as exc:
+                    prop_title = proposal["title"]
+                    console.print(f"[yellow]✗ Failed to create '{prop_title}': {exc}[/yellow]")
+
+            if created:
+                console.print()
+                console.print(f"[bold green]Created {len(created)} child issues.[/bold green]")
+                for child in created:
+                    console.print(f"  • {child['identifier']}: {child['url']}")
+
+    finally:
+        await bridge.close()
+
+
+def _parse_child_proposals(
+    description: str, *, count: int, parent_title: str
+) -> list[dict[str, object]]:
+    """Extract child issue proposals from parent description.
+
+    Simple heuristic-based parser that looks for:
+    - Numbered lists (1. 2. 3.)
+    - Bullet points (- * •)
+    - Headings (## ###)
+
+    Returns a list of dicts with keys: title, description, priority.
+    """
+    if not description or not description.strip():
+        return []
+
+    lines = description.strip().split("\n")
+    proposals: list[dict[str, object]] = []
+
+    # Pattern 1: Numbered lists
+    import re
+    numbered_pattern = re.compile(r"^\s*\d+\.\s+(.+)$")
+    for line in lines:
+        match = numbered_pattern.match(line)
+        if match and len(proposals) < count:
+            title_text = match.group(1).strip()
+            proposals.append({
+                "title": title_text,
+                "description": f"Sub-task of {parent_title}\n\n{title_text}",
+                "priority": 3,  # Medium priority by default
+            })
+
+    # Pattern 2: Bullet points (if numbered didn't yield enough)
+    if len(proposals) < count:
+        bullet_pattern = re.compile(r"^\s*[-*•]\s+(.+)$")
+        for line in lines:
+            match = bullet_pattern.match(line)
+            if match and len(proposals) < count:
+                title_text = match.group(1).strip()
+                # Skip if already added from numbered list
+                if not any(p["title"] == title_text for p in proposals):
+                    proposals.append({
+                        "title": title_text,
+                        "description": f"Sub-task of {parent_title}\n\n{title_text}",
+                        "priority": 3,
+                    })
+
+    # Pattern 3: Headings (if still not enough)
+    if len(proposals) < count:
+        heading_pattern = re.compile(r"^\s*#{2,3}\s+(.+)$")
+        for line in lines:
+            match = heading_pattern.match(line)
+            if match and len(proposals) < count:
+                title_text = match.group(1).strip()
+                if not any(p["title"] == title_text for p in proposals):
+                    proposals.append({
+                        "title": title_text,
+                        "description": f"Sub-task of {parent_title}\n\n{title_text}",
+                        "priority": 3,
+                    })
+
+    return proposals[:count]
