@@ -117,13 +117,28 @@ class TestHandoffOnFork:
                 return_value=child_session,
             ),
             patch("shoal.services.lifecycle.tmux.async_new_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_first_pane", new_callable=AsyncMock, return_value="pane-id"),
+            patch(
+                "shoal.services.lifecycle.tmux.async_first_pane",
+                new_callable=AsyncMock,
+                return_value="pane-id",
+            ),
             patch("shoal.services.lifecycle.tmux.async_set_environment", new_callable=AsyncMock),
             patch("shoal.services.lifecycle.tmux.async_set_pane_title", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_pane_pid", new_callable=AsyncMock, return_value=12345),
-            patch("shoal.services.lifecycle.tmux.async_pane_coordinates", new_callable=AsyncMock, return_value=("$1", "@1")),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_pid",
+                new_callable=AsyncMock,
+                return_value=12345,
+            ),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_coordinates",
+                new_callable=AsyncMock,
+                return_value=("$1", "@1"),
+            ),
             patch("shoal.services.lifecycle.update_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle._run_default_startup_commands_async", new_callable=AsyncMock),
+            patch(
+                "shoal.services.lifecycle._run_default_startup_commands_async",
+                new_callable=AsyncMock,
+            ),
             patch("shoal.services.lifecycle.emit", new_callable=AsyncMock),
         ):
             result = await fork_session_lifecycle(
@@ -195,13 +210,28 @@ class TestHandoffOnFork:
             ),
             patch("shoal.core.db.get_db", new_callable=AsyncMock, return_value=mock_db),
             patch("shoal.services.lifecycle.tmux.async_new_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_first_pane", new_callable=AsyncMock, return_value="pane-id"),
+            patch(
+                "shoal.services.lifecycle.tmux.async_first_pane",
+                new_callable=AsyncMock,
+                return_value="pane-id",
+            ),
             patch("shoal.services.lifecycle.tmux.async_set_environment", new_callable=AsyncMock),
             patch("shoal.services.lifecycle.tmux.async_set_pane_title", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_pane_pid", new_callable=AsyncMock, return_value=12345),
-            patch("shoal.services.lifecycle.tmux.async_pane_coordinates", new_callable=AsyncMock, return_value=("$1", "@1")),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_pid",
+                new_callable=AsyncMock,
+                return_value=12345,
+            ),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_coordinates",
+                new_callable=AsyncMock,
+                return_value=("$1", "@1"),
+            ),
             patch("shoal.services.lifecycle.update_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle._run_default_startup_commands_async", new_callable=AsyncMock),
+            patch(
+                "shoal.services.lifecycle._run_default_startup_commands_async",
+                new_callable=AsyncMock,
+            ),
             patch("shoal.services.lifecycle.emit", new_callable=AsyncMock),
         ):
             await fork_session_lifecycle(
@@ -260,13 +290,28 @@ class TestHandoffOnFork:
                 return_value=child_session,
             ),
             patch("shoal.services.lifecycle.tmux.async_new_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_first_pane", new_callable=AsyncMock, return_value="pane-id"),
+            patch(
+                "shoal.services.lifecycle.tmux.async_first_pane",
+                new_callable=AsyncMock,
+                return_value="pane-id",
+            ),
             patch("shoal.services.lifecycle.tmux.async_set_environment", new_callable=AsyncMock),
             patch("shoal.services.lifecycle.tmux.async_set_pane_title", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_pane_pid", new_callable=AsyncMock, return_value=12345),
-            patch("shoal.services.lifecycle.tmux.async_pane_coordinates", new_callable=AsyncMock, return_value=("$1", "@1")),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_pid",
+                new_callable=AsyncMock,
+                return_value=12345,
+            ),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_coordinates",
+                new_callable=AsyncMock,
+                return_value=("$1", "@1"),
+            ),
             patch("shoal.services.lifecycle.update_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle._run_default_startup_commands_async", new_callable=AsyncMock),
+            patch(
+                "shoal.services.lifecycle._run_default_startup_commands_async",
+                new_callable=AsyncMock,
+            ),
             patch("shoal.services.lifecycle.emit", new_callable=AsyncMock),
         ):
             result = await fork_session_lifecycle(
@@ -324,10 +369,8 @@ class TestHandoffOnFork:
 
         # Write parent handoff
         from dataclasses import replace
-        parent_handoff_updated = replace(
-            parent_handoff,
-            session_name="parent-session"
-        )
+
+        parent_handoff_updated = replace(parent_handoff, session_name="parent-session")
         write_handoff_artifact("parent-id", parent_handoff_updated)
 
         child_session = SessionState(
@@ -366,13 +409,28 @@ class TestHandoffOnFork:
             ),
             patch("shoal.core.db.get_db", new_callable=AsyncMock, return_value=mock_db),
             patch("shoal.services.lifecycle.tmux.async_new_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_first_pane", new_callable=AsyncMock, return_value="pane-id"),
+            patch(
+                "shoal.services.lifecycle.tmux.async_first_pane",
+                new_callable=AsyncMock,
+                return_value="pane-id",
+            ),
             patch("shoal.services.lifecycle.tmux.async_set_environment", new_callable=AsyncMock),
             patch("shoal.services.lifecycle.tmux.async_set_pane_title", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_pane_pid", new_callable=AsyncMock, return_value=12345),
-            patch("shoal.services.lifecycle.tmux.async_pane_coordinates", new_callable=AsyncMock, return_value=("$1", "@1")),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_pid",
+                new_callable=AsyncMock,
+                return_value=12345,
+            ),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_coordinates",
+                new_callable=AsyncMock,
+                return_value=("$1", "@1"),
+            ),
             patch("shoal.services.lifecycle.update_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle._run_default_startup_commands_async", new_callable=AsyncMock),
+            patch(
+                "shoal.services.lifecycle._run_default_startup_commands_async",
+                new_callable=AsyncMock,
+            ),
             patch("shoal.services.lifecycle.emit", new_callable=AsyncMock),
         ):
             result = await fork_session_lifecycle(
@@ -437,13 +495,28 @@ class TestHandoffOnFork:
                 return_value=created_session,
             ) as mock_create,
             patch("shoal.services.lifecycle.tmux.async_new_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_first_pane", new_callable=AsyncMock, return_value="pane-id"),
+            patch(
+                "shoal.services.lifecycle.tmux.async_first_pane",
+                new_callable=AsyncMock,
+                return_value="pane-id",
+            ),
             patch("shoal.services.lifecycle.tmux.async_set_environment", new_callable=AsyncMock),
             patch("shoal.services.lifecycle.tmux.async_set_pane_title", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle.tmux.async_pane_pid", new_callable=AsyncMock, return_value=12345),
-            patch("shoal.services.lifecycle.tmux.async_pane_coordinates", new_callable=AsyncMock, return_value=("$1", "@1")),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_pid",
+                new_callable=AsyncMock,
+                return_value=12345,
+            ),
+            patch(
+                "shoal.services.lifecycle.tmux.async_pane_coordinates",
+                new_callable=AsyncMock,
+                return_value=("$1", "@1"),
+            ),
             patch("shoal.services.lifecycle.update_session", new_callable=AsyncMock),
-            patch("shoal.services.lifecycle._run_default_startup_commands_async", new_callable=AsyncMock),
+            patch(
+                "shoal.services.lifecycle._run_default_startup_commands_async",
+                new_callable=AsyncMock,
+            ),
             patch("shoal.services.lifecycle.emit", new_callable=AsyncMock),
         ):
             result = await fork_session_lifecycle(

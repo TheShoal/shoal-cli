@@ -9,11 +9,8 @@ and findings across the Pantheon stack.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import os
 from pathlib import Path
-from typing import Any
 
 import ladybug as lb
 
@@ -110,13 +107,16 @@ class PantheonGraph:
         MERGE (s:Session {id: $id})
         SET s.name = $name, s.planet = $planet, s.status = $status, s.created_at = $created_at
         """
-        conn.execute(query, parameters={
-            "id": session_data.get("id"),
-            "name": session_data.get("name"),
-            "planet": session_data.get("planet"),
-            "status": session_data.get("status"),
-            "created_at": session_data.get("created_at"),
-        })
+        conn.execute(
+            query,
+            parameters={
+                "id": session_data.get("id"),
+                "name": session_data.get("name"),
+                "planet": session_data.get("planet"),
+                "status": session_data.get("status"),
+                "created_at": session_data.get("created_at"),
+            },
+        )
 
     async def link_session_to_linear(self, session_id: str, linear_issue: dict) -> None:
         """
@@ -134,23 +134,29 @@ class PantheonGraph:
         MERGE (l:LinearIssue {id: $id})
         SET l.identifier = $identifier, l.title = $title, l.state = $state, l.url = $url
         """
-        conn.execute(issue_query, parameters={
-            "id": linear_issue.get("id"),
-            "identifier": linear_issue.get("identifier"),
-            "title": linear_issue.get("title"),
-            "state": linear_issue.get("state"),
-            "url": linear_issue.get("url"),
-        })
+        conn.execute(
+            issue_query,
+            parameters={
+                "id": linear_issue.get("id"),
+                "identifier": linear_issue.get("identifier"),
+                "title": linear_issue.get("title"),
+                "state": linear_issue.get("state"),
+                "url": linear_issue.get("url"),
+            },
+        )
 
         # Create relationship
         rel_query = """
         MATCH (s:Session {id: $session_id}), (l:LinearIssue {id: $issue_id})
         CREATE (s)-[r:WORKED_ON]->(l)
         """
-        conn.execute(rel_query, parameters={
-            "session_id": session_id,
-            "issue_id": linear_issue.get("id"),
-        })
+        conn.execute(
+            rel_query,
+            parameters={
+                "session_id": session_id,
+                "issue_id": linear_issue.get("id"),
+            },
+        )
 
     async def link_session_to_github_pr(self, session_id: str, pr_data: dict) -> None:
         """
@@ -168,23 +174,29 @@ class PantheonGraph:
         MERGE (p:GitHubPR {id: $id})
         SET p.number = $number, p.title = $title, p.state = $state, p.url = $url
         """
-        conn.execute(pr_query, parameters={
-            "id": pr_data.get("id"),
-            "number": pr_data.get("number"),
-            "title": pr_data.get("title"),
-            "state": pr_data.get("state"),
-            "url": pr_data.get("url"),
-        })
+        conn.execute(
+            pr_query,
+            parameters={
+                "id": pr_data.get("id"),
+                "number": pr_data.get("number"),
+                "title": pr_data.get("title"),
+                "state": pr_data.get("state"),
+                "url": pr_data.get("url"),
+            },
+        )
 
         # Create relationship
         rel_query = """
         MATCH (s:Session {id: $session_id}), (p:GitHubPR {id: $pr_id})
         CREATE (s)-[r:CREATED_PR]->(p)
         """
-        conn.execute(rel_query, parameters={
-            "session_id": session_id,
-            "pr_id": pr_data.get("id"),
-        })
+        conn.execute(
+            rel_query,
+            parameters={
+                "session_id": session_id,
+                "pr_id": pr_data.get("id"),
+            },
+        )
 
     async def write_findings(self, session_id: str, findings: list[str]) -> None:
         """
@@ -213,23 +225,29 @@ class PantheonGraph:
             MERGE (f:Finding {id: $id})
             SET f.type = $type, f.description = $description, f.severity = $severity, f.session_id = $session_id
             """
-            conn.execute(finding_query, parameters={
-                "id": finding_id,
-                "type": finding_type,
-                "description": description,
-                "severity": severity,
-                "session_id": session_id,
-            })
+            conn.execute(
+                finding_query,
+                parameters={
+                    "id": finding_id,
+                    "type": finding_type,
+                    "description": description,
+                    "severity": severity,
+                    "session_id": session_id,
+                },
+            )
 
             # Link to session
             link_query = """
             MATCH (s:Session {id: $session_id}), (f:Finding {id: $finding_id})
             CREATE (s)-[r:FOUND]->(f)
             """
-            conn.execute(link_query, parameters={
-                "session_id": session_id,
-                "finding_id": finding_id,
-            })
+            conn.execute(
+                link_query,
+                parameters={
+                    "session_id": session_id,
+                    "finding_id": finding_id,
+                },
+            )
 
     async def query_session_work(self, session_id: str) -> list[dict]:
         """
@@ -286,7 +304,9 @@ class PantheonGraph:
         WHERE f.severity = $severity OR $severity = 'all'
         RETURN f.id as id, f.type as type, f.description as description, f.severity as severity, f.session_id as session_id
         """
-        result = conn.execute(query, parameters={"severity": entity_name if entity_name != 'all' else 'all'})
+        result = conn.execute(
+            query, parameters={"severity": entity_name if entity_name != "all" else "all"}
+        )
 
         findings = []
         for row in result.get_all():
@@ -309,41 +329,52 @@ async def _run_integration_test():
         print("   Schema initialized successfully")
 
         print("2. Testing upsert_session...")
-        await graph.upsert_session({
-            "id": "test-session-001",
-            "name": "AIA-123-fix",
-            "planet": "mars",
-            "status": "in_progress",
-            "created_at": "2026-04-09T12:00:00Z",
-        })
+        await graph.upsert_session(
+            {
+                "id": "test-session-001",
+                "name": "AIA-123-fix",
+                "planet": "mars",
+                "status": "in_progress",
+                "created_at": "2026-04-09T12:00:00Z",
+            }
+        )
         print("   Session upserted successfully")
 
         print("3. Testing link_session_to_linear...")
-        await graph.link_session_to_linear("test-session-001", {
-            "id": "lin-123",
-            "identifier": "AIA-123",
-            "title": "Fix critical bug",
-            "state": "in_progress",
-            "url": "https://linear.app/usmobile/issue/AIA-123",
-        })
+        await graph.link_session_to_linear(
+            "test-session-001",
+            {
+                "id": "lin-123",
+                "identifier": "AIA-123",
+                "title": "Fix critical bug",
+                "state": "in_progress",
+                "url": "https://linear.app/usmobile/issue/AIA-123",
+            },
+        )
         print("   Session linked to Linear issue")
 
         print("4. Testing link_session_to_github_pr...")
-        await graph.link_session_to_github_pr("test-session-001", {
-            "id": "pr-456",
-            "number": 789,
-            "title": "feat: fix critical bug",
-            "state": "open",
-            "url": "https://github.com/usmobile/smorgasbord/pull/789",
-        })
+        await graph.link_session_to_github_pr(
+            "test-session-001",
+            {
+                "id": "pr-456",
+                "number": 789,
+                "title": "feat: fix critical bug",
+                "state": "open",
+                "url": "https://github.com/usmobile/smorgasbord/pull/789",
+            },
+        )
         print("   Session linked to GitHub PR")
 
         print("5. Testing write_findings...")
-        await graph.write_findings("test-session-001", [
-            "Found that the config was missing a required field",
-            "WARNING: deprecated API in use",
-            "Security: hardcoded token found in config.yaml",
-        ])
+        await graph.write_findings(
+            "test-session-001",
+            [
+                "Found that the config was missing a required field",
+                "WARNING: deprecated API in use",
+                "Security: hardcoded token found in config.yaml",
+            ],
+        )
         print("   Findings written successfully")
 
         print("6. Testing query_session_work...")

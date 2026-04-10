@@ -11,29 +11,10 @@ import typer
 from rich.markdown import Markdown
 
 from shoal.cli._console import get_console
-from shoal.core import git
-from shoal.core.config import load_workspace_config
+from shoal.cli._helpers import resolve_team_config
 from shoal.core.db import with_db
-from shoal.models.config.workspace import TeamConfig
 
 app = typer.Typer(no_args_is_help=True)
-
-
-def _resolve_team_config(team_slug: str) -> TeamConfig:
-    """Resolve a team config from workspace configuration."""
-    console = get_console()
-    root = git.git_root(".")
-    ws_cfg = load_workspace_config(root)
-    if not ws_cfg or not ws_cfg.teams:
-        console.print("[red]No teams configured in .shoal/workspace.toml[/red]")
-        raise typer.Exit(1)
-
-    team = ws_cfg.teams.get(team_slug)
-    if team is None:
-        available = ", ".join(sorted(ws_cfg.teams.keys()))
-        console.print(f"[red]Unknown team '{team_slug}'. Available: {available}[/red]")
-        raise typer.Exit(1)
-    return team
 
 
 @app.command("session")
@@ -70,7 +51,7 @@ async def _report_team_impl(team: str, *, model: str) -> None:
     from shoal.services.report import generate_team_report
 
     console = get_console()
-    team_cfg = _resolve_team_config(team)
+    _root, team_cfg = resolve_team_config(team)
     report = await generate_team_report(
         team_name=team_cfg.name or team,
         team_slug=team,
@@ -96,7 +77,7 @@ async def _report_sprint_impl(team: str, *, model: str, post: bool) -> None:
     from shoal.services.report import generate_sprint_report, post_sprint_report
 
     console = get_console()
-    team_cfg = _resolve_team_config(team)
+    _root, team_cfg = resolve_team_config(team)
 
     if post:
         if team_cfg.report is None:

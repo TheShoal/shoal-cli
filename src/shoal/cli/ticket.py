@@ -3,43 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 from rich.table import Table
 
 from shoal.cli._console import get_console
+from shoal.cli._helpers import init_bridge, resolve_team_config
 from shoal.core import git
 from shoal.core.config import load_workspace_config
 from shoal.core.db import with_db
-from shoal.models.config.workspace import TeamConfig
+
+if TYPE_CHECKING:
+    from shoal.models.config.workspace import TeamConfig
 
 app = typer.Typer(no_args_is_help=True)
-
-
-def _resolve_team_config(team_slug: str) -> tuple[str, TeamConfig]:
-    """Look up a team by slug from workspace config.
-
-    Returns:
-        Tuple of (git_root, TeamConfig).
-
-    Raises:
-        typer.Exit: If workspace config or team is not found.
-    """
-    console = get_console()
-    root = git.git_root(".")
-    ws_cfg = load_workspace_config(root)
-    if not ws_cfg or not ws_cfg.teams:
-        console.print("[red]No teams configured in .shoal/workspace.toml[/red]")
-        raise typer.Exit(1)
-
-    team = ws_cfg.teams.get(team_slug)
-    if not team:
-        available = ", ".join(sorted(ws_cfg.teams.keys()))
-        console.print(f"[red]Unknown team '{team_slug}'. Available: {available}[/red]")
-        raise typer.Exit(1)
-
-    return root, team
 
 
 def _priority_label(p: int) -> str:
@@ -61,13 +39,9 @@ async def _ticket_ls_impl(team_slug: str, *, mine: bool, ready: bool) -> None:
     from shoal.services.linear_bridge import get_linear_bridge
 
     console = get_console()
-    _root, team_cfg = _resolve_team_config(team_slug)
+    _root, team_cfg = resolve_team_config(team_slug)
 
-    try:
-        bridge = get_linear_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
+    bridge = init_bridge(get_linear_bridge)
     try:
         issues = await bridge.list_team_issues(
             team_cfg.linear_slug, ready_only=ready, mine_only=mine
@@ -116,11 +90,7 @@ async def _ticket_start_impl(issue_id: str, *, tool: str | None, template: str |
 
     console = get_console()
 
-    try:
-        bridge = get_linear_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
+    bridge = init_bridge(get_linear_bridge)
     try:
         issue = await bridge.get_issue(issue_id)
     finally:
@@ -183,7 +153,7 @@ async def _ticket_start_impl(issue_id: str, *, tool: str | None, template: str |
         )
 
     # Update Linear status to In Progress
-    bridge2 = get_linear_bridge()
+    bridge2 = init_bridge(get_linear_bridge)
     try:
         await bridge2.update_issue_state(issue.id, "In Progress")
         console.print(f"[green]Linear {issue.identifier} -> In Progress[/green]")
@@ -242,11 +212,7 @@ async def _ticket_done_impl(issue_id: str | None) -> None:
     handoff = generate_handoff(target_session, entries, [])
 
     # Post handoff as Linear comment
-    try:
-        bridge = get_linear_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
+    bridge = init_bridge(get_linear_bridge)
     try:
         issue = await bridge.get_issue(resolved_id)
         if issue:
@@ -337,7 +303,7 @@ async def _ticket_sync_impl(*, team: str | None, all_teams: bool) -> None:
         if ws_cfg and ws_cfg.teams:
             teams_to_sync = [t.linear_slug for t in ws_cfg.teams.values()]
     elif team:
-        _root, team_cfg = _resolve_team_config(team)
+        _root, team_cfg = resolve_team_config(team)
         teams_to_sync = [team_cfg.linear_slug]
     else:
         console.print("[red]Specify --team <slug> or --all[/red]")
@@ -472,12 +438,7 @@ async def _ticket_decompose_impl(issue_id: str, *, count: int, dry_run: bool) ->
     console = get_console()
 
     # Fetch parent issue
-    try:
-        bridge = get_linear_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
-
+    bridge = init_bridge(get_linear_bridge)
     try:
         issue = await bridge.get_issue(issue_id)
         if not issue:
@@ -587,16 +548,19 @@ def _parse_child_proposals(
 
     # Pattern 1: Numbered lists
     import re
+
     numbered_pattern = re.compile(r"^\s*\d+\.\s+(.+)$")
     for line in lines:
         match = numbered_pattern.match(line)
         if match and len(proposals) < count:
             title_text = match.group(1).strip()
-            proposals.append({
-                "title": title_text,
-                "description": f"Sub-task of {parent_title}\n\n{title_text}",
-                "priority": 3,  # Medium priority by default
-            })
+            proposals.append(
+                {
+                    "title": title_text,
+                    "description": f"Sub-task of {parent_title}\n\n{title_text}",
+                    "priority": 3,  # Medium priority by default
+                }
+            )
 
     # Pattern 2: Bullet points (if numbered didn't yield enough)
     if len(proposals) < count:
@@ -607,11 +571,13 @@ def _parse_child_proposals(
                 title_text = match.group(1).strip()
                 # Skip if already added from numbered list
                 if not any(p["title"] == title_text for p in proposals):
-                    proposals.append({
-                        "title": title_text,
-                        "description": f"Sub-task of {parent_title}\n\n{title_text}",
-                        "priority": 3,
-                    })
+                    proposals.append(
+                        {
+                            "title": title_text,
+                            "description": f"Sub-task of {parent_title}\n\n{title_text}",
+                            "priority": 3,
+                        }
+                    )
 
     # Pattern 3: Headings (if still not enough)
     if len(proposals) < count:
@@ -621,10 +587,12 @@ def _parse_child_proposals(
             if match and len(proposals) < count:
                 title_text = match.group(1).strip()
                 if not any(p["title"] == title_text for p in proposals):
-                    proposals.append({
-                        "title": title_text,
-                        "description": f"Sub-task of {parent_title}\n\n{title_text}",
-                        "priority": 3,
-                    })
+                    proposals.append(
+                        {
+                            "title": title_text,
+                            "description": f"Sub-task of {parent_title}\n\n{title_text}",
+                            "priority": 3,
+                        }
+                    )
 
     return proposals[:count]

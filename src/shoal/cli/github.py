@@ -11,6 +11,7 @@ import typer
 from rich.table import Table
 
 from shoal.cli._console import get_console
+from shoal.cli._helpers import init_bridge
 from shoal.core.state import add_tag, resolve_session
 from shoal.services.github_bridge import get_github_bridge
 
@@ -28,11 +29,7 @@ def prs_ls(
 
 async def _prs_ls_impl(repo: str, *, state: str) -> None:
     console = get_console()
-    try:
-        bridge = get_github_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
+    bridge = init_bridge(get_github_bridge)
     try:
         prs = await bridge.list_prs(repo, state=state)
     finally:
@@ -74,11 +71,8 @@ async def _pr_start_impl(repo: str, number: int, *, tool: str | None, template: 
     from shoal.cli.session_create import _add_impl
 
     console = get_console()
-    try:
-        bridge = get_github_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
+    bridge = init_bridge(get_github_bridge)
+
     try:
         pr = await bridge.get_pr(repo, number)
     finally:
@@ -140,11 +134,8 @@ async def _pr_done_impl(repo: str, number: int) -> None:
     entries = read_journal(target_session.id)
     handoff = generate_handoff(target_session, entries, [])
 
-    try:
-        bridge = get_github_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
+    bridge = init_bridge(get_github_bridge)
+
     try:
         comment_body = f"## Session Handoff: {target_session.name}\n\n{handoff.to_markdown()}"
         await bridge.add_comment(repo, number, comment_body)
@@ -175,11 +166,7 @@ async def _pr_review_impl(repo: str, number: int, *, template: str, dry_run: boo
     from shoal.cli.session_create import _add_impl
 
     console = get_console()
-    try:
-        bridge = get_github_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
+    bridge = init_bridge(get_github_bridge)
 
     try:
         # Fetch PR metadata, diff, and comments
@@ -358,11 +345,7 @@ async def _pr_post_review_impl(repo: str, number: int, *, session: str | None) -
         review_body += f"{entry.content}\n\n---\n\n"
 
     # Post to GitHub
-    try:
-        bridge = get_github_bridge()
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from None
+    bridge = init_bridge(get_github_bridge)
 
     try:
         await bridge.add_comment(repo, number, review_body)

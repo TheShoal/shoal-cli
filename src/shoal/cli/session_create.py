@@ -97,8 +97,17 @@ def add(
     asyncio.run(
         with_db(
             _add_impl(
-                path, tool, template, mode, worktree,
-                branch, dry_run, name, mcp_list, repo, model,
+                path,
+                tool,
+                template,
+                mode,
+                worktree,
+                branch,
+                dry_run,
+                name,
+                mcp_list,
+                repo,
+                model,
             )
         )
     )
@@ -361,27 +370,19 @@ async def _add_impl(
     if worktree:
         # S4: Block if working tree is dirty or has an in-progress merge/rebase
         if git.worktree_is_dirty(str(resolved_path)):
-            get_console().print(
-                "[red]Error: Working tree has uncommitted changes.[/red]"
-            )
+            get_console().print("[red]Error: Working tree has uncommitted changes.[/red]")
             get_console().print(
                 "[dim]Worktrees must be created from a clean HEAD to ensure consistency.[/dim]"
             )
             get_console().print("[dim]Run: git stash or git commit first[/dim]")
             raise typer.Exit(1)
         if git.is_merging(str(resolved_path)):
-            get_console().print(
-                "[red]Error: Working tree has an in-progress merge.[/red]"
-            )
-            get_console().print(
-                "[dim]Resolve or abort the merge before creating a worktree.[/dim]"
-            )
+            get_console().print("[red]Error: Working tree has an in-progress merge.[/red]")
+            get_console().print("[dim]Resolve or abort the merge before creating a worktree.[/dim]")
             get_console().print("[dim]Run: git merge --abort[/dim]")
             raise typer.Exit(1)
         if git.is_rebasing(str(resolved_path)):
-            get_console().print(
-                "[red]Error: Working tree has an in-progress rebase.[/red]"
-            )
+            get_console().print("[red]Error: Working tree has an in-progress rebase.[/red]")
             get_console().print(
                 "[dim]Resolve or abort the rebase before creating a worktree.[/dim]"
             )

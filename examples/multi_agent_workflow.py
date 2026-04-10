@@ -46,10 +46,12 @@ async def simulate_planner(correlation_id: str) -> None:
 
     # Step 1: Send parallel requests to two workers
     # Using kind="request" signals this is an actionable work item
-    task_a_payload = json.dumps({
-        "task": "validate_api_endpoints",
-        "files": ["src/api/auth.py", "src/api/users.py"],
-    })
+    task_a_payload = json.dumps(
+        {
+            "task": "validate_api_endpoints",
+            "files": ["src/api/auth.py", "src/api/users.py"],
+        }
+    )
     await send_message(
         from_session="planner",
         to_session="worker-a",
@@ -62,10 +64,12 @@ async def simulate_planner(correlation_id: str) -> None:
     )
     print("  → Sent request to worker-a (task: validate_api_endpoints)")
 
-    task_b_payload = json.dumps({
-        "task": "check_test_coverage",
-        "files": ["tests/test_api.py"],
-    })
+    task_b_payload = json.dumps(
+        {
+            "task": "check_test_coverage",
+            "files": ["tests/test_api.py"],
+        }
+    )
     await send_message(
         from_session="planner",
         to_session="worker-b",
@@ -107,15 +111,17 @@ async def simulate_planner(correlation_id: str) -> None:
     print(f"\n  📊 Aggregated {len(all_messages)} messages across workflow")
 
     # Step 4: Forward aggregated context to reviewer
-    review_payload = json.dumps({
-        "workflow_id": correlation_id,
-        "worker_results": [
-            json.loads(msg["payload"])  # type: ignore[arg-type]
-            for msg in all_messages
-            if msg["kind"] == "handoff"
-        ],
-        "summary": "API validation and test coverage review completed",
-    })
+    review_payload = json.dumps(
+        {
+            "workflow_id": correlation_id,
+            "worker_results": [
+                json.loads(msg["payload"])  # type: ignore[arg-type]
+                for msg in all_messages
+                if msg["kind"] == "handoff"
+            ],
+            "summary": "API validation and test coverage review completed",
+        }
+    )
     await send_message(
         from_session="planner",
         to_session="reviewer",
@@ -188,13 +194,15 @@ async def simulate_worker(worker_id: str, correlation_id: str) -> None:
         await asyncio.sleep(0.5)
 
         # Send handoff with results back to planner
-        result_payload = json.dumps({
-            "task": task["task"],
-            "status": "completed",
-            "findings": f"All checks passed for {task['task']}",
-            "files_processed": len(task.get("files", [])),
-            "timestamp": datetime.now(UTC).isoformat(),
-        })
+        result_payload = json.dumps(
+            {
+                "task": task["task"],
+                "status": "completed",
+                "findings": f"All checks passed for {task['task']}",
+                "files_processed": len(task.get("files", [])),
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
         await send_message(
             from_session=f"worker-{worker_id}",
             to_session="planner",
@@ -247,16 +255,17 @@ async def simulate_reviewer(correlation_id: str) -> None:
         await asyncio.sleep(0.5)
 
         # Make approval decision
-        all_passed = all(
-            r.get("status") == "completed"
-            for r in review_data["worker_results"]
-        )
+        all_passed = all(r.get("status") == "completed" for r in review_data["worker_results"])
 
-        decision_payload = json.dumps({
-            "approved": all_passed,
-            "reason": "All workers completed successfully" if all_passed else "Some tasks failed",
-            "reviewed_at": datetime.now(UTC).isoformat(),
-        })
+        decision_payload = json.dumps(
+            {
+                "approved": all_passed,
+                "reason": "All workers completed successfully"
+                if all_passed
+                else "Some tasks failed",
+                "reviewed_at": datetime.now(UTC).isoformat(),
+            }
+        )
         await send_message(
             from_session="reviewer",
             to_session="planner",

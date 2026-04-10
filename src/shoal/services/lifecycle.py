@@ -1098,7 +1098,7 @@ async def create_session_lifecycle(
                 secure_env[k] = v
             else:
                 session_env[k] = v
-        
+
         # Inject model constraints from template
         if template_cfg.preferred_model:
             session_env["PI_PREFERRED_MODEL"] = template_cfg.preferred_model

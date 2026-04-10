@@ -138,10 +138,12 @@ async def test_complete_multi_agent_workflow(correlation_id: str) -> None:
         from_session="planner",
         to_session="reviewer",
         topic="approval",
-        payload=json.dumps({
-            "workflow_id": correlation_id,
-            "summary": "2 workers completed successfully",
-        }),
+        payload=json.dumps(
+            {
+                "workflow_id": correlation_id,
+                "summary": "2 workers completed successfully",
+            }
+        ),
         kind="approval_request",
         correlation_id=correlation_id,
     )
@@ -217,20 +219,36 @@ async def test_workflow_messages_kind_filter(correlation_id: str) -> None:
     """Verify get_workflow_messages respects kind filter."""
     # Mix of message kinds with same correlation_id
     await send_message(
-        "planner", "worker", "t", "req1",
-        kind="request", correlation_id=correlation_id,
+        "planner",
+        "worker",
+        "t",
+        "req1",
+        kind="request",
+        correlation_id=correlation_id,
     )
     await send_message(
-        "planner", "worker", "t", "req2",
-        kind="request", correlation_id=correlation_id,
+        "planner",
+        "worker",
+        "t",
+        "req2",
+        kind="request",
+        correlation_id=correlation_id,
     )
     await send_message(
-        "worker", "planner", "t", "handoff1",
-        kind="handoff", correlation_id=correlation_id,
+        "worker",
+        "planner",
+        "t",
+        "handoff1",
+        kind="handoff",
+        correlation_id=correlation_id,
     )
     await send_message(
-        "worker", "planner", "t", "evt1",
-        kind="event", correlation_id=correlation_id,
+        "worker",
+        "planner",
+        "t",
+        "evt1",
+        kind="event",
+        correlation_id=correlation_id,
     )
 
     # Filter by kind
@@ -257,7 +275,10 @@ async def test_workflow_messages_kind_filter(correlation_id: str) -> None:
 async def test_unconsumed_only_prevents_duplicates(correlation_id: str) -> None:
     """Verify unconsumed_only flag prevents duplicate processing."""
     msg_id = await send_message(
-        "sender", "receiver", "topic", "payload",
+        "sender",
+        "receiver",
+        "topic",
+        "payload",
         correlation_id=correlation_id,
     )
 
@@ -294,8 +315,12 @@ async def test_watch_messages_event_driven(correlation_id: str) -> None:
     async def delayed_send() -> None:
         await asyncio.sleep(0.2)
         await send_message(
-            "worker", "planner", "result", "delayed_result",
-            kind="handoff", correlation_id=correlation_id,
+            "worker",
+            "planner",
+            "result",
+            "delayed_result",
+            kind="handoff",
+            correlation_id=correlation_id,
         )
 
     # Start watch before message arrives
@@ -337,16 +362,28 @@ async def test_message_priority_ordering(correlation_id: str) -> None:
     """Verify messages respect priority field."""
     # Send messages with different priorities
     low_id = await send_message(
-        "sender", "receiver", "t", "low",
-        priority=5, correlation_id=correlation_id,
+        "sender",
+        "receiver",
+        "t",
+        "low",
+        priority=5,
+        correlation_id=correlation_id,
     )
     high_id = await send_message(
-        "sender", "receiver", "t", "high",
-        priority=1, correlation_id=correlation_id,
+        "sender",
+        "receiver",
+        "t",
+        "high",
+        priority=1,
+        correlation_id=correlation_id,
     )
     medium_id = await send_message(
-        "sender", "receiver", "t", "medium",
-        priority=3, correlation_id=correlation_id,
+        "sender",
+        "receiver",
+        "t",
+        "medium",
+        priority=3,
+        correlation_id=correlation_id,
     )
 
     # Receive all messages
@@ -366,13 +403,20 @@ async def test_reply_threading(correlation_id: str) -> None:
     """Verify reply_to_message_id threads messages together."""
     # Original request
     req_id = await send_message(
-        "planner", "worker", "task", "do_work",
-        kind="request", correlation_id=correlation_id,
+        "planner",
+        "worker",
+        "task",
+        "do_work",
+        kind="request",
+        correlation_id=correlation_id,
     )
 
     # Reply threading
     reply_id = await send_message(
-        "worker", "planner", "result", "work_done",
+        "worker",
+        "planner",
+        "result",
+        "work_done",
         kind="response",
         correlation_id=correlation_id,
         reply_to_message_id=req_id,
@@ -395,7 +439,9 @@ async def test_error_message_kind(correlation_id: str) -> None:
     """Test error message kind for failure signaling."""
     # Worker sends error
     await send_message(
-        "worker", "planner", "task-failed",
+        "worker",
+        "planner",
+        "task-failed",
         json.dumps({"error": "Validation failed", "details": "API endpoint unreachable"}),
         kind="error",
         correlation_id=correlation_id,

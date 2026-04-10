@@ -71,9 +71,7 @@ def escape_for_fish_heredoc(text: str) -> str:
     escaped = escaped.replace("\\", "\\\\")
 
     # Escape the delimiter pattern we'll use (EOFPROMPT)
-    escaped = escaped.replace("EOFPROMPT", "EOFPROMPT")
-
-    return escaped
+    return escaped.replace("EOFPROMPT", "EOFPROMPT")
 
 
 # Characters that fish interprets as having special meaning

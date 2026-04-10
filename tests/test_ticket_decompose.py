@@ -192,12 +192,14 @@ class TestDecomposeCommand:
         ):
             mock_bridge = MagicMock()
             mock_bridge.get_issue = AsyncMock(return_value=mock_parent_issue)
-            mock_bridge.create_issue = AsyncMock(return_value={
-                "id": "child-uuid",
-                "identifier": "AIA-124",
-                "title": "Set up OAuth provider integration",
-                "url": "https://linear.app/team/issue/AIA-124",
-            })
+            mock_bridge.create_issue = AsyncMock(
+                return_value={
+                    "id": "child-uuid",
+                    "identifier": "AIA-124",
+                    "title": "Set up OAuth provider integration",
+                    "url": "https://linear.app/team/issue/AIA-124",
+                }
+            )
             mock_bridge.close = AsyncMock()
             mock_get_bridge.return_value = mock_bridge
 
@@ -216,7 +218,9 @@ class TestDecomposeCommand:
                 assert kwargs["team_id"] == "team-uuid-123"
 
     @pytest.mark.asyncio
-    async def test_decompose_empty_description(self, mock_empty_description_issue: LinearIssue) -> None:
+    async def test_decompose_empty_description(
+        self, mock_empty_description_issue: LinearIssue
+    ) -> None:
         """Test decompose handles empty description gracefully."""
         import typer
 

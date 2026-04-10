@@ -128,10 +128,13 @@ class LinearCache:
             LinearIssue or None if not in cache.
         """
         db = await ShoalDB.get_instance()
-        async with db._connection() as conn, conn.execute(
-            "SELECT * FROM linear_issues WHERE identifier = ?",
-            (identifier.upper(),),
-        ) as cursor:
+        async with (
+            db._connection() as conn,
+            conn.execute(
+                "SELECT * FROM linear_issues WHERE identifier = ?",
+                (identifier.upper(),),
+            ) as cursor,
+        ):
             row = await cursor.fetchone()
 
         if not row:
@@ -165,10 +168,13 @@ class LinearCache:
     async def last_sync_at(self, team_key: str) -> datetime | None:
         """Get the timestamp of the last sync for a team."""
         db = await ShoalDB.get_instance()
-        async with db._connection() as conn, conn.execute(
-            "SELECT MAX(synced_at) FROM linear_issues WHERE team_key = ?",
-            (team_key.upper(),),
-        ) as cursor:
+        async with (
+            db._connection() as conn,
+            conn.execute(
+                "SELECT MAX(synced_at) FROM linear_issues WHERE team_key = ?",
+                (team_key.upper(),),
+            ) as cursor,
+        ):
             row = await cursor.fetchone()
 
         if row and row[0]:

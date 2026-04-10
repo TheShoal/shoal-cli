@@ -23,6 +23,7 @@ def _build_nvim_socket_path(session_id: str, window_id: str) -> str:
 def _runtime(session: SessionState) -> TmuxRuntimeState:
     return session.tmux_runtime
 
+
 # Threshold for long prompt handling (characters)
 # Above this length, use file-based delivery to avoid tmux mangling
 LONG_PROMPT_THRESHOLD = 500
@@ -46,7 +47,6 @@ def _send_long_prompt_via_file(pane_target: str, text: str) -> None:
         # Clean up temp file asynchronously would be ideal,
         # but tmux send_keys is synchronous so we leave it for gc
         pass
-
 
 
 def _tool_executable(tool_command: str) -> str:
