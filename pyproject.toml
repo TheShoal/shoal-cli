@@ -31,6 +31,7 @@ dependencies = [
     "pydantic>=2.10.0",
     "rich>=13.0.0",
     "fastapi>=0.109.0",
+    "python-multipart>=0.0.6",
     "uvicorn>=0.27.0",
     "aiosqlite>=0.20.0",
     "httpx>=0.28.0",
