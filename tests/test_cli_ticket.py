@@ -88,7 +88,7 @@ class TestTicketLs:
         )
         with (
             patch("shoal.cli.ticket.git.git_root", return_value="/tmp/fake"),
-            patch("shoal.cli.ticket.load_workspace_config", return_value=ws),
+            patch("shoal.cli._helpers.load_workspace_config", return_value=ws),
             patch.dict("os.environ", {"SHOAL_LINEAR_API_KEY": ""}),
         ):
             result = runner.invoke(app, ["ticket", "ls", "--team", "be"])
@@ -105,7 +105,7 @@ class TestTicketLs:
         )
         with (
             patch("shoal.cli.ticket.git.git_root", return_value="/tmp/fake"),
-            patch("shoal.cli.ticket.load_workspace_config", return_value=ws),
+            patch("shoal.cli._helpers.load_workspace_config", return_value=ws),
         ):
             result = runner.invoke(app, ["ticket", "ls", "--team", "xyz"])
             assert result.exit_code == 1

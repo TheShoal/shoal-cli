@@ -49,7 +49,7 @@ def test_report_team_success(mock_dirs) -> None:
     )
     with (
         patch("shoal.cli.report.git.git_root", return_value="/tmp/fake"),
-        patch("shoal.cli.report.load_workspace_config", return_value=ws_cfg),
+        patch("shoal.cli._helpers.load_workspace_config", return_value=ws_cfg),
         patch(
             "shoal.services.report.generate_team_report",
             new=AsyncMock(return_value="# Backend Team Status\n\nTeam body"),
@@ -69,7 +69,7 @@ def test_report_sprint_unknown_team(mock_dirs) -> None:
     )
     with (
         patch("shoal.cli.report.git.git_root", return_value="/tmp/fake"),
-        patch("shoal.cli.report.load_workspace_config", return_value=ws_cfg),
+        patch("shoal.cli._helpers.load_workspace_config", return_value=ws_cfg),
     ):
         result = runner.invoke(app, ["report", "sprint", "--team", "fe"])
 
@@ -98,7 +98,7 @@ def test_report_sprint_post_success(mock_dirs) -> None:
     )
     with (
         patch("shoal.cli.report.git.git_root", return_value="/tmp/fake"),
-        patch("shoal.cli.report.load_workspace_config", return_value=ws_cfg),
+        patch("shoal.cli._helpers.load_workspace_config", return_value=ws_cfg),
         patch("shoal.services.report.post_sprint_report", new=AsyncMock(return_value=posted)),
     ):
         result = runner.invoke(app, ["report", "sprint", "--team", "be", "--post"])
@@ -116,7 +116,7 @@ def test_report_sprint_post_requires_target(mock_dirs) -> None:
     )
     with (
         patch("shoal.cli.report.git.git_root", return_value="/tmp/fake"),
-        patch("shoal.cli.report.load_workspace_config", return_value=ws_cfg),
+        patch("shoal.cli._helpers.load_workspace_config", return_value=ws_cfg),
     ):
         result = runner.invoke(app, ["report", "sprint", "--team", "be", "--post"])
 
