@@ -854,3 +854,185 @@ code, pre { font-family: var(--font-mono); }
   margin-bottom: 12px;
   opacity: 0.3;
 }
+
+/* ----------------------------------------
+   MCP Matrix
+---------------------------------------- */
+
+.mcp-matrix-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mcp-group-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.mcp-group-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid var(--tier-review);
+  color: var(--tier-review);
+  background: color-mix(in srgb, var(--tier-review) 8%, transparent);
+  cursor: default;
+  white-space: nowrap;
+}
+
+.mcp-group-pill.source-template {
+  border-color: var(--color-text-dim);
+  color: var(--color-text-dim);
+  background: color-mix(in srgb, var(--color-text-dim) 6%, transparent);
+}
+
+.mcp-matrix-wrap {
+  overflow: visible;
+}
+
+.mcp-matrix-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.mcp-matrix-table th {
+  padding: 8px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  text-align: center;
+  white-space: nowrap;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mcp-matrix-table th:first-child {
+  text-align: left;
+  padding-left: 14px;
+  max-width: none;
+}
+
+.mcp-matrix-table td {
+  padding: 6px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: center;
+  font-size: 12px;
+}
+
+.mcp-matrix-table td:first-child {
+  text-align: left;
+  padding-left: 14px;
+  font-weight: 500;
+}
+
+.mcp-matrix-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mcp-session-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.mcp-session-name:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.mcp-tier-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-color);
+  flex-shrink: 0;
+}
+
+.mcp-toggle {
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  padding: 0;
+  display: inline-block;
+}
+
+.mcp-toggle:hover:not(:disabled) {
+  border-color: var(--color-text-dim);
+}
+
+.mcp-toggle.active {
+  background: color-mix(in srgb, var(--tier-running) 40%, transparent);
+  border-color: var(--tier-running);
+}
+
+.mcp-toggle:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.mcp-row-stopped {
+  opacity: 0.5;
+}
+
+.mcp-row-stopped:hover {
+  opacity: 0.7;
+}
+
+.mcp-group-select {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-family: var(--font-sans);
+  padding: 2px 4px;
+  outline: none;
+  max-width: 100px;
+}
+
+.mcp-group-select:focus {
+  border-color: var(--tier-running);
+}
+
+.mcp-group-cell {
+  text-align: center;
+  padding: 6px;
+}
+
+.mcp-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-dim);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .mcp-matrix-wrap {
+    overflow-x: auto;
+  }
+}

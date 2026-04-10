@@ -1,0 +1,62 @@
+<div id="mcp-grid" hx-get="/ui/partials/mcp-grid" hx-trigger="every 10s" hx-swap="outerHTML" aria-live="polite">
+{% if sessions %}
+<table class="mcp-matrix-table">
+  <thead>
+    <tr>
+      <th class="mcp-th-session">Session</th>
+      {% for server in servers %}
+      <th class="mcp-th-server" title="{{ server }}">
+        <span class="mcp-server-label">{{ server }}</span>
+      </th>
+      {% endfor %}
+      <th class="mcp-th-group">Group</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for session in sessions %}
+    <tr class="mcp-row {% if session.is_stopped %}mcp-row-stopped{% endif %}">
+      <td class="mcp-cell-session">
+        <a href="/ui/sessions/{{ session.id }}" class="mcp-session-name {{ session.tier_css }}">
+          <span class="mcp-tier-dot"></span>
+          <span class="mcp-tool-icon" title="{{ session.tool }}">{% if session.tool_icon == 'diamond' %}&#9670;{% else %}{{ session.tool_icon }}{% endif %}</span>
+          {{ session.name }}
+        </a>
+      </td>
+      {% for server in servers %}
+      <td class="mcp-cell-toggle">
+        <button
+          class="mcp-toggle {% if session.mcp_enabled[server] %}active{% endif %}"
+          hx-post="/ui/mcp-toggle"
+          hx-vals='{"session_id": "{{ session.id }}", "mcp_name": "{{ server }}", "action": "{% if session.mcp_enabled[server] %}remove{% else %}add{% endif %}"}'
+          hx-target="#mcp-grid"
+          hx-swap="outerHTML"
+          {% if session.is_stopped %}disabled{% endif %}
+          title="{% if session.mcp_enabled[server] %}Remove {{ server }}{% else %}Add {{ server }}{% endif %}"
+        ></button>
+      </td>
+      {% endfor %}
+      <td class="mcp-group-cell">
+        <select
+          class="mcp-group-select"
+          hx-post="/ui/mcp-apply-group"
+          hx-vals='{"session_id": "{{ session.id }}", "action": "apply"}'
+          hx-target="#mcp-grid"
+          hx-swap="outerHTML"
+          name="group_name"
+          hx-trigger="change"
+          {% if session.is_stopped %}disabled{% endif %}
+        >
+          <option value="">Apply group...</option>
+          {% for group in groups %}
+          <option value="{{ group.name }}">{{ group.name }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="mcp-empty">No sessions found.</div>
+{% endif %}
+</div>

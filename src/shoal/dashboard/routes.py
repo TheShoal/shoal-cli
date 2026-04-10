@@ -254,6 +254,115 @@ async def pane_partial(
 
 
 # ---------------------------------------------------------------------------
+# MCP Matrix
+# ---------------------------------------------------------------------------
+
+
+async def _mcp_context() -> dict[str, object]:
+    """Load sessions, servers, and groups into a template context dict."""
+    from shoal.core.mcp_groups import available_mcp_servers, load_mcp_groups
+    from shoal.dashboard.context import mcp_matrix_context
+
+    sessions = await list_sessions()
+    servers = available_mcp_servers()
+    groups = load_mcp_groups()
+    group_list: list[dict[str, object]] = [
+        {"name": g.name, "description": g.description, "servers": g.servers, "source": g.source}
+        for g in groups.values()
+    ]
+    return mcp_matrix_context(sessions, servers, group_list)
+
+
+async def _mcp_render(request: Request, template: str) -> HTMLResponse:
+    """Build context and render an MCP template."""
+    ctx = await _mcp_context()
+    return _get_templates().TemplateResponse(request, template, {**ctx, "request": request})
+
+
+@router.get("/mcp-matrix", response_class=HTMLResponse)
+async def mcp_matrix(request: Request) -> HTMLResponse:
+    """Render the MCP server-session matrix page."""
+    return await _mcp_render(request, "mcp_matrix.html")
+
+
+@router.get("/partials/mcp-grid", response_class=HTMLResponse, response_model=None)
+async def mcp_grid_partial(
+    request: Request,
+    format: str | None = None,
+) -> HTMLResponse | JSONResponse:
+    """Return the MCP grid fragment for HTMX swaps.
+
+    Args:
+        request: The incoming request.
+        format: If "json", return structured JSON instead of HTML fragment.
+    """
+    if format == "json":
+        ctx = await _mcp_context()
+        return JSONResponse(content=ctx)
+
+    return await _mcp_render(request, "partials/mcp_grid.html")
+
+
+@router.post("/mcp-toggle", response_class=HTMLResponse)
+async def mcp_toggle(request: Request) -> HTMLResponse:
+    """Toggle a single MCP server assignment for a session.
+
+    Reads form data: session_id, mcp_name, action ("add" or "remove").
+    Returns the updated MCP grid partial.
+    """
+    from shoal.core.state import add_mcp_to_session, remove_mcp_from_session
+
+    form = await request.form()
+    session_id = str(form.get("session_id", ""))
+    mcp_name = str(form.get("mcp_name", ""))
+    action = str(form.get("action", ""))
+
+    session = await get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if action == "add":
+        await add_mcp_to_session(session_id, mcp_name)
+    elif action == "remove":
+        await remove_mcp_from_session(session_id, mcp_name)
+
+    return await _mcp_render(request, "partials/mcp_grid.html")
+
+
+@router.post("/mcp-apply-group", response_class=HTMLResponse)
+async def mcp_apply_group(request: Request) -> HTMLResponse:
+    """Apply or remove an MCP group for a session.
+
+    Reads form data: session_id, group_name, action ("apply" or "remove").
+    Returns the updated MCP grid partial.
+    """
+    from shoal.core.mcp_groups import load_mcp_groups
+    from shoal.core.state import add_mcp_to_session, remove_mcp_from_session
+
+    form = await request.form()
+    session_id = str(form.get("session_id", ""))
+    group_name = str(form.get("group_name", ""))
+    action = str(form.get("action", ""))
+
+    session = await get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    groups = load_mcp_groups()
+    if group_name not in groups:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    group = groups[group_name]
+    for server in group.servers:
+        if action == "apply":
+            await add_mcp_to_session(session_id, server)
+        elif action == "remove":
+            await remove_mcp_from_session(session_id, server)
+
+    return await _mcp_render(request, "partials/mcp_grid.html")
+
+
+# ---------------------------------------------------------------------------
 # WebSocket endpoint
 # ---------------------------------------------------------------------------
 

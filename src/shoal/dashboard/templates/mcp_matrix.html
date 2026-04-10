@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}MCP Matrix{% endblock %}
+{% block content %}
+<div>
+
+  <div class="page-header">
+    <span class="page-title-icon">⬡</span>
+    <h1 class="page-title">MCP Matrix</h1>
+  </div>
+
+  <!-- Group preset buttons -->
+  {% if groups %}
+  <div class="mcp-group-bar">
+    {% for group in groups %}
+    <button
+      class="mcp-group-pill {% if group.source == 'template' %}source-template{% endif %}"
+      title="{{ group.description }}"
+      data-group="{{ group.name }}"
+    >
+      {{ group.name }}
+    </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- MCP grid (auto-refreshed every 10s via partial's own hx-trigger) -->
+  <div class="mcp-matrix-wrap">
+    {% include "partials/mcp_grid.html" %}
+  </div>
+
+</div>
+{% endblock %}

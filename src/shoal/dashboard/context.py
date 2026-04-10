@@ -362,3 +362,53 @@ def flow_context(sessions: list[SessionState]) -> dict[str, object]:
         "roots": roots,
         "nodes": list(by_id.values()),
     }
+
+
+
+# ---------------------------------------------------------------------------
+# MCP Matrix context
+# ---------------------------------------------------------------------------
+
+
+def mcp_matrix_context(
+    sessions: list[SessionState],
+    available_servers: list[str],
+    groups: list[dict[str, object]],
+) -> dict[str, object]:
+    """Build template context for the MCP server assignment matrix.
+
+    Produces a sessions x servers grid showing which MCP servers are
+    enabled for each session.
+
+    Args:
+        sessions: All sessions to display in the matrix.
+        available_servers: Ordered list of MCP server names (columns).
+        groups: Pre-built grouping metadata passed through to the template.
+
+    Returns:
+        A dict with ``sessions`` (sorted by name), ``servers``, and ``groups``.
+    """
+    now = datetime.now(UTC)
+
+    rows: list[dict[str, object]] = []
+    for session in sorted(sessions, key=lambda s: s.name.lower()):
+        tier, _ = derive_urgency(session, now=now)
+        rows.append({
+            "id": session.id,
+            "name": session.name,
+            "status": session.status.value,
+            "tier_css": _TIER_CSS.get(tier, "tier-unknown"),
+            "tool": session.tool,
+            "tool_icon": _TOOL_ICONS.get(session.tool.lower(), "diamond"),
+            "mcp_enabled": {
+                srv: srv in session.mcp_servers
+                for srv in available_servers
+            },
+            "is_stopped": session.status == SessionStatus.stopped,
+        })
+
+    return {
+        "sessions": rows,
+        "servers": available_servers,
+        "groups": groups,
+    }

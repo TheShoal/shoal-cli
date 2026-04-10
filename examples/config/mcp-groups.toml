@@ -1,0 +1,11 @@
+[groups.dev]
+description = "Development essentials"
+servers = ["filesystem", "github", "memory"]
+
+[groups.ops]
+description = "Observability and fetch"
+servers = ["fetch", "memory"]
+
+[groups.orchestration]
+description = "Full orchestration stack"
+servers = ["shoal-orchestrator", "memory"]
