@@ -53,8 +53,13 @@ class Watcher:
 
         logger.info("Watcher started (pid: %d)", os.getpid())
 
+        # Register lifecycle hooks so status_changed events record
+        # transitions to DB and journal entries.
+        from shoal.services.lifecycle import reconcile_sessions, register_builtin_hooks
+
+        register_builtin_hooks()
+
         # Boot-time reconciliation: mark stale DB rows as stopped
-        from shoal.services.lifecycle import reconcile_sessions
 
         try:
             reconciled = await reconcile_sessions()

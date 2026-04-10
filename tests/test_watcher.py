@@ -268,3 +268,138 @@ class TestWatcherBackoff:
             _MAX_BACKOFF,
         )
         assert delay == _MAX_BACKOFF
+
+
+@pytest.mark.asyncio
+class TestWatcherHookRegistration:
+    """Verify the watcher registers lifecycle hooks so transitions are recorded."""
+
+    async def test_poll_cycle_records_transition_when_hooks_registered(
+        self, mock_dirs: object
+    ) -> None:
+        """A status change during _poll_cycle should write a DB transition row."""
+        from shoal.core.db import ShoalDB
+        from shoal.services.lifecycle import clear_hooks, register_builtin_hooks
+
+        clear_hooks()
+        register_builtin_hooks()
+
+        s = await create_session("hook-test", "claude", "/tmp/repo")
+        await update_session(s.id, status=SessionStatus.running, pid=100)
+
+        watcher = Watcher()
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch(
+                "shoal.core.tmux.list_panes",
+                return_value=[
+                    {
+                        "id": "%1",
+                        "title": f"shoal:{s.id}",
+                        "command": "claude",
+                        "active": "1",
+                    }
+                ],
+            ),
+            patch("shoal.core.tmux.pane_pid", return_value=100),
+            patch("shoal.core.tmux.capture_pane", return_value="waiting for input"),
+            patch(
+                "shoal.services.watcher.detect_status",
+                return_value=SessionStatus.waiting,
+            ),
+            patch("shoal.services.watcher.notify"),
+        ):
+            await watcher._poll_cycle()
+
+        updated = await get_session(s.id)
+        db = await ShoalDB.get_instance()
+        transitions = await db.get_status_transitions(s.id)
+        assert len(transitions) >= 1
+        assert transitions[0]["from_status"] == "running"
+        assert transitions[0]["to_status"] == "waiting"
+        assert updated.status == SessionStatus.waiting
+
+        clear_hooks()
+
+    async def test_poll_cycle_writes_journal_when_hooks_registered(self, mock_dirs: object) -> None:
+        """A status change should also append a journal entry via the lifecycle hook."""
+        from shoal.services.lifecycle import clear_hooks, register_builtin_hooks
+
+        clear_hooks()
+        register_builtin_hooks()
+
+        s = await create_session("journal-hook-test", "claude", "/tmp/repo")
+        await update_session(s.id, status=SessionStatus.idle, pid=100)
+
+        watcher = Watcher()
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch(
+                "shoal.core.tmux.list_panes",
+                return_value=[
+                    {
+                        "id": "%1",
+                        "title": f"shoal:{s.id}",
+                        "command": "claude",
+                        "active": "1",
+                    }
+                ],
+            ),
+            patch("shoal.core.tmux.pane_pid", return_value=100),
+            patch("shoal.core.tmux.capture_pane", return_value="running task"),
+            patch(
+                "shoal.services.watcher.detect_status",
+                return_value=SessionStatus.running,
+            ),
+        ):
+            await watcher._poll_cycle()
+
+        from shoal.core.journal import read_journal
+
+        entries = read_journal(s.id)
+        lifecycle_entries = [e for e in entries if e.source == "lifecycle"]
+        assert len(lifecycle_entries) >= 1
+        assert "idle" in lifecycle_entries[0].content
+        assert "running" in lifecycle_entries[0].content
+
+        clear_hooks()
+
+    async def test_poll_cycle_no_transition_without_hooks(self, mock_dirs: object) -> None:
+        """Without register_builtin_hooks(), no DB transitions are recorded."""
+        from shoal.core.db import ShoalDB
+        from shoal.services.lifecycle import clear_hooks
+
+        clear_hooks()
+
+        s = await create_session("no-hook-test", "claude", "/tmp/repo")
+        await update_session(s.id, status=SessionStatus.running, pid=100)
+
+        watcher = Watcher()
+
+        with (
+            patch("shoal.core.tmux.has_session", return_value=True),
+            patch(
+                "shoal.core.tmux.list_panes",
+                return_value=[
+                    {
+                        "id": "%1",
+                        "title": f"shoal:{s.id}",
+                        "command": "claude",
+                        "active": "1",
+                    }
+                ],
+            ),
+            patch("shoal.core.tmux.pane_pid", return_value=100),
+            patch("shoal.core.tmux.capture_pane", return_value="error occurred"),
+            patch(
+                "shoal.services.watcher.detect_status",
+                return_value=SessionStatus.error,
+            ),
+        ):
+            await watcher._poll_cycle()
+
+        db = await ShoalDB.get_instance()
+        transitions = await db.get_status_transitions(s.id)
+        assert len(transitions) == 0
