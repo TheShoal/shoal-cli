@@ -71,7 +71,7 @@ query TeamIssuesByState($teamKey: String!, $first: Int, $stateType: String!) {
 
 _QUERY_ISSUE = """
 query Issue($identifier: String!) {
-  issueFilter(filters: { identifier: { eq: $identifier } }) {
+  issue(id: $identifier) {
     id
     identifier
     title
@@ -79,7 +79,7 @@ query Issue($identifier: String!) {
     url
     priority
     branchName
-    teamId
+    team { id }
     state { name type }
     assignee { name }
     labels { nodes { name } }
@@ -314,7 +314,7 @@ class LinearBridge:
             identifier=node.get("identifier") or "",
             title=node.get("title") or "",
             description=node.get("description") or "",
-            team_id=node.get("teamId") or "",
+            team_id=(node.get("team") or {}).get("id") or node.get("teamId") or "",
             state_name=state.get("name") or "",
             state_type=state.get("type") or "",
             priority=node.get("priority") or 0,
@@ -365,7 +365,7 @@ class LinearBridge:
         """Fetch a single issue by its identifier (e.g. "BE-1234")."""
         variables = {"identifier": identifier}
         data = await self._post(_QUERY_ISSUE, variables)
-        node: dict[str, Any] | None = data.get("issueFilter")
+        node: dict[str, Any] | None = data.get("issue")
         if not node:
             return None
         return self._parse_issue(node)
