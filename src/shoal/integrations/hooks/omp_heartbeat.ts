@@ -12,12 +12,12 @@
  *     - ~/.config/shoal/hooks/omp_heartbeat.ts
  *
  * Environment variables:
- *   SHOAL_SESSION  — Shoal session name or ID (required; hook is a no-op if unset)
- *   SHOAL_PORT     — Port the Shoal HTTP API listens on (default: 8080)
+ *   SHOAL_SESSION_NAME  — Shoal session name (set by Shoal in tmux env; required)
+ *   SHOAL_PORT          — Port the Shoal HTTP API listens on (default: 8080)
  */
 
 const SHOAL_PORT = parseInt(process.env.SHOAL_PORT || "8080", 10);
-const SHOAL_SESSION = process.env.SHOAL_SESSION || "";
+const SHOAL_SESSION = process.env.SHOAL_SESSION_NAME || "";
 
 async function sendHeartbeat(
   status: string,

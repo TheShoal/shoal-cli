@@ -817,6 +817,12 @@ wheels = [
 ]
 
 [[package]]
+name = "ladybug"
+version = "0.0.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/64/4f808e8cec6ac5fe2a2d87aa7edc2e09a3f60b1b570eaf2c0b6544a90032/ladybug-0.0.2.tar.gz", hash = "sha256:10a0ad4819b4492755e50f61b8c04fef5498886f9f8a4928ea56fbd26ffacb8a", size = 4461, upload-time = "2014-05-30T15:26:11.884Z" }
+
+[[package]]
 name = "librt"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1825,6 +1831,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "jinja2" },
+    { name = "ladybug" },
     { name = "pydantic" },
     { name = "rich" },
     { name = "typer" },
@@ -1870,6 +1877,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
+    { name = "ladybug", specifier = ">=0.0.2" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = "<2.0" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'", specifier = ">=0.6.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.7.4" },

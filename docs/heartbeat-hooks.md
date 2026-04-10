@@ -8,7 +8,7 @@ Two hooks are provided: one for **omp** (TypeScript Extension) and one for **Cla
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `SHOAL_SESSION` | Yes | — | Shoal session name or ID. Hook is a no-op if unset. |
+| `SHOAL_SESSION_NAME` | Yes | — | Shoal session name (set automatically by Shoal in the tmux environment). Hook is a no-op if unset. |
 | `SHOAL_PORT` | No | `8080` | Port the Shoal HTTP API listens on. |
 
 ---
