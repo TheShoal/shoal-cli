@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`shoal ticket start` Linear lookup**: `LinearBridge.get_issue()` now queries `issue(id: $identifier)` instead of the invalid top-level `issueFilter(...)`, unblocking direct issue fetch by identifier (e.g. `AIA-469`).
+- **`shoal ticket start` branch derivation**: Session worktree/branch names are now normalized to Shoal-valid `category/slug` format (`feat/<identifier>-<title-slug>`) instead of passing Linear user-scoped `branchName` values that can fail validation.
+- **Worktree dirty check for session creation**: `session_create` now uses `worktree_has_tracked_changes()` (ignores untracked files) so scratch files and local `.shoal/` artifacts no longer block worktree creation.
+
 ## [0.42.0] "Strategic Investments" - 2026-04-10
 
 **Career-aligned automation: issue decomposition, review workflows, weekly digests, and daemon management.**
