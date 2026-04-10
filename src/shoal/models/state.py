@@ -93,6 +93,7 @@ class SessionState(BaseModel):
     pid: int | None = None
     mcp_servers: list[str] = Field(default_factory=list)
     parent_id: str = ""
+    inherited_context: str | None = None  # Parent session name when context was inherited
     tags: list[str] = Field(default_factory=list)
     template_name: str = ""
     model: str = ""  # Override default model (e.g., for OMP/Claude CLI)

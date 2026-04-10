@@ -1250,6 +1250,41 @@ async def fork_session_lifecycle(
     # Inject --model flag into tool_command when model is specified
     tool_command = _inject_model_arg(tool_command, model)
 
+    # 0. Generate and load parent handoff if parent_id exists
+    parent_session_name: str | None = None
+    if parent_id:
+        parent_session = await get_session(parent_id)
+        if parent_session:
+            parent_session_name = parent_session.name
+            # Generate handoff for parent if it doesn't exist yet
+            try:
+                from shoal.core.db import get_db
+                from shoal.core.journal import (
+                    generate_handoff,
+                    handoff_artifact_path,
+                    read_journal,
+                    write_handoff_artifact,
+                )
+
+                handoff_path = handoff_artifact_path(parent_id)
+                if not handoff_path.exists():
+                    logger.info("[%s] fork: generating parent handoff", session_name)
+                    entries = await asyncio.to_thread(read_journal, parent_id)
+                    handoff_db = await get_db()
+                    transitions = await handoff_db.get_status_transitions(parent_id, limit=5)
+                    artifact = await asyncio.to_thread(
+                        generate_handoff,
+                        parent_session,
+                        entries,
+                        transitions,
+                    )
+                    await asyncio.to_thread(write_handoff_artifact, parent_id, artifact)
+                    logger.info("[%s] fork: parent handoff generated", session_name)
+            except Exception:
+                logger.warning(
+                    "[%s] fork: failed to generate parent handoff", session_name, exc_info=True
+                )
+
     # 1. Create DB row
     try:
         session = await create_session(
@@ -1259,6 +1294,7 @@ async def fork_session_lifecycle(
             wt_path,
             new_branch,
             parent_id=parent_id,
+            inherited_context=parent_session_name,
         )
     except ValueError as exc:
         if "already exists" in str(exc) or "collides" in str(exc):
@@ -1271,6 +1307,26 @@ async def fork_session_lifecycle(
 
     tmux_session = session.tmux_runtime.session_name
     logger.info("[%s] fork: DB row created (id=%s)", session_name, session.id)
+
+    # 1.5. Load parent handoff into child journal if available
+    if parent_id and parent_session_name:
+        try:
+            from shoal.core.journal import append_entry, handoff_artifact_path
+
+            handoff_path = handoff_artifact_path(parent_id)
+            if handoff_path.exists():
+                handoff_content = await asyncio.to_thread(handoff_path.read_text)
+                await asyncio.to_thread(
+                    append_entry,
+                    session.id,
+                    f"# Inherited from parent session: {parent_session_name}\n\n{handoff_content}",
+                    source="inherited",
+                )
+                logger.info(
+                    "[%s] fork: loaded parent handoff from %s", session.id, parent_session_name
+                )
+        except Exception:
+            logger.warning("[%s] fork: failed to load parent handoff", session.id, exc_info=True)
 
     # 2. Create tmux session
     try:
