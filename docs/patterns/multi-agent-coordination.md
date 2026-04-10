@@ -106,6 +106,9 @@ sequenceDiagram
 
 ### 1. Planner: Orchestrate Work
 
+!!! warning "Internal Python API vs MCP tools"
+    The code examples below use `shoal.core.message_bus` — an **internal Python API** that is only accessible from within Shoal's own process. Agent sessions running as external processes (Claude Code, omp, etc.) must use the MCP tools instead: `send_session_message`, `receive_session_messages`, `watch_session_messages`, and `get_workflow_messages`. The internal API is not considered stable and may change without notice.
+
 ```python
 from shoal.core.message_bus import (
     send_message,

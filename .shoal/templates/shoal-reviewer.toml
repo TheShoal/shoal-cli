@@ -1,4 +1,4 @@
-# shoal-reviewer — Code reviewer for shoal-cli.
+# shoal-reviewer — Code reviewer for shoal-cli (omp).
 #
 # Fast, cheap. Diff-review doctrine: behavioral regressions first, style last.
 # Read-oriented — does not write implementation code.
@@ -19,7 +19,7 @@
 name        = "shoal-reviewer"
 description = "Diff reviewer — behavioral regressions first, style last"
 extends     = "base-dev"
-tool        = "pisces"
+tool        = "omp"
 mcp         = ["shoal-orchestrator"]
 mode        = "reviewer"
 tags        = ["dogfood", "reviewer"]

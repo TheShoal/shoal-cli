@@ -1,4 +1,4 @@
-# shoal-release — Release cutter for shoal-cli.
+# shoal-release — Release cutter for shoal-cli (omp).
 #
 # Deterministic, low-reasoning work: bump version, update CHANGELOG, and
 # prepare the release branch and tag instructions.
@@ -14,7 +14,7 @@
 name        = "shoal-release"
 description = "Release cutter — changelog, version bump, and tag prep"
 extends     = "base-dev"
-tool        = "pisces"
+tool        = "omp"
 mcp         = ["shoal-orchestrator"]
 mode        = "release"
 tags        = ["dogfood", "release"]

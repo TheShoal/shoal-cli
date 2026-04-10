@@ -2,6 +2,32 @@
 
 End-to-end GitHub pull request lifecycle: review, comment, and close PRs from Shoal sessions.
 
+## Linear + GitHub End-to-End Workflow
+
+The recommended flow when work originates from a Linear ticket:
+
+```bash
+# 1. Start work from a Linear issue — creates a tagged session
+shoal ticket start BE-1234
+
+# 2. When ready for review, open a PR on the branch
+#    (done manually or via your git workflow)
+
+# 3. Spawn a review session from the PR
+shoal github review-pr owner/repo 123
+
+# 4. Post findings to GitHub
+shoal github post-review owner/repo 123
+
+# 5. Finalize the PR (posts handoff comment, optionally merges)
+shoal github done-pr owner/repo 123
+
+# 6. Close the Linear issue (done-pr does NOT update Linear)
+shoal ticket done BE-1234
+```
+
+Tagging conventions. Use `--tag linear-<issue-id>` and `--tag pr-<number>` on session creation. Tags are the stable identifier that `shoal report` and `shoal handoff` use to build cross-system context. A session can carry multiple tags simultaneously.
+
 ## Overview
 
 Shoal's GitHub integration enables:
@@ -133,6 +159,9 @@ shoal github review-pr owner/repo 123
 
 This spawns a dedicated reviewer session.
 
+!!! tip "Tag review sessions"
+    Sessions created by `review-pr` are automatically tagged `github:<owner>/<repo>#<number>`. Use `--tag review` on `start-pr` to add an additional tag for easy filtering with `shoal ls --tag review`.
+
 ### 2. Agent Performs Review
 
 The agent (Claude Code, omp, etc.) has access to:
@@ -159,6 +188,9 @@ shoal github done-pr owner/repo 123
 ```
 
 Generates handoff and finalizes the review session.
+
+!!! warning "`done-pr` vs `shoal ticket done`"
+    `done-pr` posts a handoff summary as a GitHub comment and optionally merges the PR. It does **not** update Linear state. If the work has a linked Linear issue, run `shoal ticket done <ISSUE-ID>` separately to close it.
 
 ## Integration with pantheon-review Template
 
@@ -264,6 +296,9 @@ shoal github done-pr owner/repo 123
 | "Permission denied" | Token lacks repo scope | Regenerate token with `repo` scope |
 | "Rate limit exceeded" | Too many API calls | Wait or use authenticated token |
 
+
+`post-review` exits with code 1 if no journal entries are found for the session. Ensure the review agent has written at least one journal entry before running `post-review`.
+
 ## Best Practices
 
 1. **Use review template**: Configure `pantheon-review` for consistent review context
@@ -275,5 +310,5 @@ shoal github done-pr owner/repo 123
 ## See Also
 
 - [GitHub workflows](cli-reference.md#github-workflows) — Full command reference
-- [Operator Playbooks](operator-playbooks.md) — Common operator patterns
-- [Review Checklist](review-checklist.md) — What to look for in reviews
+- [Review Checklist](review-checklist.md) — What to look for in code reviews
+- [Features Overview](features.md) — Full Shoal feature reference

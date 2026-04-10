@@ -10,7 +10,7 @@ Comprehensive reference for every major Shoal capability. For a narrative introd
 
 | Command | Notes |
 |---------|-------|
-|| `shoal new` | Create a new session. `-t <tool<tool>`,>`, `-w <<workworktree>`, `-b` (branch), `--template <<namename>`, `--mode <<namename>`, `--model <<idid>` |
+| `shoal new` | Create a new session. `-t <tool>`, `-w <worktree>`, `-b` (branch), `--template <name>`, `--mode <name>`, `--model <id>` |
 | `shoal fork <src> <dst>` | Fork an existing session into a new worktree with lineage tracking |
 | `shoal kill <name>` | Tear down a session, archive its journal, optionally clean its worktree |
 | `shoal prune` | Remove stopped sessions from the database |
@@ -93,6 +93,9 @@ shoal config show
 
 See [Local Templates](LOCAL_TEMPLATES.md) for the full guide.
 
+!!! note "Template search path"
+    Local templates (`.shoal/templates/`) always take precedence over global templates (`~/.config/shoal/templates/`). If a template name exists in both locations, the local file wins.
+
 ### Template Inheritance
 
 ```toml
@@ -107,6 +110,9 @@ tool = "claude"
 |-----------|----------|
 | `extends` | Single parent; child scalars win, `env` merges, `mcp` unions, `windows` replaced if child sets any |
 | `mixins` | Additive — `env` merges, `mcp` unions, `windows` appended |
+
+!!! note "Merge behaviour for `[env]` and `[mcp]`"
+    Both `extends` and `mixins` perform a **shallow merge** for `[env]`: child/mixin keys overwrite parent keys of the same name; keys unique to the parent are preserved. For `[mcp]`, entries are **unioned** (deduped by server name). `[windows]` from `extends` is **replaced** if the child defines any windows; for `mixins`, windows are **appended**.
 
 Cycle detection is enforced. Resolution order: extends → mixins → CLI flags.
 
@@ -154,6 +160,22 @@ setup_commands = ["uv sync"]
 MYAPP_ENV = "dev"
 ```
 
+---
+
+## Shoal Opinionated Defaults
+
+Shoal makes several choices that are not configurable per-session to keep multi-agent workflows predictable.
+
+| Default | Value | Override |
+|---------|-------|----------|
+| Worktree base directory | `<repo>/.worktrees/<name>` | Not overridable; set by design |
+| Branch naming | `<branch_prefix>/<worktree>` or worktree name | `branch_prefix` in `[template.git]`; explicit `/` in worktree name always wins |
+| Status detection poll interval | 2 seconds | `[operator] poll_interval` in `config.toml` |
+| Blocked threshold | 5 minutes in `waiting` | `[operator] blocked_after_minutes` |
+| Stale threshold | 30 minutes in `running` | `[operator] stale_after_minutes` |
+
+These defaults are designed around solo and small-team usage where session isolation matters more than flexibility.
+
 ## Linear ticket routing and PM reports
 
 Shoal can treat Linear as the source of truth for team work while keeping execution inside Shoal sessions.
@@ -198,7 +220,7 @@ shoal report sprint --team be
 shoal report sprint --team be --post
 ```
 
-Reports compose existing Shoal state instead of introducing a second tracking system: session journals, handoff artifacts, Dreamer summaries, and Linear issue data. When a report target is configured, `--post` publishes the rendered sprint summary as a Linear project or initiative update.
+Reports compose existing Shoal state instead of introducing a second tracking system: session journals, handoff artifacts, session summaries, and Linear issue data. When a report target is configured, `--post` publishes the rendered sprint summary as a Linear project or initiative update.
 
 ---
 
@@ -254,7 +276,7 @@ shoal mcp registry       # show registered servers and transport
 | `read_history` | Status transition history for a session |
 | `read_worktree_file` | Read a file from a session's worktree (path traversal protected) |
 | `list_worktree_files` | Enumerate worktree contents |
-| `session_summary` | Dreamer LLM summary for a session |
+| `session_summary` | LLM-generated summary from the session journal |
 
 #### Git
 

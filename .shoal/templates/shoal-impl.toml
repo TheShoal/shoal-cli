@@ -1,4 +1,4 @@
-# shoal-impl — Feature implementer for shoal-cli.
+# shoal-impl — Feature implementer for shoal-cli (omp).
 #
 # Python 3.12+, async-first, mypy --strict enforced.
 # Powerful model — writes code, runs tests, follows conventional commits.
@@ -16,7 +16,7 @@
 name        = "shoal-impl"
 description = "Feature implementer — async Python, mypy strict, conventional commits"
 extends     = "base-dev"
-tool        = "pisces"
+tool        = "omp"
 mcp         = ["shoal-orchestrator", "memory"]
 mode        = "implementer"
 tags        = ["dogfood", "impl"]

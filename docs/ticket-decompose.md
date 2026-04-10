@@ -26,6 +26,10 @@ shoal ticket decompose TEAM-123 --dry-run
 shoal ticket decompose TEAM-123
 ```
 
+## Configuration
+
+No special configuration required — uses existing Linear integration from `~/.config/shoal/config.toml` and `.shoal/workspace.toml`.
+
 ### How It Works
 
 1. **Fetch parent issue**: Pulls the Linear issue including title, description, labels
@@ -98,6 +102,18 @@ shoal ticket start TEAM-126
 shoal ls --tree
 ```
 
+### `shoal ticket pick` Behavior
+
+`shoal ticket pick` opens an interactive fzf picker across all configured teams. It shows issues in `Todo` or `In Progress` state. After selection it prints the issue ID — it does **not** automatically start a session. Pipe or follow up with `shoal ticket start`:
+
+```bash
+# Pick interactively, then start
+shoal ticket pick  # select TEAM-456
+shoal ticket start TEAM-456
+```
+
+To filter to a specific team use `--team <slug>`. Issues already linked to an active session are visually marked in the picker.
+
 ## Dry-Run Mode
 
 Always preview before creating:
@@ -136,9 +152,6 @@ Common issues and resolutions:
 4. **Track in Linear**: Parent issue shows all children
 5. **Session per child**: Use `shoal ticket start` for each child
 
-## Configuration
-
-No special configuration required — uses existing Linear integration from `~/.config/shoal/config.toml` and `.shoal/workspace.toml`.
 
 ## See Also
 

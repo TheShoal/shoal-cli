@@ -971,7 +971,7 @@ def _inject_model_arg(command: str, model: str | None) -> str:
     so that template-baked models take precedence without silent overrides.
 
     Args:
-        command: The tool command string (e.g. ``"pisces"``).
+        command: The tool command string (e.g. ``"omp"``).
         model: Model identifier to inject (e.g. ``"z-ai/glm-5"``).
 
     Returns:
@@ -1259,7 +1259,7 @@ async def fork_session_lifecycle(
         wt_path: Path to the new git worktree.
         work_dir: Working directory inside the worktree.
         new_branch: Branch name for the fork.
-        tool_command: Command to launch the tool (e.g. ``"pisces"``).
+        tool_command: Command to launch the tool (e.g. ``"omp"``).
         startup_commands: Extra shell commands to run after tool launch.
         template_cfg: Optional template configuration to apply.
         worktree_name: Display name for the worktree.

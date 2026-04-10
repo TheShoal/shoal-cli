@@ -2,7 +2,7 @@
 # Inherited by all sessions in this repo.
 # Precedence: project < template < CLI flags
 
-default_tool = "pisces"
+default_tool = "omp"
 default_template = "shoal-impl"
 setup_commands = [
     "uv sync --extra dev --quiet",

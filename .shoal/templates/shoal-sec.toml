@@ -1,4 +1,4 @@
-# shoal-sec — Security reviewer for shoal-cli.
+# shoal-sec — Security reviewer for shoal-cli (omp).
 #
 # Read-only. Focused on security-sensitive patterns specific to this codebase:
 #   - Subprocess injection via session names, branch names, shell commands
@@ -18,7 +18,7 @@
 name        = "shoal-sec"
 description = "Security reviewer — injection, traversal, secrets, trust boundaries"
 extends     = "base-dev"
-tool        = "pisces"
+tool        = "omp"
 mcp         = ["shoal-orchestrator"]
 mode        = "reviewer"
 tags        = ["dogfood", "security", "reviewer"]

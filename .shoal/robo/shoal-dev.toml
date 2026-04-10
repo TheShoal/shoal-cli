@@ -6,15 +6,15 @@
 #     interactive coordinator session the human talks to
 #
 # Usage:
-#   shoal robo setup shoal-dev --tool pisces
+#   shoal robo setup shoal-dev --tool omp
 #   shoal robo start shoal-dev
 #
-# This creates the __shoal-dev tmux session running pisces with robo AGENTS.md.
+# This creates the __shoal-dev tmux session running omp with robo AGENTS.md.
 # The robo uses the standard tool config for supervision.
 
 [robo]
 name         = "shoal-dev"
-tool         = "pisces"
+tool         = "omp"
 auto_approve = false
 
 [monitoring]

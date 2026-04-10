@@ -1,4 +1,4 @@
-# shoal-supervisor — Interactive fleet planner and supervisor for shoal-cli.
+# shoal-supervisor — Interactive fleet planner and supervisor for shoal-cli (omp).
 #
 # This is the session the human talks to. It plans work interactively,
 # writes PLAN.md, spawns a worker fleet on confirmation, then supervises
@@ -29,7 +29,7 @@
 name        = "shoal-supervisor"
 description = "Interactive supervisor — plan work, spawn fleet, supervise to completion"
 extends     = "base-dev"
-tool        = "pisces"
+tool        = "omp"
 mcp         = ["shoal-orchestrator", "memory"]
 # mcp       = ["shoal-orchestrator", "memory", "linear"]  # uncomment when linear is registered
 mixins      = ["shoal-orchestrator"]

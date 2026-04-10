@@ -7,7 +7,7 @@ subcommand groups.
 
 | Command | Purpose |
 | ------- | ------- |
-|| `shoal new` | Create a new session, optionally with a worktree and branch (branch category uses `template.git.branch_prefix` when set). Supports `--model <<idid>` to override the tool default. |
+| `shoal new` | Create a new session, optionally with a worktree and branch (branch category uses `template.git.branch_prefix` when set). Requires `-b` to create a git branch and worktree. Supports `--model <id>` to override the tool default. |
 | `shoal ls` | List sessions, with filters like `--tree` and `--tag` |
 | `shoal info` | Show detailed metadata for one session |
 | `shoal attach` | Jump into a session |
@@ -44,6 +44,9 @@ shoal prune
 Use `new` when you are starting fresh, `fork` when you need lineage from an existing session,
 and `prune` to clear stopped sessions from the database after cleanup.
 
+!!! note "`done` vs `kill`"
+    `shoal done <name>` marks a session complete and writes a final journal entry — use it when work is finished. `shoal kill <name>` tears down the session immediately, optionally removing the worktree, without generating a completion record. Prefer `done` when the session has a linked Linear issue or when you want a handoff artifact.
+
 ## Worktrees
 
 | Command | Purpose |
@@ -64,13 +67,21 @@ and `prune` to clear stopped sessions from the database after cleanup.
 | `shoal ticket start <ISSUE-ID>` | Create a session from a Linear issue and tag it for status sync |
 | `shoal ticket done [ISSUE-ID]` | Generate a handoff, update Linear, and finish the linked session workflow |
 | `shoal ticket status` | Show active Linear-to-session bindings from session tags |
-| `shoal report session <name>` | Summarize one session using journals, handoff context, and Dreamer summaries |
+| `shoal report session <name>` | Summarize one session using journals, handoff context, and session summaries |
 | `shoal report team --team <slug>` | Summarize active work across a configured team |
 | `shoal report sprint --team <slug>` | Build a sprint summary from session state and Linear issue data |
 | `shoal report sprint --team <slug> --post` | Publish the sprint report to the team's configured Linear project or initiative |
 | `shoal report weekly` | Aggregate sessions, Linear, GitHub into weekly digest (--week, --team, --post) |
 
 `shoal ticket` and `shoal report` both resolve team metadata from `[teams.<slug>]` blocks in `.shoal/workspace.toml`. To enable `--post`, add a `[teams.<slug>.report]` block with `type = "project" | "initiative"` and exactly one selector: `id`, `slug`, or `name`.
+
+Example `[teams.<slug>.report]` block in `.shoal/workspace.toml`:
+
+```toml
+[teams.be.report]
+type = "project"
+name = "Backend Roadmap"
+```
 
 ## GitHub workflows
 
@@ -219,7 +230,7 @@ Key tools exposed by `shoal-orchestrator` beyond what `shoal mcp ls` shows:
 | `list_worktree_files` | files | Enumerate worktree |
 | `merge_branch` | git | Merge session branch into main |
 | `branch_status` | git | Branch, ahead/behind, dirty state |
-| `session_summary` | dreamer | Dreamer LLM summary |
+| `session_summary` | observability | LLM-generated summary from the session journal |
 | `get_failure_context` | proactive | Scout failure context packet (`consume` flag) |
 | `send_session_message` | bus | Post typed message to another session |
 | `receive_session_messages` | bus | Fetch messages with filtering |

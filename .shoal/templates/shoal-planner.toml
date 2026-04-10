@@ -1,4 +1,4 @@
-# shoal-planner — Milestone planner / architect for shoal-cli.
+# shoal-planner — Milestone planner / architect for shoal-cli (omp).
 #
 # Scope features, write ROADMAP entries, design APIs.
 # Cheap model — read-heavy, minimal writes.
@@ -10,7 +10,7 @@
 name        = "shoal-planner"
 description = "Scope features and write ROADMAP entries for shoal-cli"
 extends     = "base-dev"
-tool        = "pisces"
+tool        = "omp"
 mcp         = ["shoal-orchestrator", "memory"]
 mode        = "planner"
 tags        = ["dogfood", "planner"]

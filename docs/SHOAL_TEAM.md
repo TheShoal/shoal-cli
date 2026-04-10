@@ -6,12 +6,12 @@ Operating doctrine and quick-reference for the shoal-cli agent fleet.
 
 | Pattern | Role | Template | Model |
 |---|---|---|---|
-| `impl/*` | Feature implementer | `shoal-impl` | pisces slow (`claude-opus-4-6-thinking`) |
-| `review/*` | Code reviewer | `shoal-reviewer` | pisces smol (`gemini-3-flash-preview`) |
-| `plan/*` | Planner / architect | `shoal-planner` | pisces plan (`glm-5`) |
-| `release/*` | Release cutter | `shoal-release` | pisces commit (`claude-haiku-4.5`) |
-| `ops/*` | Infrastructure / CI | `shoal-impl` | pisces slow |
-| `__shoal-dev` | Robo supervisor | robo profile | pisces default (`claude-sonnet-4.6`) |
+| `impl/*` | Feature implementer | `shoal-impl` | omp slow (`claude-opus-4-6-thinking`) |
+| `review/*` | Code reviewer | `shoal-reviewer` | omp smol (`gemini-3-flash-preview`) |
+| `plan/*` | Planner / architect | `shoal-planner` | omp plan (`glm-5`) |
+| `release/*` | Release cutter | `shoal-release` | omp commit (`claude-haiku-4.5`) |
+| `ops/*` | Infrastructure / CI | `shoal-impl` | omp slow |
+| `__shoal-dev` | Robo supervisor | robo profile | omp default (`claude-sonnet-4.6`) |
 
 ## Common workflows
 
@@ -24,7 +24,7 @@ shoal new impl/my-feature \
   --prompt "Implement X — see ROADMAP.md backlog item '...'"
 ```
 
-The `shoal-impl` template opens 3 windows: `agent` (pisces, 65/35 split with terminal),
+The `shoal-impl` template opens 3 windows: `agent` (omp, 65/35 split with terminal),
 `tests` (just test runner), `monitor` (git log). `uv sync` and `git fetch` run at
 session creation via `.shoal.toml` setup_commands.
 
@@ -77,7 +77,7 @@ shoal robo start shoal-dev  # supervisor watches both
 ## Robo supervisor
 
 Profile at `.shoal/robo/shoal-dev.toml`. The global robo profile (written by
-`shoal robo setup shoal-dev --tool pisces`) lives at
+`shoal robo setup shoal-dev --tool omp`) lives at
 `~/.config/shoal/robo/shoal-dev.toml`. Runtime state (AGENTS.md, task-log.md)
 is at `~/.local/share/shoal/robo/shoal-dev/`.
 
@@ -108,15 +108,15 @@ All review sessions follow this ordering. Style never outranks correctness.
 
 ## Template inheritance
 
-All four templates extend `base-dev` and set `tool = "pisces"`.
-Model is selected via `PISCES_LAUNCH_ARGS = "--model <id>"` in each template's `[env]`.
+All four templates extend `base-dev` and set `tool = "omp"`.
+Model is selected via `OMP_LAUNCH_ARGS = "--model <id>"` in each template's `[env]`.
 
 ```
 base-dev (global)
-├── shoal-impl     extends=base-dev, tool=pisces, slow model, mcp=[shoal-orchestrator,memory]
-├── shoal-reviewer extends=base-dev, tool=pisces, smol model, mcp=[shoal-orchestrator]
-├── shoal-planner  extends=base-dev, tool=pisces, plan model, mcp=[shoal-orchestrator,memory]
-└── shoal-release  extends=base-dev, tool=pisces, commit model, mcp=[shoal-orchestrator]
+├── shoal-impl     extends=base-dev, tool=omp, slow model, mcp=[shoal-orchestrator,memory]
+├── shoal-reviewer extends=base-dev, tool=omp, smol model, mcp=[shoal-orchestrator]
+├── shoal-planner  extends=base-dev, tool=omp, plan model, mcp=[shoal-orchestrator,memory]
+└── shoal-release  extends=base-dev, tool=omp, commit model, mcp=[shoal-orchestrator]
 ```
 
 Mixins in use:
