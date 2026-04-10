@@ -369,8 +369,8 @@ async def _add_impl(
 
     if worktree:
         # S4: Block if working tree is dirty or has an in-progress merge/rebase
-        if git.worktree_is_dirty(str(resolved_path)):
-            get_console().print("[red]Error: Working tree has uncommitted changes.[/red]")
+        if git.worktree_has_tracked_changes(str(resolved_path)):
+            get_console().print("[red]Error: Working tree has staged or unstaged changes to tracked files.[/red]")
             get_console().print(
                 "[dim]Worktrees must be created from a clean HEAD to ensure consistency.[/dim]"
             )

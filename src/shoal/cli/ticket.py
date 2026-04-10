@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import TYPE_CHECKING, Annotated
 
 import typer
@@ -114,8 +115,13 @@ async def _ticket_start_impl(issue_id: str, *, tool: str | None, template: str |
     # Resolve template: flag > team config > None (let add_impl use defaults)
     resolved_template = template or (team_cfg.default_template if team_cfg else None)
 
-    # Derive worktree name from Linear branch suggestion or issue identifier
-    worktree_name = issue.branch_name or f"{prefix.lower()}/{issue.identifier.lower()}"
+    # Derive worktree name: build a canonical feat/{id}-{slug} name from the
+    # issue identifier and title. Linear's branchName is user-scoped and uses
+    # a non-standard category prefix (e.g. "ricardoroche/aia-469-...") that
+    # fails Shoal's category/slug validation — so we always construct our own.
+    _id_slug = issue.identifier.lower()
+    _title_slug = re.sub(r"[^a-z0-9]+", "-", issue.title.lower()).strip("-")[:40].rstrip("-")
+    worktree_name = f"feat/{_id_slug}-{_title_slug}" if _title_slug else f"feat/{_id_slug}"
 
     # Derive session name from issue identifier
     session_name = issue.identifier.lower()
