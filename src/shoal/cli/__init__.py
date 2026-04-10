@@ -11,6 +11,7 @@ import typer
 import shoal
 from shoal.cli.config_cmd import app as config_app
 from shoal.cli.demo import app as demo_app
+from shoal.cli.github import app as github_app
 from shoal.cli.incident import app as incident_app
 
 # Sub-group Typer apps — these are lightweight and needed at import time for add_typer.
@@ -582,6 +583,7 @@ app.add_typer(mode_app, name="mode", help="Operating modes.")
 app.add_typer(skill_app, name="skill", help="Cross-agent skills.")
 app.add_typer(proactive_app, name="proactive", help="Proactive monitoring and filesystem watching.")
 app.add_typer(session_app, name="session", help="Session management commands.")
+app.add_typer(github_app, name="github", help="GitHub PR workflow.")
 
 
 @app.command()
