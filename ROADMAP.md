@@ -229,6 +229,30 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
+### Session: 2026-04-11 — Dev-infrastructure adaptations (Tier 1)
+
+**What we did:**
+
+Shipped (dev-infrastructure adaptations, Tier 1):
+- Collision detection: Minerva scanner + Shoal MCP tool + Arachne CONFLICTS_WITH edge
+- Session outcome capture: SessionOutcome + capture_session_outcome MCP tool
+- Format-on-write hook: claude_format_on_write.sh + settings snippet
+
+**Current state:**
+
+- Branch: `main` (3 repos committed)
+- Tests: shoal-cli 1610 passed, 4 skipped (pre-existing failures in test_cli_report.py); arachne 145 passed
+- Fixed missing `SessionOutcome` import in `mcp_shoal_server.py`
+- No tests exist for new MCP tools yet (not blocking)
+- CHANGELOG and ROADMAP updated
+
+**What to do next:**
+
+Tier 2 (not yet started):
+- Merge validation pipeline (score: 82/100)
+- FTS5 journal search (score: 65/100)
+- Weekly synthesis prompt generator (score: 70/100)
+
 ### Session: 2026-04-09 — Toolchain consolidation (v0.41.0)
 
 **What we did:**

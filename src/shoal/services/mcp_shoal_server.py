@@ -23,6 +23,7 @@ from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
 import shoal
+from shoal.core.journal import SessionOutcome
 from shoal.models.batch import (
     AppendJournalBatchOp,
     BatchExecutionRequest,
