@@ -110,3 +110,96 @@ class TestTicketLs:
             result = runner.invoke(app, ["ticket", "ls", "--team", "xyz"])
             assert result.exit_code == 1
             assert "Unknown team" in result.output
+
+
+class TestTicketBindingsCommands:
+    def test_ticket_start_uses_context_prefixed_name(self, mock_dirs):
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock
+
+        from shoal.models.config.workspace import TeamConfig, WorkspaceConfig
+
+        issue = SimpleNamespace(
+            id="issue-1",
+            identifier="BE-1234",
+            title="Fix auth flow",
+            url="https://linear.app/test/issue/BE-1234",
+        )
+        ws = WorkspaceConfig(
+            name="test",
+            teams={
+                "be": TeamConfig(
+                    linear_slug="BE",
+                    default_template="be-agent",
+                    worktree_dir="work/backend",
+                )
+            },
+        )
+        bridge = SimpleNamespace(
+            get_issue=AsyncMock(return_value=issue),
+            update_issue_state=AsyncMock(),
+            close=AsyncMock(),
+        )
+
+        async def fake_add_impl(**kwargs):
+            assert kwargs["name"] == "work/be-1234"
+
+        with (
+            patch("shoal.cli.ticket.init_bridge", return_value=bridge),
+            patch("shoal.cli.ticket.git.git_root", return_value="/tmp/repo"),
+            patch("shoal.cli.ticket.load_workspace_config", return_value=ws),
+            patch("shoal.core.state.resolve_session", return_value=None),
+            patch("shoal.cli.session_create._add_impl", side_effect=fake_add_impl),
+        ):
+            result = runner.invoke(app, ["ticket", "start", "BE-1234"])
+
+        assert result.exit_code == 0, result.output
+
+    def test_ticket_attach_replaces_existing_tag(self, mock_dirs):
+        from unittest.mock import AsyncMock
+
+        from shoal.core.state import add_tag, create_session, get_session
+
+        session = asyncio.run(create_session("notes/research", "claude", "/tmp/repo"))
+        asyncio.run(add_tag(session.id, "linear:BE-1"))
+
+        issue = type(
+            "Issue",
+            (),
+            {
+                "id": "issue-2",
+                "identifier": "BE-2",
+                "title": "Second issue",
+                "url": "https://linear.app/test/issue/BE-2",
+            },
+        )()
+        bridge = type(
+            "Bridge",
+            (),
+            {
+                "get_issue": AsyncMock(return_value=issue),
+                "close": AsyncMock(),
+            },
+        )()
+
+        with patch("shoal.cli.ticket.init_bridge", return_value=bridge):
+            result = runner.invoke(app, ["ticket", "attach", "notes/research", "BE-2"])
+
+        assert result.exit_code == 0, result.output
+        updated = asyncio.run(get_session(session.id))
+        assert updated is not None
+        assert updated.tags.count("linear:BE-2") == 1
+        assert "linear:BE-1" not in updated.tags
+
+    def test_ticket_detach_removes_linear_tags(self, mock_dirs):
+        from shoal.core.state import add_tag, create_session, get_session
+
+        session = asyncio.run(create_session("notes/research", "claude", "/tmp/repo"))
+        asyncio.run(add_tag(session.id, "linear:BE-1"))
+
+        result = runner.invoke(app, ["ticket", "detach", "notes/research"])
+
+        assert result.exit_code == 0, result.output
+        updated = asyncio.run(get_session(session.id))
+        assert updated is not None
+        assert not any(tag.startswith("linear:") for tag in updated.tags)

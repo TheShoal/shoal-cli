@@ -35,7 +35,8 @@ from shoal.cli.worktree import app as wt_app
 app = typer.Typer(
     name="shoal",
     help="Orchestrate AI coding agents.",
-    no_args_is_help=True,
+    no_args_is_help=False,
+    invoke_without_command=True,
     rich_markup_mode="rich",
     pretty_exceptions_show_locals=False,
 )
@@ -47,8 +48,9 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     debug: bool = typer.Option(False, "--debug", help="Enable DEBUG-level logging to stderr."),
     log_level: str = typer.Option(
         "WARNING", "--log-level", help="Log level (DEBUG/INFO/WARNING/ERROR)."
@@ -74,6 +76,11 @@ def main(
     # Register lifecycle hooks (journal, ploom graph, fish events, etc.)
     register_builtin_hooks()
     register_project_hooks()
+
+    if ctx.invoked_subcommand is None:
+        from shoal.cli.session_create import create_and_attach_default
+
+        create_and_attach_default()
 
 
 # ---------------------------------------------------------------------------
@@ -180,6 +187,44 @@ def _rename_cmd(
     from shoal.cli.session import rename
 
     rename(old_name, new_name)
+
+
+@app.command("session-edit", hidden=True)
+def _session_edit_cmd(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    name: str | None = typer.Option(None, "--name", help="Rename the session"),
+    add_tag: list[str] | None = typer.Option(  # noqa: B008
+        None,
+        "--add-tag",
+        help="Add a tag to the session",
+    ),
+    remove_tag: list[str] | None = typer.Option(  # noqa: B008
+        None,
+        "--remove-tag",
+        help="Remove a tag from the session",
+    ),
+    linear: str | None = typer.Option(None, "--linear", help="Attach a Linear issue"),
+    clear_linear: bool = typer.Option(False, "--clear-linear", help="Detach Linear issue binding"),
+    github: str | None = typer.Option(
+        None,
+        "--github",
+        help="Attach a GitHub PR owner/repo#number",
+    ),
+    clear_github: bool = typer.Option(False, "--clear-github", help="Detach GitHub PR binding"),
+) -> None:
+    """Edit mutable session metadata."""
+    from shoal.cli.session import edit_session
+
+    edit_session(
+        session,
+        name=name,
+        add_tag=add_tag or [],
+        remove_tag=remove_tag or [],
+        linear=linear,
+        clear_linear=clear_linear,
+        github=github,
+        clear_github=clear_github,
+    )
 
 
 @app.command("logs")
@@ -579,6 +624,7 @@ app.add_typer(setup_app, name="setup", help="Setup shell integrations.")
 app.add_typer(tag_app, name="tag", help="Session tags.")
 app.add_typer(team_app, name="team", help="Team configuration.")
 app.add_typer(template_app, name="template", help="Session templates.")
+app.add_typer(session_app, name="session", help="Session management.")
 app.add_typer(ticket_app, name="ticket", help="Linear ticket workflow.")
 app.add_typer(report_app, name="report", help="PM-facing reports.")
 app.add_typer(config_app, name="config", help="Configuration inspection.")

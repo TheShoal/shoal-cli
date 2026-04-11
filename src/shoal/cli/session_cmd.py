@@ -132,3 +132,41 @@ def prune(
     from shoal.cli.session import prune as _prune
 
     _prune(force)
+
+
+@app.command("edit")
+def edit(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    name: str | None = typer.Option(None, "--name", help="Rename the session"),
+    add_tag: list[str] | None = typer.Option(  # noqa: B008
+        None,
+        "--add-tag",
+        help="Add a tag to the session",
+    ),
+    remove_tag: list[str] | None = typer.Option(  # noqa: B008
+        None,
+        "--remove-tag",
+        help="Remove a tag from the session",
+    ),
+    linear: str | None = typer.Option(None, "--linear", help="Attach a Linear issue"),
+    clear_linear: bool = typer.Option(False, "--clear-linear", help="Detach Linear issue binding"),
+    github: str | None = typer.Option(
+        None,
+        "--github",
+        help="Attach a GitHub PR owner/repo#number",
+    ),
+    clear_github: bool = typer.Option(False, "--clear-github", help="Detach GitHub PR binding"),
+) -> None:
+    """Edit mutable session metadata."""
+    from shoal.cli.session import edit_session
+
+    edit_session(
+        session,
+        name=name,
+        add_tag=add_tag or [],
+        remove_tag=remove_tag or [],
+        linear=linear,
+        clear_linear=clear_linear,
+        github=github,
+        clear_github=clear_github,
+    )

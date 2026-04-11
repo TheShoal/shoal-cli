@@ -229,6 +229,34 @@ async def remove_tag(session_id: str, tag: str) -> None:
         await update_session(session_id, tags=[t for t in session.tags if t != tag])
 
 
+async def remove_tags_with_prefix(session_id: str, prefix: str) -> list[str]:
+    """Remove all tags with the given prefix and return removed tags."""
+    session = await get_session(session_id)
+    if session is None:
+        return []
+    removed = [tag for tag in session.tags if tag.startswith(prefix)]
+    if removed:
+        await update_session(
+            session_id,
+            tags=[tag for tag in session.tags if not tag.startswith(prefix)],
+        )
+    return removed
+
+
+async def replace_tag_prefix(session_id: str, prefix: str, new_tag: str) -> list[str]:
+    """Replace all tags with the given prefix by a single tag and return removed tags."""
+    session = await get_session(session_id)
+    if session is None:
+        return []
+    removed = [tag for tag in session.tags if tag.startswith(prefix)]
+    remaining = [tag for tag in session.tags if not tag.startswith(prefix)]
+    if new_tag in remaining and not removed:
+        return []
+    tags = remaining if new_tag in remaining else [*remaining, new_tag]
+    await update_session(session_id, tags=tags)
+    return removed
+
+
 async def resolve_session(name_or_id: str) -> str | None:
     """Resolve a name or ID to a session ID. Returns None if not found."""
     # Try as direct ID first

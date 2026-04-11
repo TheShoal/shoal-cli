@@ -21,6 +21,99 @@ if TYPE_CHECKING:
 app = typer.Typer(no_args_is_help=True)
 
 
+def _session_context_from_team_config(team_cfg: TeamConfig | None) -> str:
+    """Return session context prefix for team-backed sessions."""
+    if team_cfg and team_cfg.worktree_dir.strip():
+        candidate = team_cfg.worktree_dir.strip().strip("/").split("/")[0]
+        if candidate:
+            return candidate
+    return "work"
+
+
+async def _emit_binding_change(
+    session_id: str, *, binding_type: str, action: str, identifier: str, name: str
+) -> None:
+    """Best-effort bridge to Arachne binding-change hooks if installed."""
+    try:
+        from ploom.hooks import on_session_binding_changed
+    except ImportError:
+        return
+    await on_session_binding_changed(
+        session_id,
+        binding_type=binding_type,
+        action=action,
+        identifier=identifier,
+        name=name,
+    )
+
+
+async def _attach_issue_tag(
+    session_id: str,
+    session_name: str,
+    issue,
+    *,
+    source: str = "ticket",
+    replaced_note: bool = True,
+) -> bool:
+    from shoal.core.journal import append_entry
+    from shoal.core.state import get_session, replace_tag_prefix
+
+    new_tag = f"linear:{issue.identifier}"
+    before = await get_session(session_id)
+    if before is None:
+        return False
+    had_tag = new_tag in before.tags
+    removed = await replace_tag_prefix(session_id, "linear:", new_tag)
+    changed = bool(removed) or not had_tag
+    if not changed:
+        return False
+
+    if removed and replaced_note:
+        old = ", ".join(tag.removeprefix("linear:") for tag in removed)
+        append_entry(
+            session_id,
+            f"Ticket binding replaced: {old} → {issue.identifier}",
+            source=source,
+        )
+    append_entry(
+        session_id,
+        f"Ticket attached: [{issue.identifier}]({issue.url}) — {issue.title}",
+        source=source,
+    )
+    await _emit_binding_change(
+        session_id,
+        binding_type="linear",
+        action="attach",
+        identifier=issue.identifier,
+        name=session_name,
+    )
+    return True
+
+
+async def _detach_issue_tags(session_id: str, session_name: str) -> list[str]:
+    from shoal.core.journal import append_entry
+    from shoal.core.state import remove_tags_with_prefix
+
+    removed = await remove_tags_with_prefix(session_id, "linear:")
+    if not removed:
+        return []
+    identifiers = [tag.removeprefix("linear:") for tag in removed]
+    append_entry(
+        session_id,
+        f"Ticket detached: {', '.join(identifiers)}",
+        source="ticket",
+    )
+    for identifier in identifiers:
+        await _emit_binding_change(
+            session_id,
+            binding_type="linear",
+            action="detach",
+            identifier=identifier,
+            name=session_name,
+        )
+    return removed
+
+
 def _priority_label(p: int) -> str:
     """Format a Linear priority integer as a short label."""
     return {1: "P1", 2: "P2", 3: "P3", 4: "P4"}.get(p, "--")
@@ -85,8 +178,7 @@ def ticket_start(
 
 async def _ticket_start_impl(issue_id: str, *, tool: str | None, template: str | None) -> None:
     from shoal.cli.session_create import _add_impl
-    from shoal.core.journal import append_entry
-    from shoal.core.state import add_tag, resolve_session
+    from shoal.core.state import resolve_session
     from shoal.services.linear_bridge import get_linear_bridge
 
     console = get_console()
@@ -123,8 +215,9 @@ async def _ticket_start_impl(issue_id: str, *, tool: str | None, template: str |
     _title_slug = re.sub(r"[^a-z0-9]+", "-", issue.title.lower()).strip("-")[:40].rstrip("-")
     worktree_name = f"feat/{_id_slug}-{_title_slug}" if _title_slug else f"feat/{_id_slug}"
 
-    # Derive session name from issue identifier
-    session_name = issue.identifier.lower()
+    # Derive session name from issue identifier with context prefix for Arachne linking
+    session_context = _session_context_from_team_config(team_cfg)
+    session_name = f"{session_context}/{issue.identifier.lower()}"
 
     # Resolve repo for workspace routing
     repo = team_cfg.worktree_dir if team_cfg else None
@@ -151,11 +244,12 @@ async def _ticket_start_impl(issue_id: str, *, tool: str | None, template: str |
     # Tag session with the Linear issue
     sid = await resolve_session(session_name)
     if sid:
-        await add_tag(sid, f"linear:{issue.identifier}")
-        append_entry(
+        await _attach_issue_tag(
             sid,
-            f"Ticket started: [{issue.identifier}]({issue.url}) — {issue.title}",
+            session_name,
+            issue,
             source="ticket",
+            replaced_note=False,
         )
 
     # Update Linear status to In Progress
@@ -167,6 +261,77 @@ async def _ticket_start_impl(issue_id: str, *, tool: str | None, template: str |
         console.print(f"[yellow]Warning: Could not update Linear status: {exc}[/yellow]")
     finally:
         await bridge2.close()
+
+
+@app.command("attach")
+def ticket_attach(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    issue_id: Annotated[str, typer.Argument(help="Linear issue identifier (e.g. BE-1234)")],
+) -> None:
+    """Attach a Linear ticket to an existing session."""
+    asyncio.run(with_db(_ticket_attach_impl(session, issue_id)))
+
+
+async def _ticket_attach_impl(session: str, issue_id: str) -> None:
+    from shoal.core.state import get_session, resolve_session
+    from shoal.services.linear_bridge import get_linear_bridge
+
+    console = get_console()
+    sid = await resolve_session(session)
+    if not sid:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+    state = await get_session(sid)
+    if not state:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+
+    bridge = init_bridge(get_linear_bridge)
+    try:
+        issue = await bridge.get_issue(issue_id)
+    finally:
+        await bridge.close()
+
+    if not issue:
+        console.print(f"[red]Issue not found: {issue_id}[/red]")
+        raise typer.Exit(1)
+
+    changed = await _attach_issue_tag(sid, state.name, issue)
+    if not changed:
+        console.print(f"[yellow]Session already attached to {issue.identifier}[/yellow]")
+        return
+
+    console.print(f"[green]Attached {issue.identifier} to {state.name}[/green]")
+
+
+@app.command("detach")
+def ticket_detach(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+) -> None:
+    """Detach Linear ticket bindings from a session."""
+    asyncio.run(with_db(_ticket_detach_impl(session)))
+
+
+async def _ticket_detach_impl(session: str) -> None:
+    from shoal.core.state import get_session, resolve_session
+
+    console = get_console()
+    sid = await resolve_session(session)
+    if not sid:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+    state = await get_session(sid)
+    if not state:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+
+    removed = await _detach_issue_tags(sid, state.name)
+    if not removed:
+        console.print(f"[yellow]No Linear ticket binding found for {state.name}[/yellow]")
+        return
+
+    detached = ", ".join(tag.removeprefix("linear:") for tag in removed)
+    console.print(f"[green]Detached {detached} from {state.name}[/green]")
 
 
 @app.command("done")

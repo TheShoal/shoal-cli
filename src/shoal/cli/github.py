@@ -18,6 +18,101 @@ from shoal.services.github_bridge import get_github_bridge
 app = typer.Typer(no_args_is_help=True)
 
 
+def _normalize_repo_slug(repo: str) -> str:
+    """Normalize owner/repo to a session-safe slug."""
+    return repo.replace("/", "-")
+
+
+def _session_context() -> str:
+    """Default context for GitHub-derived sessions."""
+    return "work"
+
+
+async def _emit_binding_change(
+    session_id: str, *, binding_type: str, action: str, identifier: str, name: str
+) -> None:
+    """Best-effort bridge to Arachne binding-change hooks if installed."""
+    try:
+        from ploom.hooks import on_session_binding_changed
+    except ImportError:
+        return
+    await on_session_binding_changed(
+        session_id,
+        binding_type=binding_type,
+        action=action,
+        identifier=identifier,
+        name=name,
+    )
+
+
+async def _attach_pr_tag(
+    session_id: str,
+    session_name: str,
+    repo: str,
+    number: int,
+    *,
+    source: str = "github",
+    replaced_note: bool = True,
+) -> bool:
+    from shoal.core.journal import append_entry
+    from shoal.core.state import get_session, replace_tag_prefix
+
+    new_tag = f"github:{repo}#{number}"
+    before = await get_session(session_id)
+    if before is None:
+        return False
+    had_tag = new_tag in before.tags
+    removed = await replace_tag_prefix(session_id, "github:", new_tag)
+    changed = bool(removed) or not had_tag
+    if not changed:
+        return False
+
+    if removed and replaced_note:
+        old = ", ".join(tag.removeprefix("github:") for tag in removed)
+        append_entry(
+            session_id,
+            f"GitHub binding replaced: {old} → {repo}#{number}",
+            source=source,
+        )
+    append_entry(
+        session_id,
+        f"PR attached: https://github.com/{repo}/pull/{number}",
+        source=source,
+    )
+    await _emit_binding_change(
+        session_id,
+        binding_type="github",
+        action="attach",
+        identifier=f"{repo}#{number}",
+        name=session_name,
+    )
+    return True
+
+
+async def _detach_pr_tags(session_id: str, session_name: str) -> list[str]:
+    from shoal.core.journal import append_entry
+    from shoal.core.state import remove_tags_with_prefix
+
+    removed = await remove_tags_with_prefix(session_id, "github:")
+    if not removed:
+        return []
+    identifiers = [tag.removeprefix("github:") for tag in removed]
+    append_entry(
+        session_id,
+        f"PR detached: {', '.join(identifiers)}",
+        source="github",
+    )
+    for identifier in identifiers:
+        await _emit_binding_change(
+            session_id,
+            binding_type="github",
+            action="detach",
+            identifier=identifier,
+            name=session_name,
+        )
+    return removed
+
+
 @app.command("ls-prs")
 def prs_ls(
     repo: Annotated[str, typer.Option("--repo", help="GitHub repository (owner/repo)")],
@@ -78,8 +173,8 @@ async def _pr_start_impl(repo: str, number: int, *, tool: str | None, template: 
     finally:
         await bridge.close()
 
-    # Derive session name from PR number
-    session_name = f"gh-{repo.replace('/', '-')}-{number}"
+    # Derive session name from PR number with context prefix for Arachne linking
+    session_name = f"{_session_context()}/gh-{_normalize_repo_slug(repo)}-{number}"
 
     console.print(f"[bold]Starting session for PR #{number}:[/bold] {pr.title}")
     console.print(f"[dim]Session: {session_name} | Template: {template or 'default'}[/dim]")
@@ -100,7 +195,81 @@ async def _pr_start_impl(repo: str, number: int, *, tool: str | None, template: 
     # Tag session with the GitHub PR
     sid = await resolve_session(session_name)
     if sid:
-        await add_tag(sid, f"github:{repo}#{number}")
+        await _attach_pr_tag(
+            sid,
+            session_name,
+            repo,
+            number,
+            replaced_note=False,
+        )
+
+
+@app.command("attach-pr")
+def pr_attach(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    repo: Annotated[str, typer.Argument(help="GitHub repository (owner/repo)")],
+    number: Annotated[int, typer.Argument(help="PR number")],
+) -> None:
+    """Attach a GitHub PR to an existing session."""
+    asyncio.run(_pr_attach_impl(session, repo, number))
+
+
+async def _pr_attach_impl(session: str, repo: str, number: int) -> None:
+    from shoal.core.state import get_session
+    from shoal.services.github_bridge import get_github_bridge
+
+    console = get_console()
+    sid = await resolve_session(session)
+    if not sid:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+    state = await get_session(sid)
+    if not state:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+
+    bridge = init_bridge(get_github_bridge)
+    try:
+        await bridge.get_pr(repo, number)
+    finally:
+        await bridge.close()
+
+    changed = await _attach_pr_tag(sid, state.name, repo, number)
+    if not changed:
+        console.print(f"[yellow]Session already attached to {repo}#{number}[/yellow]")
+        return
+
+    console.print(f"[green]Attached {repo}#{number} to {state.name}[/green]")
+
+
+@app.command("detach-pr")
+def pr_detach(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+) -> None:
+    """Detach GitHub PR bindings from a session."""
+    asyncio.run(_pr_detach_impl(session))
+
+
+async def _pr_detach_impl(session: str) -> None:
+    from shoal.core.state import get_session
+
+    console = get_console()
+    sid = await resolve_session(session)
+    if not sid:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+    state = await get_session(sid)
+    if not state:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+
+    removed = await _detach_pr_tags(sid, state.name)
+    if not removed:
+        console.print(f"[yellow]No GitHub PR binding found for {state.name}[/yellow]")
+        return
+
+    detached = ", ".join(tag.removeprefix("github:") for tag in removed)
+    console.print(f"[green]Detached {detached} from {state.name}[/green]")
 
 
 @app.command("done-pr")

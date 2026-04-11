@@ -107,6 +107,115 @@ async def _rename_impl(old_name: str, new_name: str) -> None:
     get_console().print(f"Renamed session: {s.name} → {new_name}")
 
 
+def edit_session(
+    session: Annotated[str, typer.Argument(help="Session name or ID")],
+    name: str | None = typer.Option(None, "--name", help="Rename the session"),
+    add_tag: list[str] | None = typer.Option(  # noqa: B008
+        None,
+        "--add-tag",
+        help="Add a tag to the session",
+    ),
+    remove_tag: list[str] | None = typer.Option(  # noqa: B008
+        None,
+        "--remove-tag",
+        help="Remove a tag from the session",
+    ),
+    linear: str | None = typer.Option(None, "--linear", help="Attach a Linear issue"),
+    clear_linear: bool = typer.Option(False, "--clear-linear", help="Detach Linear issue binding"),
+    github: str | None = typer.Option(
+        None,
+        "--github",
+        help="Attach a GitHub PR owner/repo#number",
+    ),
+    clear_github: bool = typer.Option(False, "--clear-github", help="Detach GitHub PR binding"),
+) -> None:
+    """Edit mutable session metadata."""
+    asyncio.run(
+        with_db(
+            _edit_session_impl(
+                session,
+                name=name,
+                add_tags=add_tag or [],
+                remove_tags=remove_tag or [],
+                linear=linear,
+                clear_linear=clear_linear,
+                github=github,
+                clear_github=clear_github,
+            )
+        )
+    )
+
+
+async def _edit_session_impl(
+    session: str,
+    *,
+    name: str | None,
+    add_tags: list[str],
+    remove_tags: list[str],
+    linear: str | None,
+    clear_linear: bool,
+    github: str | None,
+    clear_github: bool,
+) -> None:
+    from shoal.cli.github import _pr_attach_impl, _pr_detach_impl
+    from shoal.cli.ticket import _ticket_attach_impl, _ticket_detach_impl
+    from shoal.core.state import add_tag as add_session_tag
+    from shoal.core.state import remove_tag as remove_session_tag
+    from shoal.core.state import resolve_session
+
+    console = get_console()
+    if linear and clear_linear:
+        console.print("[red]Choose either --linear or --clear-linear[/red]")
+        raise typer.Exit(1)
+    if github and clear_github:
+        console.print("[red]Choose either --github or --clear-github[/red]")
+        raise typer.Exit(1)
+
+    sid = await resolve_session(session)
+    if not sid:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+
+    current = await get_session(sid)
+    if current is None:
+        console.print(f"[red]Session not found: {session}[/red]")
+        raise typer.Exit(1)
+
+    target_ref = current.name
+    if name:
+        await _rename_impl(session, name)
+        target_ref = name
+
+    for tag in add_tags:
+        await add_session_tag(sid, tag)
+    for tag in remove_tags:
+        await remove_session_tag(sid, tag)
+
+    if linear:
+        await _ticket_attach_impl(target_ref, linear)
+    elif clear_linear:
+        await _ticket_detach_impl(target_ref)
+
+    if github:
+        if "#" not in github:
+            console.print("[red]GitHub binding must be in owner/repo#number format[/red]")
+            raise typer.Exit(1)
+        repo, number_text = github.rsplit("#", 1)
+        try:
+            number = int(number_text)
+        except ValueError as exc:
+            console.print("[red]GitHub binding must use a numeric PR number[/red]")
+            raise typer.Exit(1) from exc
+        await _pr_attach_impl(target_ref, repo, number)
+    elif clear_github:
+        await _pr_detach_impl(target_ref)
+
+    if add_tags or remove_tags or name or linear or clear_linear or github or clear_github:
+        console.print(f"Updated session: {target_ref}")
+    else:
+        console.print("[yellow]No changes requested[/yellow]")
+
+
 def prune(
     force: Annotated[
         bool, typer.Option("--force", "-f", help="Do not ask for confirmation")

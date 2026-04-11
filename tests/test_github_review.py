@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from typer.testing import CliRunner
 
 from shoal.services.github_bridge import GitHubBridge, GitHubPR
 
@@ -415,3 +417,120 @@ class TestPostReviewCommand:
             pytest.raises(typer.Exit),
         ):
             await _pr_post_review_impl("owner/repo", 42, session=None)
+
+
+class TestGitHubBindingCommands:
+    def test_start_pr_uses_context_prefixed_name(self, mock_dirs) -> None:
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock
+
+        from shoal.cli import app as root_app
+
+        pr = SimpleNamespace(title="Add new feature")
+        bridge = SimpleNamespace(get_pr=AsyncMock(return_value=pr), close=AsyncMock())
+
+        async def fake_add_impl(**kwargs):
+            assert kwargs["name"] == "work/gh-owner-repo-42"
+
+        runner = CliRunner()
+        with (
+            patch("shoal.cli.github.init_bridge", return_value=bridge),
+            patch("shoal.cli.session_create._add_impl", side_effect=fake_add_impl),
+            patch("shoal.cli.github.resolve_session", return_value=None),
+        ):
+            result = runner.invoke(root_app, ["github", "start-pr", "owner/repo", "42"])
+
+        assert result.exit_code == 0, result.output
+
+    def test_attach_pr_replaces_existing_github_tag(self, mock_dirs) -> None:
+        from unittest.mock import AsyncMock
+
+        from shoal.cli import app as root_app
+        from shoal.core.state import add_tag, create_session, get_session
+
+        session = asyncio.run(create_session("notes/research", "claude", "/tmp/repo"))
+        asyncio.run(add_tag(session.id, "github:owner/repo#41"))
+
+        bridge = type(
+            "Bridge",
+            (),
+            {
+                "get_pr": AsyncMock(return_value=object()),
+                "close": AsyncMock(),
+            },
+        )()
+        runner = CliRunner()
+        with patch("shoal.cli.github.init_bridge", return_value=bridge):
+            result = runner.invoke(
+                root_app, ["github", "attach-pr", "notes/research", "owner/repo", "42"]
+            )
+
+        assert result.exit_code == 0, result.output
+        updated = asyncio.run(get_session(session.id))
+        assert updated is not None
+        assert updated.tags.count("github:owner/repo#42") == 1
+        assert "github:owner/repo#41" not in updated.tags
+
+    def test_session_edit_applies_linear_and_github_bindings(self, mock_dirs) -> None:
+        from unittest.mock import AsyncMock
+
+        from shoal.cli import app as root_app
+        from shoal.core.state import create_session, get_session
+
+        session = asyncio.run(create_session("notes/research", "claude", "/tmp/repo"))
+        linear_issue = type(
+            "Issue",
+            (),
+            {
+                "id": "issue-9",
+                "identifier": "BE-9",
+                "title": "Issue 9",
+                "url": "https://linear.app/test/issue/BE-9",
+            },
+        )()
+        gh_bridge = type(
+            "Bridge",
+            (),
+            {
+                "get_pr": AsyncMock(return_value=object()),
+                "close": AsyncMock(),
+            },
+        )()
+        linear_bridge = type(
+            "Bridge",
+            (),
+            {
+                "get_issue": AsyncMock(return_value=linear_issue),
+                "close": AsyncMock(),
+            },
+        )()
+        runner = CliRunner()
+        with (
+            patch("shoal.cli.ticket.init_bridge", return_value=linear_bridge),
+            patch("shoal.cli.github.init_bridge", return_value=gh_bridge),
+            patch("shoal.core.tmux.has_session", return_value=False),
+        ):
+            result = runner.invoke(
+                root_app,
+                [
+                    "session",
+                    "edit",
+                    "notes/research",
+                    "--name",
+                    "work/notes-research",
+                    "--add-tag",
+                    "urgent",
+                    "--linear",
+                    "BE-9",
+                    "--github",
+                    "owner/repo#42",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        updated = asyncio.run(get_session(session.id))
+        assert updated is not None
+        assert updated.name == "work/notes-research"
+        assert "urgent" in updated.tags
+        assert "linear:BE-9" in updated.tags
+        assert "github:owner/repo#42" in updated.tags

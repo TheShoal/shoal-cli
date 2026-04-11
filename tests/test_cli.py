@@ -23,6 +23,15 @@ class TestVersion:
         assert f"shoal {shoal.__version__}" in result.output
 
 
+class TestBareCommand:
+    def test_no_args_launches_and_attaches(self, mock_dirs):
+        with patch("shoal.cli.session_create.create_and_attach_default") as mock_launch:
+            result = runner.invoke(app, [])
+
+        assert result.exit_code == 0
+        mock_launch.assert_called_once_with()
+
+
 class TestLs:
     def test_empty(self, mock_dirs):
         result = runner.invoke(app, ["ls"])
@@ -166,6 +175,253 @@ class TestNew:
             result = runner.invoke(app, ["new", str(tmp_path), "--template", "nonexistent"])
         assert result.exit_code == 1
         assert "Template 'nonexistent' not found" in result.output
+
+    def test_uses_project_default_tool(self, mock_dirs, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".shoal.toml").write_text('default_tool = "claude"\n')
+
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(repo)),
+            patch("shoal.cli.session_create.git.current_branch", return_value="main"),
+        ):
+            result = runner.invoke(app, ["new", str(repo), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Tool: claude" in result.output
+
+    def test_uses_project_default_template(self, mock_dirs, tmp_path):
+        tmp_config, _ = mock_dirs
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".shoal.toml").write_text('default_template = "claude-dev"\n')
+        (tmp_config / "templates").mkdir(parents=True, exist_ok=True)
+        (tmp_config / "templates" / "claude-dev.toml").write_text(
+            """
+            [template]
+            name = "claude-dev"
+            tool = "claude"
+
+            [[windows]]
+            name = "editor"
+
+            [[windows.panes]]
+            split = "root"
+            command = "{tool_command}"
+            """
+        )
+
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(repo)),
+            patch("shoal.cli.session_create.git.current_branch", return_value="main"),
+        ):
+            result = runner.invoke(app, ["new", str(repo), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Tool: claude" in result.output
+        assert "Template: claude-dev" in result.output
+
+    def test_uses_project_default_template_session_name_worktree(self, mock_dirs, tmp_path):
+        tmp_config, _ = mock_dirs
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".shoal.toml").write_text('default_template = "claude-dev"\n')
+        (tmp_config / "templates").mkdir(parents=True, exist_ok=True)
+        (tmp_config / "templates" / "claude-dev.toml").write_text(
+            """
+            [template]
+            name = "claude-dev"
+            tool = "claude"
+
+            [template.worktree]
+            name = "feat/{session_name}"
+            create_branch = true
+
+            [[windows]]
+            name = "editor"
+
+            [[windows.panes]]
+            split = "root"
+            command = "{tool_command}"
+            """
+        )
+
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(repo)),
+            patch("shoal.cli.session_create.git.current_branch", return_value="main"),
+        ):
+            result = runner.invoke(app, ["new", str(repo), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Template: claude-dev" in result.output
+        assert "Worktree dir name: feat-repo" in result.output
+        assert "Session: repo/feat-repo" in result.output
+
+    def test_template_worktree_slug_placeholder(self, mock_dirs, tmp_path):
+        tmp_config, _ = mock_dirs
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (tmp_config / "templates").mkdir(parents=True, exist_ok=True)
+        (tmp_config / "templates" / "slug-dev.toml").write_text(
+            """
+            [template]
+            name = "slug-dev"
+            tool = "claude"
+
+            [template.worktree]
+            name = "feat/{slug}"
+            create_branch = true
+
+            [[windows]]
+            name = "editor"
+
+            [[windows.panes]]
+            split = "root"
+            command = "{tool_command}"
+            """
+        )
+
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(repo)),
+            patch("shoal.cli.session_create.git.current_branch", return_value="main"),
+        ):
+            result = runner.invoke(
+                app,
+                ["new", str(repo), "--template", "slug-dev", "--name", "repo/foo_bar", "--dry-run"],
+            )
+
+        assert result.exit_code == 0
+        assert "Template: slug-dev" in result.output
+        assert "Worktree dir name: feat-foo-bar" in result.output
+        assert "Session: repo/foo_bar" in result.output
+
+    def test_template_path_like_worktree_normalizes_branch(self, mock_dirs, tmp_path):
+        tmp_config, _ = mock_dirs
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".shoal.toml").write_text('default_template = "claude-dev"\n')
+        (tmp_config / "templates").mkdir(parents=True, exist_ok=True)
+        (tmp_config / "templates" / "claude-dev.toml").write_text(
+            """
+            [template]
+            name = "claude-dev"
+            tool = "claude"
+
+            [template.worktree]
+            name = "team/{session_name}"
+            create_branch = true
+
+            [[windows]]
+            name = "editor"
+
+            [[windows.panes]]
+            split = "root"
+            command = "{tool_command}"
+            """
+        )
+
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(repo)),
+            patch("shoal.cli.session_create.git.current_branch", return_value="main"),
+        ):
+            result = runner.invoke(app, ["new", str(repo), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Template: claude-dev" in result.output
+        assert "Worktree dir name: team-repo" in result.output
+        assert "Branch: feat/team-repo" in result.output
+
+    def test_template_custom_branch_prefix_is_allowed(self, mock_dirs, tmp_path):
+        tmp_config, _ = mock_dirs
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".shoal.toml").write_text('default_template = "pantheon-dev"\n')
+        (tmp_config / "templates").mkdir(parents=True, exist_ok=True)
+        (tmp_config / "templates" / "pantheon-dev.toml").write_text(
+            """
+            [template]
+            name = "pantheon-dev"
+            tool = "claude"
+
+            [template.worktree]
+            name = "agent-{session_name}"
+            create_branch = true
+
+            [template.git]
+            branch_prefix = "agent/"
+
+            [[windows]]
+            name = "editor"
+
+            [[windows.panes]]
+            split = "root"
+            command = "{tool_command}"
+            """
+        )
+
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(repo)),
+            patch("shoal.cli.session_create.git.current_branch", return_value="main"),
+        ):
+            result = runner.invoke(app, ["new", str(repo), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Template: pantheon-dev" in result.output
+        assert "Worktree dir name: agent-repo" in result.output
+        assert "Branch: agent/agent-repo" in result.output
+
+    def test_explicit_worktree_with_template_custom_prefix_is_allowed(self, mock_dirs, tmp_path):
+        tmp_config, _ = mock_dirs
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (tmp_config / "templates").mkdir(parents=True, exist_ok=True)
+        (tmp_config / "templates" / "release-dev.toml").write_text(
+            """
+            [template]
+            name = "release-dev"
+            tool = "claude"
+
+            [template.git]
+            branch_prefix = "release/"
+
+            [[windows]]
+            name = "editor"
+
+            [[windows.panes]]
+            split = "root"
+            command = "{tool_command}"
+            """
+        )
+
+        with (
+            patch("shoal.cli.session_create.git.is_git_repo", return_value=True),
+            patch("shoal.cli.session_create.git.git_root", return_value=str(repo)),
+            patch("shoal.cli.session_create.git.current_branch", return_value="main"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "new",
+                    str(repo),
+                    "--template",
+                    "release-dev",
+                    "--worktree",
+                    "release/v0-37-0",
+                    "--branch",
+                    "--dry-run",
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "Template: release-dev" in result.output
+        assert "Worktree dir name: release-v0-37-0" in result.output
+        assert "Branch: release/v0-37-0" in result.output
 
 
 class TestDetach:
