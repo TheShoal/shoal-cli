@@ -42,6 +42,25 @@ class JournalEntry:
     content: str
 
 
+@dataclass
+class SessionOutcome:
+    """Structured outcome recorded at session completion."""
+
+    session_id: str
+    session_name: str
+    goal: str
+    commands_failed: list[str]
+    commands_worked: list[str]
+    root_causes: list[str]
+    fixes_applied: list[str]
+    lessons: list[str]
+    timestamp: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.timestamp:
+            object.__setattr__(self, "timestamp", datetime.now(tz=UTC).isoformat())
+
+
 @dataclass(frozen=True)
 class JournalMetadata:
     """Metadata written as YAML frontmatter on journal creation."""
@@ -376,6 +395,82 @@ def archive_journal(session_id: str) -> bool:
     dest = archive_dir / f"{session_id}.md"
     shutil.move(str(path), str(dest))
     return True
+
+
+def outcome_path(session_id: str) -> Path:
+    """Return the outcome file path for a session."""
+    return _journals_dir() / "outcomes" / f"{session_id}.md"
+
+
+def save_outcome(outcome: SessionOutcome, journal_dir: Path | None = None) -> Path:
+    """Save a SessionOutcome as a dated markdown file with YAML frontmatter.
+
+    Args:
+        outcome: The outcome to save.
+        journal_dir: If provided, use this directory instead of the default journals dir.
+                     Used for testing or custom storage locations.
+    """
+    if journal_dir is None:
+        journal_dir = _journals_dir()
+
+    outcomes_dir = journal_dir / "outcomes"
+    outcomes_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build frontmatter
+    lines = ["---"]
+    lines.append(f"session_id: {outcome.session_id}")
+    lines.append(f"session_name: {outcome.session_name}")
+    lines.append(f"timestamp: {outcome.timestamp}")
+    lines.append("tags: [shoal, session-outcome]")
+    lines.append("---")
+    lines.append("")
+
+    # Build body
+    lines.append(f"# Session Outcome: {outcome.session_name}")
+    lines.append("")
+    lines.append(f"**Session ID**: `{outcome.session_id}`  ")
+    lines.append(f"**Completed**: {outcome.timestamp}")
+    lines.append("")
+
+    lines.append("## Goal")
+    lines.append("")
+    lines.append(outcome.goal)
+    lines.append("")
+
+    if outcome.commands_failed:
+        lines.append("## Commands Failed")
+        lines.append("")
+        lines.extend(f"- `{cmd}`" for cmd in outcome.commands_failed)
+        lines.append("")
+
+    if outcome.commands_worked:
+        lines.append("## Commands Worked")
+        lines.append("")
+        lines.extend(f"- `{cmd}`" for cmd in outcome.commands_worked)
+        lines.append("")
+
+    if outcome.root_causes:
+        lines.append("## Root Causes")
+        lines.append("")
+        lines.extend(f"- {cause}" for cause in outcome.root_causes)
+        lines.append("")
+
+    if outcome.fixes_applied:
+        lines.append("## Fixes Applied")
+        lines.append("")
+        lines.extend(f"- {fix}" for fix in outcome.fixes_applied)
+        lines.append("")
+
+    if outcome.lessons:
+        lines.append("## Lessons Learned")
+        lines.append("")
+        lines.extend(f"- {lesson}" for lesson in outcome.lessons)
+        lines.append("")
+
+    path = outcomes_dir / f"{outcome.session_id}.md"
+    path.write_text("\n".join(lines))
+    logger.info("Session outcome saved: %s", path)
+    return path
 
 
 @dataclass(frozen=True)
