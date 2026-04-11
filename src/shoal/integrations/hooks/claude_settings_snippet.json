@@ -4,6 +4,15 @@
       {
         "matcher": "",
         "command": "~/.shoal/hooks/claude_heartbeat.sh"
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ricardoroche/pantheon/tools/shoal-cli/src/shoal/integrations/hooks/claude_format_on_write.sh"
+          }
+        ]
       }
     ]
   }

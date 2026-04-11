@@ -71,6 +71,46 @@ chmod +x ~/.config/shoal/hooks/claude_heartbeat.sh
 
 ---
 
+## Claude Code Format-on-Write Hook (`claude_format_on_write.sh`)
+
+Automatically formats code after every `Write` or `Edit` tool call.
+
+### What it does
+
+Detects the file extension and runs the appropriate formatter:
+- **Python** (`.py`) — `ruff format` + `ruff check --fix`
+- **TypeScript/JavaScript** (`.ts`, `.tsx`, `.js`, `.jsx`) — `prettier`
+- **JSON** (`.json`) — `jq`
+- **TOML** (`.toml`) — `taplo`
+
+All formatters are optional — the hook silently skips files if the formatter isn't installed.
+
+### Install
+
+Add to `~/.claude/settings.json` (see `claude_settings_snippet.json` for the full snippet):
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ricardoroche/pantheon/tools/shoal-cli/src/shoal/integrations/hooks/claude_format_on_write.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The hook uses the absolute path to the script — no need to copy it elsewhere.
+
+---
+
 ## Legacy: Pisces Heartbeat Hook (`shoal_heartbeat.ts`)
 
 The original Pisces-era hook.  Uses port **8484** (Pisces API) instead of **8080**
