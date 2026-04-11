@@ -1,11 +1,14 @@
-[groups.dev]
+# MCP Stacks — presets for MCP server groups
+# Used by the MCP Matrix UI to quickly apply server sets to sessions.
+
+[stacks.dev]
 description = "Development essentials"
 servers = ["filesystem", "github", "memory"]
 
-[groups.ops]
+[stacks.ops]
 description = "Observability and fetch"
 servers = ["fetch", "memory"]
 
-[groups.orchestration]
+[stacks.orchestration]
 description = "Full orchestration stack"
 servers = ["shoal-orchestrator", "memory"]

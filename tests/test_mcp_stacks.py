@@ -1,4 +1,4 @@
-"""Unit tests for shoal.core.mcp_groups."""
+"""Unit tests for shoal.core.mcp_stacks."""
 
 from __future__ import annotations
 
@@ -8,28 +8,28 @@ from unittest.mock import patch
 import pytest
 
 from shoal.core.config import ConfigLoadError
-from shoal.core.mcp_groups import McpGroup, available_mcp_servers, load_mcp_groups
+from shoal.core.mcp_stacks import McpStack, available_mcp_servers, load_mcp_stacks
 
-_PATCH_BASE = "shoal.core.mcp_groups"
+_PATCH_BASE = "shoal.core.mcp_stacks"
 
 
-class TestMcpGroup:
+class TestMcpStack:
     def test_all_fields(self) -> None:
-        g = McpGroup(
+        s = McpStack(
             name="dev",
             description="Dev tools",
             servers=["github", "memory"],
             source="config",
         )
-        assert g.name == "dev"
-        assert g.description == "Dev tools"
-        assert g.servers == ["github", "memory"]
-        assert g.source == "config"
+        assert s.name == "dev"
+        assert s.description == "Dev tools"
+        assert s.servers == ["github", "memory"]
+        assert s.source == "config"
 
     def test_defaults(self) -> None:
-        g = McpGroup(name="minimal", source="template")
-        assert g.description == ""
-        assert g.servers == []
+        s = McpStack(name="minimal", source="template")
+        assert s.description == ""
+        assert s.servers == []
 
 
 class _FakeTemplate:
@@ -39,34 +39,34 @@ class _FakeTemplate:
         self.mcp = mcp or []
 
 
-class TestLoadMcpGroups:
+class TestLoadMcpStacks:
     def test_no_config_file(self, tmp_path: Path) -> None:
         with (
             patch(f"{_PATCH_BASE}.config_dir", return_value=tmp_path),
             patch(f"{_PATCH_BASE}.available_templates", return_value=[]),
         ):
-            result = load_mcp_groups()
+            result = load_mcp_stacks()
         assert result == {}
 
     def test_config_only(self, tmp_path: Path) -> None:
         toml = (
-            '[groups.dev]\n'
+            '[stacks.dev]\n'
             'description = "Dev essentials"\n'
             'servers = ["github", "memory"]\n'
         )
-        (tmp_path / "mcp-groups.toml").write_text(toml)
+        (tmp_path / "mcp-stacks.toml").write_text(toml)
 
         with (
             patch(f"{_PATCH_BASE}.config_dir", return_value=tmp_path),
             patch(f"{_PATCH_BASE}.available_templates", return_value=[]),
         ):
-            result = load_mcp_groups()
+            result = load_mcp_stacks()
 
         assert "dev" in result
-        g = result["dev"]
-        assert g.source == "config"
-        assert g.description == "Dev essentials"
-        assert g.servers == ["github", "memory"]
+        s = result["dev"]
+        assert s.source == "config"
+        assert s.description == "Dev essentials"
+        assert s.servers == ["github", "memory"]
 
     def test_template_only(self, tmp_path: Path) -> None:
         tpl = _FakeTemplate(mcp=["memory", "github"])
@@ -76,21 +76,21 @@ class TestLoadMcpGroups:
             patch(f"{_PATCH_BASE}.available_templates", return_value=["test-tpl"]),
             patch(f"{_PATCH_BASE}.resolve_template", return_value=tpl),
         ):
-            result = load_mcp_groups()
+            result = load_mcp_stacks()
 
         assert "test-tpl" in result
-        g = result["test-tpl"]
-        assert g.source == "template"
-        assert g.servers == ["memory", "github"]
-        assert "test-tpl" in g.description
+        s = result["test-tpl"]
+        assert s.source == "template"
+        assert s.servers == ["memory", "github"]
+        assert "test-tpl" in s.description
 
     def test_config_overrides_template(self, tmp_path: Path) -> None:
         toml = (
-            '[groups.dev]\n'
+            '[stacks.dev]\n'
             'description = "From config"\n'
             'servers = ["fetch"]\n'
         )
-        (tmp_path / "mcp-groups.toml").write_text(toml)
+        (tmp_path / "mcp-stacks.toml").write_text(toml)
 
         tpl = _FakeTemplate(mcp=["memory"])
 
@@ -99,7 +99,7 @@ class TestLoadMcpGroups:
             patch(f"{_PATCH_BASE}.available_templates", return_value=["dev"]),
             patch(f"{_PATCH_BASE}.resolve_template", return_value=tpl),
         ):
-            result = load_mcp_groups()
+            result = load_mcp_stacks()
 
         assert result["dev"].source == "config"
         assert result["dev"].servers == ["fetch"]
@@ -113,39 +113,39 @@ class TestLoadMcpGroups:
                 side_effect=RuntimeError("corrupted"),
             ),
         ):
-            result = load_mcp_groups()
+            result = load_mcp_stacks()
 
         assert "bad-tpl" not in result
         assert result == {}
 
     def test_malformed_toml(self, tmp_path: Path) -> None:
-        (tmp_path / "mcp-groups.toml").write_text("not [valid toml ===")
+        (tmp_path / "mcp-stacks.toml").write_text("not [valid toml ===")
 
         with (
             patch(f"{_PATCH_BASE}.config_dir", return_value=tmp_path),
             patch(f"{_PATCH_BASE}.available_templates", return_value=[]),
         ):
             with pytest.raises(ConfigLoadError):
-                load_mcp_groups()
+                load_mcp_stacks()
 
-    def test_groups_sorted_by_name(self, tmp_path: Path) -> None:
+    def test_stacks_sorted_by_name(self, tmp_path: Path) -> None:
         toml = (
-            '[groups.z-group]\n'
+            '[stacks.z-stack]\n'
             'servers = ["a"]\n'
             '\n'
-            '[groups.a-group]\n'
+            '[stacks.a-stack]\n'
             'servers = ["b"]\n'
         )
-        (tmp_path / "mcp-groups.toml").write_text(toml)
+        (tmp_path / "mcp-stacks.toml").write_text(toml)
 
         with (
             patch(f"{_PATCH_BASE}.config_dir", return_value=tmp_path),
             patch(f"{_PATCH_BASE}.available_templates", return_value=[]),
         ):
-            result = load_mcp_groups()
+            result = load_mcp_stacks()
 
         keys = list(result.keys())
-        assert keys == ["a-group", "z-group"]
+        assert keys == ["a-stack", "z-stack"]
 
 
 class TestAvailableMcpServers:

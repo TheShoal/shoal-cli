@@ -158,3 +158,117 @@ def _configure_via_file(config_file: str, mcp_name: str, work_dir: str) -> str:
         raise McpConfigureError(f"Failed to write config file {path}: {exc}") from exc
 
     return f"Configured via file: {path}"
+
+
+# ---------------------------------------------------------------------------
+# OMP (oh-my-pi) configuration
+# ---------------------------------------------------------------------------
+
+OMP_CONFIG_PATH = Path.home() / ".omp" / "agent" / "config.yml"
+
+
+def configure_omp_mcp(mcp_name: str) -> str | None:
+    """Add an MCP server to OMP's mcpServers configuration.
+
+    Reads the OMP config, determines the server transport (HTTP or stdio),
+    and adds the appropriate configuration entry.
+
+    Returns:
+        A human-readable summary of what was configured, or ``None`` if OMP
+        config doesn't exist.
+
+    Raises:
+        McpConfigureError: if configuration was attempted but failed.
+    """
+    if not OMP_CONFIG_PATH.exists():
+        logger.debug("OMP config not found at %s", OMP_CONFIG_PATH)
+        return None
+
+    try:
+        import yaml
+    except ImportError:
+        logger.warning("PyYAML not installed, cannot configure OMP")
+        return None
+
+    # Load existing config
+    try:
+        data = yaml.safe_load(OMP_CONFIG_PATH.read_text())
+    except (yaml.YAMLError, OSError) as exc:
+        raise McpConfigureError(f"Failed to parse OMP config: {exc}") from exc
+
+    if not isinstance(data, dict):
+        data = {}
+
+    # Determine server configuration
+    from shoal.services.mcp_pool import get_transport, read_port
+
+    transport = get_transport(mcp_name)
+    mcp_servers = data.setdefault("mcpServers", {})
+
+    if transport == "http":
+        port = read_port(mcp_name) or 8390
+        mcp_servers[mcp_name] = {
+            "type": "http",
+            "url": f"http://127.0.0.1:{port}/mcp",
+        }
+    else:
+        # stdio transport via proxy
+        mcp_servers[mcp_name] = {
+            "type": "stdio",
+            "command": "shoal-mcp-proxy",
+            "args": [mcp_name],
+        }
+
+    # Write back
+    try:
+        OMP_CONFIG_PATH.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
+    except OSError as exc:
+        raise McpConfigureError(f"Failed to write OMP config: {exc}") from exc
+
+    return f"Configured {mcp_name} in OMP ({transport})"
+
+
+def remove_omp_mcp(mcp_name: str) -> str | None:
+    """Remove an MCP server from OMP's mcpServers configuration.
+
+    Returns:
+        A human-readable summary if the server was removed, ``None`` if not found.
+
+    Raises:
+        McpConfigureError: if configuration was attempted but failed.
+    """
+    if not OMP_CONFIG_PATH.exists():
+        return None
+
+    try:
+        import yaml
+    except ImportError:
+        logger.warning("PyYAML not installed, cannot configure OMP")
+        return None
+
+    # Load existing config
+    try:
+        data = yaml.safe_load(OMP_CONFIG_PATH.read_text())
+    except (yaml.YAMLError, OSError) as exc:
+        raise McpConfigureError(f"Failed to parse OMP config: {exc}") from exc
+
+    if not isinstance(data, dict):
+        return None
+
+    mcp_servers = data.get("mcpServers", {})
+    if mcp_name not in mcp_servers:
+        return None
+
+    del mcp_servers[mcp_name]
+
+    # Clean up empty mcpServers section
+    if not mcp_servers:
+        data.pop("mcpServers", None)
+
+    # Write back
+    try:
+        OMP_CONFIG_PATH.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
+    except OSError as exc:
+        raise McpConfigureError(f"Failed to write OMP config: {exc}") from exc
+
+    return f"Removed {mcp_name} from OMP config"

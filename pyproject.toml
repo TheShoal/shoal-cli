@@ -38,6 +38,7 @@ dependencies = [
     "jinja2>=3.1.0",
     "watchfiles>=0.21.0",
     "ladybug>=0.0.2",
+    "pyyaml>=6.0.0",
 ]
 
 [project.scripts]

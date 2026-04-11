@@ -9,16 +9,16 @@
     <h1 class="page-title">MCP Matrix</h1>
   </div>
 
-  <!-- Group preset buttons -->
-  {% if groups %}
-  <div class="mcp-group-bar">
-    {% for group in groups %}
+  <!-- Stack preset buttons -->
+  {% if stacks %}
+  <div class="mcp-stack-bar">
+    {% for stack in stacks %}
     <button
-      class="mcp-group-pill {% if group.source == 'template' %}source-template{% endif %}"
-      title="{{ group.description }}"
-      data-group="{{ group.name }}"
+      class="mcp-stack-pill {% if stack.source == 'template' %}source-template{% endif %}"
+      title="{{ stack.description }}"
+      data-stack="{{ stack.name }}"
     >
-      {{ group.name }}
+      {{ stack.name }}
     </button>
     {% endfor %}
   </div>

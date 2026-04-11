@@ -1176,6 +1176,11 @@ async def create_session_lifecycle(
         ) from exc
 
     # 4.5. Provision MCP servers (failures warn, don't block)
+    # Always include shoal-orchestrator as implicit default
+    if mcp_servers is None:
+        mcp_servers = []
+    if "shoal-orchestrator" not in mcp_servers:
+        mcp_servers = ["shoal-orchestrator", *mcp_servers]
     if mcp_servers:
         provisioned = await _provision_mcp_servers(mcp_servers, session.id, tool, work_dir)
         if provisioned:
@@ -1997,6 +2002,25 @@ async def _hook_coordinator_on_complete(event: LifecycleEvent, **kwargs: Any) ->
         logger.debug("coordinator notification failed (non-fatal)", exc_info=True)
 
 
+def _init_ploom_hooks() -> None:
+    """Register Ploom graph hooks if ploom is installed (idempotent).
+
+    Silently skips if ploom is not installed in the current environment.
+    """
+    if "ploom" in _registered:
+        return
+    _registered.add("ploom")
+    try:
+        from ploom.hooks import on_session_created, on_session_killed, on_status_changed
+    except ImportError:
+        return  # ploom not installed — skip silently
+
+    on(LifecycleEvent.session_created, on_session_created)
+    on(LifecycleEvent.session_forked, on_session_created)
+    on(LifecycleEvent.status_changed, on_status_changed)
+    on(LifecycleEvent.session_killed, on_session_killed)
+
+
 def register_builtin_hooks() -> None:
     """Register the default set of lifecycle hooks (idempotent)."""
     if "builtin" in _registered:
@@ -2011,6 +2035,7 @@ def register_builtin_hooks() -> None:
     for evt in LifecycleEvent:
         on(evt, _hook_fish_event)
     _init_proactive_hooks()
+    _init_ploom_hooks()
 
 
 def register_project_hooks() -> None:

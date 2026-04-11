@@ -798,11 +798,17 @@ async def list_mcp_servers() -> list[McpResponse]:
 
 @app.get("/mcp/known")
 async def list_known_servers() -> list[dict[str, str]]:
-    """List known MCP server commands (from registry + built-in defaults)."""
-    from shoal.core.config import load_mcp_registry
+    """List known MCP servers (stdio + HTTP) from registry + built-in defaults."""
+    from shoal.core.config import load_mcp_registry_full
 
-    registry = load_mcp_registry()
-    return [{"name": k, "command": v} for k, v in registry.items()]
+    registry = load_mcp_registry_full()
+    result = []
+    for name, cfg in registry.items():
+        if cfg.get("transport") == "http" or "url" in cfg:
+            result.append({"name": name, "transport": "http", "url": cfg.get("url", "")})
+        else:
+            result.append({"name": name, "transport": "stdio", "command": cfg.get("command", "")})
+    return result
 
 
 @app.get("/mcp/{name}", response_model=McpResponse)
@@ -900,10 +906,18 @@ async def attach_mcp_to_session(session_id: str, mcp_name: str) -> dict[str, str
     # Auto-configure tool to use this MCP server
     configured: str | None = None
     work_dir = s.worktree or s.path
-    from shoal.services.mcp_configure import McpConfigureError, configure_mcp_for_tool
+    from shoal.services.mcp_configure import (
+        McpConfigureError,
+        configure_mcp_for_tool,
+        configure_omp_mcp,
+    )
 
     with suppress(McpConfigureError):
         configured = configure_mcp_for_tool(s.tool, mcp_name, work_dir)
+
+    # Also update global OMP config
+    with suppress(McpConfigureError):
+        configure_omp_mcp(mcp_name)
 
     result: dict[str, str | bool] = {
         "message": f"Attached MCP '{mcp_name}' to session '{s.name}'",
@@ -930,9 +944,14 @@ async def detach_mcp_from_session(session_id: str, mcp_name: str) -> None:
 
     await remove_mcp_from_session(session_id, mcp_name)
 
+    # Also remove from global OMP config
+    from shoal.services.mcp_configure import McpConfigureError, remove_omp_mcp
+
+    with suppress(McpConfigureError):
+        remove_omp_mcp(mcp_name)
+
 
 app.mount("/ui", create_dashboard_app())
-
 
 if __name__ == "__main__":
     import uvicorn

@@ -283,12 +283,76 @@ def template_source(name: str) -> str:
     return "global"
 
 
+def _load_hermes_mcp_servers() -> dict[str, dict[str, Any]]:
+    """Load MCP servers from Hermes config if available.
+
+    Reads ``~/.hermes/config.yaml`` and extracts the ``mcp_servers`` section.
+    Supports both HTTP servers (have ``url`` key) and stdio servers (have ``command`` key).
+
+    Returns:
+        Dict of server name -> config dict with keys like ``url``, ``command``, ``transport``.
+    """
+    hermes_home = Path.home() / ".hermes"
+    config_path = hermes_home / "config.yaml"
+    if not config_path.exists():
+        return {}
+
+    try:
+        import yaml
+    except ImportError:
+        logger.debug("PyYAML not installed, skipping hermes MCP servers")
+        return {}
+
+    try:
+        data = yaml.safe_load(config_path.read_text())
+    except (yaml.YAMLError, OSError) as e:
+        logger.warning("Failed to load hermes config: %s", e)
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    servers = data.get("mcp_servers", {})
+    if not isinstance(servers, dict):
+        return {}
+
+    result: dict[str, dict[str, Any]] = {}
+    for name, cfg in servers.items():
+        if not isinstance(cfg, dict):
+            continue
+        # Determine transport type
+        if "url" in cfg:
+            # HTTP server
+            result[name] = {
+                "url": cfg["url"],
+                "transport": "http",
+                "timeout": cfg.get("timeout"),
+                "connect_timeout": cfg.get("connect_timeout"),
+            }
+        elif "command" in cfg:
+            # stdio server - build command string
+            cmd_parts = [cfg["command"]]
+            if "args" in cfg:
+                cmd_parts.extend(cfg["args"])
+            result[name] = {
+                "command": " ".join(cmd_parts),
+                "transport": "stdio",
+            }
+
+    return result
+
+
 def load_mcp_registry() -> dict[str, str]:
     """Load MCP server registry: user file merged over built-in defaults.
 
-    Reads ``~/.config/shoal/mcp-servers.toml``.  Each top-level key is a
-    server name whose value is a table with a ``command`` key.  Built-in
-    defaults are used as a fallback for servers not overridden by the user.
+    Reads ``~/.config/shoal/mcp-servers.toml`` and ``~/.hermes/config.yaml``.
+    Each top-level key is a server name whose value is a table with a ``command`` key.
+    Built-in defaults are used as a fallback for servers not overridden by the user.
+
+    Precedence (highest to lowest):
+    1. User mcp-servers.toml
+    2. Hermes config.yaml mcp_servers (stdio only - HTTP servers are not command-based)
+    3. Built-in defaults
 
     Returns:
         Mapping of server name → command string.
@@ -297,6 +361,13 @@ def load_mcp_registry() -> dict[str, str]:
 
     registry: dict[str, str] = dict(_DEFAULT_SERVERS)
 
+    # Merge hermes MCP servers (stdio only)
+    hermes_servers = _load_hermes_mcp_servers()
+    for name, cfg in hermes_servers.items():
+        if "command" in cfg:
+            registry[name] = cfg["command"]
+
+    # User file takes highest precedence
     user_file = config_dir() / "mcp-servers.toml"
     if user_file.exists():
         try:
@@ -311,18 +382,27 @@ def load_mcp_registry() -> dict[str, str]:
     return registry
 
 
-def load_mcp_registry_full() -> dict[str, dict[str, str]]:
+def load_mcp_registry_full() -> dict[str, dict[str, Any]]:
     """Load the full MCP server registry with all fields per entry.
 
-    Seeds with built-in defaults, then merges user overrides.
-    Returns raw dicts so callers can read ``transport`` and other fields.
+    Seeds with built-in defaults, then merges hermes config, then user overrides.
+    Returns raw dicts so callers can read ``transport``, ``url``, and other fields.
     """
     from shoal.services.mcp_pool import _DEFAULT_SERVERS
 
-    registry: dict[str, dict[str, str]] = {
+    registry: dict[str, dict[str, Any]] = {
         name: {"command": cmd} for name, cmd in _DEFAULT_SERVERS.items()
     }
 
+    # Merge hermes MCP servers
+    hermes_servers = _load_hermes_mcp_servers()
+    for name, cfg in hermes_servers.items():
+        if name in registry:
+            registry[name].update(cfg)
+        else:
+            registry[name] = cfg
+
+    # User file takes highest precedence
     user_file = config_dir() / "mcp-servers.toml"
     if user_file.exists():
         try:
@@ -332,13 +412,12 @@ def load_mcp_registry_full() -> dict[str, dict[str, str]]:
             raise ConfigLoadError(user_file, f"malformed TOML: {e}") from e
         for name, entry in data.items():
             if isinstance(entry, dict):
-                user_entry = {k: str(v) for k, v in entry.items()}
+                user_entry = dict(entry.items())
                 if name in registry:
                     registry[name].update(user_entry)
                 else:
                     registry[name] = user_entry
     return registry
-
 
 def mixins_dir() -> Path:
     """Return ~/.config/shoal/templates/mixins."""

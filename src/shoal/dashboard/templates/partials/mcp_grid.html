@@ -9,7 +9,7 @@
         <span class="mcp-server-label">{{ server }}</span>
       </th>
       {% endfor %}
-      <th class="mcp-th-group">Group</th>
+      <th class="mcp-th-stack">Stack</th>
     </tr>
   </thead>
   <tbody>
@@ -35,20 +35,20 @@
         ></button>
       </td>
       {% endfor %}
-      <td class="mcp-group-cell">
+      <td class="mcp-stack-cell">
         <select
-          class="mcp-group-select"
-          hx-post="/ui/mcp-apply-group"
+          class="mcp-stack-select"
+          hx-post="/ui/mcp-apply-stack"
           hx-vals='{"session_id": "{{ session.id }}", "action": "apply"}'
           hx-target="#mcp-grid"
           hx-swap="outerHTML"
-          name="group_name"
+          name="stack_name"
           hx-trigger="change"
           {% if session.is_stopped %}disabled{% endif %}
         >
-          <option value="">Apply group...</option>
-          {% for group in groups %}
-          <option value="{{ group.name }}">{{ group.name }}</option>
+          <option value="">Apply stack...</option>
+          {% for stack in stacks %}
+          <option value="{{ stack.name }}">{{ stack.name }}</option>
           {% endfor %}
         </select>
       </td>

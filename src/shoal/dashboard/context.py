@@ -373,7 +373,7 @@ def flow_context(sessions: list[SessionState]) -> dict[str, object]:
 def mcp_matrix_context(
     sessions: list[SessionState],
     available_servers: list[str],
-    groups: list[dict[str, object]],
+    stacks: list[dict[str, object]],
 ) -> dict[str, object]:
     """Build template context for the MCP server assignment matrix.
 
@@ -383,10 +383,10 @@ def mcp_matrix_context(
     Args:
         sessions: All sessions to display in the matrix.
         available_servers: Ordered list of MCP server names (columns).
-        groups: Pre-built grouping metadata passed through to the template.
+        stacks: Pre-built stack metadata passed through to the template.
 
     Returns:
-        A dict with ``sessions`` (sorted by name), ``servers``, and ``groups``.
+        A dict with ``sessions`` (sorted by name), ``servers``, and ``stacks``.
     """
     now = datetime.now(UTC)
 
@@ -410,5 +410,5 @@ def mcp_matrix_context(
     return {
         "sessions": rows,
         "servers": available_servers,
-        "groups": groups,
+        "stacks": stacks,
     }

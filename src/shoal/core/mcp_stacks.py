@@ -1,4 +1,4 @@
-"""MCP server grouping: config-defined and template-derived."""
+"""MCP server stacks: config-defined and template-derived."""
 
 from __future__ import annotations
 
@@ -16,11 +16,11 @@ from shoal.core.config import (
     resolve_template,
 )
 
-logger = logging.getLogger("shoal.mcp_groups")
+logger = logging.getLogger("shoal.mcp_stacks")
 
 
-class McpGroup(BaseModel):
-    """A named group of MCP servers."""
+class McpStack(BaseModel):
+    """A named stack of MCP servers."""
 
     name: str
     description: str = ""
@@ -28,21 +28,21 @@ class McpGroup(BaseModel):
     source: Literal["config", "template"]
 
 
-def load_mcp_groups() -> dict[str, McpGroup]:
-    """Load MCP groups from config file and available templates.
+def load_mcp_stacks() -> dict[str, McpStack]:
+    """Load MCP stacks from config file and available templates.
 
-    Config-defined groups take precedence over template-derived groups
+    Config-defined stacks take precedence over template-derived stacks
     when names conflict.
 
     Returns:
-        Dict of group name to McpGroup, sorted by name.
+        Dict of stack name to McpStack, sorted by name.
 
     Raises:
-        ConfigLoadError: If mcp-groups.toml exists but is malformed.
+        ConfigLoadError: If mcp-stacks.toml exists but is malformed.
     """
-    groups: dict[str, McpGroup] = {}
+    stacks: dict[str, McpStack] = {}
 
-    # Template-derived groups (lower priority, loaded first).
+    # Template-derived stacks (lower priority, loaded first).
     for tpl_name in available_templates():
         try:
             tpl = resolve_template(tpl_name)
@@ -50,15 +50,15 @@ def load_mcp_groups() -> dict[str, McpGroup]:
             logger.warning("Skipping broken template: %s", tpl_name)
             continue
         if tpl.mcp:
-            groups[tpl_name] = McpGroup(
+            stacks[tpl_name] = McpStack(
                 name=tpl_name,
                 description=f"From template: {tpl_name}",
                 servers=list(tpl.mcp),
                 source="template",
             )
 
-    # Config-defined groups (higher priority, overwrite template entries).
-    config_path = config_dir() / "mcp-groups.toml"
+    # Config-defined stacks (higher priority, overwrite template entries).
+    config_path = config_dir() / "mcp-stacks.toml"
     if config_path.exists():
         try:
             raw = config_path.read_text(encoding="utf-8")
@@ -66,20 +66,20 @@ def load_mcp_groups() -> dict[str, McpGroup]:
         except tomllib.TOMLDecodeError as exc:
             raise ConfigLoadError(config_path, f"Malformed TOML: {exc}") from exc
 
-        for name, section in data.get("groups", {}).items():
+        for name, section in data.get("stacks", {}).items():
             if not isinstance(section, dict):
                 raise ConfigLoadError(
                     config_path,
-                    f"groups.{name} must be a table",
+                    f"stacks.{name} must be a table",
                 )
-            groups[name] = McpGroup(
+            stacks[name] = McpStack(
                 name=name,
                 description=section.get("description", ""),
                 servers=section.get("servers", []),
                 source="config",
             )
 
-    return dict(sorted(groups.items()))
+    return dict(sorted(stacks.items()))
 
 
 def available_mcp_servers() -> list[str]:

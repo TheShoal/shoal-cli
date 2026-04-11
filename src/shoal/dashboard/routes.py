@@ -259,19 +259,18 @@ async def pane_partial(
 
 
 async def _mcp_context() -> dict[str, object]:
-    """Load sessions, servers, and groups into a template context dict."""
-    from shoal.core.mcp_groups import available_mcp_servers, load_mcp_groups
+    """Load sessions, servers, and stacks into a template context dict."""
+    from shoal.core.mcp_stacks import available_mcp_servers, load_mcp_stacks
     from shoal.dashboard.context import mcp_matrix_context
 
     sessions = await list_sessions()
     servers = available_mcp_servers()
-    groups = load_mcp_groups()
-    group_list: list[dict[str, object]] = [
-        {"name": g.name, "description": g.description, "servers": g.servers, "source": g.source}
-        for g in groups.values()
+    stacks = load_mcp_stacks()
+    stack_list: list[dict[str, object]] = [
+        {"name": s.name, "description": s.description, "servers": s.servers, "source": s.source}
+        for s in stacks.values()
     ]
-    return mcp_matrix_context(sessions, servers, group_list)
-
+    return mcp_matrix_context(sessions, servers, stack_list)
 
 async def _mcp_render(request: Request, template: str) -> HTMLResponse:
     """Build context and render an MCP template."""
@@ -311,6 +310,7 @@ async def mcp_toggle(request: Request) -> HTMLResponse:
     Returns the updated MCP grid partial.
     """
     from shoal.core.state import add_mcp_to_session, remove_mcp_from_session
+    from shoal.services.mcp_configure import configure_omp_mcp, remove_omp_mcp
 
     form = await request.form()
     session_id = str(form.get("session_id", ""))
@@ -323,37 +323,46 @@ async def mcp_toggle(request: Request) -> HTMLResponse:
 
     if action == "add":
         await add_mcp_to_session(session_id, mcp_name)
+        # Also configure OMP to use this server
+        try:
+            configure_omp_mcp(mcp_name)
+        except Exception as exc:
+            logger.warning("Failed to configure OMP for %s: %s", mcp_name, exc)
     elif action == "remove":
         await remove_mcp_from_session(session_id, mcp_name)
+        # Also remove from OMP config
+        try:
+            remove_omp_mcp(mcp_name)
+        except Exception as exc:
+            logger.warning("Failed to remove %s from OMP: %s", mcp_name, exc)
 
     return await _mcp_render(request, "partials/mcp_grid.html")
 
+@router.post("/mcp-apply-stack", response_class=HTMLResponse)
+async def mcp_apply_stack(request: Request) -> HTMLResponse:
+    """Apply or remove an MCP stack for a session.
 
-@router.post("/mcp-apply-group", response_class=HTMLResponse)
-async def mcp_apply_group(request: Request) -> HTMLResponse:
-    """Apply or remove an MCP group for a session.
-
-    Reads form data: session_id, group_name, action ("apply" or "remove").
+    Reads form data: session_id, stack_name, action ("apply" or "remove").
     Returns the updated MCP grid partial.
     """
-    from shoal.core.mcp_groups import load_mcp_groups
+    from shoal.core.mcp_stacks import load_mcp_stacks
     from shoal.core.state import add_mcp_to_session, remove_mcp_from_session
 
     form = await request.form()
     session_id = str(form.get("session_id", ""))
-    group_name = str(form.get("group_name", ""))
+    stack_name = str(form.get("stack_name", ""))
     action = str(form.get("action", ""))
 
     session = await get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    groups = load_mcp_groups()
-    if group_name not in groups:
-        raise HTTPException(status_code=404, detail="Group not found")
+    stacks = load_mcp_stacks()
+    if stack_name not in stacks:
+        raise HTTPException(status_code=404, detail="Stack not found")
 
-    group = groups[group_name]
-    for server in group.servers:
+    stack = stacks[stack_name]
+    for server in stack.servers:
         if action == "apply":
             await add_mcp_to_session(session_id, server)
         elif action == "remove":
