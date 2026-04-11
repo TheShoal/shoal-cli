@@ -51,6 +51,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("shoal.mcp_server")
 
+# Module-level storage for session outcomes captured before kill
+_session_outcomes: dict[str, "SessionOutcome"] = {}
+
 
 # ---------------------------------------------------------------------------
 # Lifespan: DB init / cleanup
@@ -1520,6 +1523,91 @@ async def branch_status_tool(session: str) -> dict[str, object]:
 
 
 # ---------------------------------------------------------------------------
+# Tool: check_file_collisions
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="check_file_collisions",
+    description=(
+        "Check for file collisions across active Shoal sessions. "
+        "Returns files that are being modified by multiple sessions simultaneously."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def check_file_collisions_tool(session_id: str = "") -> str:
+    """Check for file collisions across active sessions."""
+    import json
+    import subprocess
+
+    from shoal.core.state import get_session, list_sessions
+
+    # Get all active sessions with worktrees
+    all_sessions = await list_sessions()
+    active_sessions = [
+        s for s in all_sessions
+        if s.worktree and s.status.value in ("running", "waiting")
+    ]
+
+    if not active_sessions:
+        return json.dumps({"collisions": [], "message": "No active sessions with worktrees"})
+
+    # Collect modified files per session
+    session_files: dict[str, set[str]] = {}
+
+    for session in active_sessions:
+        try:
+            # Run git diff to get modified files
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["git", "-C", session.worktree, "diff", "--name-only", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+
+            if result.returncode == 0:
+                modified = {f.strip() for f in result.stdout.splitlines() if f.strip()}
+                if modified:
+                    session_files[session.name] = modified
+        except Exception:
+            continue
+
+    # Find files appearing in multiple sessions
+    file_to_sessions: dict[str, list[str]] = {}
+    for sess_name, files in session_files.items():
+        for file in files:
+            if file not in file_to_sessions:
+                file_to_sessions[file] = []
+            file_to_sessions[file].append(sess_name)
+
+    # Build collision results
+    collisions = []
+    for file, sessions in file_to_sessions.items():
+        if len(sessions) >= 2:
+            collisions.append({
+                "file": file,
+                "sessions": sessions,
+                "count": len(sessions),
+            })
+
+    # Filter to specific session if requested
+    if session_id:
+        session = await get_session(session_id)
+        if session:
+            collisions = [
+                c for c in collisions
+                if session.name in c["sessions"]
+            ]
+
+    return json.dumps({
+        "collisions": collisions,
+        "total": len(collisions),
+        "scanned_sessions": len(active_sessions),
+    })
+
+
+# ---------------------------------------------------------------------------
 # Tool: merge_branch
 # ---------------------------------------------------------------------------
 
@@ -1687,6 +1775,66 @@ async def list_worktree_files_tool(
 # ---------------------------------------------------------------------------
 # Tool: heartbeat
 # ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="capture_session_outcome",
+    description=(
+        "Record structured outcome for a session. Call before ending a session "
+        "to capture what worked, what failed, root causes, fixes applied, and lessons learned. "
+        "This data is saved when the session is killed."
+    ),
+)
+async def capture_session_outcome_tool(
+    session: str,
+    goal: str,
+    commands_failed: str = "",
+    commands_worked: str = "",
+    root_causes: str = "",
+    fixes_applied: str = "",
+    lessons: str = "",
+) -> dict[str, object]:
+    """Record structured outcome for a session."""
+    from shoal.core.journal import SessionOutcome
+    from shoal.core.state import find_by_name, get_session
+
+    # Resolve by name first, then by ID
+    session_id = await find_by_name(session)
+    if session_id is None:
+        s = await get_session(session)
+        if s is None:
+            raise ToolError(f"Session not found: {session}")
+        session_id = s.id
+        s = await get_session(session_id)
+
+    if s is None:
+        raise ToolError(f"Session not found: {session}")
+
+    # Parse comma-separated strings into lists
+    def _parse_list(value: str) -> list[str]:
+        return [item.strip() for item in value.split(",") if item.strip()]
+
+    outcome = SessionOutcome(
+        session_id=session_id,
+        session_name=s.name,
+        goal=goal,
+        commands_failed=_parse_list(commands_failed),
+        commands_worked=_parse_list(commands_worked),
+        root_causes=_parse_list(root_causes),
+        fixes_applied=_parse_list(fixes_applied),
+        lessons=_parse_list(lessons),
+    )
+
+    # Store in module-level dict for retrieval at kill time
+    _session_outcomes[session_id] = outcome
+    logger.info("[%s] Session outcome captured", session_id)
+
+    return {
+        "ok": True,
+        "session": s.name,
+        "session_id": session_id,
+        "captured": True,
+    }
 
 
 @mcp.tool(
