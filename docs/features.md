@@ -560,24 +560,7 @@ Stages all changes and creates a conventional commit before session teardown.
 
 ## Skills & Extensions
 
-### Skills
-
-Skills are tool-agnostic `SKILL.md` files that Shoal auto-symlinks into the right location for each agent tool.
-
-```bash
-shoal skill ls
-```
-
-Search paths:
-1. `<git-root>/.shoal/skills/`
-2. `~/.config/shoal/skills/`
-
-Auto-symlinked on session creation:
-- Claude Code → `.claude/skills/`
-- OpenCode → `.opencode/agents/`
-- omp → `.omp/skills/`
-
-See [Cross-Agent Skills](cross-agent-skills.md).
+Skills are `.md` files with YAML frontmatter that agents read for domain-specific guidance. See the [Skills section](skills/index.md) for the full guide.
 
 ### Fins (Extensions)
 

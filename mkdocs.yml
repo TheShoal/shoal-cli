@@ -90,8 +90,13 @@ nav:
       - Journals: JOURNALS.md
       - HTTP Transport: HTTP_TRANSPORT.md
       - Troubleshooting: TROUBLESHOOTING.md
-      - Cross-Agent Skills: cross-agent-skills.md
   - Integrations:
+      - Skills:
+          - Overview: skills/index.md
+          - Quickstart: skills/quickstart.md
+          - Reference: skills/reference.md
+          - Cross-Tool Skills: skills/cross-tool.md
+      - Agent Skill Reference: agent-skill-reference.md
       - Agent Reference: AGENTS.md
       - Coding Agent Setup: agent-maximalist-setup.md
       - Claude Code Setup: CLAUDE_CODE_SETUP.md

@@ -179,8 +179,9 @@ Modes are single-session presets for `shoal new --mode <name>`. See [Handoffs & 
 | Command | Purpose |
 | ------- | ------- |
 | `shoal skill ls` | List discovered skills from project-local and global paths |
+| `shoal skill validate <name>` | Validate skill frontmatter and structure |
 
-Skills in `.shoal/skills/<name>/SKILL.md` are auto-symlinked into `.claude/skills/` for Claude Code sessions. See [Cross-Agent Skills](cross-agent-skills.md) for details.
+See [Skills](skills/index.md) for the full guide.
 
 ## Templates, tags, and config
 
