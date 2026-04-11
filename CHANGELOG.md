@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] "Collision Safety & Session Intelligence" - 2026-04-11
+
 ### Added (Tier 1)
 - `SessionOutcome` dataclass in `core/journal.py` for structured session outcome capture
 - `capture_session_outcome` MCP tool for agents to record goals, failures, fixes, lessons
