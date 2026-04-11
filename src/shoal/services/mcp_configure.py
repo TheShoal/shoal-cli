@@ -48,10 +48,17 @@ def configure_mcp_for_tool(
     mcp_cfg = tool_cfg.mcp
 
     # Check if this server uses HTTP transport
+    from shoal.core.config import load_mcp_registry_full
     from shoal.services.mcp_pool import get_transport, read_port
 
     transport = get_transport(mcp_name)
     if transport == "http":
+        # Prefer the registry URL (e.g. from hermes config) over port-derived fallback
+        registry = load_mcp_registry_full()
+        reg_entry = registry.get(mcp_name, {})
+        registry_url = reg_entry.get("url", "")
+        if registry_url:
+            return _configure_http_for_tool_url(tool, mcp_name, work_dir, registry_url, mcp_cfg)
         port = read_port(mcp_name) or 8390
         return _configure_http_for_tool(tool, mcp_name, work_dir, port, mcp_cfg)
 
@@ -65,6 +72,40 @@ def configure_mcp_for_tool(
 
     # No auto-config method available
     return None
+
+
+def _configure_http_for_tool_url(
+    tool: str,
+    mcp_name: str,
+    work_dir: str,
+    url: str,
+    mcp_cfg: Any,
+) -> str | None:
+    """Configure a tool to use an HTTP-mode MCP server with an explicit URL."""
+    if mcp_cfg.config_file:
+        path = Path(work_dir) / mcp_cfg.config_file
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data: dict[str, Any] = {}
+        if path.exists():
+            try:
+                data = json.loads(path.read_text())
+            except (json.JSONDecodeError, OSError) as exc:
+                raise McpConfigureError(f"Failed to parse config file {path}: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise McpConfigureError(f"Config file {path} is not a JSON object")
+
+        mcp_servers = data.setdefault("mcpServers", {})
+        mcp_servers[mcp_name] = {"url": url}
+
+        try:
+            path.write_text(json.dumps(data, indent=2) + "\n")
+        except OSError as exc:
+            raise McpConfigureError(f"Failed to write config file {path}: {exc}") from exc
+
+        return f"Configured HTTP URL in {path}"
+
+    return f"HTTP server at {url}"
 
 
 def _configure_http_for_tool(
@@ -200,16 +241,20 @@ def configure_omp_mcp(mcp_name: str) -> str | None:
         data = {}
 
     # Determine server configuration
+    from shoal.core.config import load_mcp_registry_full
     from shoal.services.mcp_pool import get_transport, read_port
 
     transport = get_transport(mcp_name)
     mcp_servers = data.setdefault("mcpServers", {})
 
     if transport == "http":
-        port = read_port(mcp_name) or 8390
+        # Prefer the registry URL (e.g. from hermes config) over port-derived fallback
+        registry = load_mcp_registry_full()
+        reg_url = registry.get(mcp_name, {}).get("url", "")
+        url = reg_url or f"http://127.0.0.1:{read_port(mcp_name) or 8390}/mcp"
         mcp_servers[mcp_name] = {
             "type": "http",
-            "url": f"http://127.0.0.1:{port}/mcp",
+            "url": url,
         }
     else:
         # stdio transport via proxy
