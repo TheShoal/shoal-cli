@@ -1202,8 +1202,8 @@ class ShoalDB:
         async with self._connection() as conn:
             # Insert into structured table
             await conn.execute(
-                "INSERT INTO journals (id, session_id, session_name, content, goal, lessons, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO journals (id, session_id, session_name, content, "
+                "goal, lessons, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (entry_id, session_id, session_name, content, goal, lessons_json, now),
             )
             # Insert into FTS index

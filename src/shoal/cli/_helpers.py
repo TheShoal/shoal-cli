@@ -44,7 +44,7 @@ def resolve_team_config(team_slug: str) -> tuple[str, TeamConfig]:
     return root, team
 
 
-def init_bridge(factory_fn: type[T]) -> T:
+def init_bridge[T](factory_fn: type[T]) -> T:
     """Initialize a bridge with standard error handling.
 
     Args:

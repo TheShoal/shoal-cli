@@ -3,6 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from shoal.cli.mcp import app
@@ -10,6 +11,12 @@ from shoal.core.db import with_db
 from shoal.core.state import create_session, update_session
 
 runner = CliRunner()
+try:
+    import fastmcp  # noqa: F401
+
+    _HAS_FASTMCP = True
+except ImportError:
+    _HAS_FASTMCP = False
 
 
 def test_mcp_start_success(mock_dirs):
@@ -186,6 +193,7 @@ def test_mcp_doctor_dead_pid(mock_dirs):
     assert "dead" in result.stdout
 
 
+@pytest.mark.skipif(not _HAS_FASTMCP, reason="requires fastmcp")
 def test_mcp_doctor_probe_success(mock_dirs):
     """Test doctor with a successful FastMCP probe."""
     from shoal.cli.mcp import _ProbeResult
@@ -220,6 +228,7 @@ def test_mcp_doctor_probe_success(mock_dirs):
     assert "5" in result.stdout
 
 
+@pytest.mark.skipif(not _HAS_FASTMCP, reason="requires fastmcp")
 def test_mcp_doctor_probe_timeout(mock_dirs):
     """Test doctor handles probe timeout gracefully."""
     from shoal.cli.mcp import _ProbeResult
@@ -244,6 +253,7 @@ def test_mcp_doctor_probe_timeout(mock_dirs):
     assert "timeout" in result.stdout
 
 
+@pytest.mark.skipif(not _HAS_FASTMCP, reason="requires fastmcp")
 def test_mcp_doctor_probe_error(mock_dirs):
     """Test doctor shows diagnostic error from probe."""
     from shoal.cli.mcp import _ProbeResult

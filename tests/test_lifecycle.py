@@ -2451,7 +2451,7 @@ class TestRunPostWorktreeHook:
         wt_path.mkdir()
 
         # Create a marker file that the shell command will check
-        marker = wt_path / "marker.txt"
+        _marker = wt_path / "marker.txt"
 
         template_cfg = SessionTemplateConfig(
             name="test-template",

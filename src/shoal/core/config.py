@@ -419,6 +419,7 @@ def load_mcp_registry_full() -> dict[str, dict[str, Any]]:
                     registry[name] = user_entry
     return registry
 
+
 def mixins_dir() -> Path:
     """Return ~/.config/shoal/templates/mixins."""
     return templates_dir() / "mixins"

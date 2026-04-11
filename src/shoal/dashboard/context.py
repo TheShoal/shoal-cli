@@ -364,7 +364,6 @@ def flow_context(sessions: list[SessionState]) -> dict[str, object]:
     }
 
 
-
 # ---------------------------------------------------------------------------
 # MCP Matrix context
 # ---------------------------------------------------------------------------
@@ -393,19 +392,18 @@ def mcp_matrix_context(
     rows: list[dict[str, object]] = []
     for session in sorted(sessions, key=lambda s: s.name.lower()):
         tier, _ = derive_urgency(session, now=now)
-        rows.append({
-            "id": session.id,
-            "name": session.name,
-            "status": session.status.value,
-            "tier_css": _TIER_CSS.get(tier, "tier-unknown"),
-            "tool": session.tool,
-            "tool_icon": _TOOL_ICONS.get(session.tool.lower(), "diamond"),
-            "mcp_enabled": {
-                srv: srv in session.mcp_servers
-                for srv in available_servers
-            },
-            "is_stopped": session.status == SessionStatus.stopped,
-        })
+        rows.append(
+            {
+                "id": session.id,
+                "name": session.name,
+                "status": session.status.value,
+                "tier_css": _TIER_CSS.get(tier, "tier-unknown"),
+                "tool": session.tool,
+                "tool_icon": _TOOL_ICONS.get(session.tool.lower(), "diamond"),
+                "mcp_enabled": {srv: srv in session.mcp_servers for srv in available_servers},
+                "is_stopped": session.status == SessionStatus.stopped,
+            }
+        )
 
     return {
         "sessions": rows,

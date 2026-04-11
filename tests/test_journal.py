@@ -554,6 +554,15 @@ class TestFindArchivedSessionId:
         assert find_archived_session_id("bare") is None
 
 
+try:
+    import fastmcp  # noqa: F401
+
+    _HAS_FASTMCP = True
+except ImportError:
+    _HAS_FASTMCP = False
+
+
+@pytest.mark.skipif(not _HAS_FASTMCP, reason="requires fastmcp")
 class TestJournalMCP:
     """Test MCP journal tools."""
 

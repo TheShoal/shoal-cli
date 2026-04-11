@@ -92,7 +92,7 @@ async def test_step_planner_live_mode_with_token_mock_bridge() -> None:
     with (
         patch("shoal.cli.demo.fleet.create_session") as mock_create,
         patch("shoal.cli.demo.fleet.get_session") as mock_get,
-        patch("shoal.cli.demo.fleet.append_entry") as mock_append,
+        patch("shoal.cli.demo.fleet.append_entry") as _mock_append,
         patch("shoal.cli.demo.fleet.read_journal") as mock_read,
         patch("shoal.cli.demo.fleet.git.current_branch") as mock_branch,
         patch.dict("os.environ", {"LINEAR_TOKEN": "test-token"}),
@@ -202,7 +202,7 @@ async def test_step_reviewer_live_mode_with_token_mock_bridge() -> None:
     with (
         patch("shoal.cli.demo.fleet.create_session") as mock_create,
         patch("shoal.cli.demo.fleet.get_session") as mock_get,
-        patch("shoal.cli.demo.fleet.append_entry") as mock_append,
+        patch("shoal.cli.demo.fleet.append_entry") as _mock_append,
         patch("shoal.cli.demo.fleet.git.current_branch") as mock_branch,
         patch("shoal.cli.demo.fleet.derive_urgency") as mock_urgency,
         patch.dict("os.environ", {"GITHUB_TOKEN": "test-token"}),
@@ -286,7 +286,7 @@ async def test_step_morning_summary_live_mode_mock_report() -> None:
     """Test morning summary step with live=True but mocked report service."""
     with (
         patch("shoal.cli.demo.fleet.list_sessions") as mock_list,
-        patch("shoal.cli.demo.fleet.delete_session") as mock_delete,
+        patch("shoal.cli.demo.fleet.delete_session") as _mock_delete,
         patch("shoal.cli.demo.fleet.read_journal") as mock_read,
         patch("shoal.cli.demo.fleet.generate_handoff") as mock_handoff,
         patch("shoal.cli.demo.fleet.derive_urgency") as mock_urgency,
@@ -328,11 +328,11 @@ async def test_step_morning_summary_live_mode_mock_report() -> None:
 @pytest.mark.asyncio
 async def test_fleet_demo_flags_parsing() -> None:
     """Test that fleet_demo command accepts the new flags."""
-    from shoal.cli.demo.fleet import fleet_demo
-
     # This test just verifies the function signature accepts the new parameters
     # We won't actually run it, just check it can be called with the parameters
     import inspect
+
+    from shoal.cli.demo.fleet import fleet_demo
 
     sig = inspect.signature(fleet_demo)
     params = list(sig.parameters.keys())
@@ -346,10 +346,10 @@ def test_interactive_mode_no_prompts_when_disabled() -> None:
     """Test that interactive=False runs without any user prompts."""
     # This is a smoke test to ensure the code path exists
     # The actual implementation tests are async and above
-    from shoal.cli.demo.fleet import _fleet_impl
-
     # Just verify the function has the parameter
     import inspect
+
+    from shoal.cli.demo.fleet import _fleet_impl
 
     sig = inspect.signature(_fleet_impl)
     params = list(sig.parameters.keys())
@@ -359,9 +359,9 @@ def test_interactive_mode_no_prompts_when_disabled() -> None:
 
 def test_live_mode_flag_exists() -> None:
     """Test that live mode flag exists in implementation."""
-    from shoal.cli.demo.fleet import _fleet_impl
-
     import inspect
+
+    from shoal.cli.demo.fleet import _fleet_impl
 
     sig = inspect.signature(_fleet_impl)
     params = list(sig.parameters.keys())

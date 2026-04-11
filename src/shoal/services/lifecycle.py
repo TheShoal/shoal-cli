@@ -198,7 +198,7 @@ def _run_post_worktree_hook(
     else:
         # Mode 2: Execute as shell command in worktree directory
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec: B602 # noqa: S602
                 hook_value,
                 shell=True,
                 cwd=wt_path,
@@ -2024,7 +2024,11 @@ def _init_ploom_hooks() -> None:
         return
     _registered.add("ploom")
     try:
-        from ploom.hooks import on_session_created, on_session_killed, on_status_changed
+        from ploom.hooks import (
+            on_session_created,
+            on_session_killed,
+            on_status_changed,
+        )
     except ImportError:
         return  # ploom not installed — skip silently
 

@@ -1108,7 +1108,9 @@ async def generate_weekly_synthesis_tool(days: int = 7) -> str:
         rows = await cursor.fetchall()
 
     if not rows:
-        return f"# Weekly Synthesis — No sessions in the last {days} days\n\nNo journal entries found."
+        return (
+            f"# Weekly Synthesis — No sessions in the last {days} days\n\nNo journal entries found."
+        )
 
     # Group by session
     sessions_data: dict[str, dict[str, object]] = {}
@@ -1149,19 +1151,21 @@ async def generate_weekly_synthesis_tool(days: int = 7) -> str:
             sections.append(f"- **Key Lessons**: {data['lessons']}")
         sections.append("")
 
-    sections.extend([
-        "## Synthesis prompt",
-        "",
-        "You are reviewing the past week of AI agent sessions in the Pantheon stack.",
-        "Based on the sessions above, answer:",
-        "",
-        "1. What patterns appeared across multiple sessions? (recurring errors, common fixes)",
-        "2. What files/modules were touched most frequently? (hot spots)",
-        "3. What should future agents know before working in these areas?",
-        "4. What Tier 2 or Tier 3 improvements are now clearly motivated by this week's work?",
-        "",
-        "Format your response as a structured markdown report with ## sections.",
-    ])
+    sections.extend(
+        [
+            "## Synthesis prompt",
+            "",
+            "You are reviewing the past week of AI agent sessions in the Pantheon stack.",
+            "Based on the sessions above, answer:",
+            "",
+            "1. What patterns appeared across multiple sessions? (recurring errors, common fixes)",
+            "2. What files/modules were touched most frequently? (hot spots)",
+            "3. What should future agents know before working in these areas?",
+            "4. What Tier 2 or Tier 3 improvements are now clearly motivated by this week's work?",
+            "",
+            "Format your response as a structured markdown report with ## sections.",
+        ]
+    )
 
     return "\n".join(sections)
 
@@ -1173,7 +1177,9 @@ async def generate_weekly_synthesis_tool(days: int = 7) -> str:
 
 @mcp.tool(
     name="get_session_outcomes",
-    description="List recent session outcomes with goals and lessons. Useful for robo supervisor context.",
+    description=(
+        "List recent session outcomes with goals and lessons. Useful for robo supervisor context."
+    ),
     annotations={"readOnlyHint": True},
 )
 async def get_session_outcomes_tool(days: int = 7, limit: int = 20) -> str:
@@ -1200,17 +1206,19 @@ async def get_session_outcomes_tool(days: int = 7, limit: int = 20) -> str:
     ) as cursor:
         rows = await cursor.fetchall()
 
-    results = []
-    for row in rows:
-        results.append({
-            "session_id": row[0],
-            "session_name": row[1],
-            "goal": row[2] or "",
-            "lessons": row[3] or "",
-            "created_at": row[4],
-        })
-
-    return json.dumps(results, indent=2)
+    return json.dumps(
+        [
+            {
+                "session_id": row[0],
+                "session_name": row[1],
+                "goal": row[2] or "",
+                "lessons": row[3] or "",
+                "created_at": row[4],
+            }
+            for row in rows
+        ],
+        indent=2,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1689,8 +1697,7 @@ async def check_file_collisions_tool(session_id: str = "") -> str:
     # Get all active sessions with worktrees
     all_sessions = await list_sessions()
     active_sessions = [
-        s for s in all_sessions
-        if s.worktree and s.status.value in ("running", "waiting")
+        s for s in all_sessions if s.worktree and s.status.value in ("running", "waiting")
     ]
 
     if not active_sessions:
@@ -1715,6 +1722,7 @@ async def check_file_collisions_tool(session_id: str = "") -> str:
                 if modified:
                     session_files[session.name] = modified
         except Exception:
+            logger.debug("Failed to scan worktree files for %s", session.name)
             continue
 
     # Find files appearing in multiple sessions
@@ -1729,26 +1737,27 @@ async def check_file_collisions_tool(session_id: str = "") -> str:
     collisions = []
     for file, sessions in file_to_sessions.items():
         if len(sessions) >= 2:
-            collisions.append({
-                "file": file,
-                "sessions": sessions,
-                "count": len(sessions),
-            })
+            collisions.append(
+                {
+                    "file": file,
+                    "sessions": sessions,
+                    "count": len(sessions),
+                }
+            )
 
     # Filter to specific session if requested
     if session_id:
         session = await get_session(session_id)
         if session:
-            collisions = [
-                c for c in collisions
-                if session.name in c["sessions"]
-            ]
+            collisions = [c for c in collisions if session.name in c["sessions"]]
 
-    return json.dumps({
-        "collisions": collisions,
-        "total": len(collisions),
-        "scanned_sessions": len(active_sessions),
-    })
+    return json.dumps(
+        {
+            "collisions": collisions,
+            "total": len(collisions),
+            "scanned_sessions": len(active_sessions),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1772,7 +1781,7 @@ async def validate_merge_tool(
     """Run pre-merge validation checks."""
     import json
 
-    from shoal.core.state import find_by_name, get_session, list_sessions
+    from shoal.core.state import list_sessions
 
     # Find the source session by branch name
     all_sessions = await list_sessions()
@@ -1783,39 +1792,51 @@ async def validate_merge_tool(
             break
 
     if source_session is None:
-        return json.dumps({
-            "ok": False,
-            "blocking": [f"No session found for branch: {source_branch}"],
-            "warnings": [],
-            "source": source_branch,
-            "target": target_branch,
-        })
+        return json.dumps(
+            {
+                "ok": False,
+                "blocking": [f"No session found for branch: {source_branch}"],
+                "warnings": [],
+                "source": source_branch,
+                "target": target_branch,
+            }
+        )
 
     if not source_session.worktree:
-        return json.dumps({
-            "ok": False,
-            "blocking": ["Session has no worktree"],
-            "warnings": [],
-            "source": source_branch,
-            "target": target_branch,
-        })
+        return json.dumps(
+            {
+                "ok": False,
+                "blocking": ["Session has no worktree"],
+                "warnings": [],
+                "source": source_branch,
+                "target": target_branch,
+            }
+        )
 
-    blocking = []
-    warnings = []
+    warnings: list[str] = []
+    blocking: list[str] = []
 
     # 1. Check file collisions across active sessions
     collision_result = await check_file_collisions_tool(session_id=source_session.id)
     collision_data = json.loads(collision_result)
     if collision_data.get("total", 0) > 0:
-        for collision in collision_data.get("collisions", []):
-            blocking.append(
-                f"File collision: {collision['file']} modified by {collision['count']} sessions"
-            )
+        blocking.extend(
+            f"File collision: {c['file']} modified by {c['count']} sessions"
+            for c in collision_data.get("collisions", [])
+        )
 
     # 2. Check if branch is up to date with target
     result = await asyncio.to_thread(
         subprocess.run,
-        ["git", "-C", source_session.worktree, "merge-base", "--is-ancestor", target_branch, "HEAD"],
+        [
+            "git",
+            "-C",
+            source_session.worktree,
+            "merge-base",
+            "--is-ancestor",
+            target_branch,
+            "HEAD",
+        ],
         capture_output=True,
         text=True,
         timeout=5,
@@ -1839,6 +1860,7 @@ async def validate_merge_tool(
 
     # Save validation result to database
     from shoal.core.db import get_db
+
     db = await get_db()
     await db.save_merge_validation(
         session_id=source_session.id,
@@ -1849,13 +1871,15 @@ async def validate_merge_tool(
         warnings=warnings if warnings else None,
     )
 
-    return json.dumps({
-        "ok": ok,
-        "blocking": blocking,
-        "warnings": warnings,
-        "source": source_branch,
-        "target": target_branch,
-    })
+    return json.dumps(
+        {
+            "ok": ok,
+            "blocking": blocking,
+            "warnings": warnings,
+            "source": source_branch,
+            "target": target_branch,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1897,7 +1921,9 @@ async def merge_branch_tool(
 
     # Run pre-merge validation
     if state.branch:
-        validation_result = await validate_merge_tool(source_branch=state.branch, target_branch=target)
+        validation_result = await validate_merge_tool(
+            source_branch=state.branch, target_branch=target
+        )
         validation_data = json.loads(validation_result)
 
         if not validation_data.get("ok", False):
@@ -2056,8 +2082,7 @@ async def search_journal_tool(query: str, limit: int = 10) -> list[dict[str, obj
     from shoal.core.db import get_db
 
     db = await get_db()
-    results = await db.search_journals(query, limit=limit)
-    return results
+    return await db.search_journals(query, limit=limit)
 
 
 # ---------------------------------------------------------------------------

@@ -95,6 +95,7 @@ def _configure_http_for_tool_url(
 
     return f"HTTP server at {url}"
 
+
 def _configure_http_for_tool(
     tool: str,
     mcp_name: str,
@@ -212,7 +213,6 @@ def _configure_via_file(config_file: str, mcp_name: str, work_dir: str) -> str:
 
     _write_config_file(path, data)
     return f"Configured via file: {path}"
-
 
 
 # ---------------------------------------------------------------------------

@@ -255,3 +255,11 @@ async def async_client(mock_dirs: tuple[Path, Path]) -> AsyncClient:
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+
+try:
+    import fastmcp  # noqa: F401
+
+    _HAS_FASTMCP = True
+except ImportError:
+    _HAS_FASTMCP = False

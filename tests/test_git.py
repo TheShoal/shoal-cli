@@ -299,3 +299,75 @@ def test_commit_propagates_error(tmp_path):
 
         with pytest.raises(subprocess.CalledProcessError):
             git.commit(str(repo), "bad commit")
+
+
+# ---------------------------------------------------------------------------
+# worktree_has_tracked_changes — gitignored exclusion via --ignored flag
+# ---------------------------------------------------------------------------
+
+
+def test_worktree_has_tracked_changes_clean(tmp_path):
+    """Clean worktree returns False."""
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+
+        assert git.worktree_has_tracked_changes(str(tmp_path)) is False
+
+
+def test_worktree_has_tracked_changes_modified(tmp_path):
+    """Modified tracked file returns True."""
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout=" M src/main.py\n")
+
+        assert git.worktree_has_tracked_changes(str(tmp_path)) is True
+
+
+def test_worktree_has_tracked_changes_staged(tmp_path):
+    """Staged file returns True."""
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="M  src/main.py\n")
+
+        assert git.worktree_has_tracked_changes(str(tmp_path)) is True
+
+
+def test_worktree_has_tracked_changes_untracked_only(tmp_path):
+    """Untracked files (??) return False."""
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="?? new_file.py\n")
+
+        assert git.worktree_has_tracked_changes(str(tmp_path)) is False
+
+
+def test_worktree_has_tracked_changes_ignored_directory(tmp_path):
+    """Gitignored directories (!!) return False.
+
+    This is the key case for meta-repos: ``tools/`` directories that are
+    themselves git repos are gitignored and must not block worktree creation.
+    """
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="!! tools/shoal-cli/\n")
+
+        assert git.worktree_has_tracked_changes(str(tmp_path)) is False
+
+
+def test_worktree_has_tracked_changes_mixed_ignored_and_tracked(tmp_path):
+    """Ignored entries are skipped; tracked changes still return True."""
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="!! tools/shoal-cli/\n M src/main.py\n?? other.txt\n",
+        )
+
+        assert git.worktree_has_tracked_changes(str(tmp_path)) is True
+
+
+def test_worktree_has_tracked_changes_uses_ignored_flag(tmp_path):
+    """Verifies --ignored is passed to git status."""
+    with patch("shoal.core.git.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+
+        git.worktree_has_tracked_changes(str(tmp_path))
+
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args
+        assert "--ignored" in call_args[0][0]

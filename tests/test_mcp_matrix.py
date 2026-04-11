@@ -54,9 +54,7 @@ class TestMcpMatrixContext:
 
     def test_mcp_enabled_mapping(self) -> None:
         session = _make_session(mcp_servers=["github"])
-        ctx = mcp_matrix_context(
-            sessions=[session], available_servers=["github", "fs"], stacks=[]
-        )
+        ctx = mcp_matrix_context(sessions=[session], available_servers=["github", "fs"], stacks=[])
         row = ctx["sessions"][0]
         assert row["mcp_enabled"] == {"github": True, "fs": False}
 

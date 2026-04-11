@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 from typing import Annotated
 
@@ -16,6 +17,7 @@ from shoal.core.config import (
     config_dir,
     ensure_dirs,
     load_config,
+    load_project_config,
     load_template,
     load_tool_config,
     load_workspace_config,
@@ -45,10 +47,68 @@ from shoal.services.lifecycle import (
 )
 
 
-def _branch_name_for_worktree(worktree_name: str, branch_prefix: str = "") -> str:
+def _validate_branch_name_with_template_prefix(branch_name: str, branch_prefix: str = "") -> None:
+    """Allow standard branch categories plus a template-defined custom prefix."""
+    try:
+        validate_branch_name(branch_name)
+        return
+    except ValueError as exc:
+        prefix = branch_prefix.rstrip("/")
+        if not prefix:
+            raise
+        if re.match(rf"^{re.escape(prefix)}/[a-z0-9][a-z0-9-]*$", branch_name):
+            return
+        raise exc
+
+
+def _branch_name_for_worktree(
+    worktree_name: str,
+    branch_prefix: str = "",
+    *,
+    normalize_path_like: bool = False,
+    template_branch_prefix: str = "",
+) -> str:
     branch_name = infer_branch_name(worktree_name, branch_prefix)
-    validate_branch_name(branch_name)
-    return branch_name
+    try:
+        _validate_branch_name_with_template_prefix(branch_name, template_branch_prefix)
+        return branch_name
+    except ValueError:
+        if not normalize_path_like:
+            raise
+        normalized_seed = worktree_name.strip().lower().replace("_", "-").replace(" ", "-")
+        normalized_seed = normalized_seed.replace("/", "-")
+        normalized_seed = re.sub(r"[^a-z0-9-]", "-", normalized_seed)
+        normalized_seed = re.sub(r"-+", "-", normalized_seed).strip("-")
+        branch_name = infer_branch_name(normalized_seed or "worktree", branch_prefix)
+        _validate_branch_name_with_template_prefix(branch_name, template_branch_prefix)
+        return branch_name
+
+
+def _worktree_slug_seed(name: str | None, project_name: str) -> str:
+    """Build a branch-safe slug seed from an explicit session name or project name."""
+    seed = name.split("/")[-1] if name else project_name
+    normalized = seed.strip().lower().replace("_", "-").replace(" ", "-")
+    normalized = re.sub(r"[^a-z0-9-]", "-", normalized)
+    normalized = re.sub(r"-+", "-", normalized).strip("-")
+    return normalized or project_name.lower()
+
+
+def _render_template_worktree_name(
+    pattern: str, *, template_name: str, project_name: str, session_name: str, slug: str
+) -> str:
+    """Render a template worktree name using supported placeholders."""
+    try:
+        return pattern.format(
+            template_name=template_name,
+            project_name=project_name,
+            session_name=session_name,
+            slug=slug,
+        )
+    except KeyError as e:
+        supported = "{template_name}, {project_name}, {session_name}, {slug}"
+        get_console().print(f"[red]Error: Template worktree has unsupported variable {e}[/red]")
+        get_console().print(f"[dim]Use --worktree for dynamic names or one of: {supported}[/dim]")
+        raise typer.Exit(1) from None
 
 
 def add(
@@ -113,6 +173,31 @@ def add(
     )
 
 
+def create_and_attach_default(path: str | None = None) -> None:
+    """Create a session with default resolution, then attach to it."""
+    asyncio.run(with_db(_create_and_attach_default_impl(path)))
+
+
+async def _create_and_attach_default_impl(path: str | None) -> None:
+    from shoal.cli.session import _attach_impl
+
+    session_name = await _add_impl(
+        path=path,
+        tool=None,
+        template=None,
+        mode=None,
+        worktree=None,
+        branch=False,
+        dry_run=False,
+        name=None,
+        mcp_servers=None,
+        repo=None,
+        model=None,
+    )
+    if session_name:
+        await _attach_impl(session_name)
+
+
 async def _add_impl(
     path: str | None,
     tool: str | None,
@@ -125,12 +210,13 @@ async def _add_impl(
     mcp_servers: list[str] | None = None,
     repo: str | None = None,
     model: str | None = None,
-) -> None:
+) -> str | None:
     ensure_dirs()
     cfg = load_config()
     template_cfg = None
     resolved_mode: str | None = None
     branch_prefix = ""
+    worktree_generated_from_template = False
     resolved_path = Path(path).resolve() if path else Path.cwd().resolve()
 
     if not resolved_path.is_dir():
@@ -176,6 +262,12 @@ async def _add_impl(
             get_console().print(f"[red]{e}[/red]")
             raise typer.Exit(1) from None
 
+    try:
+        project_cfg = load_project_config(root)
+    except ConfigLoadError as e:
+        get_console().print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from None
+
     if mode:
         try:
             mode_defaults = resolve_mode_defaults(
@@ -196,6 +288,9 @@ async def _add_impl(
         tool = mode_defaults.tool
         worktree = mode_defaults.worktree
         branch = mode_defaults.branch
+
+    if not template and project_cfg and project_cfg.default_template.strip():
+        template = project_cfg.default_template.strip()
 
     if template:
         try:
@@ -218,17 +313,16 @@ async def _add_impl(
             tool = template_cfg.tool
 
         if not worktree and template_cfg.worktree.name:
-            try:
-                worktree = template_cfg.worktree.name.format(template_name=template_cfg.name)
-            except KeyError as e:
-                get_console().print(
-                    f"[red]Error: Template worktree has unsupported variable {e}[/red]"
-                )
-                get_console().print(
-                    "[dim]Use --worktree for dynamic names or only"
-                    " {template_name} in template.worktree.name[/dim]"
-                )
-                raise typer.Exit(1) from None
+            project_name = Path(root).name
+            default_session_name = name or project_name
+            worktree = _render_template_worktree_name(
+                template_cfg.worktree.name,
+                template_name=template_cfg.name,
+                project_name=project_name,
+                session_name=default_session_name,
+                slug=_worktree_slug_seed(name, project_name),
+            )
+            worktree_generated_from_template = True
 
         if template_cfg.worktree.create_branch:
             branch = True
@@ -241,6 +335,8 @@ async def _add_impl(
             merged = set(mcp_servers or []) | set(template_cfg.mcp)
             mcp_servers = sorted(merged)
 
+    if not tool and project_cfg and project_cfg.default_tool.strip():
+        tool = project_cfg.default_tool.strip()
     if not tool:
         tool = cfg.general.default_tool
     tool_config_path = config_dir() / "tools" / f"{tool}.toml"
@@ -285,7 +381,12 @@ async def _add_impl(
 
         if branch:
             try:
-                branch_name = _branch_name_for_worktree(worktree, branch_prefix)
+                branch_name = _branch_name_for_worktree(
+                    worktree,
+                    branch_prefix,
+                    normalize_path_like=worktree_generated_from_template,
+                    template_branch_prefix=branch_prefix,
+                )
             except ValueError as e:
                 get_console().print(f"[red]Error: {e}[/red]")
                 raise typer.Exit(1) from None
@@ -365,12 +466,14 @@ async def _add_impl(
                 get_console().print(f"  - tmux {cmd}")
         else:
             get_console().print("  - [dim](none)[/dim]")
-        return
+        return None
 
     if worktree:
         # S4: Block if working tree is dirty or has an in-progress merge/rebase
         if git.worktree_has_tracked_changes(str(resolved_path)):
-            get_console().print("[red]Error: Working tree has staged or unstaged changes to tracked files.[/red]")
+            get_console().print(
+                "[red]Error: Working tree has staged or unstaged changes to tracked files.[/red]"
+            )
             get_console().print(
                 "[dim]Worktrees must be created from a clean HEAD to ensure consistency.[/dim]"
             )
@@ -462,6 +565,7 @@ async def _add_impl(
     get_console().print(f"  Runtime: {rt_kind} ({rt_name})")
     get_console().print()
     get_console().print(f"Attach with: shoal attach {session_name}")
+    return session_name
 
 
 def fork(

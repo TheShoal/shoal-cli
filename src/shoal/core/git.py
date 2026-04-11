@@ -166,11 +166,15 @@ async def async_worktree_is_dirty(path: str) -> bool:
 
 
 def worktree_has_tracked_changes(path: str) -> bool:
-    """Return True if the worktree has changes to tracked files (ignores untracked)."""
-    result = _run(["status", "--porcelain"], cwd=path, check=False)
-    return any(
-        line and not line.startswith("??") for line in result.stdout.splitlines() if line.strip()
-    )
+    """Return True if the worktree has changes to tracked files (ignores untracked).
+
+    Uses ``--ignored`` so that gitignored entries (shown as ``!!``) are also
+    excluded. This prevents directories that are themselves git repos or are
+    gitignored from falsely blocking worktree creation in a meta-repo.
+    """
+    result = _run(["status", "--porcelain", "--ignored"], cwd=path, check=False)
+    # XY filename  — XY != "??" (untracked) and XY != "!!" (ignored)
+    return any(line[:2] not in ("??", "!!") and line.strip() for line in result.stdout.splitlines())
 
 
 async def async_worktree_has_tracked_changes(path: str) -> bool:

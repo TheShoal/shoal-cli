@@ -48,7 +48,10 @@ _DEFAULT_SERVERS: dict[str, str] = {
     # This prevents version mismatches between global and venv installations.
     "shoal-orchestrator": "python -m shoal.services.mcp_shoal_server",
     # Ploom context layer — work graph queries (Linear, GitHub, sessions)
-    "ploom": "/opt/homebrew/bin/uv --directory /Users/ricardoroche/pantheon/tools/ploom run ploom-mcp-server",
+    "ploom": (
+        "/opt/homebrew/bin/uv --directory /Users/ricardoroche/pantheon/tools/ploom "
+        "run ploom-mcp-server"
+    ),
 }
 
 # Public alias kept for backward compatibility in tests / direct imports.

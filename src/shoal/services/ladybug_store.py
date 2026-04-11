@@ -33,7 +33,8 @@ class PantheonGraph:
         Initialize the PantheonGraph.
 
         Args:
-            db_path: Path to the LadybugDB database. Defaults to ~/.local/share/shoal/pantheon_kg.ladybug
+            db_path: Path to the LadybugDB database.
+                Defaults to ~/.local/share/shoal/pantheon_kg.ladybug
         """
         self.db_path = Path(db_path) if db_path else DEFAULT_DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -63,13 +64,31 @@ class PantheonGraph:
 
         # Create node types using Cypher
         node_creates = [
-            "CREATE NODE TABLE Session (id STRING PRIMARY KEY, name STRING, planet STRING, status STRING, created_at STRING)",
-            "CREATE NODE TABLE Task (id STRING PRIMARY KEY, title STRING, status STRING, priority STRING)",
-            "CREATE NODE TABLE LinearIssue (id STRING PRIMARY KEY, identifier STRING, title STRING, state STRING, url STRING)",
-            "CREATE NODE TABLE GitHubPR (id STRING PRIMARY KEY, number INT64, title STRING, state STRING, url STRING)",
-            "CREATE NODE TABLE GitHubIssue (id STRING PRIMARY KEY, number INT64, title STRING, state STRING, url STRING)",
+            (
+                "CREATE NODE TABLE Session (id STRING PRIMARY KEY, name STRING, "
+                "planet STRING, status STRING, created_at STRING)"
+            ),
+            (
+                "CREATE NODE TABLE Task (id STRING PRIMARY KEY, title STRING, "
+                "status STRING, priority STRING)"
+            ),
+            (
+                "CREATE NODE TABLE LinearIssue (id STRING PRIMARY KEY, identifier STRING, "
+                "title STRING, state STRING, url STRING)"
+            ),
+            (
+                "CREATE NODE TABLE GitHubPR (id STRING PRIMARY KEY, number INT64, "
+                "title STRING, state STRING, url STRING)"
+            ),
+            (
+                "CREATE NODE TABLE GitHubIssue (id STRING PRIMARY KEY, number INT64, "
+                "title STRING, state STRING, url STRING)"
+            ),
             "CREATE NODE TABLE File (path STRING PRIMARY KEY, content_hash STRING)",
-            "CREATE NODE TABLE Finding (id STRING PRIMARY KEY, type STRING, description STRING, severity STRING, session_id STRING)",
+            (
+                "CREATE NODE TABLE Finding (id STRING PRIMARY KEY, type STRING, "
+                "description STRING, severity STRING, session_id STRING)"
+            ),
         ]
 
         rel_creates = [
@@ -223,7 +242,8 @@ class PantheonGraph:
             # Create Finding node
             finding_query = """
             MERGE (f:Finding {id: $id})
-            SET f.type = $type, f.description = $description, f.severity = $severity, f.session_id = $session_id
+            SET f.type = $type, f.description = $description,
+                f.severity = $severity, f.session_id = $session_id
             """
             conn.execute(
                 finding_query,
@@ -269,20 +289,20 @@ class PantheonGraph:
         # Query Linear issues
         linear_query = """
         MATCH (s:Session {id: $session_id})-[r:WORKED_ON]->(l:LinearIssue)
-        RETURN l.id as id, l.identifier as identifier, l.title as title, l.state as state, l.url as url, 'linear' as source
+        RETURN l.id as id, l.identifier as identifier, l.title as title,
+               l.state as state, l.url as url, 'linear' as source
         """
         result = conn.execute(linear_query, parameters={"session_id": session_id})
-        for row in result.get_all():
-            results.append(dict(row) if isinstance(row, dict) else row)
+        results.extend(dict(row) if isinstance(row, dict) else row for row in result.get_all())
 
         # Query GitHub PRs
         pr_query = """
         MATCH (s:Session {id: $session_id})-[r:CREATED_PR]->(p:GitHubPR)
-        RETURN p.id as id, p.number as number, p.title as title, p.state as state, p.url as url, 'github_pr' as source
+        RETURN p.id as id, p.number as number, p.title as title,
+               p.state as state, p.url as url, 'github_pr' as source
         """
         result = conn.execute(pr_query, parameters={"session_id": session_id})
-        for row in result.get_all():
-            results.append(dict(row) if isinstance(row, dict) else row)
+        results.extend(dict(row) if isinstance(row, dict) else row for row in result.get_all())
 
         return results
 
@@ -302,17 +322,14 @@ class PantheonGraph:
         query = """
         MATCH (f:Finding)
         WHERE f.severity = $severity OR $severity = 'all'
-        RETURN f.id as id, f.type as type, f.description as description, f.severity as severity, f.session_id as session_id
+        RETURN f.id as id, f.type as type, f.description as description,
+               f.severity as severity, f.session_id as session_id
         """
         result = conn.execute(
             query, parameters={"severity": entity_name if entity_name != "all" else "all"}
         )
 
-        findings = []
-        for row in result.get_all():
-            findings.append(dict(row) if isinstance(row, dict) else row)
-
-        return findings
+        return [dict(row) if isinstance(row, dict) else row for row in result.get_all()]
 
 
 async def _run_integration_test():

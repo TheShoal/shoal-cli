@@ -1,7 +1,3 @@
-{
-  "mcpServers": {
-    "shoal-orchestrator": {
-      "url": "http://localhost:8390/mcp/"
-    }
-  }
-}
+mcpServers:
+  shoal-orchestrator:
+    url: http://127.0.0.1:8765/mcp

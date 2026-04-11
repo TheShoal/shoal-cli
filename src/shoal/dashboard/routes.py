@@ -272,6 +272,7 @@ async def _mcp_context() -> dict[str, object]:
     ]
     return mcp_matrix_context(sessions, servers, stack_list)
 
+
 async def _mcp_render(request: Request, template: str) -> HTMLResponse:
     """Build context and render an MCP template."""
     ctx = await _mcp_context()
@@ -337,6 +338,7 @@ async def mcp_toggle(request: Request) -> HTMLResponse:
             logger.warning("Failed to remove %s from OMP: %s", mcp_name, exc)
 
     return await _mcp_render(request, "partials/mcp_grid.html")
+
 
 @router.post("/mcp-apply-stack", response_class=HTMLResponse)
 async def mcp_apply_stack(request: Request) -> HTMLResponse:

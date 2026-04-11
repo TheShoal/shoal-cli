@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+pytest.importorskip("fastmcp")
 from fastmcp.exceptions import ToolError
 
 from shoal.models.state import SessionState, SessionStatus

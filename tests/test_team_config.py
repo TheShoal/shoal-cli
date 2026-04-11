@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from shoal.models.config.workspace import TeamConfig, TeamReportTargetConfig
 
@@ -35,7 +36,7 @@ def test_team_config_repos_validation():
 
 def test_team_config_extra_forbidden():
     """Test that extra fields are rejected."""
-    with pytest.raises(Exception):  # Pydantic ValidationError
+    with pytest.raises(ValidationError):  # Pydantic ValidationError
         TeamConfig(linear_slug="BE", unknown_field="should_fail")  # type: ignore[call-arg]
 
 

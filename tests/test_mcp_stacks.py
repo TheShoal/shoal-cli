@@ -49,11 +49,7 @@ class TestLoadMcpStacks:
         assert result == {}
 
     def test_config_only(self, tmp_path: Path) -> None:
-        toml = (
-            '[stacks.dev]\n'
-            'description = "Dev essentials"\n'
-            'servers = ["github", "memory"]\n'
-        )
+        toml = '[stacks.dev]\ndescription = "Dev essentials"\nservers = ["github", "memory"]\n'
         (tmp_path / "mcp-stacks.toml").write_text(toml)
 
         with (
@@ -85,11 +81,7 @@ class TestLoadMcpStacks:
         assert "test-tpl" in s.description
 
     def test_config_overrides_template(self, tmp_path: Path) -> None:
-        toml = (
-            '[stacks.dev]\n'
-            'description = "From config"\n'
-            'servers = ["fetch"]\n'
-        )
+        toml = '[stacks.dev]\ndescription = "From config"\nservers = ["fetch"]\n'
         (tmp_path / "mcp-stacks.toml").write_text(toml)
 
         tpl = _FakeTemplate(mcp=["memory"])
@@ -129,13 +121,7 @@ class TestLoadMcpStacks:
                 load_mcp_stacks()
 
     def test_stacks_sorted_by_name(self, tmp_path: Path) -> None:
-        toml = (
-            '[stacks.z-stack]\n'
-            'servers = ["a"]\n'
-            '\n'
-            '[stacks.a-stack]\n'
-            'servers = ["b"]\n'
-        )
+        toml = '[stacks.z-stack]\nservers = ["a"]\n\n[stacks.a-stack]\nservers = ["b"]\n'
         (tmp_path / "mcp-stacks.toml").write_text(toml)
 
         with (

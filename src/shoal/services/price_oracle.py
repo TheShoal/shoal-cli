@@ -1,9 +1,9 @@
 import asyncio
-import logging
 import json
+import logging
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Any, cast
 
 logger = logging.getLogger("shoal.price_oracle")
 
@@ -17,20 +17,20 @@ class PriceOracle:
     def __init__(self, cache_dir: Path):
         self.cache_path = cache_dir / "prices.json"
         self.cache_ttl = timedelta(hours=24)
-        self._cached_data: Optional[Dict[str, Any]] = None
+        self._cached_data: dict[str, Any] | None = None
 
-    async def get_model_prices(self) -> Dict[str, Any]:
+    async def get_model_prices(self) -> dict[str, Any]:
         """Return cached model prices or fetch fresh ones from OpenRouter."""
         if self._cached_data:
             return self._cached_data
 
         if self.cache_path.exists():
             try:
-                with open(self.cache_path, "r") as f:
-                    data = json.load(f)
+                raw = await asyncio.to_thread(self.cache_path.read_text)
+                data = cast(dict[str, Any], json.loads(raw))
 
                 updated_at = datetime.fromisoformat(data.get("updated_at", ""))
-                if datetime.now() - updated_at < self.cache_ttl:
+                if datetime.now(UTC) - updated_at < self.cache_ttl:
                     self._cached_data = data
                     return data
             except Exception as e:
@@ -38,7 +38,7 @@ class PriceOracle:
 
         return await self.refresh_prices()
 
-    async def refresh_prices(self) -> Dict[str, Any]:
+    async def refresh_prices(self) -> dict[str, Any]:
         """Fetch fresh prices from OpenRouter and cache them."""
         import httpx
 
@@ -60,11 +60,12 @@ class PriceOracle:
                             "completion": m.get("pricing", {}).get("completion", 0.0),
                         }
 
-                cache_data = {"updated_at": datetime.now().isoformat(), "models": prices}
+                cache_data = {"updated_at": datetime.now(UTC).isoformat(), "models": prices}
 
                 self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(self.cache_path, "w") as f:
-                    json.dump(cache_data, f, indent=2)
+                await asyncio.to_thread(
+                    self.cache_path.write_text, json.dumps(cache_data, indent=2)
+                )
 
                 self._cached_data = cache_data
                 return cache_data
@@ -72,13 +73,13 @@ class PriceOracle:
             logger.exception("Failed to refresh prices from OpenRouter: %s", e)
             # Fallback to stale cache if available
             if self.cache_path.exists():
-                with open(self.cache_path, "r") as f:
-                    return json.load(f)
+                raw = await asyncio.to_thread(self.cache_path.read_text)
+                return cast(dict[str, Any], json.loads(raw))
             return {"updated_at": "", "models": {}}
 
 
 # Global singleton for the app
-_oracle: Optional[PriceOracle] = None
+_oracle: PriceOracle | None = None
 
 
 def get_oracle(cache_dir: Path) -> PriceOracle:
