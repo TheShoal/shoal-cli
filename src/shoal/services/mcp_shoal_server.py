@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("shoal.mcp_server")
 
 # Module-level storage for session outcomes captured before kill
-_session_outcomes: dict[str, "SessionOutcome"] = {}
+_session_outcomes: dict[str, SessionOutcome] = {}
 
 
 # ---------------------------------------------------------------------------

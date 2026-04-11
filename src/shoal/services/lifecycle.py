@@ -1619,6 +1619,19 @@ async def kill_session_lifecycle(
         except Exception:
             logger.warning("[%s] kill: failed to generate handoff", session_id, exc_info=True)
 
+    # 3.5. Save session outcome if captured (before DB deletion)
+    try:
+        from shoal.core.journal import save_outcome
+        from shoal.services.mcp_shoal_server import _session_outcomes
+
+        if session_id in _session_outcomes:
+            outcome = _session_outcomes.pop(session_id)
+            await asyncio.to_thread(save_outcome, outcome, None)
+            summary["outcome_saved"] = True
+            logger.info("[%s] kill: session outcome saved", session_id)
+    except Exception:
+        logger.warning("[%s] kill: failed to save session outcome", session_id, exc_info=True)
+
     # 4. Delete DB row
     await delete_session(session_id)
     summary["db_deleted"] = True
