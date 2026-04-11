@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 import pytest
 
-from shoal.services.linear_cache import LinearCache
 from shoal.services.linear_bridge import LinearIssue
 
 

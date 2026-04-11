@@ -12,8 +12,6 @@ from rich.markdown import Markdown
 
 from shoal.cli._console import get_console
 from shoal.cli._helpers import resolve_team_config
-from shoal.core import git
-from shoal.core.config import load_workspace_config
 from shoal.core.db import with_db
 
 app = typer.Typer(no_args_is_help=True)

@@ -14,5 +14,7 @@ Before ending this session:
    - fixes_applied: how you resolved them
    - lessons: what future agents should know about this codebase area
 4. Run `shoal status` one final time to confirm no blocking collisions
+5. Optionally call `generate_weekly_synthesis` if this is the last session of the day
+   to get a prompt for reviewing the day's work holistically
 
 Then exit cleanly.

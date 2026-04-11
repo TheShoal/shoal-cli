@@ -1072,6 +1072,148 @@ async def session_summary_tool(session: str) -> dict[str, object]:
 
 
 # ---------------------------------------------------------------------------
+# Tool: generate_weekly_synthesis
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="generate_weekly_synthesis",
+    description=(
+        "Generate a weekly synthesis prompt from recent session outcomes and journals. "
+        "Does NOT call an LLM — returns a structured prompt template the agent can use "
+        "to synthesize learnings from the past N days."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def generate_weekly_synthesis_tool(days: int = 7) -> str:
+    """Generate a weekly synthesis prompt from recent journals."""
+    from datetime import UTC, datetime, timedelta
+
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    cutoff_iso = cutoff.isoformat()
+
+    # Query journals table for entries from the last N days
+    async with db._conn.execute(
+        """
+        SELECT session_id, session_name, goal, lessons, created_at
+        FROM journals
+        WHERE created_at >= ?
+        ORDER BY created_at DESC
+        """,
+        (cutoff_iso,),
+    ) as cursor:
+        rows = await cursor.fetchall()
+
+    if not rows:
+        return f"# Weekly Synthesis — No sessions in the last {days} days\n\nNo journal entries found."
+
+    # Group by session
+    sessions_data: dict[str, dict[str, object]] = {}
+    for row in rows:
+        session_id = row[0]
+        session_name = row[1]
+        goal = row[2] or ""
+        lessons = row[3] or ""
+        created_at = row[4]
+
+        if session_name not in sessions_data:
+            sessions_data[session_name] = {
+                "session_id": session_id,
+                "session_name": session_name,
+                "goal": goal,
+                "lessons": lessons,
+                "created_at": created_at,
+            }
+
+    # Build date range string
+    end_date = datetime.now(UTC).strftime("%Y-%m-%d")
+    start_date = cutoff.strftime("%Y-%m-%d")
+    date_range = f"{start_date} to {end_date}"
+    count = len(sessions_data)
+
+    # Build the prompt
+    sections = [
+        f"# Weekly Synthesis — {date_range}",
+        "",
+        f"## Sessions this week ({count} sessions)",
+        "",
+    ]
+
+    for session_name, data in sessions_data.items():
+        sections.append(f"### {session_name}")
+        sections.append(f"- **Goal**: {data['goal']}")
+        if data["lessons"]:
+            sections.append(f"- **Key Lessons**: {data['lessons']}")
+        sections.append("")
+
+    sections.extend([
+        "## Synthesis prompt",
+        "",
+        "You are reviewing the past week of AI agent sessions in the Pantheon stack.",
+        "Based on the sessions above, answer:",
+        "",
+        "1. What patterns appeared across multiple sessions? (recurring errors, common fixes)",
+        "2. What files/modules were touched most frequently? (hot spots)",
+        "3. What should future agents know before working in these areas?",
+        "4. What Tier 2 or Tier 3 improvements are now clearly motivated by this week's work?",
+        "",
+        "Format your response as a structured markdown report with ## sections.",
+    ])
+
+    return "\n".join(sections)
+
+
+# ---------------------------------------------------------------------------
+# Tool: get_session_outcomes
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="get_session_outcomes",
+    description="List recent session outcomes with goals and lessons. Useful for robo supervisor context.",
+    annotations={"readOnlyHint": True},
+)
+async def get_session_outcomes_tool(days: int = 7, limit: int = 20) -> str:
+    """List recent session outcomes from journals."""
+    import json
+    from datetime import UTC, datetime, timedelta
+
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    cutoff_iso = cutoff.isoformat()
+
+    # Query journals table
+    async with db._conn.execute(
+        """
+        SELECT session_id, session_name, goal, lessons, created_at
+        FROM journals
+        WHERE created_at >= ?
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (cutoff_iso, limit),
+    ) as cursor:
+        rows = await cursor.fetchall()
+
+    results = []
+    for row in rows:
+        results.append({
+            "session_id": row[0],
+            "session_name": row[1],
+            "goal": row[2] or "",
+            "lessons": row[3] or "",
+            "created_at": row[4],
+        })
+
+    return json.dumps(results, indent=2)
+
+
+# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 # Tool: send_session_message
 # ---------------------------------------------------------------------------
