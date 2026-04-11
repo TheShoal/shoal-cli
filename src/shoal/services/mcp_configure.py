@@ -85,28 +85,15 @@ def _configure_http_for_tool_url(
     if mcp_cfg.config_file:
         path = Path(work_dir) / mcp_cfg.config_file
         path.parent.mkdir(parents=True, exist_ok=True)
-        data: dict[str, Any] = {}
-        if path.exists():
-            try:
-                data = json.loads(path.read_text())
-            except (json.JSONDecodeError, OSError) as exc:
-                raise McpConfigureError(f"Failed to parse config file {path}: {exc}") from exc
-
-        if not isinstance(data, dict):
-            raise McpConfigureError(f"Config file {path} is not a JSON object")
+        data = _read_config_file(path)
 
         mcp_servers = data.setdefault("mcpServers", {})
         mcp_servers[mcp_name] = {"url": url}
 
-        try:
-            path.write_text(json.dumps(data, indent=2) + "\n")
-        except OSError as exc:
-            raise McpConfigureError(f"Failed to write config file {path}: {exc}") from exc
-
+        _write_config_file(path, data)
         return f"Configured HTTP URL in {path}"
 
     return f"HTTP server at {url}"
-
 
 def _configure_http_for_tool(
     tool: str,
@@ -121,27 +108,15 @@ def _configure_http_for_tool(
     if mcp_cfg.config_file:
         path = Path(work_dir) / mcp_cfg.config_file
         path.parent.mkdir(parents=True, exist_ok=True)
-        data: dict[str, Any] = {}
-        if path.exists():
-            try:
-                data = json.loads(path.read_text())
-            except (json.JSONDecodeError, OSError) as exc:
-                raise McpConfigureError(f"Failed to parse config file {path}: {exc}") from exc
-
-        if not isinstance(data, dict):
-            raise McpConfigureError(f"Config file {path} is not a JSON object")
+        data = _read_config_file(path)
 
         mcp_servers = data.setdefault("mcpServers", {})
         mcp_servers[mcp_name] = {"url": url}
 
-        try:
-            path.write_text(json.dumps(data, indent=2) + "\n")
-        except OSError as exc:
-            raise McpConfigureError(f"Failed to write config file {path}: {exc}") from exc
-
+        _write_config_file(path, data)
         return f"Configured HTTP URL in {path}"
 
-    # Strategy 2: No file config — just report the URL
+    # No file config — just report the URL
     return f"HTTP server at {url}"
 
 
@@ -171,20 +146,62 @@ def _configure_via_command(config_cmd: str, mcp_name: str, work_dir: str) -> str
     return f"Configured via command: {cmd_display}"
 
 
-def _configure_via_file(config_file: str, mcp_name: str, work_dir: str) -> str:
-    """Merge an MCP entry into a tool's JSON config file."""
-    path = Path(work_dir) / config_file
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data: dict[str, Any] = {}
+def _is_yaml_config(path: Path) -> bool:
+    """Return True if the config file uses YAML format."""
+    return path.suffix.lower() in {".yml", ".yaml"}
 
-    if path.exists():
+
+def _read_config_file(path: Path) -> dict[str, Any]:
+    """Read a config file, auto-detecting JSON or YAML format."""
+    if not path.exists():
+        return {}
+
+    content = path.read_text()
+    if not content.strip():
+        return {}
+
+    if _is_yaml_config(path):
         try:
-            data = json.loads(path.read_text())
-        except (json.JSONDecodeError, OSError) as exc:
-            raise McpConfigureError(f"Failed to parse existing config file {path}: {exc}") from exc
+            import yaml
+        except ImportError:
+            raise McpConfigureError("PyYAML not installed, cannot read YAML config") from None
+        try:
+            data = yaml.safe_load(content)
+        except yaml.YAMLError as exc:
+            raise McpConfigureError(f"Failed to parse YAML config {path}: {exc}") from exc
+    else:
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as exc:
+            raise McpConfigureError(f"Failed to parse JSON config {path}: {exc}") from exc
 
     if not isinstance(data, dict):
-        raise McpConfigureError(f"Config file {path} is not a JSON object")
+        raise McpConfigureError(f"Config file {path} is not an object")
+    return data
+
+
+def _write_config_file(path: Path, data: dict[str, Any]) -> None:
+    """Write a config file, auto-detecting JSON or YAML format."""
+    if _is_yaml_config(path):
+        try:
+            import yaml
+        except ImportError:
+            raise McpConfigureError("PyYAML not installed, cannot write YAML config") from None
+        content = yaml.dump(data, default_flow_style=False, sort_keys=False)
+    else:
+        content = json.dumps(data, indent=2) + "\n"
+    try:
+        path.write_text(content)
+    except OSError as exc:
+        raise McpConfigureError(f"Failed to write config file {path}: {exc}") from exc
+
+
+def _configure_via_file(config_file: str, mcp_name: str, work_dir: str) -> str:
+    """Merge an MCP entry into a tool's config file (JSON or YAML)."""
+    path = Path(work_dir) / config_file
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    data = _read_config_file(path)
 
     # Ensure mcpServers section exists and add our entry
     mcp_servers = data.setdefault("mcpServers", {})
@@ -193,12 +210,9 @@ def _configure_via_file(config_file: str, mcp_name: str, work_dir: str) -> str:
         "args": [mcp_name],
     }
 
-    try:
-        path.write_text(json.dumps(data, indent=2) + "\n")
-    except OSError as exc:
-        raise McpConfigureError(f"Failed to write config file {path}: {exc}") from exc
-
+    _write_config_file(path, data)
     return f"Configured via file: {path}"
+
 
 
 # ---------------------------------------------------------------------------

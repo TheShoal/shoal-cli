@@ -15,14 +15,14 @@ from shoal.services import mcp_pool
 
 def test_mcp_socket(tmp_path, mock_dirs):
     """Test mcp_socket returns correct socket path."""
-    result = mcp_pool.mcp_socket("memory")
-    assert "mcp-pool/sockets/memory.sock" in str(result)
+    result = mcp_pool.mcp_socket("github")
+    assert "mcp-pool/sockets/github.sock" in str(result)
 
 
 def test_pid_file(tmp_path, mock_dirs):
     """Test mcp_pid_file returns correct PID file path."""
-    result = mcp_pool.mcp_pid_file("filesystem")
-    assert "mcp-pool/pids/filesystem.pid" in str(result)
+    result = mcp_pool.mcp_pid_file("ploom")
+    assert "mcp-pool/pids/ploom.pid" in str(result)
 
 
 def test_read_pid_exists(tmp_path, mock_dirs):
@@ -97,7 +97,7 @@ def test_start_mcp_server(tmp_path, mock_dirs):
         mock_process.poll.return_value = None  # Still running
         mock_popen.return_value = mock_process
 
-        mcp_pool.start_mcp_server("memory", "npx -y @modelcontextprotocol/server-memory")
+        mcp_pool.start_mcp_server("github", "npx -y @modelcontextprotocol/server-github")
 
         # Verify Popen was called with sys.executable module invocation
         mock_popen.assert_called_once()
@@ -106,11 +106,11 @@ def test_start_mcp_server(tmp_path, mock_dirs):
         assert cmd[0] == sys.executable
         assert cmd[1] == "-m"
         assert cmd[2] == "shoal.services.mcp_pool"
-        assert cmd[3] == "memory"
-        assert cmd[4] == "npx -y @modelcontextprotocol/server-memory"
+        assert cmd[3] == "github"
+        assert cmd[4] == "npx -y @modelcontextprotocol/server-github"
 
         # Verify PID file was written
-        pid_path = mcp_pool.mcp_pid_file("memory")
+        pid_path = mcp_pool.mcp_pid_file("github")
         assert pid_path.exists()
         assert pid_path.read_text() == "12345"
 
@@ -126,20 +126,20 @@ def test_start_mcp_server_uses_default(tmp_path, mock_dirs):
         mock_process.poll.return_value = None
         mock_popen.return_value = mock_process
 
-        pid, _socket, cmd = mcp_pool.start_mcp_server("memory")
+        pid, _socket, cmd = mcp_pool.start_mcp_server("github")
 
-        assert cmd == "npx -y @modelcontextprotocol/server-memory"
+        assert cmd == "npx -y @modelcontextprotocol/server-github"
         assert pid == 12345
 
 
 def test_stop_mcp_server(tmp_path, mock_dirs):
     """Test stop_mcp_server terminates a server."""
     # Create PID file and socket
-    pid_path = mcp_pool.mcp_pid_file("memory")
+    pid_path = mcp_pool.mcp_pid_file("github")
     pid_path.parent.mkdir(parents=True, exist_ok=True)
     pid_path.write_text("12345")
 
-    socket_path = mcp_pool.mcp_socket("memory")
+    socket_path = mcp_pool.mcp_socket("github")
     socket_path.touch()
 
     with (
@@ -149,7 +149,7 @@ def test_stop_mcp_server(tmp_path, mock_dirs):
         # Mock first kill succeeds, second kill (poll) finds process gone
         mock_kill.side_effect = [None, ProcessLookupError]
 
-        mcp_pool.stop_mcp_server("memory")
+        mcp_pool.stop_mcp_server("github")
 
         # Verify kill command was called
         assert mock_kill.call_count >= 1
@@ -174,22 +174,22 @@ def test_start_mcp_server_unknown(tmp_path, mock_dirs):
 
 def test_start_mcp_server_already_running(tmp_path, mock_dirs):
     """Test start_mcp_server when server is already running."""
-    socket_path = mcp_pool.mcp_socket("memory")
+    socket_path = mcp_pool.mcp_socket("github")
     socket_path.parent.mkdir(parents=True, exist_ok=True)
     socket_path.touch()
 
-    pid_path = mcp_pool.mcp_pid_file("memory")
+    pid_path = mcp_pool.mcp_pid_file("github")
     pid_path.parent.mkdir(parents=True, exist_ok=True)
     pid_path.write_text("12345")
 
     with patch("os.kill", return_value=None), pytest.raises(RuntimeError, match="already running"):
-        mcp_pool.start_mcp_server("memory")
+        mcp_pool.start_mcp_server("github")
 
 
 def test_mcp_log_file_path(mock_dirs):
     """Test mcp_log_file returns correct log path."""
-    result = mcp_pool.mcp_log_file("memory")
-    assert "mcp-pool/logs/memory.log" in str(result)
+    result = mcp_pool.mcp_log_file("github")
+    assert "mcp-pool/logs/github.log" in str(result)
 
 
 def test_start_creates_log_file(mock_dirs):
@@ -203,7 +203,7 @@ def test_start_creates_log_file(mock_dirs):
         mock_process.poll.return_value = None
         mock_popen.return_value = mock_process
 
-        mcp_pool.start_mcp_server("memory", "echo test")
+        mcp_pool.start_mcp_server("github", "echo test")
 
         log_dir = mcp_pool.mcp_log_dir()
         assert log_dir.exists()
@@ -255,7 +255,7 @@ def test_validate_mcp_name_invalid():
 
 
 def test_validate_mcp_name_valid():
-    assert mcp_pool.validate_mcp_name("memory") is None
+    assert mcp_pool.validate_mcp_name("github") is None
     assert mcp_pool.validate_mcp_name("my-server-01") is None
 
 
@@ -356,9 +356,9 @@ def test_start_mcp_server_socket_mode_fails(mock_dirs):
         mock_popen.return_value = mock_process
 
         with pytest.raises(RuntimeError, match="Failed to start MCP server"):
-            mcp_pool.start_mcp_server("memory", "npx -y @modelcontextprotocol/server-memory")
+            mcp_pool.start_mcp_server("github", "npx -y @modelcontextprotocol/server-github")
 
-        socket_path = mcp_pool.mcp_socket("memory")
+        socket_path = mcp_pool.mcp_socket("github")
         assert not socket_path.exists()
 
 
@@ -437,8 +437,8 @@ def test_stop_mcp_server_invalid_pid(mock_dirs):
 
 
 def test_mcp_port_file_path(mock_dirs):
-    result = mcp_pool.mcp_port_file("memory")
-    assert "mcp-pool/ports/memory.port" in str(result)
+    result = mcp_pool.mcp_port_file("github")
+    assert "mcp-pool/ports/github.port" in str(result)
 
 
 # --- _pool_main ---
@@ -455,7 +455,7 @@ def test_pool_main_runs_serve(mock_dirs):
         raise KeyboardInterrupt
 
     with (
-        patch("sys.argv", ["mcp_pool", "memory", "echo hello"]),
+        patch("sys.argv", ["mcp_pool", "github", "echo hello"]),
         patch("asyncio.run") as mock_run,
     ):
         mock_run.side_effect = _close_and_interrupt
@@ -463,7 +463,7 @@ def test_pool_main_runs_serve(mock_dirs):
 
         mock_run.assert_called_once()
         # Verify socket directory was created
-        socket_path = mcp_pool.mcp_socket("memory")
+        socket_path = mcp_pool.mcp_socket("github")
         assert socket_path.parent.exists()
 
 

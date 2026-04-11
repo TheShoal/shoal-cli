@@ -296,8 +296,8 @@ class TestMcp:
         data = response.json()
         assert isinstance(data, list)
         names = [item["name"] for item in data]
-        assert "memory" in names
-        assert "filesystem" in names
+        assert "github" in names
+        assert "ploom" in names
 
     async def test_get_mcp_not_found(self, async_client):
         response = await async_client.get("/mcp/nonexistent")
@@ -308,11 +308,11 @@ class TestMcp:
         assert response.status_code == 404
 
     async def test_attach_mcp_session_not_found(self, async_client):
-        response = await async_client.post("/sessions/nonexistent/mcp/memory")
+        response = await async_client.post("/sessions/nonexistent/mcp/github")
         assert response.status_code == 404
 
     async def test_detach_mcp_session_not_found(self, async_client):
-        response = await async_client.delete("/sessions/nonexistent/mcp/memory")
+        response = await async_client.delete("/sessions/nonexistent/mcp/github")
         assert response.status_code == 404
 
     async def test_attach_mcp_auto_start(self, async_client):
@@ -324,7 +324,7 @@ class TestMcp:
             patch("shoal.api.server.is_mcp_running", return_value=False),
             patch(
                 "shoal.core.config.load_mcp_registry",
-                return_value={"memory": "npx -y @modelcontextprotocol/server-memory"},
+                return_value={"github": "npx -y @modelcontextprotocol/server-github"},
             ),
             patch(
                 "shoal.api.server.start_mcp_server",
@@ -333,7 +333,7 @@ class TestMcp:
             patch("shoal.services.mcp_configure.subprocess.run"),
         ):
             mock_socket.return_value = type("P", (), {"exists": lambda self: False})()
-            response = await async_client.post(f"/sessions/{s.id}/mcp/memory")
+            response = await async_client.post(f"/sessions/{s.id}/mcp/github")
             assert response.status_code == 200
             data = response.json()
             assert "Attached" in data["message"]
@@ -753,7 +753,7 @@ class TestMcpStartAndStop:
             patch("shoal.api.server.read_pid", return_value=None),
             patch(
                 "shoal.api.server.start_mcp_server",
-                return_value=(9999, "/tmp/test.sock", "npx memory"),
+                return_value=(9999, "/tmp/test.sock", "npx github"),
             ),
         ):
             sock_path = MagicMock()
@@ -764,11 +764,11 @@ class TestMcpStartAndStop:
 
             response = await async_client.post(
                 "/mcp",
-                json={"name": "memory", "command": "npx memory"},
+                json={"name": "github", "command": "npx github"},
             )
             assert response.status_code == 201
             data = response.json()
-            assert data["name"] == "memory"
+            assert data["name"] == "github"
 
     async def test_start_mcp_server_already_running(self, async_client):
         """Test POST /mcp returns 409 when server is already running."""
@@ -783,7 +783,7 @@ class TestMcpStartAndStop:
 
             response = await async_client.post(
                 "/mcp",
-                json={"name": "memory"},
+                json={"name": "github"},
             )
             assert response.status_code == 409
             assert "already running" in response.json()["detail"]
@@ -804,7 +804,7 @@ class TestMcpStartAndStop:
 
             response = await async_client.post(
                 "/mcp",
-                json={"name": "memory"},
+                json={"name": "github"},
             )
             assert response.status_code == 400
             assert "unknown server" in response.json()["detail"]
@@ -825,7 +825,7 @@ class TestMcpStartAndStop:
 
             response = await async_client.post(
                 "/mcp",
-                json={"name": "memory"},
+                json={"name": "github"},
             )
             assert response.status_code == 500
             assert "socat not found" in response.json()["detail"]
@@ -835,19 +835,19 @@ class TestMcpStartAndStop:
         s = await create_session("mcp-user", "claude", "/tmp/test")
         from shoal.core.state import add_mcp_to_session
 
-        await add_mcp_to_session(s.id, "memory")
+        await add_mcp_to_session(s.id, "github")
 
         with patch("shoal.api.server.stop_mcp_server") as mock_stop:
-            response = await async_client.delete("/mcp/memory")
+            response = await async_client.delete("/mcp/github")
             assert response.status_code == 204
-            mock_stop.assert_called_once_with("memory")
+            mock_stop.assert_called_once_with("github")
 
         # Verify MCP was removed from session
         from shoal.core.state import get_session
 
         updated = await get_session(s.id)
         assert updated is not None
-        assert "memory" not in updated.mcp_servers
+        assert "github" not in updated.mcp_servers
 
     async def test_get_mcp_server_found(self, async_client):
         """Test GET /mcp/{name} returns server info when socket exists."""
@@ -858,13 +858,13 @@ class TestMcpStartAndStop:
         ):
             sock_path = MagicMock()
             sock_path.exists.return_value = True
-            sock_path.__str__ = lambda self: "/tmp/memory.sock"
+            sock_path.__str__ = lambda self: "/tmp/github.sock"
             mock_socket.return_value = sock_path
 
-            response = await async_client.get("/mcp/memory")
+            response = await async_client.get("/mcp/github")
             assert response.status_code == 200
             data = response.json()
-            assert data["name"] == "memory"
+            assert data["name"] == "github"
             assert data["status"] == "running"
             assert data["pid"] == 5678
 
@@ -877,7 +877,7 @@ class TestMcpDetach:
         """Test detach returns 400 when MCP is not attached to session."""
         s = await create_session("no-mcp", "claude", "/tmp/test")
 
-        response = await async_client.delete(f"/sessions/{s.id}/mcp/memory")
+        response = await async_client.delete(f"/sessions/{s.id}/mcp/github")
         assert response.status_code == 400
         assert "not attached" in response.json()["detail"]
 
@@ -886,9 +886,9 @@ class TestMcpDetach:
         s = await create_session("has-mcp", "claude", "/tmp/test")
         from shoal.core.state import add_mcp_to_session
 
-        await add_mcp_to_session(s.id, "memory")
+        await add_mcp_to_session(s.id, "github")
 
-        response = await async_client.delete(f"/sessions/{s.id}/mcp/memory")
+        response = await async_client.delete(f"/sessions/{s.id}/mcp/github")
         assert response.status_code == 204
 
         # Verify MCP was removed
@@ -896,7 +896,7 @@ class TestMcpDetach:
 
         updated = await get_session(s.id)
         assert updated is not None
-        assert "memory" not in updated.mcp_servers
+        assert "github" not in updated.mcp_servers
 
 
 @pytest.mark.asyncio
@@ -939,7 +939,7 @@ class TestMcpAttachEdgeCases:
             patch("shoal.api.server.is_mcp_running", return_value=False),
             patch(
                 "shoal.core.config.load_mcp_registry",
-                return_value={"memory": "npx -y @modelcontextprotocol/server-memory"},
+                return_value={"github": "npx -y @modelcontextprotocol/server-github"},
             ),
             patch(
                 "shoal.api.server.start_mcp_server",
@@ -950,7 +950,7 @@ class TestMcpAttachEdgeCases:
             sock_path.exists.return_value = False
             mock_socket.return_value = sock_path
 
-            response = await async_client.post(f"/sessions/{s.id}/mcp/memory")
+            response = await async_client.post(f"/sessions/{s.id}/mcp/github")
             assert response.status_code == 500
             assert "Failed to auto-start" in response.json()["detail"]
 
@@ -975,7 +975,7 @@ class TestMcpAttachEdgeCases:
             ),
             patch(
                 "shoal.core.config.load_mcp_registry",
-                return_value={"memory": "npx -y @modelcontextprotocol/server-memory"},
+                return_value={"github": "npx -y @modelcontextprotocol/server-github"},
             ),
             patch(
                 "shoal.api.server.start_mcp_server",
@@ -990,10 +990,10 @@ class TestMcpAttachEdgeCases:
             sock_path.__str__ = lambda self: "/tmp/mcp.sock"
             mock_socket.return_value = sock_path
 
-            response = await async_client.post(f"/sessions/{s.id}/mcp/memory")
+            response = await async_client.post(f"/sessions/{s.id}/mcp/github")
             assert response.status_code == 200
             # Verify stale socket cleanup was attempted
-            mock_stop.assert_called_once_with("memory")
+            mock_stop.assert_called_once_with("github")
 
 
 @pytest.mark.asyncio

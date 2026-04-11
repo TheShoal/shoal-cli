@@ -43,13 +43,12 @@ def validate_mcp_name(name: str) -> None:
 
 # Well-known MCP server commands (kept as private fallback; prefer registry)
 _DEFAULT_SERVERS: dict[str, str] = {
-    "memory": "npx -y @modelcontextprotocol/server-memory",
-    "filesystem": "npx -y @modelcontextprotocol/server-filesystem",
     "github": "npx -y @modelcontextprotocol/server-github",
-    "fetch": "npx -y @modelcontextprotocol/server-fetch",
     # Use module invocation to ensure the current Python environment is used.
     # This prevents version mismatches between global and venv installations.
     "shoal-orchestrator": "python -m shoal.services.mcp_shoal_server",
+    # Ploom context layer — work graph queries (Linear, GitHub, sessions)
+    "ploom": "/opt/homebrew/bin/uv --directory /Users/ricardoroche/pantheon/tools/ploom run ploom-mcp-server",
 }
 
 # Public alias kept for backward compatibility in tests / direct imports.

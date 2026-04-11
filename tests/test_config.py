@@ -177,7 +177,7 @@ command = "nvim ."
 [template]
 name = "ai-dev"
 tool = "claude"
-mcp = ["memory", "filesystem"]
+mcp = ["github", "ploom"]
 
 [[windows]]
 name = "editor"
@@ -188,7 +188,7 @@ command = "claude"
 """
         )
         template = load_template("ai-dev")
-        assert template.mcp == ["memory", "filesystem"]
+        assert template.mcp == ["github", "ploom"]
 
     def test_load_template_without_mcp(self, mock_dirs):
         """Template without mcp field defaults to empty list."""
@@ -243,11 +243,10 @@ class TestLoadMcpRegistry:
     def test_load_mcp_registry_defaults(self, mock_dirs):
         """Registry returns built-in defaults when no user file exists."""
         registry = load_mcp_registry()
-        assert "memory" in registry
-        assert "filesystem" in registry
         assert "github" in registry
-        assert "fetch" in registry
-        assert "npx" in registry["memory"]
+        assert "ploom" in registry
+        assert "shoal-orchestrator" in registry
+        assert "npx" in registry["github"]
 
     def test_load_mcp_registry_custom(self, mock_dirs):
         """User file adds new servers to the registry."""
@@ -262,21 +261,21 @@ command = "/usr/local/bin/my-rag-server"
         assert "my-rag" in registry
         assert registry["my-rag"] == "/usr/local/bin/my-rag-server"
         # Built-in defaults still present
-        assert "memory" in registry
+        assert "github" in registry
 
     def test_load_mcp_registry_override(self, mock_dirs):
         """User file can override built-in server commands."""
         tmp_config, _ = mock_dirs
         (tmp_config / "mcp-servers.toml").write_text(
             """
-[memory]
-command = "my-custom-memory-server"
+[github]
+command = "my-custom-github-server"
 """
         )
         registry = load_mcp_registry()
-        assert registry["memory"] == "my-custom-memory-server"
+        assert registry["github"] == "my-custom-github-server"
         # Other defaults still present
-        assert "filesystem" in registry
+        assert "ploom" in registry
 
 
 class TestExamplesDir:
@@ -442,26 +441,26 @@ class TestLoadMcpRegistryFull:
     def test_defaults_present(self, mock_dirs: tuple[Path, Path]) -> None:
         """Built-in defaults are returned even without a user file."""
         registry = load_mcp_registry_full()
-        assert "memory" in registry
-        assert "filesystem" in registry
         assert "github" in registry
-        assert "command" in registry["memory"]
+        assert "ploom" in registry
+        assert "shoal-orchestrator" in registry
+        assert "command" in registry["github"]
 
     def test_user_overrides(self, mock_dirs: tuple[Path, Path]) -> None:
         """User file overrides built-in entries."""
         tmp_config, _ = mock_dirs
         (tmp_config / "mcp-servers.toml").write_text(
             """
-[memory]
-command = "custom-memory"
+[github]
+command = "custom-github"
 transport = "http"
 """
         )
         registry = load_mcp_registry_full()
-        assert registry["memory"]["command"] == "custom-memory"
-        assert registry["memory"]["transport"] == "http"
+        assert registry["github"]["command"] == "custom-github"
+        assert registry["github"]["transport"] == "http"
         # Other defaults still present
-        assert "filesystem" in registry
+        assert "ploom" in registry
 
     def test_user_adds_new_servers(self, mock_dirs: tuple[Path, Path]) -> None:
         """User file can add new servers not in defaults."""
@@ -476,7 +475,7 @@ command = "/usr/local/bin/rag-server"
         assert "my-rag" in registry
         assert registry["my-rag"]["command"] == "/usr/local/bin/rag-server"
         # Defaults still present
-        assert "memory" in registry
+        assert "github" in registry
 
 
 class TestMalformedToml:

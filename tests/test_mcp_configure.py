@@ -210,10 +210,8 @@ class TestConfigureHttpForTool:
         config_path = work_dir / "test_config.json"
         config_path.write_text("invalid json")
 
-        with pytest.raises(McpConfigureError, match="Failed to parse config file"):
+        with pytest.raises(McpConfigureError, match="Failed to parse"):
             _configure_http_for_tool("tool_name", "http_mcp", str(work_dir), 8080, MockMcpCfg())
-
-
 class TestHttpTransportIntegration:
     def test_http_transport_routing(self, mock_dirs, tmp_path):
         from shoal.services.mcp_configure import configure_mcp_for_tool
