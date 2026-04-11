@@ -65,11 +65,15 @@ def main(
 ) -> None:
     """Orchestrate AI coding agents."""
     from shoal.core.logging_config import configure_logging
+    from shoal.services.lifecycle import register_builtin_hooks, register_project_hooks
 
     effective_level = "DEBUG" if debug else log_level
     os.environ["SHOAL_LOG_LEVEL"] = effective_level
     if debug or effective_level != "WARNING" or json_logs or log_file:
         configure_logging(level=effective_level, json_logs=json_logs, log_file=log_file)
+    # Register lifecycle hooks (journal, ploom graph, fish events, etc.)
+    register_builtin_hooks()
+    register_project_hooks()
 
 
 # ---------------------------------------------------------------------------

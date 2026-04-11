@@ -7,10 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.0] "MCP Matrix & hermes Integration" - 2026-04-11
+
+**YAML MCP configs, hermes as single source of truth, sessions × servers matrix UI, and OMP config sync.**
+
+### Added
+- **YAML MCP config support** (`services/mcp_configure.py`): `shoal mcp configure` now reads and writes `mcp-stacks.toml` in YAML format. Auto-detects JSON vs YAML by file extension. Helpers: `_is_yaml_config()`, `_read_config_file()`, `_write_config_file()`.
+- **hermes config import** (`core/config.py`): `~/.hermes/config.yaml` is parsed and merged into the MCP registry on every config load. hermes-managed servers (e.g. `shoal-orchestrator`) appear in `shoal mcp ls` and `/ui/mcp-matrix` automatically.
+- **OMP config sync** (`services/mcp_configure.py`): `configure_omp_mcp()` / `remove_omp_mcp()` write both the worktree `.mcp.json` and the global `~/.omp/agent/config.yml` on every toggle. Dashboard MCP toggle now uses these instead of writing worktree-only config.
+- **MCP Matrix page** (`/ui/mcp-matrix`): Sessions × MCP servers grid at the dashboard with per-session toggle of individual server assignments and group/stack presets. HTMX live-swap grid partial (`/ui/partials/mcp-grid`) with 10s auto-refresh. JSON API at `/ui/partials/mcp-grid?format=json`.
+- **MCP Stacks** (`core/mcp_stacks.py`): `McpStack` model replaces `McpGroup`. Loaded from `~/.config/shoal/mcp-stacks.toml` (renamed from `mcp-groups.toml`). Stack presets are derived from templates and user config, surfaced in the matrix UI.
+- **implicit shoal-orchestrator**: `shoal-orchestrator` is implicitly added to every new session's MCP list at creation time (via `lifecycle.py`), so new sessions can reach the orchestrator without manual `shoal mcp add`.
+- **`shoal mcp registry` command**: `shoal mcp registry` (alias `shoal mcp ls`) now uses `load_mcp_registry_full()` and surfaces HTTP servers with `transport` and `url` fields.
+- **API `/mcp/known` enhancement**: Returns HTTP servers (`pantheon-discord`, `shoal-orchestrator`) with `transport` and `url` fields from the full registry.
+
+### Changed
+- **Groups → Stacks rename**: `McpGroup` → `McpStack`, `mcp_groups` → `mcp_stacks`, `mcp-groups.toml` → `mcp-stacks.toml`, CSS class `mcp-group-*` → `mcp-stack-*`, function `load_mcp_groups()` → `load_mcp_stacks()`. Updated across `core/config.py`, `services/lifecycle.py`, `services/mcp_pool.py`, `dashboard/`, `api/server.py`, and all example configs.
+- **`python-multipart` dep**: Added to dependencies; required by FastAPI `form()` calls in MCP toggle/group-apply routes.
+- **Default MCP servers updated**: `github`, `ploom`, `shoal-orchestrator` replace prior defaults in `shoal mcp configure`.
+
 ### Fixed
 - **`shoal ticket start` Linear lookup**: `LinearBridge.get_issue()` now queries `issue(id: $identifier)` instead of the invalid top-level `issueFilter(...)`, unblocking direct issue fetch by identifier (e.g. `AIA-469`).
 - **`shoal ticket start` branch derivation**: Session worktree/branch names are now normalized to Shoal-valid `category/slug` format (`feat/<identifier>-<title-slug>`) instead of passing Linear user-scoped `branchName` values that can fail validation.
+- **HTTP MCP server URL resolution**: `configure_mcp_for_tool()` now uses the URL from `load_mcp_registry_full()` instead of `read_port()` for HTTP-transport servers, avoiding a hardcoded `:8390` fallback when hermes manages the server on `:8765`.
 - **Worktree dirty check for session creation**: `session_create` now uses `worktree_has_tracked_changes()` (ignores untracked files) so scratch files and local `.shoal/` artifacts no longer block worktree creation.
+
+### Stats
+- ~1640 tests, 1 skipped
 
 ## [0.42.0] "Strategic Investments" - 2026-04-10
 
