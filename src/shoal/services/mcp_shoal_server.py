@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import subprocess
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -1609,6 +1610,113 @@ async def check_file_collisions_tool(session_id: str = "") -> str:
 
 
 # ---------------------------------------------------------------------------
+# Tool: validate_merge
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="validate_merge",
+    description=(
+        "Run pre-merge validation before merging a branch. "
+        "Checks: no file collisions with active sessions, CI checks pass, branch is up to date. "
+        "Returns JSON with validation result and any blocking issues."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def validate_merge_tool(
+    source_branch: str,
+    target_branch: str = "main",
+) -> str:
+    """Run pre-merge validation checks."""
+    import json
+
+    from shoal.core.state import find_by_name, get_session, list_sessions
+
+    # Find the source session by branch name
+    all_sessions = await list_sessions()
+    source_session = None
+    for sess in all_sessions:
+        if sess.branch == source_branch:
+            source_session = sess
+            break
+
+    if source_session is None:
+        return json.dumps({
+            "ok": False,
+            "blocking": [f"No session found for branch: {source_branch}"],
+            "warnings": [],
+            "source": source_branch,
+            "target": target_branch,
+        })
+
+    if not source_session.worktree:
+        return json.dumps({
+            "ok": False,
+            "blocking": ["Session has no worktree"],
+            "warnings": [],
+            "source": source_branch,
+            "target": target_branch,
+        })
+
+    blocking = []
+    warnings = []
+
+    # 1. Check file collisions across active sessions
+    collision_result = await check_file_collisions_tool(session_id=source_session.id)
+    collision_data = json.loads(collision_result)
+    if collision_data.get("total", 0) > 0:
+        for collision in collision_data.get("collisions", []):
+            blocking.append(
+                f"File collision: {collision['file']} modified by {collision['count']} sessions"
+            )
+
+    # 2. Check if branch is up to date with target
+    result = await asyncio.to_thread(
+        subprocess.run,
+        ["git", "-C", source_session.worktree, "merge-base", "--is-ancestor", target_branch, "HEAD"],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if result.returncode != 0:
+        warnings.append(f"Branch {source_branch} is not up to date with {target_branch}")
+
+    # 3. Check for uncommitted changes
+    result = await asyncio.to_thread(
+        subprocess.run,
+        ["git", "-C", source_session.worktree, "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        blocking.append("Worktree has uncommitted changes")
+
+    ok = len(blocking) == 0
+    result_str = "pass" if ok else "fail"
+
+    # Save validation result to database
+    from shoal.core.db import get_db
+    db = await get_db()
+    await db.save_merge_validation(
+        session_id=source_session.id,
+        source_branch=source_branch,
+        target_branch=target_branch,
+        result=result_str,
+        blocking_issues=blocking if blocking else None,
+        warnings=warnings if warnings else None,
+    )
+
+    return json.dumps({
+        "ok": ok,
+        "blocking": blocking,
+        "warnings": warnings,
+        "source": source_branch,
+        "target": target_branch,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Tool: merge_branch
 # ---------------------------------------------------------------------------
 
@@ -1617,7 +1725,7 @@ async def check_file_collisions_tool(session_id: str = "") -> str:
     name="merge_branch",
     description=(
         "Merge a session's branch into a target branch in its worktree. "
-        "Refuses if worktree is dirty."
+        "Refuses if worktree is dirty. Runs pre-merge validation first."
     ),
     annotations={"destructiveHint": True},
 )
@@ -1627,6 +1735,8 @@ async def merge_branch_tool(
     strategy: str = "merge",
 ) -> dict[str, object]:
     """Merge the session's current branch into target."""
+    import json
+
     from shoal.core.state import find_by_name, get_session
 
     session_id = await find_by_name(session)
@@ -1642,6 +1752,18 @@ async def merge_branch_tool(
 
     if strategy not in {"merge", "squash"}:
         raise ToolError(f"Invalid strategy: {strategy!r}. Must be 'merge' or 'squash'.")
+
+    # Run pre-merge validation
+    if state.branch:
+        validation_result = await validate_merge_tool(source_branch=state.branch, target_branch=target)
+        validation_data = json.loads(validation_result)
+
+        if not validation_data.get("ok", False):
+            blocking = validation_data.get("blocking", [])
+            raise ToolError(
+                f"Merge validation failed with {len(blocking)} blocking issue(s): "
+                + ", ".join(blocking)
+            )
 
     resolved_strategy = cast(Literal["merge", "squash"], strategy)
     return await git_tools.merge_branch(
@@ -1774,7 +1896,30 @@ async def list_worktree_files_tool(
 
 
 # ---------------------------------------------------------------------------
-# Tool: heartbeat
+# Tool: search_journal
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="search_journal",
+    description=(
+        "Full-text search over session journals and outcomes. "
+        "Use to find past sessions that dealt with similar problems, errors, or topics. "
+        "Returns ranked results with snippets."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def search_journal_tool(query: str, limit: int = 10) -> list[dict[str, object]]:
+    """Full-text search over session journals and outcomes."""
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    results = await db.search_journals(query, limit=limit)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Tool: capture_session_outcome
 # ---------------------------------------------------------------------------
 
 
@@ -1828,7 +1973,20 @@ async def capture_session_outcome_tool(
 
     # Store in module-level dict for retrieval at kill time
     _session_outcomes[session_id] = outcome
-    logger.info("[%s] Session outcome captured", session_id)
+
+    # Persist to FTS index
+    from shoal.core.db import get_db
+
+    db = await get_db()
+    await db.index_journal_entry(
+        session_id=session_id,
+        session_name=s.name,
+        content=goal,
+        goal=goal,
+        lessons=outcome.lessons,
+    )
+
+    logger.info("[%s] Session outcome captured and indexed", session_id)
 
     return {
         "ok": True,

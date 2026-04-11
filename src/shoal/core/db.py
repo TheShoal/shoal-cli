@@ -253,6 +253,46 @@ class ShoalDB:
             CREATE INDEX IF NOT EXISTS idx_linear_issues_state
             ON linear_issues(state_type)
         """)
+        # Merge validation records.
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS merge_validations (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                source_branch TEXT NOT NULL,
+                target_branch TEXT NOT NULL,
+                result TEXT NOT NULL,
+                blocking_issues TEXT,
+                warnings TEXT,
+                validated_at TEXT NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(id)
+            )
+        """)
+        # Journals table — structured outcome data (non-virtual)
+        await self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS journals (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                session_name TEXT NOT NULL,
+                content TEXT NOT NULL,
+                goal TEXT,
+                lessons TEXT,
+                commands_failed TEXT,
+                fixes_applied TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(id)
+            )
+        """)
+        # FTS5 virtual table for journal full-text search
+        await self._conn.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS journals_fts USING fts5(
+                session_id,
+                session_name,
+                content,
+                goal,
+                lessons,
+                tokenize='porter ascii'
+            )
+        """)
         # Backfill status_since for existing sessions that predate the field.
         # For each session whose serialised JSON lacks status_since, set it to
         # the timestamp of the most recent status_transitions row, or to
@@ -982,6 +1022,50 @@ class ShoalDB:
             await conn.commit()
 
     # -----------------------------------------------------------------------
+    # Merge validation records
+    # -----------------------------------------------------------------------
+
+    async def save_merge_validation(
+        self,
+        session_id: str,
+        source_branch: str,
+        target_branch: str,
+        result: str,
+        blocking_issues: list[str] | None = None,
+        warnings: list[str] | None = None,
+    ) -> str:
+        """Save a merge validation record and return its ID."""
+        import json
+        import uuid
+        from datetime import UTC, datetime
+
+        validation_id = str(uuid.uuid4())
+        now = datetime.now(UTC).isoformat()
+
+        blocking_json = json.dumps(blocking_issues) if blocking_issues else None
+        warnings_json = json.dumps(warnings) if warnings else None
+
+        async with self._connection() as conn:
+            await conn.execute(
+                "INSERT INTO merge_validations"
+                " (id, session_id, source_branch, target_branch, result,"
+                "  blocking_issues, warnings, validated_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    validation_id,
+                    session_id,
+                    source_branch,
+                    target_branch,
+                    result,
+                    blocking_json,
+                    warnings_json,
+                    now,
+                ),
+            )
+            await conn.commit()
+        return validation_id
+
+    # -----------------------------------------------------------------------
     # Agent Bus: session action requests and approval lifecycle
     # -----------------------------------------------------------------------
 
@@ -1093,6 +1177,68 @@ class ShoalDB:
             )
             await conn.commit()
         return await self.get_session_action(action_id)
+
+    # -----------------------------------------------------------------------
+    # Journal FTS index
+    # -----------------------------------------------------------------------
+
+    async def index_journal_entry(
+        self,
+        session_id: str,
+        session_name: str,
+        content: str,
+        goal: str = "",
+        lessons: list[str] | None = None,
+    ) -> None:
+        """Insert a journal entry into the journals table and FTS index."""
+        import json
+        import uuid
+        from datetime import UTC, datetime
+
+        entry_id = str(uuid.uuid4())
+        now = datetime.now(UTC).isoformat()
+        lessons_json = json.dumps(lessons or [])
+
+        async with self._connection() as conn:
+            # Insert into structured table
+            await conn.execute(
+                "INSERT INTO journals (id, session_id, session_name, content, goal, lessons, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (entry_id, session_id, session_name, content, goal, lessons_json, now),
+            )
+            # Insert into FTS index
+            await conn.execute(
+                "INSERT INTO journals_fts (session_id, session_name, content, goal, lessons)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (session_id, session_name, content, goal, " ".join(lessons or [])),
+            )
+            await conn.commit()
+
+    async def search_journals(self, query: str, limit: int = 10) -> list[dict[str, object]]:
+        """FTS5 search over journals. Returns ranked results with snippet."""
+        async with (
+            self._connection() as conn,
+            conn.execute(
+                "SELECT session_id, session_name, content, goal, lessons,"
+                "       snippet(journals_fts, 2, '<b>', '</b>', '…', 10) AS snippet,"
+                "       rank"
+                " FROM journals_fts WHERE journals_fts MATCH ? ORDER BY rank LIMIT ?",
+                (query, limit),
+            ) as cursor,
+        ):
+            rows = await cursor.fetchall()
+        return [
+            {
+                "session_id": row[0],
+                "session_name": row[1],
+                "content": row[2],
+                "goal": row[3],
+                "lessons": row[4],
+                "snippet": row[5],
+                "rank": row[6],
+            }
+            for row in rows
+        ]
 
 
 def _row_to_action(row: Any) -> SessionAction:
