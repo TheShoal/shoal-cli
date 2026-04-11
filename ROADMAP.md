@@ -229,7 +229,7 @@ Released 2026-04-01
 
 > This section is maintained by Claude Code sessions. Each session records what was accomplished and what should happen next, so the next session (which may start with a fresh context) can pick up seamlessly.
 
-### Session: 2026-04-11 — Dev-infrastructure adaptations (Tier 1)
+### Session: 2026-04-11 — Dev-infrastructure adaptations (Tier 1 + Tier 2)
 
 **What we did:**
 
@@ -238,20 +238,25 @@ Shipped (dev-infrastructure adaptations, Tier 1):
 - Session outcome capture: SessionOutcome + capture_session_outcome MCP tool
 - Format-on-write hook: claude_format_on_write.sh + settings snippet
 
+Shipped (dev-infrastructure adaptations, Tier 2):
+- Merge validation pipeline: `merge_validations` table, `validate_merge` MCP tool with collision/up-to-date/uncommitted checks, gate wired into `merge_branch_tool`
+- FTS5 journal search: `journals` table + `journals_fts` FTS5 index, `search_journal` MCP tool with BM25 ranking and snippets, `save_journal_entry()` helper
+- Weekly synthesis: `generate_weekly_synthesis` MCP tool returning structured prompt from journals table, `get_session_outcomes` MCP tool for robo context
+
 **Current state:**
 
-- Branch: `main` (3 repos committed)
-- Tests: shoal-cli 1610 passed, 4 skipped (pre-existing failures in test_cli_report.py); arachne 145 passed
-- Fixed missing `SessionOutcome` import in `mcp_shoal_server.py`
-- No tests exist for new MCP tools yet (not blocking)
-- CHANGELOG and ROADMAP updated
+- Branch: `main` (shoal-cli, 3 parallel agents completed)
+- Tests: 1616 passed, 4 skipped (pre-existing failures in test_cli_report.py — all known)
+- No duplicate tool definitions (verified via grep)
+- CHANGELOG updated (Tier 1 + Tier 2 sections)
+- Tier 2 tools verified: `validate_merge`, `search_journal`, `generate_weekly_synthesis`, `get_session_outcomes` all wired and functional
 
 **What to do next:**
 
-Tier 2 (not yet started):
-- Merge validation pipeline (score: 82/100)
-- FTS5 journal search (score: 65/100)
-- Weekly synthesis prompt generator (score: 70/100)
+Tier 3 (rules files injection):
+- Rules file discovery and injection into agent prompt contexts
+- Per-template rules file overrides
+- Rules file validation and hot-reload
 
 ### Session: 2026-04-09 — Toolchain consolidation (v0.41.0)
 

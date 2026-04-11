@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Added (Tier 1)
 - `SessionOutcome` dataclass in `core/journal.py` for structured session outcome capture
 - `capture_session_outcome` MCP tool for agents to record goals, failures, fixes, lessons
 - `check_file_collisions` MCP tool for detecting file overlap across active sessions
 - `claude_format_on_write.sh` post-tool hook for automatic formatting after Write/Edit
 - `CONFLICTS_WITH` relationship type in Arachne schema for cross-session collision tracking
 - Collision scanner in Minerva with Discord alert rule for critical file overlaps
+
+### Added (Tier 2)
+- `merge_validations` table in SQLite for tracking pre-merge check history
+- `validate_merge` MCP tool with collision detection, up-to-date check, and uncommitted change detection
+- Merge validation gate wired into `merge_branch_tool` — blocks merges with critical issues
+- `journals` table with FTS5 virtual table for full-text search over session outcomes
+- `search_journal` MCP tool for ranked full-text search with snippets
+- `generate_weekly_synthesis` MCP tool returning structured prompt for weekly review
+- `get_session_outcomes` MCP tool for querying recent session outcomes
 
 ## [0.43.0] "MCP Matrix & hermes Integration" - 2026-04-11
 
