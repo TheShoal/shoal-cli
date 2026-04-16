@@ -44,7 +44,7 @@ async def _attach_impl(session_name_or_id: str | None) -> None:
     if not s:
         raise typer.Exit(1)
     provider = provider_for_session(s)
-    if not provider.exists(s):
+    if not await provider.async_exists(s):
         get_console().print(
             "[red]Runtime session "
             f"'{s.tmux_runtime.session_name}' not found (session may have died)[/red]"

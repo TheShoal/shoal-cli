@@ -2024,18 +2024,34 @@ def _init_ploom_hooks() -> None:
         return
     _registered.add("ploom")
     try:
-        from ploom.hooks import (
+        import sys
+
+        # Add arachne source path if not already present
+        arachne_path = "/Users/ricardoroche/pantheon/tools/arachne/src"
+        if arachne_path not in sys.path:
+            sys.path.insert(0, arachne_path)
+        from arachne.hooks import (
+            on_session_completed,
             on_session_created,
             on_session_killed,
             on_status_changed,
         )
     except ImportError:
-        return  # ploom not installed — skip silently
+        try:
+            from ploom.hooks import (
+                on_session_completed,
+                on_session_created,
+                on_session_killed,
+                on_status_changed,
+            )
+        except ImportError:
+            return  # neither arachne nor ploom installed — skip silently
 
     on(LifecycleEvent.session_created, on_session_created)
     on(LifecycleEvent.session_forked, on_session_created)
     on(LifecycleEvent.status_changed, on_status_changed)
     on(LifecycleEvent.session_killed, on_session_killed)
+    on(LifecycleEvent.session_completed, on_session_completed)
 
 
 def register_builtin_hooks() -> None:

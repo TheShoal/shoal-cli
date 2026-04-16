@@ -611,7 +611,7 @@ async def attach_session_api(session_id: str) -> dict[str, str]:
     if s.runtime.kind != RuntimeKind.tmux:
         raise HTTPException(status_code=400, detail="Attach is only supported for tmux sessions")
     provider = provider_for_session(s)
-    if not provider.exists(s):
+    if not await provider.async_exists(s):
         raise HTTPException(status_code=400, detail="Runtime session not found")
     provider.attach(s)
     return {"message": f"Attached to {s.tmux_runtime.session_name}"}

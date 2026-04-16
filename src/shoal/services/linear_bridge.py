@@ -611,7 +611,7 @@ def get_linear_bridge() -> LinearBridge:
     return LinearBridge(api_key)
 
 
-async def hook_linear_on_complete(**kwargs: Any) -> None:
+async def hook_linear_on_complete(event: Any, **kwargs: Any) -> None:
     """Lifecycle hook: update Linear issue status when a tagged session completes.
 
     Registered on ``session_completed``. Silently skips if no API key is configured

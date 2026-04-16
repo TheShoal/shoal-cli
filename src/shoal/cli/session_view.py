@@ -103,7 +103,7 @@ async def _ls_impl(format: str | None, *, tag: str | None = None, tree: bool = F
             icon = _get_tool_icon(s.tool)
 
             is_ghost = False
-            if s.status.value != "stopped" and not provider_for_session(s).exists(s):
+            if s.status.value != "stopped" and not await provider_for_session(s).async_exists(s):
                 is_ghost = True
 
             status_icon = get_status_icon(s.status.value, use_nerd=use_nerd)
@@ -422,7 +422,7 @@ async def _info_impl(session_name_or_id: str | None, color_setting: str) -> None
     )
 
     provider = provider_for_session(s)
-    if provider.exists(s):
+    if await provider.async_exists(s):
         info_console.print(f"\n[bold]{Icons.OUTPUT} Recent Output:[/bold]")
         include_ansi = color_setting == "always"
         preview_lines = 15
@@ -485,7 +485,7 @@ async def _logs_impl(
         raise typer.Exit(1)
 
     provider = provider_for_session(s)
-    if not provider.exists(s):
+    if not await provider.async_exists(s):
         get_console().print(f"[red]Runtime session not found: {s.tmux_runtime.session_name}[/red]")
         raise typer.Exit(1)
 

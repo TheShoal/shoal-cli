@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from rich.console import Console
 from typer.testing import CliRunner
@@ -125,7 +125,7 @@ class TestLsFormatting:
         test_console = Console(file=output, width=90, force_terminal=False)
 
         mock_provider = MagicMock()
-        mock_provider.exists.return_value = True
+        mock_provider.async_exists = AsyncMock(return_value=True)
         with (
             patch("shoal.cli.session_view.get_console", return_value=test_console),
             patch("shoal.cli.session_view.list_sessions", return_value=sessions),
@@ -156,7 +156,7 @@ class TestInfoCommand:
             return s.id
 
         mock_provider = MagicMock()
-        mock_provider.exists.return_value = False
+        mock_provider.async_exists = AsyncMock(return_value=False)
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
@@ -177,7 +177,7 @@ class TestInfoCommand:
             return s.id
 
         mock_provider = MagicMock()
-        mock_provider.exists.return_value = True
+        mock_provider.async_exists = AsyncMock(return_value=True)
         mock_provider.capture_output.return_value = "hello output\nline 2\n"
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
@@ -199,7 +199,7 @@ class TestInfoCommand:
             return s.id
 
         mock_provider = MagicMock()
-        mock_provider.exists.return_value = False
+        mock_provider.async_exists = AsyncMock(return_value=False)
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
@@ -219,7 +219,7 @@ class TestInfoCommand:
             return s.id
 
         mock_provider = MagicMock()
-        mock_provider.exists.return_value = False
+        mock_provider.async_exists = AsyncMock(return_value=False)
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),
             patch("shoal.core.state.resolve_session", side_effect=mock_resolve),
@@ -239,7 +239,7 @@ class TestInfoCommand:
             return s.id
 
         mock_provider = MagicMock()
-        mock_provider.exists.return_value = True
+        mock_provider.async_exists = AsyncMock(return_value=True)
         mock_provider.capture_output.return_value = ""
         with (
             patch("shoal.cli.session_view.get_session", return_value=s),

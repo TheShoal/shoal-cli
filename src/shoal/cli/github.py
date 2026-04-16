@@ -33,7 +33,10 @@ async def _emit_binding_change(
 ) -> None:
     """Best-effort bridge to Arachne binding-change hooks if installed."""
     try:
-        from ploom.hooks import on_session_binding_changed
+        try:
+            from arachne.hooks import on_session_binding_changed
+        except ImportError:
+            from ploom.hooks import on_session_binding_changed
     except ImportError:
         return
     await on_session_binding_changed(
