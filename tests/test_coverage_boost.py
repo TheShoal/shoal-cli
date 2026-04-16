@@ -113,7 +113,7 @@ split = "root"
 
         result = runner.invoke(template_app, ["ls"])
         assert result.exit_code == 0
-        assert "invalid" in result.output and "template" in result.output
+        assert "empty command" in result.output or "invalid" in result.output
 
     def test_ls_with_multiple_windows_and_panes(self, mock_dirs: tuple[Path, Path]) -> None:
         """template ls correctly counts windows and panes."""

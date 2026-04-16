@@ -131,11 +131,11 @@ class TestExtendsResolution:
         t = load_template("child")
         assert sorted(t.mcp) == ["github", "memory"]
 
-    def test_windows_replace_when_child_defines(
+    def test_windows_deep_merge_by_name(
         self,
         mock_dirs: tuple[Path, Path],
     ) -> None:
-        """Child windows replace parent windows entirely."""
+        """Child windows are deep-merged with parent by name; unmatched appended."""
         tmp_config, _ = mock_dirs
         templates = tmp_config / "templates"
         _write_template(templates, "base", BASE_TEMPLATE)
@@ -156,8 +156,11 @@ command = "my-tool"
 """,
         )
         t = load_template("child-with-windows")
-        assert len(t.windows) == 1
+        # "custom" (child) + "editor" (parent, not overridden)
+        assert len(t.windows) == 2
         assert t.windows[0].name == "custom"
+        assert t.windows[0].panes[0].command == "my-tool"
+        assert t.windows[1].name == "editor"
 
     def test_windows_inherit_when_child_empty(
         self,
@@ -975,3 +978,213 @@ def test_bundled_uv_dev_mixin_parses_correctly() -> None:
     assert mixin.env == {}
     assert mixin.mcp == []
     assert mixin.windows == []
+
+
+# ---------------------------------------------------------------------------
+# Deep-merge and [[template.windows]] tests (S3 fix)
+# ---------------------------------------------------------------------------
+
+
+class TestDeepMergeWindows:
+    """Window deep-merge: matching by name, pane command inheritance."""
+
+    def test_child_overrides_parent_window_pane_command(
+        self,
+        mock_dirs: tuple[Path, Path],
+    ) -> None:
+        """Child window with same name as parent overrides pane commands."""
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        _write_template(
+            templates,
+            "parent-3pane",
+            """\
+[template]
+name = "parent-3pane"
+tool = "omp"
+
+[[windows]]
+name = "main"
+
+[[windows.panes]]
+split = "root"
+size = "60%"
+title = "agent"
+command = "{tool_command}"
+
+[[windows.panes]]
+split = "right"
+size = "40%"
+title = "terminal"
+command = "fish"
+""",
+        )
+        _write_template(
+            templates,
+            "child-override",
+            """\
+[template]
+name = "child-override"
+extends = "parent-3pane"
+
+[[template.windows]]
+name = "main"
+
+[[template.windows.panes]]
+split = "root"
+size = "60%"
+title = "agent"
+command = "{tool_command} --no-session --model openrouter/z-ai/glm-5.1"
+
+[[template.windows.panes]]
+split = "right"
+size = "40%"
+title = "terminal"
+command = "fish"
+""",
+        )
+        t = load_template("child-override")
+        assert len(t.windows) == 1
+        assert t.windows[0].name == "main"
+        assert (
+            t.windows[0].panes[0].command
+            == "{tool_command} --no-session --model openrouter/z-ai/glm-5.1"
+        )
+        assert t.windows[0].panes[1].command == "fish"
+
+    def test_child_inherits_parent_pane_command_when_empty(
+        self,
+        mock_dirs: tuple[Path, Path],
+    ) -> None:
+        """Child pane without command inherits parent pane command."""
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        _write_template(
+            templates,
+            "parent-3pane",
+            """\
+[template]
+name = "parent-3pane"
+tool = "omp"
+
+[[windows]]
+name = "main"
+
+[[windows.panes]]
+split = "root"
+size = "60%"
+title = "agent"
+command = "{tool_command}"
+
+[[windows.panes]]
+split = "right"
+size = "40%"
+title = "terminal"
+command = "fish"
+""",
+        )
+        _write_template(
+            templates,
+            "child-cwd-only",
+            """\
+[template]
+name = "child-cwd-only"
+extends = "parent-3pane"
+
+[[template.windows]]
+name = "main"
+cwd = "{git_root}/tools"
+
+[[template.windows.panes]]
+split = "root"
+""",
+        )
+        t = load_template("child-cwd-only")
+        assert len(t.windows) == 1
+        assert t.windows[0].cwd == "{git_root}/tools"
+        # Inherited from parent
+        assert t.windows[0].panes[0].command == "{tool_command}"
+        assert t.windows[0].panes[0].title == "agent"
+        assert t.windows[0].panes[0].size == "60%"
+
+    def test_template_windows_nested_under_template_key(
+        self,
+        mock_dirs: tuple[Path, Path],
+    ) -> None:
+        """[[template.windows]] is parsed correctly (not just [[windows]])."""
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        _write_template(
+            templates,
+            "nested-windows",
+            """\
+[template]
+name = "nested-windows"
+tool = "omp"
+
+[[template.windows]]
+name = "main"
+
+[[template.windows.panes]]
+split = "root"
+command = "{tool_command} --no-session"
+""",
+        )
+        t = load_template("nested-windows")
+        assert len(t.windows) == 1
+        assert t.windows[0].panes[0].command == "{tool_command} --no-session"
+
+    def test_parent_windows_appended_when_not_overridden(
+        self,
+        mock_dirs: tuple[Path, Path],
+    ) -> None:
+        """Parent windows not matched by child name are preserved."""
+        tmp_config, _ = mock_dirs
+        templates = tmp_config / "templates"
+        _write_template(
+            templates,
+            "parent-multi",
+            """\
+[template]
+name = "parent-multi"
+tool = "omp"
+
+[[windows]]
+name = "editor"
+focus = true
+
+[[windows.panes]]
+split = "root"
+command = "{tool_command}"
+
+[[windows]]
+name = "monitor"
+
+[[windows.panes]]
+split = "root"
+command = "watch ls"
+""",
+        )
+        _write_template(
+            templates,
+            "child-override-one",
+            """\
+[template]
+name = "child-override-one"
+extends = "parent-multi"
+
+[[template.windows]]
+name = "editor"
+
+[[template.windows.panes]]
+split = "root"
+command = "{tool_command} --no-session"
+""",
+        )
+        t = load_template("child-override-one")
+        # "editor" (overridden) + "monitor" (inherited from parent)
+        assert len(t.windows) == 2
+        assert t.windows[0].name == "editor"
+        assert t.windows[0].panes[0].command == "{tool_command} --no-session"
+        assert t.windows[1].name == "monitor"
+        assert t.windows[1].panes[0].command == "watch ls"

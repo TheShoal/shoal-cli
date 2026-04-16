@@ -54,7 +54,7 @@ class TemplatePaneConfig(BaseModel):
     split: Literal["root", "right", "down"] = "root"
     size: str = ""
     title: str = ""
-    command: str
+    command: str = ""
 
     @field_validator("size")
     @classmethod

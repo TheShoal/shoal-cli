@@ -21,6 +21,8 @@ from shoal.models.config.templates import (
     SessionTemplateConfig,
     TemplateGitConfig,
     TemplateMixinConfig,
+    TemplatePaneConfig,
+    TemplateWindowConfig,
     TemplateWorktreeConfig,
 )
 from shoal.models.config.tools import (
@@ -475,7 +477,9 @@ def _parse_template_data(
     git_section = template_section.get("git", {})
     env_section = template_section.get("env", {})
     mcp_section = template_section.get("mcp", [])
-    windows_section = data.get("windows", [])
+    # Windows can appear as top-level [[windows]] or nested [[template.windows]].
+    # Support both conventions; template-nested takes precedence if present.
+    windows_section = template_section.get("windows", data.get("windows", []))
 
     try:
         return SessionTemplateConfig(
@@ -497,6 +501,56 @@ def _parse_template_data(
         raise ConfigLoadError(f"template '{name}'", f"invalid template: {e}") from e
 
 
+def _merge_pane(
+    parent: TemplatePaneConfig,
+    child: TemplatePaneConfig,
+) -> TemplatePaneConfig:
+    """Deep-merge a child pane over a parent pane.
+
+    Child fields that are non-empty win; parent fills gaps.
+    When a child pane omits ``command`` (empty string), it inherits the
+    parent pane's command — this allows child templates to override only
+    structural fields (``split``, ``size``, ``title``) or ``cwd`` without
+    repeating the tool command.
+    """
+    return TemplatePaneConfig(
+        split=child.split if child.split != "root" or parent.split == "root" else parent.split,
+        size=child.size or parent.size,
+        title=child.title or parent.title,
+        command=child.command or parent.command,
+    )
+
+
+def _merge_window(
+    parent: TemplateWindowConfig,
+    child: TemplateWindowConfig,
+) -> TemplateWindowConfig:
+    """Deep-merge a child window over a parent window.
+
+    Child window-level fields (name, cwd, layout, focus) override parent.
+    Panes are merged by index: each child pane inherits missing fields from
+    the parent pane at the same position.  Extra child or parent panes are
+    appended.
+    """
+    merged_panes: list[TemplatePaneConfig] = []
+    max_panes = max(len(parent.panes), len(child.panes))
+    for i in range(max_panes):
+        p_pane = parent.panes[i] if i < len(parent.panes) else None
+        c_pane = child.panes[i] if i < len(child.panes) else None
+        if p_pane and c_pane:
+            merged_panes.append(_merge_pane(p_pane, c_pane))
+        else:
+            merged_panes.append(c_pane or p_pane)
+
+    return TemplateWindowConfig(
+        name=child.name or parent.name,
+        cwd=child.cwd or parent.cwd,
+        layout=child.layout or parent.layout,
+        focus=child.focus or parent.focus,
+        panes=merged_panes,
+    )
+
+
 def _merge_templates(
     parent: SessionTemplateConfig,
     child: SessionTemplateConfig,
@@ -510,7 +564,7 @@ def _merge_templates(
     - git: child wins if [template.git] present in TOML
     - env: parent | child (child wins on conflicts)
     - mcp: union, deduplicated, sorted
-    - windows: child replaces parent entirely if child defines any
+    - windows: deep-merge by name; child panes inherit from parent panes
     - setup_commands: child replaces parent if explicitly set in TOML
     """
     child_tmpl = child_raw.get("template", {})
@@ -521,7 +575,24 @@ def _merge_templates(
     git = child.git if "git" in child_tmpl else parent.git
     merged_env = {**parent.env, **child.env}
     merged_mcp = sorted(set(parent.mcp) | set(child.mcp))
-    merged_windows = child.windows if child.windows else parent.windows
+
+    # Deep-merge windows: match by name, inherit pane layout from parent
+    if child.windows:
+        parent_by_name = {w.name: w for w in parent.windows}
+        merged_windows: list[TemplateWindowConfig] = []
+        used_parent_names: set[str] = set()
+        for cw in child.windows:
+            pw = parent_by_name.get(cw.name)
+            if pw:
+                merged_windows.append(_merge_window(pw, cw))
+                used_parent_names.add(cw.name)
+            else:
+                merged_windows.append(cw)
+        # Append parent windows not overridden by child
+        merged_windows.extend(pw for pw in parent.windows if pw.name not in used_parent_names)
+    else:
+        merged_windows = parent.windows
+
     setup_commands = (
         child.setup_commands if "setup_commands" in child_tmpl else parent.setup_commands
     )
@@ -576,6 +647,17 @@ def resolve_template(
         mixin = load_mixin(mixin_name)
         child = _apply_mixin(child, mixin)
 
+    # 3. Validate that all resolved pane commands are non-empty.
+    #    Empty commands are allowed during merge (child inherits from parent),
+    #    but the final resolved template must have a command for every pane.
+    for w in child.windows:
+        for p in w.panes:
+            if not p.command:
+                raise ConfigLoadError(
+                    f"template '{name}'",
+                    f"window '{w.name}' pane has empty command after resolution",
+                )
+
     return child
 
 
@@ -600,7 +682,9 @@ def load_mixin(name: str) -> TemplateMixinConfig:
         raise ConfigLoadError(path, f"malformed TOML: {e}") from e
 
     mixin_section = data.get("mixin", {})
-    windows_section = data.get("windows", [])
+    # Windows in mixins can appear as [[windows]] or [[mixin.windows]].
+    # Support both conventions; mixin-nested takes precedence if present.
+    windows_section = mixin_section.get("windows", data.get("windows", []))
 
     try:
         return TemplateMixinConfig(
